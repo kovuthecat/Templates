@@ -1,5 +1,8 @@
 # PROJECT_BRIEF.md
 
+> À l'instanciation : **supprimer les sections non pertinentes** plutôt que de les laisser vides —
+> une section vide est du bruit payé à chaque lecture.
+
 ## Objectif du projet
 
 Décrire en 3 à 5 lignes ce que le projet doit accomplir.
@@ -32,27 +35,12 @@ Décrire en 3 à 5 lignes ce que le projet doit accomplir.
 - Hébergement :
 - Autres services :
 
-## Contraintes produit et techniques
+## Contraintes et priorités
 
-- Simplicité prioritaire
-- Faible coût
-- Maintenabilité
-- Mobile first si pertinent
-- Pas de dépendance lourde sans justification
-- Pas de refactor global sans bénéfice clair
+Priorités génériques (simplicité, maintenabilité, compatibilité IA) : `CONVENTIONS.md` — ne pas recopier.
+Noter ici **uniquement** les contraintes spécifiques au projet :
 
-## Contraintes IA
-
-Tâches courtes et ciblées, architecture lisible avec peu de contexte, peu de
-fichiers par tâche. Workflow et répartition des modèles : voir `WORKFLOW.md`.
-
-## Priorités
-
-1. Fonctionnel
-2. Simple
-3. Maintenable
-4. Documenté
-5. Extensible seulement si nécessaire
+-
 
 ## Risques connus
 

@@ -32,20 +32,21 @@ il pointe vers le reste, sans le recopier.
 
 ## Règles générales
 
-- Avant une tâche importante : `PROJECT_BRIEF.md` (produit), `DECISIONS.md` (archi), `PROJECT_MAP.md` (localisation).
 - Modifier le minimum de fichiers, garder le style existant. Simplicité > cosmétique.
 - Pas de refactor global, changement de stack ou dépendance sans validation. Conventions : `CONVENTIONS.md`.
+- **Cadrage uniquement** (pas de plan existant) : lire `PROJECT_BRIEF.md` (produit), `DECISIONS.md` (archi),
+  `PROJECT_MAP.md` (localisation). Un exécutant qui a un `T<n>.md` ne lit QUE les fichiers listés dans sa tâche.
 
 ## Dépendances
 
 Un exécutant n'ajoute **jamais** de dépendance de lui-même : si une tâche en requiert une, elle
-est déjà tranchée dans « Modifier » de son plan. Sinon → **STOP**. Barème complet : `WORKFLOW.md`.
+est déjà tranchée dans « Modifier » de son plan. Sinon → **STOP**.
 
 ## Validation
 
 - **Auto (bloque le commit)** : `build` + `typecheck` (+ tests unitaires si la logique est pure).
 - **Visuel / UX (humain, non bloquant)** : Claude ne l'évalue pas — il consigne une checklist dans `VALIDATION.md`.
-- **Jamais** de Playwright / navigateur / capture d'écran pour valider l'UI.
+- **Jamais** de Playwright / navigateur / capture d'écran pour valider l'UI — les audits visuels sont le rôle de Codex (`AGENTS.md`).
 
 En mode autonome : enchaîner les tâches (gate = Auto), accumuler `VALIDATION.md`, rendre la main en fin de lot.
 
@@ -54,19 +55,15 @@ En mode autonome : enchaîner les tâches (gate = Auto), accumuler `VALIDATION.m
 Plan court (max 5 lignes) : objectif, fichiers concernés, 3-5 étapes, risques. Pas d'analyse longue.
 Si les fichiers ne sont pas évidents : investiguer sans rien modifier (checklist : `WORKFLOW.md` §5).
 
-## Modèles, tâches & plans
+**Une tâche = une session.** `/clear` (ou nouvelle session) entre deux tâches : le détail d'exécution
+vit dans le seul `T<n>.md` de la tâche en cours — ne pas traîner le contexte d'une tâche dans la suivante.
 
-- **Opus** conçoit et rédige les plans ; les autres exécutent. Grille modèle/effort : `WORKFLOW.md` §1-3.
-- Backlog et tâches : `TASKS.md` (index). Chaque tâche active a son plan dans `plans/PLAN_<id>.md`
-  (format : `WORKFLOW.md` §4). Un exécutant ne lit que les fichiers listés dans sa tâche.
-- **Codex** : instructions dans `AGENTS.md`.
+## Plans & modèles
 
-## Après modification
+Backlog : `TASKS.md`. Un plan = un dossier `plans/P<n>/` : un `index.md` (liste des tâches) + un fichier
+par tâche `T<n>.md`. Un exécutant repère sa tâche dans l'`index.md` puis travaille dans le seul `T<n>.md`.
+Format des plans, grille modèle/effort, checklist d'investigation : `WORKFLOW.md`.
 
-1. Mettre à jour `STATUS.md` ; les autres fichiers de contexte **seulement si leur contenu change**
-   (un fichier de contexte faux est pire qu'absent). Passer la tâche à `[x]` dans `TASKS.md`.
-2. Fin de session : `git status`, commit atomique, push.
+## Fin de tâche
 
-## Rapport de fin de tâche
-
-Fichiers modifiés · Résumé · Tests lancés · À valider visuellement (→ `VALIDATION.md`) · Prochaine action.
+Dérouler la skill `/fin-de-tache` (statuts, `STATUS.md`, rapport, commit atomique).

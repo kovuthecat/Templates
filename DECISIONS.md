@@ -2,6 +2,11 @@
 
 Journal des décisions techniques et produit.
 
+> **Archivage** : ce fichier est relu à chaque cadrage — son coût croît avec le projet. Déplacer les
+> décisions caduques ou remplacées dans la section `## Archives` en fin de fichier (une ligne : date,
+> titre, remplacée par quoi). Les plans pointent vers une section précise (ex. « §Auth ») plutôt que
+> vers le fichier entier.
+
 ## Format recommandé
 
 ```md
@@ -36,4 +41,10 @@ Une ligne si la décision change la complexité, le contexte nécessaire ou `PRO
 ---
 
 ## Décisions
+
+---
+
+## Archives
+
+> Une ligne par décision caduque : `YYYY-MM-DD — Titre — remplacée par <décision/date>`.
 

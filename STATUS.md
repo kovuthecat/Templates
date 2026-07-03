@@ -1,9 +1,8 @@
 # STATUS.md
 
 Photo à l'instant T : ce qui marche, ce qui casse. Mis à jour en fin de session.
+Rester court : purger ce qui est résolu (frontières entre fichiers : voir `TASKS.md`).
 
-> **Frontières** — STATUS : l'état actuel · `TASKS.md` : backlog + tâches (le *quoi*) · `plans/` : le *comment* d'une tâche active · `VALIDATION.md` : checklist visuelle.
->
 > **Dernière mise à jour :** YYYY-MM-DD
 
 ## Phase actuelle

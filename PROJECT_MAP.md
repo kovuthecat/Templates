@@ -4,6 +4,9 @@ Carte synthétique du projet.
 
 Objectif : permettre aux modèles d’identifier rapidement les zones pertinentes sans explorer tout le repo.
 
+> À l’instanciation : **supprimer les sections non pertinentes** plutôt que de les laisser vides.
+> Dupliquer le bloc « Feature » autant de fois que nécessaire.
+
 À mettre à jour quand :
 - une feature importante est ajoutée ;
 - une responsabilité de fichier change ;
@@ -40,25 +43,6 @@ Adapter cette section au repo réel.
 ## Features principales
 
 ### Feature 1 — Nom de la feature
-
-Rôle :
--
-
-Fichiers clés :
--
-
-Flux principal :
--
-
-Dépendances internes :
--
-
-Points de vigilance :
--
-
----
-
-### Feature 2 — Nom de la feature
 
 Rôle :
 -
