@@ -38,7 +38,7 @@ le faire.
 | [S1](S1.md) | T1-T3 | Refonte Templates : CLAUDE-BASE, README, CHANGELOG | Sonnet | medium | — | racine `Templates/` | [ ] |
 | [S2](S2.md) | T4 | Rédiger MIGRATION.md | Sonnet | high | S1 | `Templates/MIGRATION.md` | [x] |
 | [S3](S3.md) | T5-T6 | Skill niveau utilisateur + permission globale | Haiku | low | — | `~/.claude/` | [ ] |
-| [S4](S4.md) | T7 | Migration pilote (1er projet retravaillé) | Sonnet | medium | S1-S3 | repo du projet pilote | [ ] |
+| [S4](S4.md) | T7 | Migration pilote (1er projet retravaillé) | Sonnet | medium | S1-S3 | repo du projet pilote | [x] |
 
 ## Ordonnancement
 
@@ -54,6 +54,8 @@ le faire.
 
 ## Projets candidats à la migration (ordre = prochaine reprise probable)
 
-cosme-diy · app-rectte-course-md (`fichierscontexte/`) · FermentLab (`CONTEXTE/fermentlab-context/`) ·
-ETP interactif · Chords (⚠ `vercel.json` intouchable) · DoxUploader · Outils/motif-layout ·
-Outils/laser-tools (SPEC.md) · MYO/Vscode (méta my-ai-workflow 2026-05).
+~~ETP interactif~~ · ~~Chords~~ · ~~S&C (ex-app-rectte-course-md, `fichierscontexte/`)~~ — migrés
+2026-07-07 (voir `MIGRATION.md` §Annexe pour le détail par projet).
+
+Restants : cosme-diy · FermentLab (`CONTEXTE/fermentlab-context/`) · DoxUploader ·
+Outils/motif-layout · Outils/laser-tools (SPEC.md) · MYO/Vscode (méta my-ai-workflow 2026-05).

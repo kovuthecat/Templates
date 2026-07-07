@@ -25,9 +25,10 @@ Localiser les fichiers de contexte réels du projet sans préjugé d'emplacement
 ordre :
 
 - racine du repo (nom standard ou approchant)
-- `fichierscontexte/` (variante rencontrée : app-rectte-course-md)
+- `fichierscontexte/` (variante rencontrée : S&C, ex-app-rectte-course-md)
 - `CONTEXTE/<x>-context/` (variante rencontrée : FermentLab)
-- `SPEC.md`, `ROADMAP.md`, `PLAN_*.md` (variantes rencontrées : ETP interactif, laser-tools)
+- `Contexte/` — sous-dossier racine, y compris ses propres `plans/` (variante rencontrée : Chords)
+- `SPEC.md`, `ROADMAP.md`, `PLAN_*.md` (variantes rencontrées : ETP interactif, laser-tools, Chords)
 - ancien format `plans/PLAN_<id>.md` et `T<n>.md` (avant la refonte `plans/P<n>/S<k>.md`)
 - `PROJECT_BRIEF`/`DECISIONS` sous d'autres noms (`BRIEF.md`, `NOTES_ARCHITECTURE.md`, etc.)
 - `CLAUDE.md` existant, `AGENTS.md` existant
@@ -58,6 +59,29 @@ Pour chaque fichier trouvé, décider :
 - **Spécifique** → conserver tel quel. Ne renommer/déplacer vers un nom standard que si trivial et
   sans casser de renvois existants (liens internes, scripts qui lisent le fichier par son chemin
   actuel).
+- **Déplacement d'un sous-dossier vers la racine** (`Contexte/`, `fichierscontexte/`,
+  `CONTEXTE/<x>-context/`) : après déplacement, grep les anciens chemins relatifs (ex.
+  `Contexte/DECISIONS.md`) dans les fichiers déplacés eux-mêmes et corriger mécaniquement les
+  renvois internes cassés par le déplacement (retirer le préfixe de dossier) — ne pas réparer au
+  passage des renvois qui étaient déjà morts avant la migration (hors périmètre).
+- **`ROADMAP.md` séparé** : pas de règle unique — le squelette central `PROJECT_BRIEF.md` prévoit
+  une section « Roadmap / jalons ». Fusionner dedans si le fichier est court et peu référencé
+  ailleurs (fait pour S&C) ; le laisser en fichier séparé à la racine s'il est volumineux et
+  référencé activement par d'autres fichiers de contexte (fait pour Chords, ETP interactif). En
+  cas de doute, préférer le laisser séparé (moins de risque de perte/reformulation de contenu).
+- **Contenu spécifique existant sous un nom non standard, avec renvois internes multiples qui
+  bloquent le renommage trivial** (ex. `docs/architecture.md` référencé par 2 autres fichiers,
+  rencontré sur ETP interactif) : laisser en place, ne pas créer de squelette `ARCHITECTURE.md`
+  vide en doublon à côté (source de confusion) — signaler dans le rapport et laisser la décision
+  de renommage à un futur cadrage produit humain.
+- **README.md jouant le rôle d'un README workflow local** (liste les fichiers de cadrage à donner
+  à un assistant, façon `Templates/README.md`, plutôt que de décrire le produit — rencontré sur
+  S&C) : traiter comme générique/obsolète même si le nom de fichier est `README.md` et non un nom
+  de template classique.
+- **Fichiers spécifiques hors liste standard mais à forte valeur** (rapports d'audit ponctuels,
+  anciens plans clôturés type `PLAN_<nom>.md` pré-refonte, `ROADMAP.md` non fusionné) : conserver
+  à la racine par défaut (pas de sous-dossier d'archive imposé) ; question ouverte plus bas sur un
+  éventuel rangement futur.
 
 ## §Étape 3 — CLAUDE.md & skill
 
@@ -89,10 +113,27 @@ Pour chaque fichier trouvé, décider :
   « mettre à jour STATUS/TASKS/ROADMAP avant chaque commit ».
 - **FermentLab** : fichiers de contexte sous `CONTEXTE/fermentlab-context/`.
 - **Chords** : `vercel.json` **INTOUCHABLE** — ne jamais le supprimer (point d'entrée Vercel Flask ;
-  déjà cause de 404 en prod deux fois).
+  déjà cause de 404 en prod deux fois). Fichiers de contexte rangés sous `Contexte/` (racine),
+  y compris `Contexte/plans/` — migré par déplacement vers la racine + correction de 12 renvois
+  internes cassés (`Contexte/X.md` → `X.md`). `AGENTS.md` racine était mixte (générique Codex +
+  garde-fous spécifiques `generate_docx.py`/`memo.py`). Migré le 2026-07-07, commit `d9e0df4`.
 - **laser-tools** : lire `SPEC.md` avant toute modification.
+- **ETP interactif** : `docs/architecture.md` = contenu réel équivalent à `ARCHITECTURE.md` mais
+  référencé par 2 fichiers (`PLAN_modules-tabac.md`, `docs/DESIGN_REFONTE.md`) sous ce chemin —
+  laissé en place, pas de renommage. Migré le 2026-07-07, commit `f026ead`.
+- **S&C** (ex-app-rectte-course-md ; le dossier a été renommé — la mémoire projet doit pointer vers
+  `Projets/S&C/`) : fichiers dans `fichierscontexte/`, déplacés/fusionnés vers la racine
+  (`ROADMAP.md` fusionné dans `PROJECT_BRIEF.md` §Roadmap). Règle à préserver : mettre à jour
+  STATUS/TASKS/DECISIONS avant chaque commit. Trois noms différents coexistent pour ce projet
+  (dossier `S&C`, `package.json` → `app-recette-course`, déploiement Vercel → `shopandcook`) —
+  non unifiés lors de cette migration, hors périmètre. Migré le 2026-07-07, commit `c057133`.
 
 ## Questions ouvertes (à trancher pendant le pilote S4)
 
-_Aucune pour l'instant — section à remplir si une règle de classement générique/spécifique s'avère
-indécidable dans l'abstrait lors de la migration pilote._
+- **Rangement des fichiers spécifiques hors liste standard** (rapports d'audit ponctuels, anciens
+  plans clôturés pré-refonte, `ROADMAP.md` non fusionné) : les laisser à plat à la racine (choix
+  par défaut actuel) ou les ranger dans un sous-dossier d'archive dédié (`archive/`,
+  `plans/_archive/`) pour ne pas alourdir la racine au fil des migrations futures ?
+- **`ROADMAP.md` séparé vs fusionné dans `PROJECT_BRIEF.md`** : pas de règle unique tranchée (cf.
+  §Étape 2) — à trancher si le cas se répète souvent, pour éviter une incohérence entre projets
+  migrés.
