@@ -1,14 +1,22 @@
-# VALIDATION.md — checklist visuelle / UX (passe humaine)
+# VALIDATION.md — jugement humain en attente (N2 uniquement)
 
-> Validation **visuelle** déléguée à l'humain, **non bloquante** pour les commits.
-> L'exécutant consigne ici la ligne « visuel : » de chaque tâche du PLAN — il ne tente
-> PAS de la vérifier lui-même (pas de navigateur, pas de capture d'écran).
-> Dérouler en une passe : lancer le serveur dev, puis cocher.
+> **Ce fichier ne contient que du N2** : esthétique, UX, ton, « est-ce que c'est agréable ».
+> Tout ce qu'un navigateur peut constater seul — erreur console, élément absent, 404, débordement
+> horizontal — est du **N1** : c'est à Claude de le vérifier (`/verif-visuelle`) et de le corriger
+> dans la session, jamais à empiler ici. C'est ce mélange qui a fait gonfler ce fichier jusqu'à
+> des centaines d'items jamais dépilés.
 >
-> Légende statut : [ ] à valider · [x] OK · [!] à corriger (décrire dessous).
-> **Purge** : supprimer les blocs entièrement `[x]` après la passe humaine — l'historique git suffit,
-> ce fichier ne doit contenir que ce qui reste à valider ou à corriger.
+> Plafond : **120 lignes** (appliqué par hook). Légende : `[ ]` à valider · `[x]` OK ·
+> `[!]` à corriger (décrire dessous).
+>
+> **État actuel uniquement.** Un bloc entièrement `[x]` se supprime après la passe humaine.
+> Quand une tâche réécrit un écran, ses critères **remplacent** les anciens de cet écran — ils ne
+> s'empilent pas dessous. Organiser **un bloc par écran/module courant**, jamais un bloc par tâche.
+>
+> **Multi-sous-domaines** : garder ce fichier racine pour le transverse et router le spécifique
+> dans `docs/<sous-domaine>/VALIDATION.md`.
 
-## T<n> — <titre de la tâche>
-- [ ] <ce qu'on doit voir / faire — attendu précis>
+## <Écran / module> — <titre>
+
+- [ ] <ce qui relève du goût ou de l'usage sur l'écran *actuel* — attendu précis>
 - [ ] …

@@ -1,7 +1,12 @@
 # STATUS.md
 
-Photo à l'instant T : ce qui marche, ce qui casse. Mis à jour en fin de session.
-Rester court : purger ce qui est résolu (frontières entre fichiers : voir `TASKS.md`).
+**Photo à l'instant T : ce qui marche, ce qui casse.** Mis à jour en fin de session.
+Plafond : **80 lignes** (appliqué par hook).
+
+> **Ce fichier n'a pas de mémoire.** Aucune section « Phase précédente », aucun journal de session,
+> aucun « ✅ corrigé le … » : une ligne résolue **disparaît** — elle vit dans le commit qui l'a
+> résolue et dans l'`index.md` du plan clos. L'historique est dans `git log`.
+> Frontières avec les autres fichiers : voir `TASKS.md`.
 
 > **Dernière mise à jour :** YYYY-MM-DD
 

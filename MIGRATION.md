@@ -17,7 +17,9 @@ Un projet migré a exactement ces fichiers de contexte, à la racine (sauf menti
 | `CLAUDE.md` | squelette actuel (commandes réelles + règles spécifiques du projet) **+** ligne d'import `@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md` |
 | `AGENTS.md` | stub 3 lignes (cf. `README.md` §Séquence de création, point 1) |
 | `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central), `MIGRATION.md`, `CHANGELOG.md`, `README.md`, `plans/` | **PAS de copie locale** — référencés uniquement via chemin absolu vers `Templates/` |
-| `.claude/skills/fin-de-tache` (local) | **absent** — la skill utilisateur `~/.claude/skills/fin-de-tache` (jonction vers `Templates/.claude/skills/fin-de-tache`) prend le relais ; une skill locale de même nom la masquerait |
+| `.claude/skills/*` (local) | **absent** — les skills utilisateur (`~/.claude/skills/`, jonctions vers `Templates/.claude/skills/`) prennent le relais ; une skill locale de même nom les masquerait |
+| `.claude/settings.json` | copie de `Templates/project-settings.json` (effort par défaut + les 3 hooks). Fusionner s'il existe déjà, ne pas écraser |
+| `docs/decisions/` | un fichier par décision, créé par l'Étape 4 |
 
 ## §Étape 0 — Inventaire
 
@@ -94,6 +96,48 @@ Pour chaque fichier trouvé, décider :
 - Supprimer toute copie locale obsolète de `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central),
   `CHANGELOG.md`, `README.md` trouvée à l'Étape 0.
 
+## §Étape 4 — Refonte coût & fiabilité (delta du 2026-07-28)
+
+À appliquer **en plus** des étapes 1-3, y compris aux projets déjà migrés le 2026-07-07.
+Ordre imposé : le gain décroît, le risque croît.
+
+1. **Hooks & effort** — copier `Templates/project-settings.json` en `.claude/settings.json`.
+   S'il existe déjà : fusionner (garder les clés existantes, ajouter `effortLevel` et les 3 entrées
+   `hooks`). Vérifier ensuite qu'un `node .claude/... --version` de test ne casse rien : les hooks
+   sont silencieux quand tout est sain.
+
+2. **`DECISIONS.md` → registre + `docs/decisions/`** — dérouler `/purge-contexte` §DECISIONS.
+   C'est le plus gros gain et le plus mécanique. **Ne jamais résumer une décision en la déplaçant** :
+   le bloc part intégralement dans son fichier de détail, seule la ligne du registre est nouvelle.
+   Reprendre ensuite les renvois (`DECISIONS.md §X`) dans les plans, `CLAUDE.md`, `STATUS.md`.
+
+3. **`STATUS.md` → photo stricte** — supprimer les sections historiques (« Phase précédente »,
+   « Phase P-1 », journaux de session). Vérifier avant que le contenu supprimé est bien retrouvable
+   dans `git log` ou dans un `plans/P<n>/index.md` clos ; sinon, le déplacer dans le plan concerné.
+
+4. **`VALIDATION.md` → N2 seulement** — supprimer les blocs entièrement `[x]` ; **relire chaque
+   item restant** : tout ce qu'un navigateur constate seul (erreur console, élément absent, 404,
+   débordement) sort du fichier et devient une ligne de `TASKS.md`. Réorganiser en un bloc par
+   écran courant. C'est l'étape la plus longue sur les projets où la passe humaine a pris du retard
+   (motif-layout : 194 items `[ ]` pour 2 `[x]` au 2026-07-28).
+
+5. **Statut à un seul endroit** — retirer les blocs `### Statut` des `S<k>.md` des plans **en cours**
+   (ne pas toucher aux plans clos : leur historique est figé) et reporter l'avancement dans la
+   colonne Statut de l'`index.md`. Dans `TASKS.md`, remplacer le statut des tâches planifiées par
+   `→ plans/P<n>/S<k>.md`.
+
+6. **Bandeaux de session** — pour les plans **en cours** uniquement : ajouter
+   `Environnement : <Desktop | indifférent>` au bandeau des `S<k>.md`, la colonne `Env.` à
+   l'`index.md`, et remplacer la ligne « Validation » par le triplet N0/N1/N2.
+
+7. **`.claude/launch.json`** — si le projet a un serveur dev et pas encore ce fichier, le créer à
+   partir de la commande dev du `CLAUDE.md` (nécessaire au N1, cf. `/verif-visuelle`).
+
+8. **Contrôle final** : chaque fichier de contexte est sous son plafond
+   (`Templates/.claude/hooks/plafonds.json`). Sinon, la migration n'est pas finie.
+
+Commit dédié, séparé de l'Étape 1-3 : `chore: apply 2026-07-28 workflow refit (hooks, caps, N1)`.
+
 ## §Garde-fous
 
 - Doute sur un contenu → le conserver et le signaler dans le rapport final, jamais le supprimer.
@@ -127,6 +171,17 @@ Pour chaque fichier trouvé, décider :
   STATUS/TASKS/DECISIONS avant chaque commit. Trois noms différents coexistent pour ce projet
   (dossier `S&C`, `package.json` → `app-recette-course`, déploiement Vercel → `shopandcook`) —
   non unifiés lors de cette migration, hors périmètre. Migré le 2026-07-07, commit `c057133`.
+
+## Règles tranchées
+
+- **Fichiers de contexte à l'échelle multi-sous-domaines** *(tranché 2026-07-08, pilote ETP interactif)* :
+  les fichiers racine (`STATUS`, `DECISIONS`, `PROJECT_MAP`, `VALIDATION`) restent **au niveau projet et
+  bornés**. Le détail propre à un sous-domaine (thème, module volumineux) est routé dans
+  `docs/<sous-domaine>/` : cadrage + journal des décisions du sous-domaine dans son dossier,
+  `docs/<sous-domaine>/VALIDATION.md` pour sa validation. **Pas** de `STATUS`/`DECISIONS` par module
+  (multiplie les fichiers, casse la découvrabilité). Règles inscrites dans les en-têtes de
+  `Templates/DECISIONS.md` et `Templates/VALIDATION.md`. `VALIDATION.md` reflète l'**état actuel** de
+  l'app, pas l'empilement des vagues de correction (git + `STATUS.md` gardent l'historique).
 
 ## Questions ouvertes (à trancher pendant le pilote S4)
 

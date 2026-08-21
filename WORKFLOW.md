@@ -1,8 +1,11 @@
-# WORKFLOW.md — Répartition modèles/effort et format des plans
+# WORKFLOW.md — Modèles, effort, plans, validation, garde-fous
 
-Source unique pour la répartition du travail entre les modèles Claude et Codex, et pour le
-format des plans. Les autres fichiers y renvoient au lieu de le paraphraser.
-Modèles actuels : Fable 5 · Opus 4.8 · Sonnet 5 · Haiku 4.5.
+Source unique pour la répartition du travail, le format des plans et les niveaux de validation.
+Les autres fichiers y renvoient au lieu de le paraphraser.
+Modèles actuels : Fable 5 · Opus 5 · Sonnet 5 · Haiku 4.5.
+
+**Les squelettes de plan ne sont plus ici** : ils vivent dans la skill `/nouveau-plan`, qui ne les
+charge qu'au cadrage. Ce fichier reste lisible d'un bout à l'autre sans coûter un plan complet.
 
 ## 1. Principe directeur
 
@@ -12,136 +15,182 @@ Modèles actuels : Fable 5 · Opus 4.8 · Sonnet 5 · Haiku 4.5.
 - **Fable** (2× Opus, rare) : uniquement les problèmes qu'Opus n'arrive pas à résoudre.
 - **Sonnet** : exécute les tâches cadrées de complexité moyenne, juge le code.
 - **Haiku** (rapide) : exécute les tâches cadrées et mécaniques.
-- **Codex** (hors budget Claude) : audits visuels — UI, rendu, parcours utilisateur — via Playwright (`AGENTS.md`).
+- **Codex** (hors budget Claude) : régression visuelle scriptée via Playwright (`AGENTS.md`) —
+  plus le premier recours depuis que le navigateur in-app couvre le N1 (§6).
+- **Claude Design** (claude.ai, humain aux commandes) : maquette UI au cadrage d'un projet ou d'un
+  nouvel écran — entrée = `ARCHITECTURE.md` envoyé tel quel, sortie = `design/maquettes/`. Le
+  câblage se fait ensuite sur la maquette, jamais l'inverse.
 
-Une fois le plan écrit, chaque exécutant lit **UNIQUEMENT** les fichiers listés dans sa tâche et ne reconçoit pas — le design est fixé.
+Une fois le plan écrit, chaque exécutant lit **UNIQUEMENT** les fichiers listés dans sa session
+(`S<k>.md`) et ne reconçoit pas — le design est fixé.
 
 ## 2. Choix du modèle
 
 | Nature de la tâche | Modèle | Exemples |
 | --- | --- | --- |
-| Problème que même Opus n'a pas résolu (rare, cher) | **Fable** | Bug retors resté sans cause après un passage Opus, conception très longue haleine |
-| Design, bug non localisé, scope flou, transverse, arbitrage produit | **Opus** | Architecture, stratégie, cadrage neuf, plan multi-tâche |
-| Cadré, jugement de code, localisé, complexité moyenne | **Sonnet** | Bug isolé, refactor limité, feature moyenne, code review, gros lot mécanique |
-| Cadré, mécanique, peu de jugement, petit | **Haiku** | Suppression/renommage, simplification, alléger la doc, petit boilerplate |
-| Audit visuel : UI, rendu, parcours utilisateur | **Codex** | Audit Playwright d'un écran ou d'un parcours, régression visuelle, rapport JSON |
+| Problème que même Opus n'a pas résolu (rare, cher) | **Fable** | Bug retors resté sans cause après un passage Opus |
+| Design, bug non localisé, scope flou, transverse, arbitrage produit | **Opus** | Architecture, cadrage neuf, plan multi-tâche |
+| Cadré, jugement de code, localisé, complexité moyenne | **Sonnet** | Bug isolé, refactor limité, feature moyenne, code review |
+| Cadré, mécanique, peu de jugement, petit | **Haiku** | Renommage, purge de contexte, boilerplate, consolidation de fin de plan |
+| Régression visuelle scriptée, rapport JSON | **Codex** | Audit Playwright d'un parcours complet |
 
 **Départage une fois le périmètre clair :**
 
-- **Sonnet** si jugement de code, analyse transverse, risque à peser, complexité moyenne, ou gros volume répétitif.
+- **Sonnet** si jugement de code, analyse transverse, risque à peser, ou gros volume répétitif.
 - **Haiku** si mécanique/simple, petit périmètre (1-2 fichiers), résultat évident.
-- **Codex** dès que la validation exige de *voir* l'app (UI, parcours, régressions visuelles) — jamais Claude pour ça.
-- **Escalade vers Opus** si la cause d'un bug n'est pas localisée, le scope est flou/large, ou il reste des choix produit.
+- **Escalade vers Opus** si la cause d'un bug n'est pas localisée, le scope est flou, ou il reste
+  des choix produit.
 
-## 3. Effort
+## 3. Effort — et comment le distinguer du modèle
 
-Chaque tâche de `TASKS.md` porte une suggestion **`effort: X`** (échelle `low · medium · high · xhigh · max`),
-à **vérifier manuellement avant de lancer la session** — aucun routing automatique.
+**Le modèle, c'est la capacité. L'effort, c'est la quantité de travail.** Les deux se diagnostiquent
+sur des symptômes différents, et les confondre coûte cher dans les deux sens :
 
-Repère : `low` = mécanique, résultat quasi certain · `medium` = implémentation courante ·
-`high` = raisonnement soutenu, arbitrages · `xhigh` = défaut Claude Code, code agentique complexe,
-bug non localisé · `max` = la justesse prime sur le coût (rare). Un effort élevé consomme plus de
-tokens : ne le réserver qu'aux tâches qui le justifient.
+| Symptôme observé | Ce qu'il faut changer |
+| --- | --- |
+| Il se trompe **alors qu'il avait tout le contexte** — raisonnement faux, domaine mal maîtrisé | **Monter de modèle** |
+| Il a **sauté des fichiers**, pas lancé les tests, abandonné une tâche multi-étapes en route | **Monter l'effort** |
+| Il tourne en rond sur la même erreur depuis 2 relances | **Monter de modèle, pas l'effort** |
+| Il produit du correct mais lentement/verbeusement sur une tâche triviale | **Baisser l'effort** |
 
-## 4. Format d'un plan (un plan = un dossier, une tâche = un fichier)
+Échelle réelle : `low · medium · high · xhigh` (il n'y a **pas** de niveau `max` ni `minimal`).
 
-Le backlog vit dans `TASKS.md` (index global). Quand Opus cadre un plan (ex. `P1`), il crée **un dossier
-`plans/P1/`** contenant :
+- `low` : mécanique, résultat quasi certain (renommage, purge, consolidation).
+- `medium` : **défaut du workflow** — implémentation courante.
+- `high` : raisonnement soutenu, arbitrages, bug localisé mais subtil.
+- `xhigh` : code agentique complexe, bug non localisé, cadrage neuf. Réservé, pas par défaut.
 
-- **`plans/P1/index.md`** — l'index du plan : objectif d'ensemble, liste ordonnée des tâches (`T1`, `T2`, …)
-  avec pour chacune une ligne (titre + modèle + effort + statut) et les dépendances entre tâches. **Rien de plus** :
-  l'index ne contient pas le détail d'exécution, il pointe vers les fichiers de tâche.
-- **un fichier par tâche** : `plans/P1/T1.md`, `plans/P1/T2.md`, … — **une seule tâche par fichier, scope ~30 min**,
-  rédigé d'après le squelette ci-dessous. Contenu = décision finale + chemins de fichiers + étapes ; **pas** les
-  alternatives ni la justification longue (celles-ci vont dans `DECISIONS.md`).
+Le défaut vient de `.claude/settings.json` du projet (`"effortLevel": "medium"`), pas de Claude
+Code. Chaque session porte **modèle + effort + environnement** dans le bandeau de son `S<k>.md` —
+à **régler à la main avant de lancer la session**, aucun routing automatique.
 
-**But : limiter le contexte chargé.** Un exécutant ouvre `index.md` uniquement pour repérer sa tâche, puis
-travaille dans le seul fichier `T<n>.md` correspondant — jamais un plan global qui empile toutes les tâches.
-Ne jamais fusionner plusieurs tâches dans un même fichier.
+Un effort élevé consomme plus de tokens sur *chaque* tour de la session : le laisser à `xhigh` en
+permanence est le poste de dépense le plus silencieux du workflow.
 
-Squelette de l'index (`plans/P1/index.md`) :
+## 4. Plans
 
-```md
-# Plan P1 — <titre du plan>   (rédigé par Opus)
+Le backlog vit dans `TASKS.md` (index global). Quand Opus cadre un plan, il déroule **`/nouveau-plan`**,
+qui crée un dossier `plans/P<n>/` :
 
-## Objectif d'ensemble
-<2-3 lignes : le but global du plan>
+- **`plans/P<n>/index.md`** — guide d'orchestration : objectif, table des sessions, ordonnancement
+  par vagues. **C'est le seul endroit où vit le statut des tâches.**
+- **un fichier par session** `S<k>.md` — une session = un lancement de Claude Code (un modèle, un
+  effort, un contexte), 1 à n tâches. Contenu = décision finale + chemins + étapes ; **pas** les
+  alternatives (elles sont dans `docs/decisions/`).
 
-## Tâches
-| Tâche | Titre | Modèle | Effort | Dépend de | Statut |
-| --- | --- | --- | --- | --- | --- |
-| [T1](T1.md) | … | Haiku | low | — | [ ] |
-| [T2](T2.md) | … | Sonnet | medium | T1 | [ ] |
-```
+L'exécutant ouvre **uniquement** son `S<k>.md`. Format, règle de découpage et squelettes :
+skill `/nouveau-plan`.
 
-Squelette d'un fichier de tâche (`plans/P1/T<n>.md`) :
+### 4a. Un statut, un seul endroit
 
-```md
-# P1 · T<n> — <titre>   (rédigé par Opus)
+Le suivi a échoué chaque fois qu'une même information a dû être écrite à plusieurs endroits. Donc :
 
-> Exécutant : UNIQUEMENT cette tâche, les fichiers sous « Lire », les modifications sous « Modifier ».
-> Design fixé — ne reconçois pas. Doute ou blocage → STOP, signale, rends la main.
+| Information | Vit dans | Ne vit PAS dans |
+| --- | --- | --- |
+| Avancement d'une tâche d'un plan | `plans/P<n>/index.md` | `S<k>.md`, `TASKS.md` |
+| Backlog non planifié | `TASKS.md` | ailleurs |
+| État actuel de l'app | `STATUS.md` | `TASKS.md`, historique |
+| Décision (verdict) | registre `DECISIONS.md` | plans, `CLAUDE.md` |
+| Décision (justification) | `docs/decisions/<date>-<slug>.md` | registre |
+| Jugement visuel en attente | `VALIDATION.md` | `S<k>.md` (sauf vague parallèle) |
 
-- Date : YYYY-MM-DD · Modèle : <Sonnet/Haiku/Codex> · effort : <…> · Branche : <ou —>
+### 4b. Commits & parallélisation
 
-## Objectif
-<1-2 lignes : le quoi>
+**Commit et push n'ont lieu qu'en fin de plan**, jamais à chaque tâche ni à chaque session. Pendant
+l'exécution, une tâche terminée passe son statut à `[x]` dans l'index et son diff reste dans l'arbre
+de travail. Le commit reste **atomique par tâche**, mais son exécution est reportée à la
+consolidation finale.
 
-## Décision clé
-<ce qu'il faut savoir sans relire le repo ; pointer une section précise, ex. « DECISIONS.md §Auth »>
+- **Pendant les sessions** : jamais `git commit` ni `git push`. En vague parallèle, poser
+  `.claude/wave.lock` (à mettre en `.gitignore` — c'est un marqueur local, pas du contenu de projet) :
+  un hook refuse alors commit et push (§7). Ne toucher aucun fichier partagé.
+- **Fin de plan** : supprimer `wave.lock`, committer **tâche par tâche** avec staging explicite
+  (`git add <fichiers>` — `git add -A` et `git commit -a` sont refusés par hook), mettre à jour
+  `index.md`, `TASKS.md`, `STATUS.md`, `VALIDATION.md`, puis **un seul push**.
+- Cette consolidation se fait à l'humain ou via une session dédiée (Haiku `low`) — jamais mélangée
+  à l'exécution des tâches.
 
-## Lire
-<fichiers + portée précise (section / fonction / lignes) — RIEN d'autre>
+## 5. Déléguer l'exploration à un subagent
 
-## Modifier
-<fichiers à modifier / créer — liste exhaustive>
+Chercher où se trouve quelque chose remplit le contexte de traces (chemins, extraits, fausses
+pistes) qu'on paie ensuite à chaque tour — et c'est justement en cadrage Opus, le contexte le plus
+cher, qu'on explore le plus.
 
-## Hors périmètre
-<ce qu'il ne faut PAS toucher / faire>
+**Faire chercher par un subagent `Explore`, garder le raisonnement pour soi.** Il ne rend que sa
+conclusion. À utiliser dès qu'une question demande de balayer plusieurs fichiers ou conventions de
+nommage ; inutile quand `PROJECT_MAP.md` répond déjà.
 
-## Étapes
-1. …
-2. …
+## 6. Validation — trois niveaux
 
-## Validation
-- Auto (bloque le commit) : `<commande>` → <résultat attendu>
-- Humain (visuel/UX, non bloquant) : <checklist ou —> → reporter dans `VALIDATION.md`
+| Niveau | Qui | Bloquant | Contenu |
+| --- | --- | --- | --- |
+| **N0 — auto** | Claude, toujours | **oui** | `build` + `typecheck` (+ tests unitaires si logique pure) |
+| **N1 — visuel auto** | Claude, si navigateur in-app | non | erreurs console, contenu présent, requêtes 4xx/5xx, responsive |
+| **N2 — humain** | Thibault | non | jugement esthétique / UX / ton — **rien d'autre** |
 
-## Si bloqué
-<condition d'arrêt SPÉCIFIQUE → STOP + quoi signaler>
+**N1 est nouveau et change la règle précédente** : Claude Code Desktop dispose d'un navigateur
+in-app (`preview_start`, `read_page`, `read_console_messages`…). Ce qu'un navigateur peut constater
+seul n'a plus à être délégué à un humain — et ne doit donc plus atterrir dans `VALIDATION.md`, qui
+gonflait de checklists jamais dépilées.
 
-## Commit
-`<type(scope): message>`
+**L'environnement conditionne N1** : le navigateur in-app n'existe **pas** en VSCode ni en terminal.
+D'où :
 
-## Statut
-[ ] à faire · exécuté par : — · le : — · commit : —
-```
+- le bandeau de chaque `S<k>.md` porte `Environnement : Desktop (navigateur requis) | indifférent`,
+  et l'`index.md` a une colonne **Env.** ;
+- une session dont le N1 est structurant (nouvel écran, refonte de mise en page) se lance depuis
+  Desktop ;
+- lancée ailleurs, la skill `/verif-visuelle` bascule en mode B : elle **sort la commande dev et la
+  checklist** au lieu de vérifier, et rend la main.
 
-Principes :
+Hors navigateur in-app, Claude ne valide **jamais** l'UI autrement : pas de Playwright, pas de
+capture par script. Les audits Playwright restent le rôle de Codex (`AGENTS.md`), pour la
+régression scriptée.
 
-- **« Lire » est restrictif et porté** : que ces fichiers, à la section/fonction près.
-- **« Étapes » = le comment**, ordonné. Plus le modèle est faible, plus elles sont fines ; si une tâche demande trop de jugement pour le modèle visé → la **découper**.
-- **« Validation » = critères vérifiables** (commande + résultat, ou visuel), jamais « ça marche ».
-- **« Si bloqué » = condition spécifique** à la tâche, pas le générique du bandeau.
-- **Fin de tâche** : dérouler la skill `/fin-de-tache` (statuts, `STATUS.md`, rapport, commit atomique).
+Protocole complet : skill **`/verif-visuelle`**.
 
-## 5. Checklist d'investigation Opus (avant d'écrire un plan)
+## 7. Garde-fous appliqués (hooks)
 
-1. **Flux** : chemin complet du problème/feature, où il commence et se termine.
-2. **Fichiers probables** sans tout ouvrir : READMEs, `PROJECT_MAP.md`, `DECISIONS.md` d'abord.
-3. **Rôle** de chaque fichier clé : pourquoi il est pertinent.
-4. **Dépendances directes** utiles.
-5. **1-2 hypothèses racines** (bug : ce qui peut mal tourner ; feature : choix archi critiques).
-6. **Modèle + effort** de l'exécutant (§2-3).
-7. **Verdict** : plan rédigeable maintenant, ou ambiguïté à lever avec l'utilisateur d'abord ?
+Les règles ci-dessus qui comptent vraiment ne sont pas seulement écrites : elles sont **appliquées**
+par trois hooks (`Templates/.claude/hooks/`, câblés via `project-settings.json` copié dans
+`.claude/settings.json` du projet). Une instruction ne contraint rien ; un hook si.
 
-S'applique même si on délègue l'investigation à Claude Code : Opus pense toujours d'abord.
+| Hook | Événement | Ce qu'il fait |
+| --- | --- | --- |
+| `sessionstart-contexte.mjs` | SessionStart | Signale : vague en cours, `STATUS.md` en retard de ≥3 commits, plafonds dépassés. Silencieux si tout est sain. |
+| `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell) | Refuse `git add -A`/`.`/`--all` et `git commit -a` ; refuse commit et push tant que `.claude/wave.lock` existe. |
+| `stop-contexte.mjs` | Stop | Refuse de rendre la main si du code a été modifié sans qu'aucun fichier de suivi ne le soit, ou si un plafond est dépassé. Ne bloque qu'une fois par session. |
 
-## 6. Anti-patterns
+### Plafonds de lignes
 
-- Lancer Opus sur une tâche déjà cadrée (le signaler à la place) ; lancer Fable sans passage Opus préalable.
+Source unique : `Templates/.claude/hooks/plafonds.json`.
+
+| Fichier | Plafond |
+| --- | --- |
+| `STATUS.md` | 80 |
+| `TASKS.md` | 60 |
+| `VALIDATION.md` | 120 |
+| `DECISIONS.md` (registre) | 150 |
+| `PROJECT_MAP.md` | 200 |
+| `CLAUDE.md` | 200 |
+
+Un dépassement n'est pas une suggestion : il déclenche `/purge-contexte` avant de continuer.
+Ces fichiers sont relus à chaque session — leur longueur est un coût récurrent, pas un détail.
+
+## 8. Anti-patterns
+
+- Lancer Opus sur une tâche déjà cadrée ; lancer Fable sans passage Opus préalable.
+- **Relancer une 3ᵉ fois la même session en montant l'effort** alors que le modèle est le problème
+  (§3) : sur du multi-étapes, un modèle plus capable coûte souvent moins cher au total qu'une suite
+  d'allers-retours ratés.
+- Laisser `xhigh` comme effort permanent « au cas où ».
 - Envoyer à Sonnet/Haiku un scope flou ou trop large → dérive.
-- Enchaîner plusieurs tâches dans une même session (contexte accumulé payé à chaque tour) — une tâche = une session.
-- Refactor global sans gain clair ni plan.
-- Recopier du texte au lieu de pointer vers la source (`WORKFLOW.md`, `DECISIONS.md`…).
-- Faire explorer le repo sans objectif précis.
+- Empiler dans une session des tâches qui ne remplissent pas les critères de regroupement — ou, à
+  l'inverse, payer un démarrage froid pour une tâche `low` qui aurait dû s'adosser à un lot.
+- Explorer le repo dans le contexte Opus au lieu de déléguer à un subagent (§5).
+- Improviser des tâches hors du `S<k>.md` en cours ; mélanger deux sessions dans un même lancement.
+- Committer ou pusher pendant l'exécution au lieu d'attendre la fin de plan (§4b).
+- Écrire dans `VALIDATION.md` ce qu'un navigateur constate seul (§6).
+- Recopier un statut à deux endroits (§4a).
+- Recopier du texte au lieu de pointer vers la source (`WORKFLOW.md`, `docs/decisions/`…).
+- Laisser grossir un fichier de contexte au-delà de son plafond « juste pour cette fois ».

@@ -1,24 +1,32 @@
 # TASKS.md
 
-Index unique des tâches : backlog **et** tâches actives. Une ligne par tâche.
-Le dossier de plan `plans/P<n>/` n'est créé qu'au **démarrage** du plan, pas en amont.
+Index du **backlog** : ce qu'il reste à faire. Une ligne par tâche.
+Plafond : **60 lignes** (appliqué par hook). Le dossier `plans/P<n>/` n'est créé qu'au **démarrage**
+du plan, pas en amont.
 
-> **Frontières** — TASKS : le *quoi* (backlog + actif) · `STATUS.md` : l'état actuel (ce qui marche/casse) · `plans/` : le *comment* d'une tâche en cours · `VALIDATION.md` : checklist visuelle.
+> **Frontières** — TASKS : le *quoi* qui reste · `plans/P<n>/index.md` : l'*avancement* des tâches
+> planifiées · `STATUS.md` : l'état actuel (ce qui marche/casse) · `S<k>.md` : le *comment* d'une
+> session · `VALIDATION.md` : jugement visuel humain en attente.
 
 ## Convention de ligne
 
-`- [statut] T-ID — titre · modèle: X, effort: Y · plan: <lien ou —>`
+**Tâche non planifiée** (pas encore dans un plan) :
+`- [ ] T-ID — titre · modèle: X, effort: Y`
 
-- **statut** : ` ` à faire · `~` en cours · `x` fait
-- **modèle** : Opus · Sonnet · Haiku (· Fable, rare · Codex pour l'audit visuel) — grille : `WORKFLOW.md` §2
-- **effort** : `low · medium · high · xhigh · max` — suggestion à **vérifier manuellement avant de lancer la session** (pas de routing automatique). Repère : `WORKFLOW.md` §3
-- **plan** : `—` tant que la tâche n'a pas démarré ; sinon `→ plans/P<n>/T<m>.md`
+**Tâche entrée dans un plan** — elle ne porte **plus de statut ici** (il vit dans l'`index.md`) :
+`- T-ID — titre · → plans/P<n>/S<k>.md`
+
+- **modèle** : Opus · Sonnet · Haiku (· Fable, rare · Codex pour la régression visuelle scriptée) —
+  grille : `WORKFLOW.md` §2
+- **effort** : `low · medium · high · xhigh` (défaut `medium` ; il n'existe pas de `max`) —
+  suggestion à **vérifier à la main avant de lancer la session**. Repère : `WORKFLOW.md` §3
 
 ## Archivage
 
-Purger les lignes `[x]` une fois leur plan clos — l'historique git suffit ; ce fichier doit rester court.
+Supprimer la ligne d'une tâche dès que son plan est clos — l'historique est dans git.
+Ce fichier ne décrit que le futur.
 
 ## Tâches
 
-- [ ] T-001 — <titre> · modèle: Sonnet, effort: medium · plan: —
-- [ ] T-002 — <titre> · modèle: Haiku, effort: low · plan: —
+- [ ] T-001 — <titre> · modèle: Sonnet, effort: medium
+- [ ] T-002 — <titre> · modèle: Haiku, effort: low

@@ -3,7 +3,10 @@
 Carte synthétique du projet.
 
 Objectif : permettre aux modèles d’identifier rapidement les zones pertinentes sans explorer tout le repo.
+Plafond : **200 lignes** (appliqué par hook).
 
+> **La carte sert à trouver, pas à comprendre.** Si un bloc explique du code au lieu de le
+> localiser, le raccourcir : c'est le code qui documente le code.
 > À l’instanciation : **supprimer les sections non pertinentes** plutôt que de les laisser vides.
 > Dupliquer le bloc « Feature » autant de fois que nécessaire.
 
