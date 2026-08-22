@@ -186,6 +186,16 @@ plugin, seulement l'état actuel de `Templates/`.
 
 Commit dédié, séparé des étapes précédentes : `chore: migrate to workflow plugin (2026-08-22)`.
 
+## §Étape 6 — Instructions de compactage (delta du 2026-08-23)
+
+Ajouter à la fin du `CLAUDE.md` **du projet** la section `# Compact instructions` du `CLAUDE.md`
+de `Templates/` (5 lignes). Elle dit au compactage quoi préserver — décisions et justification,
+chemins modifiés, résultats de validation, tâches restantes — et quoi élaguer.
+
+À faire par projet : le mécanisme lit le `CLAUDE.md` du projet. **Non vérifié** : que la même
+section injectée par le hook `SessionStart` (via `CLAUDE-BASE.md`) produise le même effet — d'où
+la duplication assumée dans chaque projet tant que ce point n'est pas tranché.
+
 ## §Garde-fous
 
 - Doute sur un contenu → le conserver et le signaler dans le rapport final, jamais le supprimer.
