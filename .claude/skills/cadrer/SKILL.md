@@ -52,6 +52,20 @@ Terminer par **une recommandation motivée**, pas un tableau neutre laissé à t
 Dès qu'un point est tranché, l'écrire. Ne pas attendre la fin de la session : un compactage efface
 le raisonnement, pas le fichier. C'est aussi ce qui permet de reprendre à froid sans tout relire.
 
+## Étape 4b — Une réflexion trop longue se coupe, elle ne s'étire pas
+
+Quand la session s'allonge (compactage déjà passé, ou question qui se ramifie), **ne pas continuer
+à itérer** : chaque tour Opus renvoie tout le contexte accumulé, y compris les fausses pistes.
+
+Couper plutôt : écrire l'état — ce qui est tranché, ce qui reste ouvert, la prochaine question —
+dans le fichier de décision, puis **rouvrir une session neuve** qui repart de ce fichier. Le
+contexte retombe d'un ordre de grandeur, et rien d'acquis n'est perdu.
+
+Ne pas déléguer cette synthèse à un agent : rédiger une conclusion qu'Opus détient déjà lui coûte
+quelques centaines de tokens, là où un agent devrait relire tout l'historique pour la reconstruire.
+**La délégation empêche le contexte d'entrer, elle ne l'évacue pas** — c'est le rôle du démarrage à
+froid, pas celui d'un sous-agent.
+
 ## Étape 5 — Sortir par une issue, une seule
 
 | Issue | Quand | Où l'écrire |

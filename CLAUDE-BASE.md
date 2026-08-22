@@ -49,6 +49,10 @@ Déléguer plutôt que faire soi-même (le contexte accumulé se paie à chaque 
 - résumer un diff/historique → agent `resumeur-git`
 - lire une doc externe → agent `lecteur-doc`
 
+**La délégation empêche le contexte d'entrer, elle ne l'évacue pas** : un agent ne peut pas alléger
+une conversation déjà chargée, il devrait tout relire pour reconstruire ce qu'on a sous la main.
+Ce qui est entré ne se retire que par un démarrage à froid.
+
 **Une session = un fichier `S<k>.md`** (1 à n tâches). `/clear` (ou nouvelle session) entre deux
 sessions : ne pas traîner le contexte d'une session dans la suivante, ni improviser hors plan.
 Session suivante d'un plan = toujours une nouvelle conversation, jamais la même (pastille en
