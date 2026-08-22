@@ -1,0 +1,14 @@
+{
+  "name": "templates",
+  "description": "Marketplace privée de kovuthecat — plugin workflow (skills, hooks, agents) pour les projets perso.",
+  "owner": {
+    "name": "kovuthecat"
+  },
+  "plugins": [
+    {
+      "name": "workflow",
+      "source": "./",
+      "description": "Workflow perso Thibault : plans multi-sessions, validation N0-N2, contexte plafonné."
+    }
+  ]
+}
