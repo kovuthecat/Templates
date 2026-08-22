@@ -1,9 +1,17 @@
 // Hook SessionStart — rend visible la dérive du contexte au lieu de la laisser se découvrir
-// trois semaines plus tard. N'écrit RIEN si tout est sain (coût token nul dans le cas nominal).
+// trois semaines plus tard, ET injecte les règles communes (CLAUDE-BASE.md) dans le contexte
+// de session (D-P2-2 : remplace l'import `@C:\...\CLAUDE-BASE.md` du CLAUDE.md projet, qui ne
+// fonctionne pas en cloud). Les vérifications de dérive n'écrivent RIEN si tout est sain ;
+// l'émission de CLAUDE-BASE.md, elle, a lieu à chaque session (coût token assumé, D-P2-2).
 
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import {
   lireEntree, repertoireProjet, estUnDepot, git, depassements, vagueParallele, repondre, riendafaire,
 } from './lib.mjs';
+
+const ICI = dirname(fileURLToPath(import.meta.url));
 
 const entree = await lireEntree();
 const cwd = repertoireProjet(entree);
@@ -11,6 +19,22 @@ const cwd = repertoireProjet(entree);
 if (!estUnDepot(cwd)) riendafaire();
 
 const lignes = [];
+
+// Émission de CLAUDE-BASE.md — chemin relatif au fichier du hook (comme lib.mjs pour plafonds.json),
+// jamais de chemin absolu : portable en cloud comme dans un plugin installé depuis le cache.
+const cheminClaudeBase = join(ICI, '..', '..', 'CLAUDE-BASE.md');
+let claudeBase = '';
+if (existsSync(cheminClaudeBase)) {
+  try {
+    const contenu = readFileSync(cheminClaudeBase, 'utf8');
+    claudeBase =
+      '<!-- règles communes injectées par le plugin workflow -->\n' + contenu;
+  } catch {
+    claudeBase = '**Avertissement** : CLAUDE-BASE.md illisible malgré sa présence.';
+  }
+} else {
+  claudeBase = '**Avertissement** : CLAUDE-BASE.md introuvable (attendu à côté du repo, ../../CLAUDE-BASE.md).';
+}
 
 if (vagueParallele(cwd)) {
   lignes.push(
@@ -31,11 +55,14 @@ for (const d of depassements(cwd)) {
   lignes.push(`**${d.fichier} : ${d.lignes}/${d.plafond} lignes** — archivage dû (/purge-contexte).`);
 }
 
-if (lignes.length === 0) riendafaire();
+const blocs = [claudeBase];
+if (lignes.length > 0) {
+  blocs.push(`État du contexte projet (hook workflow) :\n- ${lignes.join('\n- ')}`);
+}
 
 repondre({
   hookSpecificOutput: {
     hookEventName: 'SessionStart',
-    additionalContext: `État du contexte projet (hook workflow) :\n- ${lignes.join('\n- ')}`,
+    additionalContext: blocs.join('\n\n'),
   },
 });
