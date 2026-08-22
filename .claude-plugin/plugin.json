@@ -4,5 +4,6 @@
   "version": "0.1.0",
   "author": { "name": "kovuthecat" },
   "skills": "./.claude/skills/",
+  "agents": "../agents/",
   "hooks": "./.claude/hooks/hooks.json"
 }
