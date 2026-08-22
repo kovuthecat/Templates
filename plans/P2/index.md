@@ -57,7 +57,7 @@ tests systématiques, purge N2.
 ## Bilan d'exécution (2026-08-22)
 
 Toutes sessions PASS. Écarts constatés en cours d'exécution :
-- **T1** : le champ `agents` de `plugin.json` était rejeté par `claude plugin validate` (CLI 2.1.240) quelle que soit sa forme — retiré (agents/ est l'emplacement par défaut auto-découvert). `author` + description marketplace ajoutés pour lever les 2 derniers warnings.
+- **T1** : le champ `agents` de `plugin.json` était rejeté par `claude plugin validate` — retiré (`agents/` est l'emplacement par défaut auto-découvert). `author` + description marketplace ajoutés pour lever les 2 derniers warnings. **Précisé le 2026-08-22 (CLI 2.1.237)** : le champ n'accepte **que des chemins de fichiers** (`["./agents/x.md", …]`), jamais un répertoire — ni `"./agents/"` ni `["./agents/"]`. Un chemin contenant `..` est refusé séparément (path traversal). **L'auto-découverte fonctionne** : testée en session headless, les 4 agents ressortent en `workflow:<nom>` sans aucun champ `agents`. Ne pas « corriger » ce manifeste en croyant l'inverse.
 - **T18** (CLAUDE-BASE.md) et **T4** (chemins) ainsi que **T14/T15/T16** et **T4** (skills fin-de-tache/nouveau-plan/purge-contexte) portent sur les mêmes fichiers — squashés en un seul commit chacun à la consolidation (historique non atomique par tâche sur ces 4 fichiers, assumé).
 - **T24-T26** : validés en direct (CLI non déléguée) — 6 skills/4 agents/4 hooks confirmés, coût always-on ~1050 tok/session, 4 jonctions NTFS retirées proprement, re-test sans doublon.
 
