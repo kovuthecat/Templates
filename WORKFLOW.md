@@ -53,12 +53,15 @@ sur des symptômes différents, et les confondre coûte cher dans les deux sens 
 | Il tourne en rond sur la même erreur depuis 2 relances | **Monter de modèle, pas l'effort** |
 | Il produit du correct mais lentement/verbeusement sur une tâche triviale | **Baisser l'effort** |
 
-Échelle réelle : `low · medium · high · xhigh` (il n'y a **pas** de niveau `max` ni `minimal`).
+Échelle réelle (vérifiée dans la doc Anthropic le 2026-08-22, `model-config`) :
+`low · medium · high · xhigh · max` (pas de niveau `minimal`).
 
 - `low` : mécanique, résultat quasi certain (renommage, purge, consolidation).
 - `medium` : **défaut du workflow** — implémentation courante.
 - `high` : raisonnement soutenu, arbitrages, bug localisé mais subtil.
 - `xhigh` : code agentique complexe, bug non localisé, cadrage neuf. Réservé, pas par défaut.
+- `max` : au-delà de `xhigh`, mêmes réserves d'usage — jamais par défaut ; non réglable via
+  `effortLevel` du projet, seulement via `/effort max` en session (rendements décroissants documentés).
 
 Le défaut vient de `.claude/settings.json` du projet (`"effortLevel": "medium"`), pas de Claude
 Code. Chaque session porte **modèle + effort + environnement** dans le bandeau de son `S<k>.md` —
@@ -101,6 +104,10 @@ l'exécution, une tâche terminée passe son statut à `[x]` dans l'index et son
 de travail. Le commit reste **atomique par tâche**, mais son exécution est reportée à la
 consolidation finale.
 
+Le filet de sécurité intra-plan n'est **pas** git — c'est le **checkpointing** natif de Claude Code
+(`/rewind`, restaure code et/ou conversation à un point antérieur). Committer « par sécurité » en
+cours de plan reste interdit malgré cette disponibilité.
+
 - **Pendant les sessions** : jamais `git commit` ni `git push`. En vague parallèle, poser
   `.claude/wave.lock` (à mettre en `.gitignore` — c'est un marqueur local, pas du contenu de projet) :
   un hook refuse alors commit et push (§7). Ne toucher aucun fichier partagé.
@@ -110,21 +117,38 @@ consolidation finale.
 - Cette consolidation se fait à l'humain ou via une session dédiée (Haiku `low`) — jamais mélangée
   à l'exécution des tâches.
 
-## 5. Déléguer l'exploration à un subagent
+## 5. Déléguer au lieu de faire
 
-Chercher où se trouve quelque chose remplit le contexte de traces (chemins, extraits, fausses
-pistes) qu'on paie ensuite à chaque tour — et c'est justement en cadrage Opus, le contexte le plus
-cher, qu'on explore le plus.
+Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contexte de traces
+(chemins, sorties, fausses pistes) qu'on paie ensuite à chaque tour — et c'est justement en cadrage
+Opus, le contexte le plus cher, qu'on en accumule le plus.
 
-**Faire chercher par un subagent `Explore`, garder le raisonnement pour soi.** Il ne rend que sa
-conclusion. À utiliser dès qu'une question demande de balayer plusieurs fichiers ou conventions de
-nommage ; inutile quand `PROJECT_MAP.md` répond déjà.
+Quatre agents du plugin, chacun ne rend que sa **conclusion** — jamais les traces brutes :
+
+- `explorateur` → localiser quelque chose qui touche plus d'1 fichier.
+- `verificateur-n0` → lancer build/typecheck/tests (jamais ces commandes en direct dans la
+  conversation principale).
+- `resumeur-git` → résumer un diff ou un historique.
+- `lecteur-doc` → lire une doc externe.
+
+Table de délégation détaillée : `CLAUDE-BASE.md` (section « Avant de coder »).
+
+## 5b. Enchaîner les sessions
+
+**Jamais deux sessions d'un même plan dans une seule conversation** — chacune démarre à froid, pour
+ne pas traîner le contexte de l'une dans l'autre.
+
+- **Depuis Desktop** : la skill `/fin-de-tache` pose une pastille qui lance la session suivante.
+- **Vague entière sans aucune session `Desktop`** : orchestrateur headless `claude -p` enchaîne les
+  sessions — voir `/nouveau-plan` §Vagues autonomes.
+- **Toute session marquée `Desktop`** (validation visuelle N1 requise) : toujours un lancement
+  manuel par Thibault, jamais automatisé par l'orchestrateur headless.
 
 ## 6. Validation — trois niveaux
 
 | Niveau | Qui | Bloquant | Contenu |
 | --- | --- | --- | --- |
-| **N0 — auto** | Claude, toujours | **oui** | `build` + `typecheck` (+ tests unitaires si logique pure) |
+| **N0 — auto** | Claude, toujours | **oui** | `build` + `typecheck` + tests du périmètre touché (`—` justifié sinon) |
 | **N1 — visuel auto** | Claude, si navigateur in-app | non | erreurs console, contenu présent, requêtes 4xx/5xx, responsive |
 | **N2 — humain** | Thibault | non | jugement esthétique / UX / ton — **rien d'autre** |
 
@@ -152,13 +176,15 @@ Protocole complet : skill **`/verif-visuelle`**.
 ## 7. Garde-fous appliqués (hooks)
 
 Les règles ci-dessus qui comptent vraiment ne sont pas seulement écrites : elles sont **appliquées**
-par trois hooks (`Templates/.claude/hooks/`, câblés via `project-settings.json` copié dans
-`.claude/settings.json` du projet). Une instruction ne contraint rien ; un hook si.
+par quatre hooks (`Templates/.claude/hooks/`). Le câblage réel vit désormais dans `hooks.json` du
+plugin (chemins `${CLAUDE_PLUGIN_ROOT}`) — le `settings.json` d'un projet n'en porte plus la
+définition. Une instruction ne contraint rien ; un hook si.
 
 | Hook | Événement | Ce qu'il fait |
 | --- | --- | --- |
 | `sessionstart-contexte.mjs` | SessionStart | Signale : vague en cours, `STATUS.md` en retard de ≥3 commits, plafonds dépassés. Silencieux si tout est sain. |
 | `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell) | Refuse `git add -A`/`.`/`--all` et `git commit -a` ; refuse commit et push tant que `.claude/wave.lock` existe. |
+| `posttooluse-format.mjs` | PostToolUse (Edit/Write) | Formate via prettier si configuré dans le projet, silencieux sinon. |
 | `stop-contexte.mjs` | Stop | Refuse de rendre la main si du code a été modifié sans qu'aucun fichier de suivi ne le soit, ou si un plafond est dépassé. Ne bloque qu'une fois par session. |
 
 ### Plafonds de lignes
@@ -169,7 +195,7 @@ Source unique : `Templates/.claude/hooks/plafonds.json`.
 | --- | --- |
 | `STATUS.md` | 80 |
 | `TASKS.md` | 60 |
-| `VALIDATION.md` | 120 |
+| `VALIDATION.md` | 60 |
 | `DECISIONS.md` (registre) | 150 |
 | `PROJECT_MAP.md` | 200 |
 | `CLAUDE.md` | 200 |
@@ -188,7 +214,10 @@ Ces fichiers sont relus à chaque session — leur longueur est un coût récurr
 - Empiler dans une session des tâches qui ne remplissent pas les critères de regroupement — ou, à
   l'inverse, payer un démarrage froid pour une tâche `low` qui aurait dû s'adosser à un lot.
 - Explorer le repo dans le contexte Opus au lieu de déléguer à un subagent (§5).
+- Faire soi-même ce qu'un agent mécanique rendrait en 10 lignes (sortie de build verbeuse,
+  exploration de fichiers, lecture de doc externe).
 - Improviser des tâches hors du `S<k>.md` en cours ; mélanger deux sessions dans un même lancement.
+- Enchaîner deux sessions d'un même plan dans une seule et même conversation (§5b).
 - Committer ou pusher pendant l'exécution au lieu d'attendre la fin de plan (§4b).
 - Écrire dans `VALIDATION.md` ce qu'un navigateur constate seul (§6).
 - Recopier un statut à deux endroits (§4a).
