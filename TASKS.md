@@ -18,7 +18,7 @@ du plan, pas en amont.
 
 - **modèle** : Opus · Sonnet · Haiku (· Fable, rare · Codex pour la régression visuelle scriptée) —
   grille : `WORKFLOW.md` §2
-- **effort** : `low · medium · high · xhigh` (défaut `medium` ; il n'existe pas de `max`) —
+- **effort** : `low · medium · high · xhigh · max` (défaut `medium`) —
   suggestion à **vérifier à la main avant de lancer la session**. Repère : `WORKFLOW.md` §3
 
 ## Archivage

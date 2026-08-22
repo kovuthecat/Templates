@@ -36,7 +36,7 @@ il pointe vers le reste, sans le recopier. Plafond : **200 lignes** — au-delà
 - Ne jamais committer de secret (`.env`, clés, tokens).
 - Serveur dev déclaré dans `.claude/launch.json` (nécessaire à la validation N1 — `/verif-visuelle`).
 
-@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md
+<!-- Règles communes injectées à chaque session par le plugin `workflow` (hook SessionStart) — ne pas les recopier ici. -->
 
 ## Règles spécifiques au projet
 

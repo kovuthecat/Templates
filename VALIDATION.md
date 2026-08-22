@@ -1,12 +1,13 @@
 # VALIDATION.md — jugement humain en attente (N2 uniquement)
 
-> **Ce fichier ne contient que du N2** : esthétique, UX, ton, « est-ce que c'est agréable ».
+> Items N2 (jugement humain) EN ATTENTE uniquement. Un item tranché = ligne supprimée du fichier
+> (git est l'archive).
+>
 > Tout ce qu'un navigateur peut constater seul — erreur console, élément absent, 404, débordement
 > horizontal — est du **N1** : c'est à Claude de le vérifier (`/verif-visuelle`) et de le corriger
-> dans la session, jamais à empiler ici. C'est ce mélange qui a fait gonfler ce fichier jusqu'à
-> des centaines d'items jamais dépilés.
+> dans la session, jamais à empiler ici.
 >
-> Plafond : **120 lignes** (appliqué par hook). Légende : `[ ]` à valider · `[x]` OK ·
+> Plafond : **60 lignes** (appliqué par hook). Légende : `[ ]` à valider · `[x]` OK ·
 > `[!]` à corriger (décrire dessous).
 >
 > **État actuel uniquement.** Un bloc entièrement `[x]` se supprime après la passe humaine.

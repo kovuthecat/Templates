@@ -61,6 +61,27 @@ Avant d'ajouter une abstraction, vérifier :
 
 ---
 
+## Règles scopées `.claude/rules/`
+
+Une convention qui ne vaut que pour un sous-ensemble de fichiers d'un projet (ex. migrations
+Supabase, données HE, tests d'un module précis) va dans un fichier `.claude/rules/<domaine>.md`
+**du projet**, pas en ligne ajoutée à `CLAUDE.md`. Chaque fichier ne se charge que lorsque Claude
+touche un fichier concerné, via un frontmatter `paths` (syntaxe vérifiée dans la doc Anthropic,
+`memory`) :
+
+```markdown
+---
+paths:
+  - "supabase/migrations/**/*.sql"
+---
+
+Contenu de la règle…
+```
+
+Sans frontmatter `paths`, la règle se charge à chaque session, comme `CLAUDE.md`.
+
+---
+
 ## Git
 
 - Un commit = une intention claire ; relire `git diff` avant de committer.
