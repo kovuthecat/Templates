@@ -45,7 +45,33 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
 
 ## Décisions
 
-- <!-- YYYY-MM-DD — **titre** — verdict → [détail](docs/decisions/…) -->
+- 2026-08-22 — **Plugin sans déplacement de fichier** — Le repo devient la marketplace Claude Code
+  `templates` exposant le plugin `workflow` (skills, hooks, agents) sur les emplacements existants,
+  sans rien déplacer ; les projets non migrés continuent de fonctionner tels quels →
+  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
+- 2026-08-22 — **CLAUDE-BASE injecté par hook** — L'import `@...CLAUDE-BASE.md` du `CLAUDE.md`
+  projet est remplacé par une injection du contenu via le hook `SessionStart` du plugin →
+  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
+- 2026-08-22 — **Settings projet réduits** — `.claude/settings.json` d'un projet se limite à
+  `enabledPlugins` + `permissions` + `effortLevel` ; les hooks voyagent désormais dans le plugin →
+  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
+- 2026-08-22 — **Agents mécaniques Haiku** — Quatre agents (`explorateur`, `verificateur-n0`,
+  `resumeur-git`, `lecteur-doc`) à délégation proactive remplacent l'exécution directe des tâches
+  mécaniques dans la conversation principale →
+  [détail](docs/decisions/2026-08-22-agents-mecaniques.md)
+- 2026-08-22 — **Enchaînement de sessions** — Pastille `spawn_task` en Desktop et orchestrateur
+  headless `claude -p` pour les vagues sans validation N1, jamais de `/clear` automatique →
+  [détail](docs/decisions/2026-08-22-agents-mecaniques.md)
+- 2026-08-22 — **`VALIDATION.md` = N2 en attente uniquement** — Item tranché = ligne supprimée
+  (git reste l'archive), plafond abaissé de 120 à 60 lignes →
+  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
+- 2026-08-22 — **`DESIGN_SPEC.md` sépare le brief UI de l'architecture technique** — Le brief
+  Claude Design et l'état Design Sync vivent dans `DESIGN_SPEC.md` ; `ARCHITECTURE.md` redevient un
+  document technique (découpage, état/persistance, entités) →
+  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
+- 2026-08-22 — **Rapport capacités archivé et distillé** — Le rapport de capacités Claude Code est
+  archivé daté dans `docs/references/` et distillé en skill `/choisir-mecanisme` →
+  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
 
 ---
 
