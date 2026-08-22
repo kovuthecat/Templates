@@ -10,6 +10,9 @@ Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne coûtent des toke
 
 ## Étape 1 — Investiguer (jamais modifier)
 
+Se mettre en **Plan Mode** pour toute la phase d'investigation — ce mode interdit l'écriture de
+fichiers, donc la consigne « jamais modifier » devient structurelle plutôt que déclarative.
+
 1. **Flux** : chemin complet du problème/feature, où il commence et se termine.
 2. **Fichiers probables** sans tout ouvrir : `PROJECT_MAP.md`, `ARCHITECTURE.md`, registre `DECISIONS.md` d'abord.
 3. **Rôle** de chaque fichier clé : pourquoi il est pertinent.
@@ -17,9 +20,10 @@ Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne coûtent des toke
 5. **1-2 hypothèses racines** (bug : ce qui peut mal tourner ; feature : choix archi critiques).
 6. **Verdict** : plan rédigeable maintenant, ou ambiguïté à lever avec Thibault d'abord ?
 
-**Déléguer la recherche des fichiers à un subagent `Explore`** dès que les points 2-3 demandent de
-balayer le repo : il ne rend que sa conclusion, l'exploration ne pollue pas le contexte Opus (qui
-est le plus cher). Garder pour soi les points 1, 5 et 6 — c'est le raisonnement, pas la recherche.
+**Déléguer** dès que les points 2-3 demandent de balayer le repo ou l'historique : exploration de
+fichiers → agent `explorateur` ; résumé de diff/historique git → agent `resumeur-git`. Chacun ne
+rend que sa conclusion, l'exploration ne pollue pas le contexte Opus (qui est le plus cher). Garder
+pour soi les points 1, 5 et 6 — c'est le raisonnement, pas la recherche.
 
 ## Étape 2 — Découper en sessions (règle de coût)
 
@@ -41,7 +45,7 @@ Deux sessions sont **parallélisables** ssi aucune dépendance **et** zones modi
 (fichiers de « Modifier »). La colonne « Zone modifiée » sert à ce contrôle : y mettre les
 répertoires/fichiers réellement touchés, pas des généralités.
 
-Modèle et effort : grille dans `C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\WORKFLOW.md` §2-3.
+Modèle et effort : grille dans `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §2-3.
 
 ## Étape 3 — Écrire `plans/P<n>/index.md`
 
@@ -66,6 +70,13 @@ Modèle et effort : grille dans `C:\Users\kovu\SynologyDrive\Thibault\Projets\Te
   ou session Haiku `low`).
 ```
 
+**Vagues autonomes (optionnel)** — une vague entière sans aucune session `Desktop` peut être
+enchaînée par un orchestrateur : une session Haiku `low` qui lance chaque session via
+`claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le" --model <modèle>` séquentiellement (parallèle
+uniquement si zones disjointes ET `wave.lock` posé), ne garde que les verdicts de chaque session,
+s'arrête au premier FAIL rencontré. Prérequis impératif : une allowlist de permissions doit exister
+dans `.claude/settings.json` du projet (pas d'humain disponible pour confirmer un outil en headless).
+
 Colonne **Env.** : `Desktop` si la session exige la validation visuelle N1 (navigateur in-app),
 `—` sinon. Une session `Desktop` ne se lance pas depuis VSCode (cf. `/verif-visuelle`).
 
@@ -78,6 +89,7 @@ L'index ne contient **rien d'autre** : pas de détail d'exécution, il pointe ve
 
 > **Modèle : <Sonnet/Haiku/Codex> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
 > **Environnement : <Desktop (navigateur in-app requis) | indifférent>**
+> **Lancement : `claude --model <modèle>` · effort : /effort si ≠ défaut · autonome : /goal « toutes les tâches de ce fichier faites, N0 vert »**
 > Exécutant : UNIQUEMENT les tâches ci-dessous, dans l'ordre ; fichiers sous « Lire » / « Modifier ».
 > Design fixé — ne reconçois pas. Doute ou blocage → STOP, signale, rends la main.
 
@@ -107,6 +119,7 @@ L'index ne contient **rien d'autre** : pas de détail d'exécution, il pointe ve
 
 ### Validation
 - **N0 auto (bloque le commit)** : `<commande>` → <résultat attendu>
+- **Tests** : <créés/mis à jour : fichiers, cas couverts> — ou « — » justifié en 1 ligne
 - **N1 visuel auto** : <écran/parcours à vérifier au navigateur in-app, ou `—`> → `/verif-visuelle`
 - **N2 humain (jugement esthétique/UX)** : <checklist ou `—`> → à consigner dans `VALIDATION.md`
 
