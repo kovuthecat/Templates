@@ -139,8 +139,9 @@ Table de délégation détaillée : `CLAUDE-BASE.md` (section « Avant de coder 
 ne pas traîner le contexte de l'une dans l'autre.
 
 - **Depuis Desktop** : la skill `/fin-de-tache` pose une pastille qui lance la session suivante.
-- **Vague entière sans aucune session `Desktop`** : orchestrateur headless `claude -p` enchaîne les
-  sessions — voir `/nouveau-plan` §Vagues autonomes.
+- **Vague entière sans aucune session `Desktop`** : dérouler `/executer-vague` — un orchestrateur
+  Haiku `low` lance chaque session via `claude -p`, ne conserve que les verdicts et ne lit jamais un
+  `S<k>.md`.
 - **Toute session marquée `Desktop`** (validation visuelle N1 requise) : toujours un lancement
   manuel par Thibault, jamais automatisé par l'orchestrateur headless.
 

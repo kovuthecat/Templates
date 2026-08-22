@@ -70,12 +70,12 @@ Modèle et effort : grille dans `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §2-3.
   ou session Haiku `low`).
 ```
 
-**Vagues autonomes (optionnel)** — une vague entière sans aucune session `Desktop` peut être
-enchaînée par un orchestrateur : une session Haiku `low` qui lance chaque session via
-`claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le" --model <modèle>` séquentiellement (parallèle
-uniquement si zones disjointes ET `wave.lock` posé), ne garde que les verdicts de chaque session,
-s'arrête au premier FAIL rencontré. Prérequis impératif : une allowlist de permissions doit exister
+**Vagues autonomes (optionnel)** — une vague entière sans aucune session `Desktop` s'exécute via
+`/executer-vague` : orchestrateur Haiku `low`, une session = un processus `claude -p`, verdicts
+seulement, arrêt au premier FAIL. Prérequis impératif : une allowlist de permissions doit exister
 dans `.claude/settings.json` du projet (pas d'humain disponible pour confirmer un outil en headless).
+En découpant, garder cette contrainte en tête : une vague orchestrable ne contient aucune session
+`Desktop`.
 
 Colonne **Env.** : `Desktop` si la session exige la validation visuelle N1 (navigateur in-app),
 `—` sinon. Une session `Desktop` ne se lance pas depuis VSCode (cf. `/verif-visuelle`).
