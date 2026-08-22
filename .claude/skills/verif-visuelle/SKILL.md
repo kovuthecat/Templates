@@ -5,7 +5,7 @@ description: Vérification visuelle d'un écran ou d'un parcours — niveau N1 a
 
 # Vérification visuelle
 
-Trois niveaux (cf. `C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\WORKFLOW.md` §6) :
+Trois niveaux (cf. `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §6) :
 
 | Niveau | Qui | Bloquant | Contenu |
 | --- | --- | --- | --- |
