@@ -33,7 +33,8 @@ fonctionner tels quels — pas d'urgence à migrer. Marche à suivre : `MIGRATIO
 | Skill | Quand |
 | --- | --- |
 | `/nouveau-projet` | Repo vide, avant toute autre chose → interview de cadrage puis instanciation des fichiers |
-| `/nouveau-plan` | Opus cadre un plan → crée `plans/P<n>/` (contient les squelettes et la règle de découpage) |
+| `/cadrer` | Le QUOI/POURQUOI n'est pas tranché → session de réflexion Opus bornée, sortie = une décision écrite |
+| `/nouveau-plan` | Opus découpe un plan → crée `plans/P<n>/` (contient les squelettes et la règle de découpage) |
 | `/verif-visuelle` | Après une tâche qui touche l'UI → N1 au navigateur in-app, ou checklist si VSCode |
 | `/executer-vague` | Vague prête sans session `Desktop` → lance chaque session en processus séparé, ne garde que les verdicts |
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |

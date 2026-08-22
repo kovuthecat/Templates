@@ -1,7 +1,7 @@
 {
   "name": "workflow",
   "description": "Workflow perso Thibault : plans multi-sessions, validation N0-N2, contexte plafonné.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": { "name": "kovuthecat" },
   "skills": "./.claude/skills/",
   "hooks": "./.claude/hooks/hooks.json"

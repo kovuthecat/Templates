@@ -1,12 +1,16 @@
 ---
 name: nouveau-plan
-description: Cadrer un plan et générer le dossier plans/P<n>/ (index d'orchestration + un fichier par session). À dérouler par Opus quand une tâche demande plusieurs sessions, ou quand le scope est flou. Contient la checklist d'investigation, les règles de découpage en sessions et les squelettes index.md / S<k>.md.
+description: Découper un chantier en sessions et générer le dossier plans/P<n>/ (index d'orchestration + un fichier par session). À dérouler par Opus quand une tâche demande plusieurs sessions. Contient la checklist d'investigation, les règles de découpage en sessions et les squelettes index.md / S<k>.md.
 ---
 
-# Cadrer un plan
+# Découper un plan en sessions
 
 À dérouler **par Opus**, avant toute écriture de code. Sortie = un dossier `plans/P<n>/`.
-Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne coûtent des tokens qu'au cadrage.
+Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne coûtent des tokens qu'au découpage.
+
+**Le QUOI et le POURQUOI doivent déjà être tranchés.** Si le scope est flou ou l'approche non
+décidée, ce n'est pas ce plan qu'il faut écrire : dérouler `/cadrer` d'abord, dans une session
+séparée, et repartir de la décision écrite qu'elle produit.
 
 ## Étape 1 — Investiguer (jamais modifier)
 

@@ -72,8 +72,10 @@ permanence est le poste de dépense le plus silencieux du workflow.
 
 ## 4. Plans
 
-Le backlog vit dans `TASKS.md` (index global). Quand Opus cadre un plan, il déroule **`/nouveau-plan`**,
-qui crée un dossier `plans/P<n>/` :
+Le backlog vit dans `TASKS.md` (index global). Un plan est toujours précédé d'une **décision écrite** :
+si le QUOI ou le POURQUOI n'est pas tranché, dérouler **`/cadrer`** dans une session séparée — sa
+sortie (`docs/decisions/`) est l'entrée du plan. Puis Opus déroule **`/nouveau-plan`**, qui crée un
+dossier `plans/P<n>/` :
 
 - **`plans/P<n>/index.md`** — guide d'orchestration : objectif, table des sessions, ordonnancement
   par vagues. **C'est le seul endroit où vit le statut des tâches.**
