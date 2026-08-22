@@ -14,11 +14,11 @@ Un projet migré a exactement ces fichiers de contexte, à la racine (sauf menti
 | Fichier | Statut attendu |
 | --- | --- |
 | `PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md` | copiés — contenu spécifique au projet, conservé tel quel |
-| `CLAUDE.md` | squelette actuel (commandes réelles + règles spécifiques du projet) **+** ligne d'import `@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md` |
+| `CLAUDE.md` | squelette actuel (commandes réelles + règles spécifiques du projet). **Pas** d'import `@...CLAUDE-BASE.md` : son contenu est injecté par le hook `SessionStart` du plugin (import retiré par l'Étape 5) |
 | `AGENTS.md` | stub 3 lignes (cf. `README.md` §Séquence de création, point 1) |
 | `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central), `MIGRATION.md`, `CHANGELOG.md`, `README.md`, `plans/` | **PAS de copie locale** — référencés uniquement via chemin absolu vers `Templates/` |
-| `.claude/skills/*` (local) | **absent** — les skills utilisateur (`~/.claude/skills/`, jonctions vers `Templates/.claude/skills/`) prennent le relais ; une skill locale de même nom les masquerait |
-| `.claude/settings.json` | copie de `Templates/project-settings.json` (effort par défaut + les 3 hooks). Fusionner s'il existe déjà, ne pas écraser |
+| `.claude/skills/*` (local) | **absent** — le plugin `workflow` (activé via `enabledPlugins` dans `.claude/settings.json`) fournit les skills ; plus de jonction NTFS (retirée par l'Étape 5) |
+| `.claude/settings.json` | `enabledPlugins` (`workflow@templates`) + `permissions` + `effortLevel` — copie de `Templates/project-settings.json` à jour. Les hooks voyagent dans le plugin, plus dans ce fichier (Étape 5). Fusionner s'il existe déjà, ne pas écraser |
 | `docs/decisions/` | un fichier par décision, créé par l'Étape 4 |
 
 ## §Étape 0 — Inventaire
@@ -88,9 +88,10 @@ Pour chaque fichier trouvé, décider :
 ## §Étape 3 — CLAUDE.md & skill
 
 - Reconstruire `CLAUDE.md` sur le squelette actuel de `Templates/CLAUDE.md` : section Commandes
-  remplie avec les vraies commandes du projet, ajout de la ligne d'import
-  `@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md`, section « Règles
-  spécifiques au projet » = ce qui a été extrait à l'Étape 2.
+  remplie avec les vraies commandes du projet, section « Règles spécifiques au projet » = ce qui a
+  été extrait à l'Étape 2. **Pas d'import `@...CLAUDE-BASE.md`** à ajouter ici : l'Étape 5 active le
+  plugin `workflow`, dont le hook `SessionStart` injecte ce contenu — l'ajouter puis le retirer
+  aussitôt à l'Étape 5 serait un aller-retour inutile.
 - Écrire le stub `AGENTS.md` (bloc donné dans `README.md` §Séquence de création, point 1).
 - Supprimer `.claude/skills/fin-de-tache` local si présent.
 - Supprimer toute copie locale obsolète de `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central),
@@ -137,6 +138,53 @@ Ordre imposé : le gain décroît, le risque croît.
    (`Templates/.claude/hooks/plafonds.json`). Sinon, la migration n'est pas finie.
 
 Commit dédié, séparé de l'Étape 1-3 : `chore: apply 2026-07-28 workflow refit (hooks, caps, N1)`.
+
+## §Étape 5 — Passage au plugin (delta du 2026-08-22)
+
+À appliquer **en plus** des étapes 1-4, y compris aux projets déjà migrés avant le 2026-08-22. Le
+**prompt standard de migration au fil de l'eau reste valable et couvre désormais aussi cette
+étape** : « Lis `C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\MIGRATION.md` et
+applique-la à ce projet. » — pas de prompt séparé à retenir pour le plugin.
+
+Cette étape est **auto-suffisante** : elle ne suppose aucune connaissance du plan qui a produit le
+plugin, seulement l'état actuel de `Templates/`.
+
+1. **Settings** — ouvrir `.claude/settings.json` du projet. S'il porte encore un bloc `hooks`
+   (3 entrées `SessionStart`/`PreToolUse`/`Stop` pointant vers des chemins absolus
+   `Templates/.claude/hooks/...`), le retirer. Le remplacer par le contenu actuel de
+   `Templates/project-settings.json` (`enabledPlugins`, `permissions`, `effortLevel`) — recopier
+   tel quel, fusionner avec des clés déjà spécifiques au projet si elles existent (ne pas écraser
+   une clé `permissions.allow` déjà enrichie par l'usage réel de ce projet ; l'union des deux
+   listes, pas un remplacement).
+
+2. **`CLAUDE.md` du projet** — supprimer la ligne d'import
+   `@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md` si elle est encore
+   présente. Ne rien ajouter à la place : le hook `SessionStart` du plugin injecte ce contenu.
+   Garder tout le reste du fichier (commandes réelles, règles spécifiques au projet).
+
+3. **Skills locales obsolètes** — chercher une jonction ou une copie physique de skills du workflow
+   dans le projet (`.claude/skills/fin-de-tache`, `.claude/skills/nouveau-plan`, etc., ou une
+   jonction `~/.claude/skills/<nom>` pointant vers `Templates/.claude/skills/<nom>`). Les
+   supprimer : le plugin `workflow`, activé à l'étape 1, les fournit désormais. Une skill locale de
+   même nom masquerait celle du plugin.
+
+4. **`DESIGN_SPEC.md`** — uniquement si le projet a une UI. S'il n'existe pas encore : le créer à
+   partir du gabarit `Templates/DESIGN_SPEC.md`, puis y **déplacer** (pas recopier — retirer de la
+   source) les sections écrans/navigation/données affichées/maquette actuellement dans
+   l'`ARCHITECTURE.md` du projet. `ARCHITECTURE.md` ne garde que le technique (découpage,
+   état/persistance, entités & flux de données côté code) — cf. `Templates/ARCHITECTURE.md` pour
+   la répartition cible entre les deux fichiers.
+
+5. **Vérification finale** — ouvrir une **nouvelle** session Claude Code dans le projet migré et
+   constater :
+   - les règles communes (contenu de `CLAUDE-BASE.md`) apparaissent **une seule fois** dans le
+     contexte de session (si elles apparaissent deux fois : l'import n'a pas été retiré au point 2
+     ci-dessus, ou le plugin n'est pas activé — revérifier le point 1) ;
+   - les hooks sont actifs (un `git add -A` de test doit être refusé — cf. `WORKFLOW.md` §7) ;
+   - les skills du plugin sont proposées (`/nouveau-plan`, `/fin-de-tache`, etc. apparaissent sans
+     copie locale ni jonction).
+
+Commit dédié, séparé des étapes précédentes : `chore: migrate to workflow plugin (2026-08-22)`.
 
 ## §Garde-fous
 
