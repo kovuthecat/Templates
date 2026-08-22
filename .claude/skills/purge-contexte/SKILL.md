@@ -9,16 +9,8 @@ description: Ramener les fichiers de contexte (STATUS, TASKS, VALIDATION, DECISI
 relu à chaque session — mais une information perdue coûte bien plus qu'un fichier long.
 En cas de doute : déplacer vers `docs/`, jamais effacer.
 
-Plafonds (source :
-`C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\.claude\hooks\plafonds.json`) :
-
-| Fichier | Plafond |
-| --- | --- |
-| `STATUS.md` | 80 lignes |
-| `TASKS.md` | 60 |
-| `VALIDATION.md` | 120 |
-| `DECISIONS.md` (registre) | 150 |
-| `PROJECT_MAP.md` | 200 |
+Plafonds : source unique = `${CLAUDE_PLUGIN_ROOT}/.claude/hooks/plafonds.json` (lu aussi par les
+hooks) — ne jamais recopier les valeurs ici, elles dérivent et finissent par diverger.
 
 Modèle conseillé : **Haiku, effort `low`** — c'est du déplacement mécanique.
 Traiter **un fichier à la fois**, dans l'ordre où les dépassements sont signalés.
@@ -51,7 +43,8 @@ n'est pas en jeu.
 
 ## `VALIDATION.md` → uniquement du N2 restant
 
-Ce fichier ne contient que du **jugement humain en attente** (cf. `/verif-visuelle`).
+Ce fichier ne contient que des items **N2 EN ATTENTE** (cf. `/verif-visuelle`) — plafond dans
+`plafonds.json`. Tout item tranché est **supprimé**, jamais archivé : git suffit comme trace.
 
 - Supprimer tout bloc entièrement `[x]`.
 - Supprimer tout item qui relève du **N1** (erreur console, élément absent, 404, débordement) :
