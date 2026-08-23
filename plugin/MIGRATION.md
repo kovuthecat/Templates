@@ -16,9 +16,10 @@ Un projet migré a exactement ces fichiers de contexte, à la racine (sauf menti
 | `PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md` | copiés — contenu spécifique au projet, conservé tel quel |
 | `CLAUDE.md` | squelette actuel (commandes réelles + règles spécifiques du projet). **Pas** d'import `@...CLAUDE-BASE.md` : son contenu est injecté par le hook `SessionStart` du plugin (import retiré par l'Étape 5) |
 | `AGENTS.md` | stub 3 lignes (cf. `README.md` §Séquence de création, point 1) |
-| `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central), `MIGRATION.md`, `CHANGELOG.md`, `README.md`, `plans/` | **PAS de copie locale** — référencés uniquement via chemin absolu vers `Templates/` |
+| `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central), `MIGRATION.md` | **PAS de copie locale** — fournis par le plugin `workflow` installé (référencés depuis les fichiers du plugin via `${CLAUDE_PLUGIN_ROOT}/...`), pas de copie ni de chemin absolu à maintenir |
+| `CHANGELOG.md`, `README.md`, `plans/` | **PAS de copie locale** — fichiers privés du dépôt `Templates`, hors plugin ; référencés uniquement via chemin absolu vers `Templates/` |
 | `.claude/skills/*` (local) | **absent** — le plugin `workflow` (activé via `enabledPlugins` dans `.claude/settings.json`) fournit les skills ; plus de jonction NTFS (retirée par l'Étape 5) |
-| `.claude/settings.json` | `enabledPlugins` (`workflow@templates`) + `permissions` + `effortLevel` — copie de `Templates/project-settings.json` à jour. Les hooks voyagent dans le plugin, plus dans ce fichier (Étape 5). Fusionner s'il existe déjà, ne pas écraser |
+| `.claude/settings.json` | `enabledPlugins` (`workflow@templates`) + `permissions` + `effortLevel` — copie de `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` à jour. Les hooks voyagent dans le plugin, plus dans ce fichier (Étape 5). Fusionner s'il existe déjà, ne pas écraser |
 | `docs/decisions/` | un fichier par décision, créé par l'Étape 4 |
 
 ## §Étape 0 — Inventaire
@@ -87,7 +88,7 @@ Pour chaque fichier trouvé, décider :
 
 ## §Étape 3 — CLAUDE.md & skill
 
-- Reconstruire `CLAUDE.md` sur le squelette actuel de `Templates/CLAUDE.md` : section Commandes
+- Reconstruire `CLAUDE.md` sur le squelette actuel de `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` : section Commandes
   remplie avec les vraies commandes du projet, section « Règles spécifiques au projet » = ce qui a
   été extrait à l'Étape 2. **Pas d'import `@...CLAUDE-BASE.md`** à ajouter ici : l'Étape 5 active le
   plugin `workflow`, dont le hook `SessionStart` injecte ce contenu — l'ajouter puis le retirer
@@ -102,7 +103,7 @@ Pour chaque fichier trouvé, décider :
 À appliquer **en plus** des étapes 1-3, y compris aux projets déjà migrés le 2026-07-07.
 Ordre imposé : le gain décroît, le risque croît.
 
-1. **Hooks & effort** — copier `Templates/project-settings.json` en `.claude/settings.json`.
+1. **Hooks & effort** — copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` en `.claude/settings.json`.
    S'il existe déjà : fusionner (garder les clés existantes, ajouter `effortLevel` et les 3 entrées
    `hooks`). Vérifier ensuite qu'un `node .claude/... --version` de test ne casse rien : les hooks
    sont silencieux quand tout est sain.
@@ -135,7 +136,7 @@ Ordre imposé : le gain décroît, le risque croît.
    partir de la commande dev du `CLAUDE.md` (nécessaire au N1, cf. `/verif-visuelle`).
 
 8. **Contrôle final** : chaque fichier de contexte est sous son plafond
-   (`Templates/.claude/hooks/plafonds.json`). Sinon, la migration n'est pas finie.
+   (`${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json`). Sinon, la migration n'est pas finie.
 
 Commit dédié, séparé de l'Étape 1-3 : `chore: apply 2026-07-28 workflow refit (hooks, caps, N1)`.
 

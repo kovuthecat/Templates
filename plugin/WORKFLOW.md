@@ -179,7 +179,7 @@ Protocole complet : skill **`/verif-visuelle`**.
 ## 7. Garde-fous appliqués (hooks)
 
 Les règles ci-dessus qui comptent vraiment ne sont pas seulement écrites : elles sont **appliquées**
-par quatre hooks (`Templates/.claude/hooks/`). Le câblage réel vit désormais dans `hooks.json` du
+par quatre hooks (`${CLAUDE_PLUGIN_ROOT}/hooks/`). Le câblage réel vit désormais dans `hooks.json` du
 plugin (chemins `${CLAUDE_PLUGIN_ROOT}`) — le `settings.json` d'un projet n'en porte plus la
 définition. Une instruction ne contraint rien ; un hook si.
 
@@ -192,7 +192,7 @@ définition. Une instruction ne contraint rien ; un hook si.
 
 ### Plafonds de lignes
 
-Source unique : `Templates/.claude/hooks/plafonds.json`.
+Source unique : `${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json`.
 
 | Fichier | Plafond |
 | --- | --- |

@@ -23,7 +23,10 @@ const lignes = [];
 // Émission de CLAUDE-BASE.md — chemin relatif au fichier du hook (comme lib.mjs pour plafonds.json),
 // jamais de chemin absolu : portable en cloud comme dans un plugin installé depuis le cache.
 // Sautée sur `resume` : les règles sont déjà dans le contexte repris, les réinjecter les duplique.
-const reprise = entree.source === 'resume';
+// Émise en revanche sur `compact` — après compaction, le contexte a justement été élagué.
+// Le champ est `session_start_reason` ; `source` est lu en repli, la doc étant ambiguë sur le nom
+// et un faux négatif ici ne coûtant qu'une réinjection (le comportement d'avant cette ligne).
+const reprise = (entree.session_start_reason ?? entree.source) === 'resume';
 const cheminClaudeBase = join(ICI, '..', 'CLAUDE-BASE.md');
 let claudeBase = '';
 if (reprise) {

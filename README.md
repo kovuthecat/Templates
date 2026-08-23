@@ -39,6 +39,8 @@ fonctionner tels quels — pas d'urgence à migrer. Marche à suivre : `MIGRATIO
 | `/executer-vague` | Vague prête sans session `Desktop` → lance chaque session en processus séparé, ne garde que les verdicts |
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |
 | `/purge-contexte` | Un hook signale un plafond dépassé → archivage sans perte |
+| `/reprendre` | Projet laissé de côté, « où j'en étais ? » → lecture bornée, écarts signalés, une prochaine action proposée |
+| `/migrer-projet` | Projet existant encore hors plugin (import `@CLAUDE-BASE.md`, hooks en dur, skills locales) → bascule puis vérification prouvée |
 | `/choisir-mecanisme` | Hésitation entre plusieurs mécanismes Claude Code, ou audit périodique de la config `.claude/` d'un projet |
 
 ## Séquence de création
