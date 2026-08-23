@@ -16,11 +16,16 @@ Codex n'implémente pas de features et ne modifie pas le code applicatif — c'e
 
 ## Audits UI (Playwright)
 
-Ne pas installer Playwright dans le projet. Utiliser le runner partagé depuis la racine du projet à auditer :
+Ne pas installer Playwright dans le projet. Utiliser le runner partagé depuis la racine du projet à
+auditer — son emplacement est **local à la machine**, donné par `PLAYWRIGHT_AUDIT_RUNNER` :
 
 ```powershell
-node "C:\Users\kovu\SynologyDrive\Thibault\Projets\.tooling\playwright-audit\audit.mjs" <url>
+node "$env:PLAYWRIGHT_AUDIT_RUNNER" <url>
 ```
+
+Variable non définie ? Le runner vit dans `.tooling/playwright-audit/audit.mjs` du dossier Projets ;
+la définir une fois pour toutes dans le profil PowerShell plutôt que de coller un chemin absolu dans
+un fichier versionné.
 
 `--headed` affiche le navigateur ; `--output <dossier>` change la sortie (défaut : `output/playwright/`).
 Démarrer d'abord le serveur du projet (commande dans son `CLAUDE.md`), puis auditer l'URL locale ;

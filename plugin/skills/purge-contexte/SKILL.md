@@ -9,7 +9,7 @@ description: Ramener les fichiers de contexte (STATUS, TASKS, VALIDATION, DECISI
 relu à chaque session — mais une information perdue coûte bien plus qu'un fichier long.
 En cas de doute : déplacer vers `docs/`, jamais effacer.
 
-Plafonds : source unique = `${CLAUDE_PLUGIN_ROOT}/.claude/hooks/plafonds.json` (lu aussi par les
+Plafonds : source unique = `${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json` (lu aussi par les
 hooks) — ne jamais recopier les valeurs ici, elles dérivent et finissent par diverger.
 
 Modèle conseillé : **Haiku, effort `low`** — c'est du déplacement mécanique.

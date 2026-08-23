@@ -44,18 +44,19 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
 
 ## Phase C — Instanciation mécanique (seulement après validation de la Phase B)
 
-1. Copier depuis `Templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`,
-   `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md` (squelette) — et, si la
-   réponse à la question 13 est « oui, il y a une UI », `DESIGN_SPEC.md` en plus.
-2. Copier `project-settings.json` (contenu actuel du repo Templates, tel quel sur disque) →
-   `.claude/settings.json` du nouveau projet.
-3. Écrire le stub `AGENTS.md` — reprendre tel quel le bloc du README.md § Séquence de création :
+1. Copier depuis `${CLAUDE_PLUGIN_ROOT}/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
+   `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
+   (squelette) — et, si la réponse à la question 13 est « oui, il y a une UI », `DESIGN_SPEC.md`.
 
-   ```md
-   # AGENTS.md
-   Lire et appliquer `C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\AGENTS.md`
-   (rôle Codex : régression visuelle scriptée). Commandes du projet : `CLAUDE.md`.
-   ```
+   > Les squelettes voyagent **dans le plugin** : ne jamais aller les chercher dans un checkout du
+   > repo Templates (chemin qui n'existe que sur la machine de Thibault, cf. D-P2-1).
+
+2. Copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` → `.claude/settings.json` du
+   nouveau projet.
+3. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
+   Codex charge ce fichier depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}` : il lui
+   faut le contenu, pas un pointeur. Si Thibault utilise le runner Playwright partagé, lui rappeler
+   de définir `PLAYWRIGHT_AUDIT_RUNNER` (cf. `AGENTS.md` § Audits UI).
 
 4. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).

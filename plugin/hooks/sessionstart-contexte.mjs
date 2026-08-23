@@ -22,9 +22,13 @@ const lignes = [];
 
 // Émission de CLAUDE-BASE.md — chemin relatif au fichier du hook (comme lib.mjs pour plafonds.json),
 // jamais de chemin absolu : portable en cloud comme dans un plugin installé depuis le cache.
-const cheminClaudeBase = join(ICI, '..', '..', 'CLAUDE-BASE.md');
+// Sautée sur `resume` : les règles sont déjà dans le contexte repris, les réinjecter les duplique.
+const reprise = entree.source === 'resume';
+const cheminClaudeBase = join(ICI, '..', 'CLAUDE-BASE.md');
 let claudeBase = '';
-if (existsSync(cheminClaudeBase)) {
+if (reprise) {
+  claudeBase = '';
+} else if (existsSync(cheminClaudeBase)) {
   try {
     const contenu = readFileSync(cheminClaudeBase, 'utf8');
     claudeBase =
@@ -33,7 +37,8 @@ if (existsSync(cheminClaudeBase)) {
     claudeBase = '**Avertissement** : CLAUDE-BASE.md illisible malgré sa présence.';
   }
 } else {
-  claudeBase = '**Avertissement** : CLAUDE-BASE.md introuvable (attendu à côté du repo, ../../CLAUDE-BASE.md).';
+  claudeBase =
+    '**Avertissement** : CLAUDE-BASE.md introuvable à la racine du plugin (${CLAUDE_PLUGIN_ROOT}/CLAUDE-BASE.md).';
 }
 
 if (vagueParallele(cwd)) {
@@ -55,10 +60,14 @@ for (const d of depassements(cwd)) {
   lignes.push(`**${d.fichier} : ${d.lignes}/${d.plafond} lignes** — archivage dû (/purge-contexte).`);
 }
 
-const blocs = [claudeBase];
+const blocs = [];
+if (claudeBase) blocs.push(claudeBase);
 if (lignes.length > 0) {
   blocs.push(`État du contexte projet (hook workflow) :\n- ${lignes.join('\n- ')}`);
 }
+
+// Reprise sans dérive à signaler : rien à dire, on n'écrit pas.
+if (blocs.length === 0) riendafaire();
 
 repondre({
   hookSpecificOutput: {
