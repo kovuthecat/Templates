@@ -54,6 +54,7 @@ a menti. On la **nomme**, on ne la répare pas en silence.
 | Tâche `[~]`/en cours dans l'`index.md` sans commit ni diff correspondant | travail annoncé jamais fait, ou perdu | rouvrir la tâche, ou la repasser à faire |
 | Diff non commité dans l'arbre de travail | plan en cours non consolidé (`WORKFLOW.md` §4b) | `/fin-de-tache` §Fin de plan |
 | `.claude/wave.lock` présent | vague parallèle jamais close | vérifier les sessions de la vague, puis clore |
+| `plans/P<n>/S<k>.echec.md` présent | une session a échoué et n'a jamais été reprise | `/reprendre-echec <chemin>` — il passe avant toute nouvelle tâche |
 | Plafond dépassé (signalé par le hook) | fichier de contexte relu et payé à chaque session | `/purge-contexte`, avant de reprendre |
 | `VALIDATION.md` non vide | N2 en attente côté utilisateur | le lui rappeler, ne pas trancher à sa place |
 

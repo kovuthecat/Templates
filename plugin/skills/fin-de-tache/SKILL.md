@@ -50,7 +50,10 @@ ailleurs (ni dans le `S<k>.md`, ni dans `TASKS.md`) — c'est la première sourc
 
 ## Fin de plan (toutes les sessions exécutées et validées)
 
-9. Supprimer `.claude/wave.lock` s'il existe (clôt la vague, débloque git).
+9. Supprimer `.claude/wave.lock` s'il existe (clôt la vague, débloque git), ainsi que
+   `.claude/vague/` (verdicts bruts et identifiants de session de la vague — transitoires). Un
+   `plans/P<n>/S<k>.echec.md` encore présent signale un échec non résolu : ne pas le supprimer,
+   et ne pas clore le plan (`/reprendre-echec`).
 10. **Commit tâche par tâche, staging explicite** : `git status`, relire le diff, puis
    `git add <fichiers de la tâche>` — `git add -A` et `git commit -a` sont refusés par hook.
    Message = celui prévu dans chaque `T<n>`.

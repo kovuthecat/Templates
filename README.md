@@ -57,6 +57,7 @@ Projet existant pas encore migré → `/migrer-projet` (`plugin/MIGRATION.md` po
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |
 | `/purge-contexte` | Un hook signale un plafond dépassé → archivage sans perte |
 | `/reprendre` | Projet laissé de côté, « où j'en étais ? » → lecture bornée, écarts signalés, une prochaine action proposée |
+| `/reprendre-echec` | Une session de plan a échoué → rapport de passation, état réel vérifié, correction, N0 reprouvé |
 | `/migrer-projet` | Projet existant encore hors plugin (import `@CLAUDE-BASE.md`, hooks en dur, skills locales) → bascule puis vérification prouvée |
 | `/choisir-mecanisme` | Hésitation entre plusieurs mécanismes Claude Code, ou audit périodique de la config `.claude/` d'un projet |
 

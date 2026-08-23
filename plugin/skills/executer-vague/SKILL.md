@@ -53,36 +53,77 @@ plan.
 ## Étape 4 — Lancer
 
 Une session = un processus. Jamais deux sessions dans une même conversation (`WORKFLOW.md` §5b).
-**Le verdict est contraint par schéma à la source** — la session exécutante (sur son propre
-modèle, celui de l'`index.md`) doit conclure sur un objet JSON conforme, pas sur un rapport en
-prose que l'orchestrateur devrait ensuite interpréter :
+
+**Deux rapports, deux destinataires.** Un échec doit rester réparable, mais son contexte n'a rien
+à faire dans l'orchestrateur. La session exécutante produit donc deux sorties distinctes :
+
+| Sortie | Destinataire | Contenu |
+| --- | --- | --- |
+| **Verdict** (contraint par schéma) | l'orchestrateur | `PASS`/`FAIL` + un motif d'une ligne + le chemin du rapport |
+| **Rapport de passation** (fichier sur disque) | la session de réparation, plus tard | tout le contexte utile à la correction — **jamais lu ici** |
+
+L'orchestrateur relaie un **chemin**, il ne l'ouvre pas. Le contexte de l'échec n'entre donc jamais
+dans son contexte à lui, et reste pourtant intégralement disponible à qui devra corriger.
+
+Chaque session reçoit un **identifiant propre** (`--session-id`) : sans lui, une session headless
+peut hériter de la session ambiante, et son transcript devient impossible à retrouver.
 
 ```bash
-resultat=$(claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le." \
+uuid=$(node -e "console.log(require('crypto').randomUUID())")
+mkdir -p .claude/vague
+
+claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le.
+En cas d'ÉCHEC, écrire d'abord un rapport de passation dans plans/P<n>/S<k>.echec.md
+(voir le gabarit dans \${CLAUDE_PLUGIN_ROOT}/skills/reprendre-echec/SKILL.md), puis
+renvoyer son chemin dans le champ 'rapport'. En cas de succès, 'rapport' vaut ''." \
+  --session-id "$uuid" \
   --model <modèle> --effort <effort> \
   --output-format json \
-  --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"motif":{"type":"string"}},"required":["verdict","motif"]}')
+  --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"motif":{"type":"string"},"rapport":{"type":"string"}},"required":["verdict","motif","rapport"]}' \
+  > ".claude/vague/S<k>.json"
+
+echo "$uuid" > ".claude/vague/S<k>.session"
 ```
 
-Modèle et effort viennent de l'`index.md` — identiques au bandeau du `S<k>.md`. Séquentiel par
-défaut ; en parallèle, lancer les sessions de la vague ensemble puis attendre l'ensemble.
+Modèle et effort viennent de l'`index.md` — identiques au bandeau du `S<k>.md`. **Séquentiel par
+défaut.** En parallèle, suffixer chaque lancement de `&` (chacun écrit dans son propre
+`.claude/vague/S<k>.json`, donc pas de collision), puis un seul `wait` avant l'Étape 5.
 
 ## Étape 5 — Collecter les verdicts
 
-Deux champs de `$resultat`, et seulement ceux-là, sont autorisés à la lecture : `is_error` et
-`structured_output` (`.verdict`, `.motif`). **Jamais `result`** ni aucun autre champ — c'est là
-que vivent le texte libre et les métadonnées que le schéma a justement pour rôle d'écarter.
+Quatre champs, et seulement ceux-là : `is_error`, `structured_output.verdict`, `.motif`, `.rapport`.
+**Jamais `result`** ni aucun autre champ de l'enveloppe — c'est là que vivent le texte libre et les
+métadonnées que le schéma a justement pour rôle d'écarter.
+
+**La décision se prend dans Node, pas en bash**, et la sortie est faite d'une valeur par ligne. Ni
+séparateur à découper, ni condition à réécrire à chaque appel : le seul endroit où « PASS » est
+défini est la ligne `ok` ci-dessous.
 
 ```bash
-erreur_cli=$(node -e "console.log(JSON.parse(process.argv[1]).is_error)" "$resultat")
-verdict=$(node -e "console.log(JSON.parse(process.argv[1]).structured_output?.verdict)" "$resultat")
-motif=$(node -e "console.log(JSON.parse(process.argv[1]).structured_output?.motif)" "$resultat")
+lire() { node -e "
+  let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+    let s={}, err=true;
+    try{ const j=JSON.parse(d); err = j.is_error !== false; s = j.structured_output ?? {}; }catch(e){}
+    const complet = typeof s.verdict==='string' && typeof s.motif==='string' && typeof s.rapport==='string';
+    const ok = !err && complet && s.verdict==='PASS';
+    const l = t => String(t ?? '').replace(/[\r\n]+/g,' ').trim();
+    console.log(ok ? 'PASS' : 'FAIL');
+    console.log(complet ? l(s.motif) : 'sortie non conforme');
+    console.log(complet ? l(s.rapport) : '');
+  })" < "$1"; }
+
+{ read -r verdict; read -r motif; read -r rapport; } < <(lire ".claude/vague/S<k>.json")
 ```
 
-**Fail-closed** : succès seulement si `erreur_cli` vaut exactement `false` **et** `verdict` vaut
-exactement `PASS`. Tout le reste — `FAIL`, champ absent, JSON malformé, `erreur_cli` à `true` —
-est **FAIL**, motif générique « sortie non conforme » si `motif` est absent. Ne pas essayer de
-deviner une intention derrière une sortie inattendue.
+**Fail-closed, et c'est Node qui l'applique** : `PASS` exige `is_error === false`, les trois champs
+du schéma présents et typés, et `verdict === "PASS"`. Tout le reste — `FAIL`, champ manquant, JSON
+malformé, session tuée — ressort en `FAIL`, motif « sortie non conforme ». Une sortie illisible
+produit donc littéralement un FAIL au lieu de déclencher une interprétation.
+
+> Deux pièges que ce code évite, et qu'une version « lue en bash » avait tous les deux :
+> découper sur une tabulation (elle est *IFS whitespace* : deux tabulations consécutives
+> s'effondrent en une et décalent tous les champs), et accepter un `verdict: PASS` arrivé sans les
+> autres champs requis — donc sans respecter le schéma.
 
 **Arrêt au premier FAIL** : ne pas lancer la suite de la vague. En parallèle, laisser les sessions
 déjà lancées se terminer, puis s'arrêter.
@@ -92,5 +133,14 @@ déjà lancées se terminer, puis s'arrêter.
 1. Passer à `[x]` dans l'`index.md` les sessions PASS, avec la date (statut = source unique,
    `WORKFLOW.md` §4a). En vague parallèle les sessions n'y touchent pas (`/fin-de-tache`) : c'est
    l'orchestrateur qui le fait, une fois la vague finie.
-2. **Rapport final** : une ligne par session, puis la vague suivante prête, ou le blocage rencontré.
-3. **Ni commit ni push** — ils ont lieu en fin de plan, via `/fin-de-tache`.
+2. **Rapport final** : une ligne par session — `S<k> · PASS/FAIL · motif`. Puis la vague suivante
+   prête, ou le blocage rencontré.
+3. **Sur FAIL, donner les deux points d'entrée de la réparation, sans les ouvrir** :
+   - le chemin du rapport de passation (`$rapport`), et la commande qui l'exploite :
+     `/reprendre-echec plans/P<n>/S<k>.echec.md` ;
+   - l'identifiant de la session en échec (`.claude/vague/S<k>.session`), **uniquement comme
+     recours** si le rapport s'avère insuffisant : `claude --resume <uuid>` rouvre le transcript
+     complet. À ne pas proposer par défaut — reprendre une session en échec rapatrie aussi toutes
+     ses fausses pistes, ce que le démarrage à froid existe précisément pour éviter
+     (`WORKFLOW.md` §5b).
+4. **Ni commit ni push** — ils ont lieu en fin de plan, via `/fin-de-tache`.
