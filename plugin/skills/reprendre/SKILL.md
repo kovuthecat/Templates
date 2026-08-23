@@ -1,6 +1,7 @@
 ---
 name: reprendre
 description: Répondre à « où j'en étais ? » sur un projet laissé de côté — lecture bornée de STATUS.md, de l'index du plan courant et du backlog, détection des incohérences, puis UNE prochaine action proposée. À dérouler en ouverture d'une session sur un projet non touché depuis un moment, ou quand le hook SessionStart signale un STATUS.md en retard. Ne code pas, ne commite pas, ne modifie aucun fichier de suivi.
+model: sonnet
 ---
 
 # Reprendre un projet
@@ -9,7 +10,7 @@ Le hook `SessionStart` **signale** la dérive (STATUS.md en retard de N commits,
 il ne dit pas quoi faire ensuite. Cette skill comble ce trou, et rien d'autre : elle se termine par
 une proposition d'action, pas par un état des lieux.
 
-Modèle conseillé : **Sonnet, effort `medium`**. Sortie : ≤ 10 lignes + 1 action.
+Le frontmatter bascule sur **Sonnet, effort `medium`** pour ce tour. Sortie : ≤ 10 lignes + 1 action.
 
 **Coût borné, règle non négociable.** Une reprise qui relit le repo coûte plus cher que la tâche
 qu'elle prépare. Donc : quatre fichiers courts lus en direct, tout le reste **délégué aux agents**
@@ -23,7 +24,7 @@ dont on ne garde que la conclusion (`WORKFLOW.md` §5). Ne jamais ouvrir le code
    ce qu'on y trouverait serait au mieux redondant, au pire faux.
 3. **`TASKS.md`** — ce qui reste hors plan.
 4. **`VALIDATION.md`** — **seulement s'il est non vide** : son contenu est du N2 humain en attente,
-   c'est-à-dire une action pour Thibault, pas pour la session.
+   c'est-à-dire une action pour l'utilisateur, pas pour la session.
 
 Ne pas ouvrir : les `S<k>.md` (leur tour vient à l'exécution, pas ici), le registre `DECISIONS.md`,
 `ARCHITECTURE.md`, `PROJECT_MAP.md`, le code. S'il faut savoir où vit quelque chose → `explorateur`.
@@ -54,7 +55,7 @@ a menti. On la **nomme**, on ne la répare pas en silence.
 | Diff non commité dans l'arbre de travail | plan en cours non consolidé (`WORKFLOW.md` §4b) | `/fin-de-tache` §Fin de plan |
 | `.claude/wave.lock` présent | vague parallèle jamais close | vérifier les sessions de la vague, puis clore |
 | Plafond dépassé (signalé par le hook) | fichier de contexte relu et payé à chaque session | `/purge-contexte`, avant de reprendre |
-| `VALIDATION.md` non vide | N2 en attente côté Thibault | le lui rappeler, ne pas trancher à sa place |
+| `VALIDATION.md` non vide | N2 en attente côté utilisateur | le lui rappeler, ne pas trancher à sa place |
 
 ## Étape 4 — Restituer en ≤ 10 lignes
 
@@ -65,8 +66,8 @@ Format imposé, une ligne par point, rien de plus :
 - **Écarts** : les incohérences de l'étape 3, une ligne chacune. Aucun écart → l'écrire.
 - **En attente humain** : N2 restant, s'il y en a.
 
-Pas de récapitulatif du projet, pas de rappel de ce que fait l'app : Thibault le sait, il demande
-où il en était.
+Pas de récapitulatif du projet, pas de rappel de ce que fait l'app : l'utilisateur le sait, il
+demande où il en était.
 
 ## Étape 5 — UNE prochaine action, proposée puis validée
 
@@ -80,6 +81,6 @@ arbitrer, jamais un « on pourrait aussi ». Ordre de priorité :
    session part toujours à froid (`WORKFLOW.md` §5b).
 4. Plus de plan en cours → `/nouveau-plan`, ou `/cadrer` si le QUOI n'est pas tranché.
 
-**Attendre le oui de Thibault avant d'exécuter quoi que ce soit.** Cette skill ne code pas, ne
+**Attendre le oui de l'utilisateur avant d'exécuter quoi que ce soit.** Cette skill ne code pas, ne
 commite pas, et ne modifie ni `STATUS.md`, ni `TASKS.md`, ni un `index.md` : elle les lit et dit
 lesquels mentent.

@@ -65,6 +65,6 @@ S'il reste des sessions prêtes dans l'`index.md` du plan (dépendances satisfai
 - **Desktop** : poser une pastille via `spawn_task` — titre `P<n> · S<k> — <titre>`, prompt
   « Ouvre plans/P<n>/S<k>.md et exécute-le. Modèle/effort : voir bandeau du fichier. »
 - **Hors Desktop** : afficher la commande de lancement du bandeau du `S<k>.md` suivant, pour que
-  Thibault la lance lui-même.
+  l'utilisateur la lance lui-même.
 - **Jamais dans la même conversation** : le contexte de la session qui vient de finir polluerait la
   suivante — démarrage froid systématique.

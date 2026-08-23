@@ -36,6 +36,6 @@ sert aux audits ponctuels, pas à remplacer les tests versionnés.
 ## Restitution
 
 Consigner les constats **techniques** (erreur, requête échouée, débordement) dans le rapport rendu à
-Thibault, **sans modifier le code** : ce sont des défauts N1, ils deviennent des tâches, pas des
+l'utilisateur, **sans modifier le code** : ce sont des défauts N1, ils deviennent des tâches, pas des
 lignes de `VALIDATION.md` (qui ne porte que le jugement humain N2).
 Si la tâche dépasse l'audit (correctif, refactor, choix produit) : s'arrêter, résumer, rendre la main.

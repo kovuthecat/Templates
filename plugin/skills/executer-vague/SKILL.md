@@ -1,6 +1,7 @@
 ---
 name: executer-vague
 description: Orchestre une vague de sessions d'un plan — lance chaque session dans un processus séparé, ne garde que les verdicts, tient les statuts. À dérouler quand une vague de `plans/P<n>/index.md` est prête et ne contient aucune session `Desktop`. Pendant exécutif de `/nouveau-plan`.
+model: haiku
 ---
 
 # Exécuter une vague
@@ -9,7 +10,8 @@ L'orchestrateur ne fait que deux choses : **lancer des sessions** et **collecter
 Tout ce qu'il lit en plus, il le retraîne à chaque tour jusqu'à la fin de la vague — c'est ce qui
 fait exploser un contexte d'orchestration.
 
-Modèle : Haiku, effort `low`. Le jugement vit dans les sessions, pas ici.
+Le frontmatter bascule sur Haiku pour ce tour, effort `low`. Le jugement vit dans les sessions
+orchestrées (elles reçoivent leur propre modèle en argument `--model`), pas ici.
 
 ## Interdits — la raison d'être de cette skill
 
@@ -17,7 +19,7 @@ Modèle : Haiku, effort `low`. Le jugement vit dans les sessions, pas ici.
   contexte. L'`index.md` suffit à l'orchestrateur.
 - **Ne jamais lire un diff, une sortie de build ou un log.** Déléguer à `resumeur-git` et
   `verificateur-n0`, qui ne rendent que leur conclusion.
-- **Ne jamais corriger soi-même.** Une session qui échoue rend la main à Thibault ; l'orchestrateur
+- **Ne jamais corriger soi-même.** Une session qui échoue rend la main à l'utilisateur ; l'orchestrateur
   n'implémente rien, ne relance rien.
 
 ## Étape 1 — Lire l'index, rien d'autre
@@ -30,7 +32,7 @@ modèle, effort, colonne `Env.`, dépendances, zone modifiée.
 STOP, expliquer, rendre la main si l'un de ces cas se présente :
 
 - une session de la vague porte **`Env. = Desktop`** → validation visuelle N1, lancement manuel
-  obligatoire par Thibault (`WORKFLOW.md` §5b) ;
+  obligatoire par l'utilisateur (`WORKFLOW.md` §5b) ;
 - une **dépendance** n'est pas `[x]` dans l'`index.md` ;
 - l'**arbre git n'est pas propre** (demander à `resumeur-git`) ;
 - `.claude/settings.json` n'a pas d'**allowlist `permissions.allow`** → en headless personne ne peut

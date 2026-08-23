@@ -1,12 +1,16 @@
 ---
 name: migrer-projet
 description: Migrer un projet existant vers le plugin `workflow@templates` — diagnostic de l'état de départ, bascule des settings, du CLAUDE.md et des skills locales, reprise des fichiers de contexte, puis vérification prouvée. À dérouler dans un projet qui charge encore les règles communes par un import `@<chemin absolu>CLAUDE-BASE.md`, qui porte des hooks à chemins absolus dans `.claude/settings.json`, ou qui a des skills du workflow copiées ou jonctionnées en local.
+model: sonnet
 ---
 
 # Migrer un projet vers le plugin
 
-Procédure exécutable, à dérouler **dans le projet à migrer**. Modèle conseillé : **Sonnet, effort
-`medium`** — du jugement, mais borné. Référence longue : `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`, pour
+Procédure exécutable, à dérouler **dans le projet à migrer**. Le frontmatter bascule sur
+**Sonnet, effort `medium`** pour ce tour — du jugement, mais borné. **Couverture partielle** : les
+deux gates (avant écriture, avant clôture) ouvrent chacune un nouveau tour après le oui de
+l'utilisateur, hors override — la Phase A (diagnostic) en profite pleinement, les phases suivantes
+tournent sur le modèle actif de la session. Référence longue : `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`, pour
 les cas tordus (contexte rangé dans un sous-dossier, nom non standard, annexe des cas par projet).
 
 **Priorité absolue : ne jamais perdre de contenu spécifique au projet.** En cas de doute :
@@ -50,7 +54,7 @@ Constater, ne rien corriger encore. Six points :
 ## Gate — restituer avant d'écrire
 
 Synthèse en **≤ 12 lignes** : la case occupée dans le tableau ci-dessus, les écarts trouvés, et ce
-qui sera supprimé. Faire valider explicitement par Thibault **avant la première écriture** — une
+qui sera supprimé. Faire valider explicitement par l'utilisateur **avant la première écriture** — une
 suppression de contenu projet ne se rattrape qu'à la main.
 
 ## Phase B — Bascule (ordre imposé : le gain décroît, le risque croît)

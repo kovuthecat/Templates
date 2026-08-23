@@ -145,7 +145,7 @@ ne pas traîner le contexte de l'une dans l'autre.
   Haiku `low` lance chaque session via `claude -p`, ne conserve que les verdicts et ne lit jamais un
   `S<k>.md`.
 - **Toute session marquée `Desktop`** (validation visuelle N1 requise) : toujours un lancement
-  manuel par Thibault, jamais automatisé par l'orchestrateur headless.
+  manuel par l'utilisateur, jamais automatisé par l'orchestrateur headless.
 
 ## 6. Validation — trois niveaux
 
@@ -153,7 +153,7 @@ ne pas traîner le contexte de l'une dans l'autre.
 | --- | --- | --- | --- |
 | **N0 — auto** | Claude, toujours | **oui** | `build` + `typecheck` + tests du périmètre touché (`—` justifié sinon) |
 | **N1 — visuel auto** | Claude, si navigateur in-app | non | erreurs console, contenu présent, requêtes 4xx/5xx, responsive |
-| **N2 — humain** | Thibault | non | jugement esthétique / UX / ton — **rien d'autre** |
+| **N2 — humain** | l'utilisateur | non | jugement esthétique / UX / ton — **rien d'autre** |
 
 **N1 est nouveau et change la règle précédente** : Claude Code Desktop dispose d'un navigateur
 in-app (`preview_start`, `read_page`, `read_console_messages`…). Ce qu'un navigateur peut constater

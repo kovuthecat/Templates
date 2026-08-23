@@ -12,19 +12,19 @@ Cette skill ne cadre pas de plan (`/nouveau-plan` s'en charge) et ne dessine pas
 ## Phase A — Interview
 
 **Une question à la fois, jamais un mur de questions.** Reformuler chaque réponse en 1 ligne avant
-de passer à la suivante — Thibault doit pouvoir corriger avant que ça s'accumule.
+de passer à la suivante — l'utilisateur doit pouvoir corriger avant que ça s'accumule.
 
 1. **Problème & objectif** — qu'est-ce qui est pénible aujourd'hui ? à quoi ressemble « réussi » ?
 2. **Utilisateurs & contexte d'usage** — qui, sur quel appareil, à quelle fréquence ?
 3. **Usage & déploiement** — perso ou pas, usage local ou pas, déploiement prévu ou pas, d'autres
-   utilisateurs que Thibault ou pas (4 oui/non → section « Usage prévu » du brief).
+   utilisateurs que la personne qui développe ou pas (4 oui/non → section « Usage prévu » du brief).
 4. **Fonctionnalités MVP** — 3 à 7, formulées en verbes ; pour chacune : indispensable au jour 1 ?
 5. **Hors-périmètre explicite** — ce qu'on refuse de faire au MVP, au moins 3 items.
 6. **Vision & idées futures** — au-delà du MVP, la direction générale si tout se passe bien ; idées
    de v2 notées mais jamais promises.
 7. **Plateformes cibles** — desktop / mobile / PWA (conditionne les contraintes UI).
 8. **Données** — entités principales, volumétrie, besoin multi-appareil ? Oriente le choix de
-   persistance : local-first Dexie vs Supabase, selon les habitudes des projets existants de Thibault.
+   persistance : local-first Dexie vs Supabase, selon les habitudes des projets existants de l'utilisateur.
 9. **Stack** — défaut Vite+React+TS sauf raison contraire ; toute déviation justifiée en 1 ligne.
    Couvre aussi backend, base de données (cohérente avec Q8), authentification, hébergement.
 10. **Contraintes** — offline, accessibilité, ton visuel, perf.
@@ -39,7 +39,7 @@ de passer à la suivante — Thibault doit pouvoir corriger avant que ça s'accu
 
 ## Phase B — Restitution (gate)
 
-Synthèse de l'interview en **≤ 15 lignes**, à faire valider explicitement par Thibault **avant
+Synthèse de l'interview en **≤ 15 lignes**, à faire valider explicitement par l'utilisateur **avant
 d'écrire le moindre fichier**. Pas de « je considère que c'est validé » implicite — attendre le oui.
 
 ## Phase C — Instanciation mécanique (seulement après validation de la Phase B)
@@ -49,14 +49,14 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
    (squelette) — et, si la réponse à la question 13 est « oui, il y a une UI », `DESIGN_SPEC.md`.
 
    > Les squelettes voyagent **dans le plugin** : ne jamais aller les chercher dans un checkout du
-   > repo Templates (chemin qui n'existe que sur la machine de Thibault, cf. D-P2-1).
+   > repo source du plugin (chemin qui n'existe que sur la machine où il a été développé).
 
 2. Copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` → `.claude/settings.json` du
    nouveau projet.
 3. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
    Codex charge ce fichier depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}` : il lui
-   faut le contenu, pas un pointeur. Si Thibault utilise le runner Playwright partagé, lui rappeler
-   de définir `PLAYWRIGHT_AUDIT_RUNNER` (cf. `AGENTS.md` § Audits UI).
+   faut le contenu, pas un pointeur. Si l'utilisateur utilise le runner Playwright partagé, lui
+   rappeler de définir `PLAYWRIGHT_AUDIT_RUNNER` (cf. `AGENTS.md` § Audits UI).
 
 4. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).

@@ -1,6 +1,7 @@
 ---
 name: purge-contexte
 description: Ramener les fichiers de contexte (STATUS, TASKS, VALIDATION, DECISIONS, PROJECT_MAP) sous leur plafond de lignes en archivant sans perdre d'information. À dérouler quand un hook signale un dépassement, ou avant de reprendre un projet laissé de côté. Inclut la scission DECISIONS.md en registre + docs/decisions/.
+model: haiku
 ---
 
 # Purge du contexte
@@ -12,7 +13,8 @@ En cas de doute : déplacer vers `docs/`, jamais effacer.
 Plafonds : source unique = `${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json` (lu aussi par les
 hooks) — ne jamais recopier les valeurs ici, elles dérivent et finissent par diverger.
 
-Modèle conseillé : **Haiku, effort `low`** — c'est du déplacement mécanique.
+Le frontmatter bascule sur **Haiku, effort `low`** pour ce tour — c'est du déplacement mécanique,
+sans pause pour validation humaine, donc le tour couvre toute la skill.
 Traiter **un fichier à la fois**, dans l'ordre où les dépassements sont signalés.
 
 ## `DECISIONS.md` → registre + `docs/decisions/`
@@ -48,7 +50,7 @@ Ce fichier ne contient que des items **N2 EN ATTENTE** (cf. `/verif-visuelle`) �
 
 - Supprimer tout bloc entièrement `[x]`.
 - Supprimer tout item qui relève du **N1** (erreur console, élément absent, 404, débordement) :
-  ce n'est pas à Thibault de le vérifier — le rebasculer en tâche `TASKS.md` si ce n'est pas fait.
+  ce n'est pas à l'utilisateur de le vérifier — le rebasculer en tâche `TASKS.md` si ce n'est pas fait.
 - Un écran réécrit depuis **remplace** ses anciens critères, il ne s'empile pas dessous.
 - Organiser **un bloc par écran/module courant**, jamais un bloc par tâche de plan.
 - Projet à plusieurs gros sous-domaines : router le spécifique dans `docs/<sous-domaine>/VALIDATION.md`,

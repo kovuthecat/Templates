@@ -1,12 +1,16 @@
 ---
 name: nouveau-plan
 description: Découper un chantier en sessions et générer le dossier plans/P<n>/ (index d'orchestration + un fichier par session). À dérouler par Opus quand une tâche demande plusieurs sessions. Contient la checklist d'investigation, les règles de découpage en sessions et les squelettes index.md / S<k>.md.
+model: opus
 ---
 
 # Découper un plan en sessions
 
-À dérouler **par Opus**, avant toute écriture de code. Sortie = un dossier `plans/P<n>/`.
-Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne coûtent des tokens qu'au découpage.
+Le frontmatter bascule sur Opus pour ce tour. **Ça ne couvre que l'investigation** (Étape 1,
+avant le Plan Mode) : une fois le plan approuvé par l'utilisateur, l'écriture (Phase suivante)
+reprend dans un nouveau tour, sur le modèle actif de la session — sans gravité, c'est mécanique.
+Sortie = un dossier `plans/P<n>/`. Les squelettes vivent ici (et non dans `WORKFLOW.md`) : ils ne
+coûtent des tokens qu'au découpage.
 
 **Le QUOI et le POURQUOI doivent déjà être tranchés.** Si le scope est flou ou l'approche non
 décidée, ce n'est pas ce plan qu'il faut écrire : dérouler `/cadrer` d'abord, dans une session
@@ -22,7 +26,7 @@ fichiers, donc la consigne « jamais modifier » devient structurelle plutôt qu
 3. **Rôle** de chaque fichier clé : pourquoi il est pertinent.
 4. **Dépendances directes** utiles.
 5. **1-2 hypothèses racines** (bug : ce qui peut mal tourner ; feature : choix archi critiques).
-6. **Verdict** : plan rédigeable maintenant, ou ambiguïté à lever avec Thibault d'abord ?
+6. **Verdict** : plan rédigeable maintenant, ou ambiguïté à lever avec l'utilisateur d'abord ?
 
 **Déléguer** dès que les points 2-3 demandent de balayer le repo ou l'historique : exploration de
 fichiers → agent `explorateur` ; résumé de diff/historique git → agent `resumeur-git`. Chacun ne

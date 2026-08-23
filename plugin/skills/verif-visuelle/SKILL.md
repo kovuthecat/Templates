@@ -11,7 +11,7 @@ Trois niveaux (cf. `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §6) :
 | --- | --- | --- | --- |
 | **N0** | Claude, toujours | oui | `build` + `typecheck` (+ tests unitaires si logique pure) |
 | **N1** | Claude si navigateur dispo | non | erreurs console, contenu présent, requêtes 4xx/5xx, responsive |
-| **N2** | Thibault | non | jugement esthétique / UX / ton — rien d'autre |
+| **N2** | l'utilisateur | non | jugement esthétique / UX / ton — rien d'autre |
 
 Cette skill couvre **N1**. Elle ne fait jamais de N2 : Claude n'évalue pas si c'est beau.
 
@@ -53,7 +53,7 @@ session a été lancée au mauvais endroit → **STOP**, signale-le, rends la ma
 4. **Interagir** seulement si la tâche portait sur une interaction : `computer` (clic/saisie) ou
    `form_input`, puis `read_page` pour confirmer l'effet.
 5. **Capture** (`computer` `screenshot`) **uniquement** si un constat visuel doit être montré à
-   Thibault — une capture coûte cher en tokens, elle n'est pas le mode de vérification par défaut.
+   l'utilisateur — une capture coûte cher en tokens, elle n'est pas le mode de vérification par défaut.
 
 **Si un défaut N1 est trouvé** : lire le code, corriger, relancer l'étape 3. Un défaut N1 se
 corrige dans la session, il ne se consigne **pas** dans `VALIDATION.md`.
@@ -79,7 +79,7 @@ N2 (jugement) :
 ```
 
 Puis **consigner uniquement la partie N2 dans `VALIDATION.md`** (bloc par écran, cf. l'en-tête du
-fichier). La partie N1 reste dans la réponse : soit Thibault la déroule tout de suite, soit la
+fichier). La partie N1 reste dans la réponse : soit l'utilisateur la déroule tout de suite, soit la
 session est rejouée depuis Desktop.
 
 > Une session dont la validation N1 est structurante (nouvel écran, refonte de mise en page) gagne
