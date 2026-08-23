@@ -1,6 +1,6 @@
 {
   "name": "workflow",
   "description": "Workflow perso : plans multi-sessions, validation N0-N2, contexte plafonné.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": { "name": "templates" }
 }

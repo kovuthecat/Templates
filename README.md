@@ -21,27 +21,43 @@ plugin, jamais distribués : `README.md`, `CHANGELOG.md`, `DECISIONS.md`, `plans
 
 ## Distribution
 
-Le plugin est **auto-contenu dans `plugin/`** : manifeste, marketplace, skills, agents, hooks et
-squelettes. Ce dossier est extractible tel quel — rien en dehors ne lui est nécessaire.
+**Deux dépôts, deux rôles.** Le développement du plugin se fait **ici**, dans ce dépôt privé, sous
+`plugin/` — avec les plans, les décisions et l'historique. La distribution passe par le dépôt
+**public** [`kovuthecat/claude-workflow`](https://github.com/kovuthecat/claude-workflow), qui ne
+contient que le plugin. On ne modifie jamais le dépôt public à la main : il est **publié depuis
+celui-ci** (voir ci-dessous).
 
-La marketplace `templates` s'enregistre par une source **`git-subdir`** (cf.
-`plugin/templates/project-settings.json`), qui fait un **clone sparse** : un projet ne rapatrie que
-`plugin/`, jamais les plans ni les décisions de ce dépôt. Un projet active ensuite le workflow avec
-`"enabledPlugins": {"workflow@templates": true}`. `CLAUDE-BASE.md` n'est pas importé par une ligne
-`@chemin` : son contenu est injecté par le hook `SessionStart` du plugin à chaque session.
+**Pourquoi public.** Une session cloud (claude.ai/code, appli mobile) n'a pas de credentials git à
+elle : elle ne peut pas cloner un dépôt privé, donc un plugin distribué depuis un dépôt privé ne s'y
+charge pas — il ne marchait qu'en local, là où les credential helpers de la machine authentifient le
+clone. Un dépôt public se clone sans authentification : le plugin se charge partout, y compris sur
+toute machine ou tout environnement cloud neuf, sans PAT à créer, stocker ni faire tourner.
 
-**Où le plugin est disponible, et où il ne l'est pas.** Ce dépôt est privé, et une session cloud
-(claude.ai/code, appli mobile) n'a pas de credentials git à elle : elle ne peut pas cloner cette
-marketplace, donc le plugin ne s'y charge pas. En local (Desktop, CLI) il se charge parce que les
-credential helpers git de la machine authentifient le clone. Deux issues, non exclusives :
+Le dépôt public **ne contient rien de privé** : ni plans, ni décisions, ni notes. Il est publié
+**sans historique** (un commit unique), parce que l'historique de `plugin/` traverse l'anonymisation
+et exposerait sinon des états antérieurs (prénom, chemins personnels) que l'arbre actuel ne contient
+plus.
 
-1. **Environnement cloud authentifié** — stocker un PAT à portée réduite en variable
-   d'environnement, et poser un URL-rewrite git dans le script de setup de l'environnement :
-   `git config --global url."https://x-access-token:$TOKEN@github.com/kovuthecat/Templates".insteadOf "https://github.com/kovuthecat/Templates"`.
-2. **Publier `plugin/` dans un repo public** — un repo public se clone sans aucune
-   authentification, ce qui règle le cloud définitivement. Procédure : `CHANGELOG.md`, entrée
-   `plugin/ extractible`. Le nom de la marketplace reste `templates`, donc `workflow@templates` et
-   les `enabledPlugins` déjà déployés continuent de fonctionner : seule la source change.
+Un projet active le workflow avec `"enabledPlugins": {"workflow@templates": true}` +
+`extraKnownMarketplaces` (déjà dans `plugin/templates/project-settings.json`), puis une installation
+explicite — cf. `/nouveau-projet` Phase C. `CLAUDE-BASE.md` n'est pas importé par une ligne
+`@chemin` : son contenu est injecté par le hook `SessionStart` à chaque session.
+
+### Publier une version
+
+Depuis `main` à jour, après avoir bumpé `plugin/.claude-plugin/plugin.json` :
+
+```bash
+git checkout --orphan plugin-public && git reset --hard
+git checkout main -- plugin && cp -r plugin/. . && rm -rf plugin
+git add -A && git commit -m "Plugin workflow — marketplace templates"
+git push --force git@github.com:kovuthecat/claude-workflow.git plugin-public:main
+git checkout main && git branch -D plugin-public
+```
+
+`--force` est normal et voulu : le dépôt public est un **artefact de distribution** à un seul
+commit, pas un historique à préserver. Sans bump de version, les projets déjà installés ne verront
+jamais la mise à jour (`/fin-de-tache`).
 
 Projet existant pas encore migré → `/migrer-projet` (`plugin/MIGRATION.md` pour les cas tordus).
 
