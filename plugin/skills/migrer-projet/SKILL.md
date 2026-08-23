@@ -77,27 +77,25 @@ suppression de contenu projet ne se rattrape qu'à la main.
 Ne pas réécrire le contenu produit (brief, décisions, roadmap) à l'occasion de la migration : on
 classe et on déplace.
 
-## Phase D — Vérification qui prouve (aucune migration n'est finie sans elle)
+## Phase D — Gate de vérification (aucune migration n'est finie sans elle)
 
 Les quatre premiers points sont mécaniques et se lancent **maintenant** ; le cinquième exige une
-**nouvelle session** (la config plugin n'est lue qu'au démarrage).
+**nouvelle session**, la config plugin n'étant lue qu'au démarrage.
 
 1. `grep -c 'CLAUDE-BASE' CLAUDE.md` → **0**. Sinon : import non retiré.
 2. `grep -c 'workflow@templates' .claude/settings.json` → **1**. Sinon : plugin non activé.
 3. `grep -c '"hooks"' .claude/settings.json` → **0** (le câblage a bien quitté le projet).
 4. `ls -l .claude/skills` → aucune skill du workflow, ni fichier ni jonction.
-5. **Nouvelle session dans le projet** : un `git add -A` de test est **refusé**. C'est la preuve
-   que les hooks du plugin sont chargés — donc que `CLAUDE-BASE.md` est bien injecté. Combiné au
-   point 1 (import absent), ça place le projet dans la case ✅ sans avoir à inspecter le contexte
+5. **Nouvelle session dans le projet** : un `git add -A` de test doit être **refusé**. C'est la
+   preuve que les hooks du plugin sont chargés, donc que `CLAUDE-BASE.md` est injecté ; combinée au
+   point 1 (import absent), elle place le projet dans la case ✅ sans avoir à inspecter le contexte
    à l'œil. Vérifier au passage que les skills du plugin sont proposées et que le hook `SessionStart`
    est silencieux (sinon : plafond dépassé → `/purge-contexte`).
 
-Un point rouge = migration non finie. Ne pas conclure « ça devrait marcher ».
+Un point rouge = migration non finie. Ne jamais conclure sur « ça devrait marcher ».
 
 ## Fin
 
 - Staging explicite, fichier par fichier. Commit : `chore: migrate to workflow plugin`.
 - **Rapport final** : ce qui a été supprimé, ce qui a été conservé par prudence, les écarts non
-  résolus et les questions laissées ouvertes.
-- Cas particulier rencontré et tranché ici → l'ajouter à l'annexe de
-  `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`.
+  résolus. Cas particulier tranché ici → l'ajouter à l'annexe de `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`.

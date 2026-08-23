@@ -25,35 +25,38 @@ ailleurs (ni dans le `S<k>.md`, ni dans `TASKS.md`) — c'est la première sourc
    prompt ? → la proposer comme `.claude/skills/<nom>/` du projet (critères : `/choisir-mecanisme`).
    On PROPOSE, on ne crée JAMAIS silencieusement — chaque skill installée paie sa description à
    toutes les sessions, et une skill projet du même nom masquerait celle du plugin.
+5. **Le plugin a changé ?** (tâche menée dans le repo du plugin, sous `plugin/`) → bumper `version`
+   dans `plugin/.claude-plugin/plugin.json` + une ligne dans `CHANGELOG.md`. Sans bump, les projets
+   déjà installés ne voient jamais la mise à jour : le travail est poussé mais n'arrive nulle part.
 
 ## Fin de session — mode SOLO (parallèle : non)
 
-5. **Statut** : passer les tâches à `[x]` dans l'`index.md` du plan (colonne Statut), avec la date.
-6. **Contexte** : mettre à jour `STATUS.md` ; les autres fichiers **seulement si leur contenu
+6. **Statut** : passer les tâches à `[x]` dans l'`index.md` du plan (colonne Statut), avec la date.
+7. **Contexte** : mettre à jour `STATUS.md` ; les autres fichiers **seulement si leur contenu
    change** — un fichier de contexte faux est pire qu'absent.
-7. **N2** : consigner dans `VALIDATION.md` **uniquement** ce qui relève du jugement humain
+8. **N2** : consigner dans `VALIDATION.md` **uniquement** ce qui relève du jugement humain
    (esthétique, UX, ton), et supprimer les items N2 déjà tranchés depuis la dernière fois — git
    est l'archive, le fichier ne contient que ce qui est encore EN ATTENTE.
-8. **Plafonds** : si le hook signale un dépassement, dérouler `/purge-contexte` — pas plus tard.
-9. **Ne pas committer ni pusher** si d'autres sessions du plan restent à exécuter.
+9. **Plafonds** : si le hook signale un dépassement, dérouler `/purge-contexte` — pas plus tard.
+10. **Ne pas committer ni pusher** si d'autres sessions du plan restent à exécuter.
 
 ## Fin de session — mode VAGUE PARALLÈLE (parallèle : oui)
 
-5. **Ne toucher AUCUN fichier partagé** : ni `STATUS.md`, ni `TASKS.md`, ni `index.md`, ni
+6. **Ne toucher AUCUN fichier partagé** : ni `STATUS.md`, ni `TASKS.md`, ni `index.md`, ni
    `VALIDATION.md`.
-6. Consigner le bilan de session et les points N2 **dans le `S<k>.md`** (il n'appartient qu'à cette
+7. Consigner le bilan de session et les points N2 **dans le `S<k>.md`** (il n'appartient qu'à cette
    session) — ils seront reversés à la consolidation.
-7. **Ni commit ni push** (bloqués par hook tant que `.claude/wave.lock` est présent).
+8. **Ni commit ni push** (bloqués par hook tant que `.claude/wave.lock` est présent).
 
 ## Fin de plan (toutes les sessions exécutées et validées)
 
-8. Supprimer `.claude/wave.lock` s'il existe (clôt la vague, débloque git).
-9. **Commit tâche par tâche, staging explicite** : `git status`, relire le diff, puis
+9. Supprimer `.claude/wave.lock` s'il existe (clôt la vague, débloque git).
+10. **Commit tâche par tâche, staging explicite** : `git status`, relire le diff, puis
    `git add <fichiers de la tâche>` — `git add -A` et `git commit -a` sont refusés par hook.
    Message = celui prévu dans chaque `T<n>`.
-10. **Consolider** : statuts `[x]` dans `index.md`, lignes purgées de `TASKS.md`, `STATUS.md` à
+11. **Consolider** : statuts `[x]` dans `index.md`, lignes purgées de `TASKS.md`, `STATUS.md` à
     jour, points N2 des `S<k>.md` reversés dans `VALIDATION.md`.
-11. **Un seul push** pour l'ensemble du plan.
+12. **Un seul push** pour l'ensemble du plan.
 
 ## Enchaînement — session suivante du plan
 

@@ -1,0 +1,74 @@
+name: plugin
+
+# Le repo est la source du plugin `workflow` : un push qui casse le manifeste casse la
+# distribution pour tous les projets qui l'ont activé. C'est le seul endroit du système
+# qui n'avait pas de filet (cf. aec3852, manifeste invalide poussé sans validation).
+on:
+  push:
+    paths: ['plugin/**', '.github/workflows/plugin.yml']
+  pull_request:
+    paths: ['plugin/**', '.github/workflows/plugin.yml']
+  workflow_dispatch:
+
+jobs:
+  valider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntaxe des hooks
+        # Les hooks tournent en Node sans dépendance : une erreur de syntaxe ne se
+        # verrait qu'au prochain démarrage de session, chez l'utilisateur.
+        run: for f in plugin/hooks/*.mjs; do node --check "$f"; done
+
+      - name: Syntaxe JSON
+        run: |
+          for f in plugin/.claude-plugin/*.json plugin/hooks/hooks.json \
+                   plugin/hooks/plafonds.json plugin/templates/project-settings.json; do
+            node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1
+          done
+
+      - name: Installer la CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Valider le manifeste
+        # --strict : un champ mal orthographié est un warning par défaut, une erreur ici.
+        run: claude plugin validate ./plugin --strict
+
+      - name: Charger le plugin pour de vrai
+        # `validate` ne suffit PAS : il passait au vert sur un manifeste qui déclarait
+        # hooks/hooks.json en plus de l'auto-découverte, alors que le plugin refusait
+        # de se charger. Seule l'installation réelle attrape cette classe de panne.
+        run: |
+          claude plugin marketplace add ./plugin
+          claude plugin install workflow@templates --yes
+          claude plugin list > /tmp/liste.txt
+          cat /tmp/liste.txt
+          grep -q 'enabled' /tmp/liste.txt || { echo "::error::le plugin ne se charge pas"; exit 1; }
+
+      - name: Vérifier l'inventaire des composants
+        # L'auto-découverte est du comportement observé, pas du contrat déclaré : un
+        # composant qui cesse d'être exposé doit faire rougir la CI, pas se découvrir
+        # trois semaines plus tard en pleine session.
+        run: |
+          claude plugin details workflow@templates > /tmp/details.txt
+          cat /tmp/details.txt
+          attendu_skills=$(ls -d plugin/skills/*/ | wc -l)
+          attendu_agents=$(ls plugin/agents/*.md | wc -l)
+          grep -q "Skills ($attendu_skills)" /tmp/details.txt \
+            || { echo "::error::skills exposées ≠ $attendu_skills sur disque"; exit 1; }
+          grep -q "Agents ($attendu_agents)" /tmp/details.txt \
+            || { echo "::error::agents exposés ≠ $attendu_agents sur disque"; exit 1; }
+
+      - name: Aucun chemin absolu dans le plugin
+        # Le plugin part dans un repo public : un chemin de répertoire personnel qui
+        # s'y glisse est publié, et ne marche de toute façon que sur une machine.
+        run: |
+          if grep -rnE '[A-Za-z]:\\\\Users|/Users/[a-z]|/home/[a-z]+/' plugin/ ; then
+            echo "::error::chemin absolu dans plugin/ — utiliser \${CLAUDE_PLUGIN_ROOT} ou une variable d'environnement"
+            exit 1
+          fi

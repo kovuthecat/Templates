@@ -88,11 +88,11 @@ Pour chaque fichier trouvé, décider :
 
 ## §Étape 3 — CLAUDE.md & skill
 
-- Reconstruire `CLAUDE.md` sur le squelette actuel de `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` : section Commandes
-  remplie avec les vraies commandes du projet, section « Règles spécifiques au projet » = ce qui a
-  été extrait à l'Étape 2. **Pas d'import `@...CLAUDE-BASE.md`** à ajouter ici : l'Étape 5 active le
-  plugin `workflow`, dont le hook `SessionStart` injecte ce contenu — l'ajouter puis le retirer
-  aussitôt à l'Étape 5 serait un aller-retour inutile.
+- Reconstruire `CLAUDE.md` sur le squelette actuel de `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` :
+  section Commandes remplie avec les vraies commandes du projet, section « Règles spécifiques au
+  projet » = ce qui a été extrait à l'Étape 2. **Pas d'import `@...CLAUDE-BASE.md`** à ajouter ici :
+  l'Étape 5 active le plugin `workflow`, dont le hook `SessionStart` injecte ce contenu — l'ajouter
+  puis le retirer aussitôt à l'Étape 5 serait un aller-retour inutile.
 - Écrire le stub `AGENTS.md` (bloc donné dans `README.md` §Séquence de création, point 1).
 - Supprimer `.claude/skills/fin-de-tache` local si présent.
 - Supprimer toute copie locale obsolète de `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` (central),
@@ -144,37 +144,37 @@ Commit dédié, séparé de l'Étape 1-3 : `chore: apply 2026-07-28 workflow ref
 
 À appliquer **en plus** des étapes 1-4, y compris aux projets déjà migrés avant le 2026-08-22. Le
 **prompt standard de migration au fil de l'eau reste valable et couvre désormais aussi cette
-étape** : « Lis `C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\MIGRATION.md` et
-applique-la à ce projet. » — pas de prompt séparé à retenir pour le plugin.
+étape** : « Lis `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md` et applique-la à ce projet. » — pas de prompt
+séparé à retenir pour le plugin.
 
 Cette étape est **auto-suffisante** : elle ne suppose aucune connaissance du plan qui a produit le
-plugin, seulement l'état actuel de `Templates/`.
+plugin, seulement l'état actuel du plugin `workflow`.
 
 1. **Settings** — ouvrir `.claude/settings.json` du projet. S'il porte encore un bloc `hooks`
-   (3 entrées `SessionStart`/`PreToolUse`/`Stop` pointant vers des chemins absolus
-   `Templates/.claude/hooks/...`), le retirer. Le remplacer par le contenu actuel de
-   `Templates/project-settings.json` (`enabledPlugins`, `permissions`, `effortLevel`) — recopier
-   tel quel, fusionner avec des clés déjà spécifiques au projet si elles existent (ne pas écraser
-   une clé `permissions.allow` déjà enrichie par l'usage réel de ce projet ; l'union des deux
-   listes, pas un remplacement).
+   (3 entrées `SessionStart`/`PreToolUse`/`Stop` pointant vers des chemins absolus, vers l'ancien
+   emplacement local des hooks avant leur passage dans le plugin), le retirer. Le remplacer par le
+   contenu actuel de `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` (`enabledPlugins`,
+   `permissions`, `effortLevel`) — recopier tel quel, fusionner avec des clés déjà spécifiques au
+   projet si elles existent (ne pas écraser une clé `permissions.allow` déjà enrichie par l'usage
+   réel de ce projet ; l'union des deux listes, pas un remplacement).
 
-2. **`CLAUDE.md` du projet** — supprimer la ligne d'import
-   `@C:\Users\kovu\SynologyDrive\Thibault\Projets\Templates\CLAUDE-BASE.md` si elle est encore
-   présente. Ne rien ajouter à la place : le hook `SessionStart` du plugin injecte ce contenu.
-   Garder tout le reste du fichier (commandes réelles, règles spécifiques au projet).
+2. **`CLAUDE.md` du projet** — supprimer la ligne d'import `@<chemin absolu>\CLAUDE-BASE.md` si
+   elle est encore présente. Ne rien ajouter à la place : le hook `SessionStart` du plugin injecte
+   ce contenu. Garder tout le reste du fichier (commandes réelles, règles spécifiques au projet).
 
 3. **Skills locales obsolètes** — chercher une jonction ou une copie physique de skills du workflow
    dans le projet (`.claude/skills/fin-de-tache`, `.claude/skills/nouveau-plan`, etc., ou une
-   jonction `~/.claude/skills/<nom>` pointant vers `Templates/.claude/skills/<nom>`). Les
-   supprimer : le plugin `workflow`, activé à l'étape 1, les fournit désormais. Une skill locale de
-   même nom masquerait celle du plugin.
+   jonction `~/.claude/skills/<nom>` pointant vers une copie locale des skills du workflow, ancien
+   emplacement avant le passage au plugin). Les supprimer : le plugin `workflow`, activé à l'étape
+   1, les fournit désormais. Une skill locale de même nom masquerait celle du plugin.
 
 4. **`DESIGN_SPEC.md`** — uniquement si le projet a une UI. S'il n'existe pas encore : le créer à
-   partir du gabarit `Templates/DESIGN_SPEC.md`, puis y **déplacer** (pas recopier — retirer de la
-   source) les sections écrans/navigation/données affichées/maquette actuellement dans
-   l'`ARCHITECTURE.md` du projet. `ARCHITECTURE.md` ne garde que le technique (découpage,
-   état/persistance, entités & flux de données côté code) — cf. `Templates/ARCHITECTURE.md` pour
-   la répartition cible entre les deux fichiers.
+   partir du gabarit `${CLAUDE_PLUGIN_ROOT}/templates/DESIGN_SPEC.md`, puis y **déplacer** (pas
+   recopier — retirer de la source) les sections écrans/navigation/données affichées/maquette
+   actuellement dans l'`ARCHITECTURE.md` du projet. `ARCHITECTURE.md` ne garde que le technique
+   (découpage, état/persistance, entités & flux de données côté code) — cf.
+   `${CLAUDE_PLUGIN_ROOT}/templates/ARCHITECTURE.md` pour la répartition cible entre les deux
+   fichiers.
 
 5. **Vérification finale** — ouvrir une **nouvelle** session Claude Code dans le projet migré et
    constater :
@@ -189,9 +189,10 @@ Commit dédié, séparé des étapes précédentes : `chore: migrate to workflow
 
 ## §Étape 6 — Instructions de compactage (delta du 2026-08-23)
 
-Ajouter à la fin du `CLAUDE.md` **du projet** la section `# Compact instructions` du `CLAUDE.md`
-de `Templates/` (5 lignes). Elle dit au compactage quoi préserver — décisions et justification,
-chemins modifiés, résultats de validation, tâches restantes — et quoi élaguer.
+Ajouter à la fin du `CLAUDE.md` **du projet** la section `# Compact instructions` du squelette
+`${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` (5 lignes). Elle dit au compactage quoi préserver —
+décisions et justification, chemins modifiés, résultats de validation, tâches restantes — et quoi
+élaguer.
 
 À faire par projet : le mécanisme lit le `CLAUDE.md` du projet. **Non vérifié** : que la même
 section injectée par le hook `SessionStart` (via `CLAUDE-BASE.md`) produise le même effet — d'où
@@ -239,8 +240,9 @@ la duplication assumée dans chaque projet tant que ce point n'est pas tranché.
   `docs/<sous-domaine>/` : cadrage + journal des décisions du sous-domaine dans son dossier,
   `docs/<sous-domaine>/VALIDATION.md` pour sa validation. **Pas** de `STATUS`/`DECISIONS` par module
   (multiplie les fichiers, casse la découvrabilité). Règles inscrites dans les en-têtes de
-  `Templates/DECISIONS.md` et `Templates/VALIDATION.md`. `VALIDATION.md` reflète l'**état actuel** de
-  l'app, pas l'empilement des vagues de correction (git + `STATUS.md` gardent l'historique).
+  `${CLAUDE_PLUGIN_ROOT}/templates/DECISIONS.md` et `${CLAUDE_PLUGIN_ROOT}/templates/VALIDATION.md`.
+  `VALIDATION.md` reflète l'**état actuel** de l'app, pas l'empilement des vagues de correction
+  (git + `STATUS.md` gardent l'historique).
 
 ## Questions ouvertes (à trancher pendant le pilote S4)
 

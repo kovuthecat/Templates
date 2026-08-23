@@ -1,6 +1,7 @@
 ---
 name: cadrer
 description: Session de réflexion avec Opus, en amont d'un plan — fixe la question, délègue toute exploration, borne les options, se termine par un écrit. À dérouler quand le QUOI et le POURQUOI ne sont pas encore tranchés, avant `/nouveau-plan`. Ne modifie jamais de code.
+allowed-tools: Read, Glob, Grep, Agent, WebFetch, WebSearch, Write, Edit
 ---
 
 # Cadrer un sujet
@@ -10,6 +11,10 @@ La réflexion décide **quoi** faire et **pourquoi**. `/nouveau-plan` décide en
 implémentation improvisée — et double le contexte le plus cher du workflow.
 
 Ici Opus ne sert qu'à **arbitrer**. Jamais à chercher, lire, lancer ou vérifier (`WORKFLOW.md` §5).
+
+> Le frontmatter retire `Bash` de la session : « lancer » et « vérifier » ne sont plus une promesse
+> mais une impossibilité. Écrire reste possible — la skill doit produire son propre écrit — donc
+> « ne modifie jamais de code » reste une règle tenue à la main, pas un garde-fou.
 
 ## Étape 0 — La session est-elle seulement nécessaire ?
 

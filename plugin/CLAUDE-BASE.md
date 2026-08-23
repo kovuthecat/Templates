@@ -71,3 +71,12 @@ ils refusent l'action. Un plafond dépassé → `/purge-contexte` avant de conti
 ## Fin de tâche
 
 Dérouler la skill `/fin-de-tache`.
+
+## Compactage
+
+Préserver en priorité : les **décisions prises et leur justification**, les **chemins des fichiers
+modifiés**, les **résultats de validation** N0/N1, et les **tâches du plan restant à faire**.
+Élaguer le reste : exploration, fausses pistes, sorties de commandes, contenus déjà écrits sur
+disque (ils se relisent).
+
+En session `/cadrer`, la question et le critère de fin survivent au compactage, toujours.

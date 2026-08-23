@@ -1,9 +1,14 @@
 {
-  "_comment": "Copier tel quel dans .claude/settings.json du projet (cf. README.md §Séquence de création). Active le plugin `workflow` (skills + hooks + agents) — le câblage des hooks vit désormais dans hooks.json du plugin, plus dans ce fichier. extraKnownMarketplaces enregistre automatiquement la marketplace `templates` (repo GitHub privé) dès que le dossier est approuvé — sans lui, enabledPlugins ne trouve rien sur une machine/VM neuve (jamais testé en session cloud, marketplace privée : l'auth GitHub vers ce second repo n'est pas garantie). effortLevel est le défaut du projet — le bandeau d'une session S<k>.md peut demander plus, il se règle alors à la main au lancement. Projet déjà existant à migrer : voir MIGRATION.md §5. permissions.allow = prérequis des vagues headless (orchestrateur `claude -p`) ; à étendre au fil de l'eau après quelques sessions réelles, jamais élargie par précaution à l'avance.",
+  "_comment": "Copier tel quel dans .claude/settings.json du projet (cf. README.md §Séquence de création). Active le plugin `workflow` (skills + hooks + agents) — le câblage des hooks vit dans hooks.json du plugin, plus dans ce fichier. extraKnownMarketplaces enregistre la marketplace `templates` dès que le dossier est approuvé — sans lui, enabledPlugins ne trouve rien sur une machine/VM neuve. La source est `git-subdir` : le plugin vit sous plugin/ du repo, et ce type de source fait un clone SPARSE — seul ce sous-dossier est rapatrié, pas les plans ni les décisions du repo. effortLevel est le défaut du projet — le bandeau d'une session S<k>.md peut demander plus, il se règle alors à la main au lancement. Projet déjà existant à migrer : dérouler /migrer-projet. permissions.allow = prérequis des vagues headless (orchestrateur `claude -p`) ; à étendre au fil de l'eau après quelques sessions réelles, jamais élargie par précaution à l'avance.",
+  "_comment_cloud": "Repo PRIVÉ : une session cloud n'a pas de credentials git à elle et ne peut donc pas cloner cette marketplace — le plugin n'y sera pas chargé. Deux issues, cf. README.md §Distribution : (1) définir un URL-rewrite git authentifié dans le script de setup de l'environnement cloud ; (2) publier plugin/ dans un repo PUBLIC et remplacer le bloc ci-dessous par { \"source\": \"github\", \"repo\": \"kovuthecat/claude-workflow\" }, qui se clone sans aucune authentification.",
   "effortLevel": "medium",
   "extraKnownMarketplaces": {
     "templates": {
-      "source": { "source": "github", "repo": "kovuthecat/Templates" }
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/kovuthecat/Templates.git",
+        "path": "plugin"
+      }
     }
   },
   "enabledPlugins": {

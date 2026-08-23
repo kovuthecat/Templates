@@ -5,28 +5,45 @@ Templates des fichiers de contexte à copier dans chaque nouveau projet.
 
 ## Copiés dans le projet
 
-`PROJECT_BRIEF.md`, `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`,
-`VALIDATION.md`, `CLAUDE.md` (squelette), et — si le projet a une UI — `DESIGN_SPEC.md`.
-`project-settings.json` → **renommé `.claude/settings.json`** (effort par défaut, `enabledPlugins`
-et permissions ; les hooks voyagent désormais dans le plugin, plus dans ce fichier).
+Squelettes fournis par le plugin, dans `plugin/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
+`DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
+(squelette), et — si le projet a une UI — `DESIGN_SPEC.md`.
+`plugin/templates/project-settings.json` → **renommé `.claude/settings.json`** (effort par défaut,
+`enabledPlugins` et permissions ; les hooks voyagent désormais dans le plugin, plus dans ce
+fichier).
 
 ## Référencés — ne jamais copier
 
-`CLAUDE-BASE.md`, `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md`, `MIGRATION.md`, `CHANGELOG.md`,
-`README.md`, `plans/`.
+Fournis par le plugin (`plugin/CLAUDE-BASE.md`, `plugin/WORKFLOW.md`, `plugin/CONVENTIONS.md`,
+`plugin/AGENTS.md`, `plugin/MIGRATION.md`) : pas de copie, ils voyagent avec le plugin installé et
+se référencent depuis lui par `${CLAUDE_PLUGIN_ROOT}/…`. Fichiers privés de ce dépôt, hors
+plugin, jamais distribués : `README.md`, `CHANGELOG.md`, `DECISIONS.md`, `plans/`, `docs/`.
 
 ## Distribution
 
-Le repo entier est la marketplace Claude Code `templates` (GitHub privé `kovuthecat/Templates`),
-qui expose un plugin unique `workflow` (skills, hooks, agents — voir `.claude-plugin/plugin.json`).
+Le plugin est **auto-contenu dans `plugin/`** : manifeste, marketplace, skills, agents, hooks et
+squelettes. Ce dossier est extractible tel quel — rien en dehors ne lui est nécessaire.
 
-Un projet active le workflow en ajoutant `"enabledPlugins": {"workflow@templates": true}` à son
-`.claude/settings.json` — déjà présent dans `project-settings.json` ci-dessus. `CLAUDE-BASE.md`
-n'est plus importé par une ligne `@chemin` dans le `CLAUDE.md` du projet : son contenu est injecté
-par le hook `SessionStart` du plugin à chaque session.
+La marketplace `templates` s'enregistre par une source **`git-subdir`** (cf.
+`plugin/templates/project-settings.json`), qui fait un **clone sparse** : un projet ne rapatrie que
+`plugin/`, jamais les plans ni les décisions de ce dépôt. Un projet active ensuite le workflow avec
+`"enabledPlugins": {"workflow@templates": true}`. `CLAUDE-BASE.md` n'est pas importé par une ligne
+`@chemin` : son contenu est injecté par le hook `SessionStart` du plugin à chaque session.
 
-Les projets **non encore migrés** (chemins absolus, import `@CLAUDE-BASE.md`) continuent de
-fonctionner tels quels — pas d'urgence à migrer. Marche à suivre : `MIGRATION.md` §5.
+**Où le plugin est disponible, et où il ne l'est pas.** Ce dépôt est privé, et une session cloud
+(claude.ai/code, appli mobile) n'a pas de credentials git à elle : elle ne peut pas cloner cette
+marketplace, donc le plugin ne s'y charge pas. En local (Desktop, CLI) il se charge parce que les
+credential helpers git de la machine authentifient le clone. Deux issues, non exclusives :
+
+1. **Environnement cloud authentifié** — stocker un PAT à portée réduite en variable
+   d'environnement, et poser un URL-rewrite git dans le script de setup de l'environnement :
+   `git config --global url."https://x-access-token:$TOKEN@github.com/kovuthecat/Templates".insteadOf "https://github.com/kovuthecat/Templates"`.
+2. **Publier `plugin/` dans un repo public** — un repo public se clone sans aucune
+   authentification, ce qui règle le cloud définitivement. Procédure : `CHANGELOG.md`, entrée
+   `plugin/ extractible`. Le nom de la marketplace reste `templates`, donc `workflow@templates` et
+   les `enabledPlugins` déjà déployés continuent de fonctionner : seule la source change.
+
+Projet existant pas encore migré → `/migrer-projet` (`plugin/MIGRATION.md` pour les cas tordus).
 
 ## Skills du workflow
 
