@@ -53,6 +53,15 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
 
 2. Copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` → `.claude/settings.json` du
    nouveau projet.
+
+   > `enabledPlugins` dans ce fichier **n'installe rien à lui seul** — pour une source externe
+   > (GitHub, comme la nôtre), Claude Code enregistre la marketplace à la confiance du dossier,
+   > mais n'installe le plugin que si une installation explicite a déjà eu lieu quelque part sur
+   > la machine ou l'environnement. Cette session-ci l'a forcément (elle exécute `/nouveau-projet`,
+   > qui vient du plugin), mais une session **future** sur une machine ou un conteneur cloud neuf
+   > ne l'aurait pas. Fiabiliser avec `claude plugin install workflow@templates --yes` : idempotent
+   > si déjà installé (no-op propre, pas d'erreur), donc sans risque à relancer ici.
+
 3. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
    Codex charge ce fichier depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}` : il lui
    faut le contenu, pas un pointeur. Si l'utilisateur utilise le runner Playwright partagé, lui
