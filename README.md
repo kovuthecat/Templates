@@ -61,7 +61,9 @@ git checkout main && git branch -D plugin-public
 commit, pas un historique à préserver. Sans bump de version, les projets déjà installés ne verront
 jamais la mise à jour (`/fin-de-tache`).
 
-Projet existant pas encore migré → `/migrer-projet` (`plugin/MIGRATION.md` pour les cas tordus).
+Projet existant à rattacher au workflow → `/migrer-projet`, quel que soit l'état de départ : son
+diagnostic route vers la bonne voie (bascule d'un projet encore en workflow v1, ou adoption d'un
+projet qui a du code mais n'a jamais été outillé). `plugin/MIGRATION.md` pour les cas tordus.
 
 ## Skills du workflow
 
@@ -71,12 +73,12 @@ Projet existant pas encore migré → `/migrer-projet` (`plugin/MIGRATION.md` po
 | `/cadrer` | Le QUOI/POURQUOI n'est pas tranché → session de réflexion Opus bornée, sortie = une décision écrite |
 | `/nouveau-plan` | Opus découpe un plan → crée `plans/P<n>/` (contient les squelettes et la règle de découpage) |
 | `/verif-visuelle` | Après une tâche qui touche l'UI → N1 au navigateur in-app, ou checklist si VSCode |
-| `/executer-vague` | Vague prête sans session `Desktop` → lance chaque session en processus séparé, ne garde que les verdicts |
+| `/executer-vague` | Vague prête → voie headless (`claude -p`, verdicts par schéma) et/ou voie Desktop (pastilles `spawn_task`), ne garde que les verdicts |
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |
 | `/purge-contexte` | Un hook signale un plafond dépassé → archivage sans perte |
 | `/reprendre` | Projet laissé de côté, « où j'en étais ? » → lecture bornée, écarts signalés, une prochaine action proposée |
 | `/reprendre-echec` | Une session de plan a échoué → rapport de passation, état réel vérifié, correction, N0 reprouvé |
-| `/migrer-projet` | Projet existant encore hors plugin (import `@CLAUDE-BASE.md`, hooks en dur, skills locales) → bascule puis vérification prouvée |
+| `/migrer-projet` | Projet existant à rattacher, quel qu'en soit l'état → diagnostic qui route vers bascule (workflow v1) ou adoption (jamais outillé), puis vérification prouvée |
 | `/choisir-mecanisme` | Hésitation entre plusieurs mécanismes Claude Code, ou audit périodique de la config `.claude/` d'un projet |
 
 ## Séquence de création

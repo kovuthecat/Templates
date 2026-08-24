@@ -140,12 +140,17 @@ Table de délégation détaillée : `CLAUDE-BASE.md` (section « Avant de coder 
 **Jamais deux sessions d'un même plan dans une seule conversation** — chacune démarre à froid, pour
 ne pas traîner le contexte de l'une dans l'autre.
 
-- **Depuis Desktop** : la skill `/fin-de-tache` pose une pastille qui lance la session suivante.
-- **Vague entière sans aucune session `Desktop`** : dérouler `/executer-vague` — un orchestrateur
-  Haiku `low` lance chaque session via `claude -p`, ne conserve que les verdicts et ne lit jamais un
-  `S<k>.md`.
-- **Toute session marquée `Desktop`** (validation visuelle N1 requise) : toujours un lancement
-  manuel par l'utilisateur, jamais automatisé par l'orchestrateur headless.
+- **Session par session, depuis Desktop** : la skill `/fin-de-tache` pose une pastille qui lance la
+  suivante.
+- **Vague entière** : dérouler `/executer-vague` — un orchestrateur Haiku `low` qui ne conserve que
+  les verdicts et ne lit jamais un `S<k>.md`. La colonne `Env.` décide de la **voie**, pas du droit
+  d'orchestrer :
+  - `—` → **headless**, un processus `claude -p` par session, verdict contraint par schéma ;
+  - `Desktop` → **pastilles** `spawn_task`, un clic = une conversation neuve, verdict lu dans la
+    colonne Statut de l'`index.md`. Depuis Claude Code Desktop uniquement — ni VSCode ni terminal
+    n'ont le navigateur in-app requis par le N1.
+- Une vague **mixte** déroule les deux voies : la headless se termine dans le tour, la Desktop attend
+  les clics de l'utilisateur. L'orchestrateur rend la main sans surveiller.
 
 ## 6. Validation — trois niveaux
 

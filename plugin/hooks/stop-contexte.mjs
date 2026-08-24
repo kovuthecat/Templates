@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import {
   lireEntree, repertoireProjet, estUnDepot, fichiersModifies,
   depassements, estFichierDeSuivi, lirePlafonds, repondre, riendafaire,
+  vagueParallele,
 } from './lib.mjs';
 
 const entree = await lireEntree();
@@ -43,6 +44,18 @@ for (const d of depassements(cwd)) {
 }
 
 if (problemes.length === 0) riendafaire();
+
+// Vague parallèle en cours : les fichiers de suivi appartiennent aux sessions de la vague et à
+// /fin-de-tache, pas à la session courante (l'orchestrateur a même interdiction d'y toucher).
+// La condition est mécanique — ne pas la laisser à la charge du modèle, qui devrait sinon plaider
+// « c'est volontaire » en prose contre ce hook.
+if (vagueParallele(cwd)) {
+  repondre({
+    systemMessage:
+      `⚠ Vague parallèle en cours (\`.claude/wave.lock\`) — rappel NON bloquant :\n- ${problemes.join('\n- ')}\n` +
+      `À traiter en fin de plan, via /fin-de-tache puis /purge-contexte.`,
+  });
+}
 
 // Garde anti-boucle : un seul blocage par session.
 const marqueurs = join(tmpdir(), 'claude-hooks-templates');

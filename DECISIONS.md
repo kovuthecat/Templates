@@ -76,6 +76,23 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   principe « aucun hook dans le settings projet » : une session cloud ne clone jamais la
   marketplace au démarrage, donc `enabledPlugins` seul n'y active rien →
   [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md)
+- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** — Première exécution réelle
+  (MYO/P1) : 7 blocages, vague jamais démarrée. La colonne `Env.` décide de la voie (headless
+  `claude -p` / pastilles `spawn_task`), plus du droit d'orchestrer ; `PANNE` distingue une panne
+  d'environnement d'un échec de tâche que le fail-closed confondait ; préflight du binaire `claude` ;
+  verrou posé après le préflight et retiré si rien n'a démarré ; arbre sale tranché par zones ; hook
+  `Stop` rendu muet pendant une vague via `vagueParallele()` →
+  [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md)
+- 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Trou entre `/nouveau-projet`
+  (repo vide, interview complète) et `/migrer-projet` (workflow v1 déjà en place) : le projet qui a
+  du code mais n'a jamais été outillé. D'abord écrit en skill séparée `/adopter-projet`, **fusionné
+  le jour même** : choisir entre les deux exigeait de l'utilisateur un diagnostic que la Phase A des
+  deux skills faisait déjà, et la séparée devait porter une trappe « arrête-toi et lance l'autre » —
+  signe que la coupure était au mauvais endroit. Un seul point d'entrée, un diagnostic qui classe en
+  4 états, deux voies (bascule / adoption) encadrées par une gate et une Phase D communes. Principe
+  de la voie adoption : le contexte se **dérive du code** (inventaire délégué à `explorateur` et
+  `resumeur-git`), l'interview est réduite aux 6 choses qu'aucune lecture ne donne — pourquoi le
+  projet existe, où il en est, la suite.
 
 ---
 

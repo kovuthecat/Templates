@@ -78,12 +78,20 @@ Modèle et effort : grille dans `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §2-3.
   ou session Haiku `low`).
 ```
 
-**Vagues autonomes (optionnel)** — une vague entière sans aucune session `Desktop` s'exécute via
-`/executer-vague` : orchestrateur Haiku `low`, une session = un processus `claude -p`, verdicts
-seulement, arrêt au premier FAIL. Prérequis impératif : une allowlist de permissions doit exister
-dans `.claude/settings.json` du projet (pas d'humain disponible pour confirmer un outil en headless).
-En découpant, garder cette contrainte en tête : une vague orchestrable ne contient aucune session
-`Desktop`.
+**Vagues orchestrées (optionnel)** — toute vague s'exécute via `/executer-vague`, orchestrateur
+Haiku `low` qui ne conserve que les verdicts. La colonne `Env.` décide de la **voie**, pas du droit
+d'orchestrer :
+
+- sessions `—` → voie **headless**, un processus `claude -p` chacune, verdicts par schéma, arrêt au
+  premier FAIL. Prérequis impératif : une allowlist `permissions.allow` dans `.claude/settings.json`
+  (pas d'humain disponible pour confirmer un outil en headless) ;
+- sessions `Desktop` → voie **pastilles** `spawn_task`, un clic = une session neuve, verdict lu dans
+  la colonne Statut. Se lance depuis Claude Code Desktop uniquement.
+
+**Ce que le découpage doit peser** : une vague mixte est valide, mais elle ne se termine pas d'un
+bloc — la voie headless finit dans le tour, la voie Desktop attend des clics. Grouper les sessions
+`Desktop` entre elles quand le graphe de dépendances le permet donne des vagues qui se closent
+franchement ; les mélanger est un choix, pas un accident à éviter.
 
 Colonne **Env.** : `Desktop` si la session exige la validation visuelle N1 (navigateur in-app),
 `—` sinon. Une session `Desktop` ne se lance pas depuis VSCode (cf. `/verif-visuelle`).
