@@ -100,6 +100,24 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   `resumeur-git`), l'interview est réduite aux 6 choses qu'aucune lecture ne donne — pourquoi le
   projet existe, où il en est, la suite.
 
+- 2026-08-24 — **Chaque session committe son propre travail** — Renversement de §4b : les commits
+  ne sont plus reportés en fin de plan, chaque session prend le sien avant de rendre la main (repère
+  `Plan: P<n>/S<k>/T<m>`, qui sert aussi de verdict à la voie Desktop). Motif : l attribution était
+  reconstituée après coup, dans un arbre où trois sessions avaient déposé leurs fichiers, par le
+  modèle le moins cher du plan. `wave.lock` réduit au parallélisme réel ; `index.md` garde un
+  rédacteur unique (proposition « chaque session coche la sienne » écartée) ; push toujours groupé →
+  [détail](docs/decisions/2026-08-24-commit-par-session.md)
+
+- 2026-08-24 — **Orchestration par sous-agents : une vague sans intervention** — Objectif : dérouler
+  une vague, voire un plan, sans clic. Deux mesures : `claude -p` n a effectivement aucun outil
+  navigateur, mais un **sous-agent hérite des 18** depuis une session Desktop. La voie Desktop passe
+  donc de la pastille `spawn_task` (un clic par session) à l outil `Agent` en arrière-plan ; la
+  pastille devient un repli hors Desktop. Verdict = ligne imposée **recoupée par les commits**.
+  Coûts assumés : l effort n est pas réglable par `Agent`, et la session d orchestration doit rester
+  ouverte. `SendMessage` écarté (aucune session ne peut s identifier elle-même, et un message est
+  éphémère) →
+  [détail](docs/decisions/2026-08-24-orchestration-par-sous-agents.md)
+
 ---
 
 ## Archives
