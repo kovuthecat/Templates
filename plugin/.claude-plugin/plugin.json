@@ -1,6 +1,6 @@
 {
   "name": "workflow",
-  "description": "Workflow perso : plans multi-sessions, validation N0-N2, contexte plafonné.",
-  "version": "0.11.1",
+  "description": "Workflow Claude Code vendoré : plans multi-sessions, validation N0-N2, contexte plafonné. Se copie dans le dépôt, ne s installe pas.",
+  "version": "0.12.0",
   "author": { "name": "templates" }
 }

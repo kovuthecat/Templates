@@ -5,9 +5,25 @@ description: Démarrer un projet : interview de cadrage guidée (questionnaire c
 
 # Nouveau projet — interview de cadrage
 
-À dérouler **avec Opus**, dans le repo vide du futur projet, avant toute autre chose (avant même
-`git init`). Sortie : `PROJECT_BRIEF.md` rempli + fichiers de contexte instanciés + premier commit.
-Cette skill ne cadre pas de plan (`/nouveau-plan` s'en charge) et ne dessine pas de maquette.
+À dérouler **avec Opus**, dans le repo du futur projet. Sortie : `PROJECT_BRIEF.md` rempli +
+fichiers de contexte instanciés + premier commit. Cette skill ne cadre pas de plan
+(`/nouveau-plan` s'en charge) et ne dessine pas de maquette.
+
+## Comment cette skill est arrivée dans un repo vide
+
+Le workflow est **vendoré** : il vit sous `.claude/` du projet, pas dans un plugin installé. Un
+repo vide n'a donc rien — d'où une commande d'amorçage, à passer avant tout le reste :
+
+```bash
+git clone --depth 1 https://github.com/kovuthecat/claude-workflow "${TMPDIR:-/tmp}/wf" && node "${TMPDIR:-/tmp}/wf/bin/sync-workflow.mjs" --source "${TMPDIR:-/tmp}/wf" --projet .
+```
+
+Elle n'exige aucun état préalable — ni plugin, ni marketplace, ni CLI `claude` sur le `PATH` :
+seulement `git` et `node`, que tout environnement Claude Code possède. C'est ce qui la rend
+utilisable à l'identique depuis l'app Desktop, VS Code, une session cloud ou l'appli mobile.
+
+Si vous lisez ceci depuis une session, l'amorçage a déjà eu lieu (ou le plugin optionnel est
+installé) : passer à la Phase A.
 
 ## Phase A — Interview
 
@@ -44,42 +60,44 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
 
 ## Phase C — Instanciation mécanique (seulement après validation de la Phase B)
 
-1. Copier depuis `${CLAUDE_PLUGIN_ROOT}/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
+1. **Vendorer le workflow**, s'il ne l'est pas déjà (`.claude/workflow/manifest.json` absent) —
+   c'est la commande d'amorçage en tête de cette skill. Si le manifeste existe, le workflow est
+   déjà là : ne rien refaire.
+
+2. Copier `.claude/workflow/templates/project-settings.json` → `.claude/settings.json`.
+
+   > Ce fichier câble les 4 hooks en `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`. Il ne porte
+   > **ni** `enabledPlugins`, **ni** `extraKnownMarketplaces` : le workflow est dans le repo, il
+   > n'y a rien à rapatrier au démarrage. Les deux ensemble le chargeraient deux fois.
+
+3. Copier depuis `.claude/workflow/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
    `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
    (squelette) — et, si la réponse à la question 13 est « oui, il y a une UI », `DESIGN_SPEC.md`.
 
-   > Les squelettes voyagent **dans le plugin** : ne jamais aller les chercher dans un checkout du
-   > repo source du plugin (chemin qui n'existe que sur la machine où il a été développé).
+   > Les squelettes voyagent **dans le repo** depuis le vendoring : ne jamais aller les chercher
+   > dans un checkout du dépôt source (chemin qui n'existe que sur la machine du développeur).
 
-2. Copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` → `.claude/settings.json` du
-   nouveau projet.
+4. Créer `AGENTS.md` à la racine, renvoyant à la copie vendorée :
 
-   > `enabledPlugins` dans ce fichier **n'installe rien à lui seul** — pour une source externe
-   > (GitHub, comme la nôtre), Claude Code enregistre la marketplace à la confiance du dossier,
-   > mais n'installe le plugin que si une installation explicite a déjà eu lieu quelque part sur
-   > la machine ou l'environnement. Cette session-ci l'a forcément (elle exécute `/nouveau-projet`,
-   > qui vient du plugin), mais une session **future** sur une machine ou un conteneur cloud neuf
-   > ne l'aurait pas. Fiabiliser avec `claude plugin install workflow@templates --yes` : idempotent
-   > si déjà installé (no-op propre, pas d'erreur), donc sans risque à relancer ici.
+   ```md
+   Lire et appliquer `.claude/workflow/AGENTS.md` (rôle Codex : régression visuelle scriptée).
+   Commandes du projet : `CLAUDE.md`.
+   ```
 
-3. Copier `${CLAUDE_PLUGIN_ROOT}/templates/session-start.sh` → `.claude/hooks/session-start.sh` du
-   nouveau projet, puis `chmod +x .claude/hooks/session-start.sh`.
+   > Chemin **relatif**, jamais absolu : un `C:\Users\…` ne survit ni à une autre machine ni à une
+   > session cloud. Ce fichier appartient au projet — le vendoring ne l'écrase jamais, c'est là que
+   > vont les règles propres (version de framework, contraintes maison). Si l'utilisateur se sert du
+   > runner Playwright partagé, lui rappeler de définir `PLAYWRIGHT_AUDIT_RUNNER`.
 
-   > Bootstrap le plugin dans les sessions **cloud** : `enabledPlugins` seul n'y active rien (la
-   > marketplace n'y est jamais clonée au démarrage) — cf. `_comment_bootstrap` du settings et
-   > `docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md`. Sans ce script, le projet fonctionne
-   > en local mais perd tout le plugin en session cloud, silencieusement.
+5. Ajouter `.claude/wave.lock` au `.gitignore` (marqueur local, jamais versionné).
 
-4. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
-   Codex charge ce fichier depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}` : il lui
-   faut le contenu, pas un pointeur. Si l'utilisateur utilise le runner Playwright partagé, lui
-   rappeler de définir `PLAYWRIGHT_AUDIT_RUNNER` (cf. `AGENTS.md` § Audits UI).
-
-5. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
+6. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).
-6. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
+7. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
    du bruit payé à chaque lecture — ne pas la laisser vide, la retirer).
-7. `git init` puis premier commit, message exact : `chore: instanciation projet depuis Templates`.
+8. `git init` (s'il n'a pas eu lieu avant l'amorçage) puis premier commit, staging explicite,
+   message exact : `chore: instanciation projet depuis Templates`. Le commit inclut `.claude/` —
+   c'est ce qui rend le workflow disponible à quiconque clone, dans tous les environnements.
 
 ## Phase D — Annonce des étapes suivantes (les citer, ne PAS les exécuter ici)
 

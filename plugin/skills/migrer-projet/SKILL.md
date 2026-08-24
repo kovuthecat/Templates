@@ -1,14 +1,19 @@
 ---
 name: migrer-projet
-description: Rattacher un projet existant au plugin `workflow@templates` — un diagnostic unique route vers la bonne voie : **bascule** d'un projet encore en workflow v1 (import `@<chemin absolu>CLAUDE-BASE.md`, hooks à chemins absolus dans `.claude/settings.json`, skills du workflow copiées ou jonctionnées en local), ou **adoption** d'un projet qui a du code mais n'a jamais été outillé (ni `.claude/settings.json`, ni fichiers de contexte, ni `plans/`). Puis vérification prouvée. À dérouler dans le projet concerné.
+description: Rattacher un projet existant au workflow en le **vendorant** dans le dépôt (skills, agents, hooks et docs copiés sous `.claude/`, plus rien à installer). Un diagnostic unique route vers la bonne voie : **bascule** d'un projet encore sur un modèle antérieur (import `@<chemin absolu>CLAUDE-BASE.md`, `enabledPlugins`, hooks à chemins absolus, skills copiées en local), ou **adoption** d'un projet qui a du code mais n'a jamais été outillé (ni `.claude/settings.json`, ni fichiers de contexte, ni `plans/`). Puis vérification prouvée. À dérouler dans le projet concerné.
 model: sonnet
 ---
 
 # Rattacher un projet existant au workflow
 
 Procédure exécutable, à dérouler **dans le projet concerné**. Le frontmatter demande **Sonnet,
-effort `medium`** — du jugement, mais borné. Référence longue : `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`,
-pour les cas tordus (contexte rangé dans un sous-dossier, nom non standard, annexe par projet).
+effort `medium`** — du jugement, mais borné. Référence longue : `.claude/workflow/MIGRATION.md`
+(disponible après le vendoring), pour les cas tordus (contexte dans un sous-dossier, nom non
+standard, annexe par projet).
+
+**État cible** : le workflow vit **dans le dépôt**, sous `.claude/`. Rien à installer, sur aucune
+machine ni aucun environnement — l'app Desktop, VS Code, une session cloud et l'appli mobile y ont
+accès parce qu'ils clonent le dépôt.
 
 **Ne pas demander à l'utilisateur dans quel cas il est.** La Phase A le détermine par lecture, et
 c'est précisément le travail : deux états de départ très différents mènent au même état cible, par
@@ -25,15 +30,15 @@ d'extraits qu'on paie ensuite à chaque tour, alors que seule la synthèse sert.
 
 Constater, ne rien corriger encore. Huit points :
 
-1. `.claude/settings.json` — existe-t-il ? `enabledPlugins: {"workflow@templates": true}` présent ?
-   un bloc `hooks` avec des entrées `PreToolUse`/`PostToolUse`/`Stop` à chemins absolus (obsolètes,
-   à retirer) ? un hook `SessionStart` de bootstrap déjà présent (`.claude/hooks/session-start.sh` —
-   à garder) ? une `permissions.allow` enrichie par l'usage réel du projet (à préserver, jamais à
-   écraser) ?
+1. `.claude/settings.json` — existe-t-il ? Résidus du modèle plugin : `enabledPlugins`,
+   `extraKnownMarketplaces`, hook `SessionStart` de bootstrap (`.claude/hooks/session-start.sh`),
+   entrées de hooks à **chemins absolus** — tous à retirer. Une `permissions.allow` enrichie par
+   l'usage réel du projet est en revanche à **préserver**, jamais à écraser.
 2. `CLAUDE.md` — existe-t-il ? ligne d'import `@…CLAUDE-BASE.md` ? section `# Compact instructions` ?
    vraies commandes du projet, ou placeholders jamais remplis ?
-3. **Skills du workflow copiées ou jonctionnées en local** — `.claude/skills/<nom>`, et les jonctions
-   `~/.claude/skills/<nom>`. Une skill locale de même nom **masque** celle du plugin.
+3. **Workflow déjà vendoré ?** — `.claude/workflow/manifest.json` présent = le projet est déjà au
+   format cible, seule une synchronisation peut être due (`/maj-workflow`). Repérer aussi les
+   **jonctions** `~/.claude/skills/<nom>`, qui masqueraient les skills vendorées.
 4. Copies locales obsolètes de `WORKFLOW.md`, `CONVENTIONS.md`, `AGENTS.md` central, `MIGRATION.md`,
    `CHANGELOG.md`, README de workflow.
 5. **Fichiers de contexte — y en a-t-il ?** Racine, ou `Contexte/`, `fichierscontexte/`,
@@ -46,15 +51,15 @@ Constater, ne rien corriger encore. Huit points :
 7. **Serveur dev et UI** — conditionne `.claude/launch.json` (requis par le N1) et `DESIGN_SPEC.md`.
 8. Dette de format — `DECISIONS.md` non éclaté en `docs/decisions/` ? blocs `### Statut` dans des
    `S<k>.md` de plans **en cours** ? items N1 dans `VALIDATION.md` ? plafonds dépassés
-   (`${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json`) ?
+   (`.claude/workflow/hooks/plafonds.json`) ?
 
 ### Classer — la voie découle du diagnostic
 
 | Ce que la Phase A a trouvé | Voie | Phase B à dérouler |
 | --- | --- | --- |
-| Import `@…CLAUDE-BASE.md`, et/ou hooks à chemins absolus, et/ou skills du workflow en local | **1 — Bascule** | B1 |
+| Import `@…CLAUDE-BASE.md`, `enabledPlugins`, hooks à chemins absolus, skills copiées | **1 — Bascule** | B1 |
 | Du code, mais ni `.claude/settings.json`, ni fichiers de contexte, ni `plans/` | **2 — Adoption** | B2 |
-| `enabledPlugins` déjà correct, pas d'import, pas de skills locales — seulement de la dette (point 8) | **3 — Entretien** | B1 point 5 seul |
+| Déjà vendoré (`manifest.json` présent) — seulement de la dette de format (point 8) | **3 — Entretien** | `/maj-workflow`, puis B1 point 8 |
 | Repo **vide**, aucun code | *hors périmètre* | STOP → `/nouveau-projet` (interview de cadrage) |
 
 Les états se mélangent (migration précédente inachevée) : dérouler alors les points concernés des
@@ -64,18 +69,20 @@ deux voies, dans l'ordre de B1 puis B2.
 
 *(À lire seulement si la Phase A a classé en voie 1 ou 3.)*
 
-Deux interrupteurs commandent les **mêmes** règles communes (`CLAUDE-BASE.md`) : l'import
-`@<chemin absolu>` dans le `CLAUDE.md` du projet, et le plugin (qui les injecte par son hook
-`SessionStart`). Ils doivent bouger **ensemble**, dans la même passe.
+Les **mêmes** règles communes (`CLAUDE-BASE.md`) peuvent arriver par trois canaux : l'import
+`@<chemin absolu>` du `CLAUDE.md`, le plugin installé, et désormais la copie vendorée. Ils doivent
+bouger **ensemble**, dans la même passe — sinon le contexte est payé en double à chaque session,
+ou disparaît entièrement.
 
-| `enabledPlugins` | import `@…CLAUDE-BASE.md` | Résultat |
-| --- | --- | --- |
-| absent | présent | état d'avant migration — fonctionne, rien n'est cassé |
-| **présent** | **présent** | règles chargées **deux fois** : contexte payé en double à chaque session |
-| **absent** | **absent** | **plus aucune règle commune** — panne silencieuse, la pire des quatre |
-| présent | absent | ✅ cible |
+| Vendoré | `enabledPlugins` | import `@…CLAUDE-BASE.md` | Résultat |
+| --- | --- | --- | --- |
+| non | absent | présent | état d'avant migration — fonctionne, rien n'est cassé |
+| non | présent | présent | règles chargées **deux fois** |
+| **oui** | **présent** | — | **deux fois**, et deux versions possiblement différentes |
+| non | absent | absent | **plus aucune règle commune** — panne silencieuse, la pire |
+| **oui** | absent | absent | ✅ cible |
 
-Les deux états fautifs sont invisibles à l'œil : la Phase D les fait tomber mécaniquement.
+Les états fautifs sont invisibles à l'œil : la Phase D les fait tomber mécaniquement.
 
 ## Voie 2 — Le principe : le brief se dérive du code
 
@@ -114,26 +121,48 @@ ne se rattrape qu'à la main.
 
 Ordre imposé : le gain décroît, le risque croît.
 
-1. **Settings** — retirer de `.claude/settings.json` les entrées `hooks.PreToolUse` /
-   `hooks.PostToolUse` / `hooks.Stop` à chemins absolus (le câblage vit dans le plugin), puis y
-   porter le contenu de `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` : `enabledPlugins`,
-   `extraKnownMarketplaces`, `effortLevel`, `hooks.SessionStart` (bootstrap cloud — exception, cf.
-   `docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md`), `permissions`. **Fusionner** :
-   `permissions.allow` = union des deux listes, jamais un remplacement. Copier aussi
-   `${CLAUDE_PLUGIN_ROOT}/templates/session-start.sh` → `.claude/hooks/session-start.sh`
-   (`chmod +x`) si absent.
-2. **`CLAUDE.md`** — supprimer la ligne d'import `@…CLAUDE-BASE.md`. Ne **rien** mettre à la place.
-   Garder tout le reste (commandes réelles, règles spécifiques). Ajouter en fin de fichier la
-   section `# Compact instructions` de `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` si elle manque.
-3. **Skills locales et copies** — supprimer les skills du workflow copiées/jonctionnées (point 3 du
-   diagnostic) et les copies locales de la doc centrale (point 4). Une skill **propre au projet**
-   n'est pas concernée : elle reste.
-4. **Contenu** — pour chaque fichier de contexte non standard : générique (identique à un ancien
+1. **Vendorer le workflow** — c'est le cœur de la bascule. Depuis la racine du projet :
+
+   ```bash
+   git clone --depth 1 https://github.com/kovuthecat/claude-workflow "${TMPDIR:-/tmp}/wf" && node "${TMPDIR:-/tmp}/wf/bin/sync-workflow.mjs" --source "${TMPDIR:-/tmp}/wf" --projet .
+   ```
+
+   Le moteur écrit `.claude/skills/`, `.claude/agents/`, `.claude/workflow/` et le manifeste. Il
+   **n'écrase ni** les skills propres au projet, **ni** le `AGENTS.md` racine.
+
+2. **Settings** — remplacer `.claude/settings.json` par
+   `.claude/workflow/templates/project-settings.json`, qui câble les 4 hooks en
+   `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`. **Fusionner** : `permissions.allow` = union de
+   l'ancienne liste et de la nouvelle, jamais un remplacement — elle a été enrichie par l'usage réel.
+
+   Puis **retirer** ce qui n'a plus d'objet : `enabledPlugins`, `extraKnownMarketplaces`, le hook
+   `SessionStart` de bootstrap, et les entrées de hooks à chemins absolus. Ces lignes servaient à
+   rapatrier au démarrage des fichiers désormais présents dans le repo ; les garder chargerait le
+   workflow **deux fois**.
+
+3. **Bootstrap obsolète** — supprimer `.claude/hooks/session-start.sh` s'il existe.
+
+4. **`CLAUDE.md`** — supprimer la ligne d'import `@…CLAUDE-BASE.md`. Ne **rien** mettre à la place
+   (le hook `SessionStart` vendoré injecte les règles). Garder tout le reste. Ajouter en fin de
+   fichier la section `# Compact instructions` de `.claude/workflow/templates/CLAUDE.md` si absente.
+
+5. **`AGENTS.md` racine** — s'il pointe vers un chemin **absolu** (`C:\Users\…`, `/home/…`), le
+   remplacer par `.claude/workflow/AGENTS.md`. Un chemin absolu ne survit ni à une autre machine ni
+   à une session cloud. Conserver intégralement les règles propres au projet qu'il porte.
+
+6. **Skills locales et copies** — supprimer les copies locales de la doc centrale (point 4 du
+   diagnostic) et les **jonctions** `~/.claude/skills/<nom>` du workflow, qui masqueraient les
+   skills vendorées. Une skill **propre au projet** n'est pas concernée : elle reste.
+
+   > Ce point s'inversait dans l'ancien modèle, qui interdisait toute skill du workflow en local
+   > précisément parce qu'elle masquait celle du plugin. Vendorer, c'est faire de la copie locale
+   > la source — la règle qui compte devient « ne pas la modifier à la main » (voir le manifeste).
+7. **Contenu** — pour chaque fichier de contexte non standard : générique (identique à un ancien
    template) → supprimer ; spécifique → conserver tel quel ; mixte → extraire le spécifique vers le
    fichier cible (commandes → `CLAUDE.md`, contrainte technique → `ARCHITECTURE.md` ou
    `DECISIONS.md`), puis supprimer le reste. Après un déplacement de sous-dossier vers la racine,
    corriger les renvois internes cassés par ce déplacement — et seulement ceux-là.
-5. **Dette de format** — dérouler `/purge-contexte` (§DECISIONS, §STATUS, §VALIDATION) ; reporter
+8. **Dette de format** — dérouler `/purge-contexte` (§DECISIONS, §STATUS, §VALIDATION) ; reporter
    les statuts des `S<k>.md` en cours dans la colonne Statut de l'`index.md` ; créer
    `.claude/launch.json` s'il y a un serveur dev ; ajouter `.claude/wave.lock` au `.gitignore`.
 
@@ -144,25 +173,17 @@ classe et on déplace.
 
 Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement).
 
-1. **Plugin et settings** — copier `${CLAUDE_PLUGIN_ROOT}/templates/project-settings.json` →
-   `.claude/settings.json`. Si le fichier existe déjà, **fusionner** : `permissions.allow` = union
-   des deux listes.
+1. **Vendorer et câbler** — dérouler les points 1 et 2 de la Phase B1 : commande d'amorçage, puis
+   `.claude/workflow/templates/project-settings.json` → `.claude/settings.json` (fusionner
+   `permissions.allow` si un settings existait déjà). Rien de spécifique à l'adoption ici : les
+   deux voies posent le même socle.
 
-   > `enabledPlugins` **n'installe rien à lui seul** pour une source externe. La session courante a
-   > forcément le plugin (elle exécute cette skill), mais une session future sur une machine ou un
-   > conteneur cloud neuf ne l'aurait pas. Fiabiliser avec
-   > `claude plugin install workflow@templates --yes` — idempotent, no-op propre si déjà installé.
+2. **`AGENTS.md`** — créer à la racine un fichier renvoyant à `.claude/workflow/AGENTS.md` par un
+   chemin **relatif**. S'il en existe déjà un, conserver son contenu et n'ajouter que le renvoi.
 
-2. **Hook de bootstrap** — copier `${CLAUDE_PLUGIN_ROOT}/templates/session-start.sh` →
-   `.claude/hooks/session-start.sh`, puis `chmod +x`. Sans lui le projet marche en local mais perd
-   tout le plugin en session cloud, silencieusement.
+3. **`.gitignore`** — y ajouter `.claude/wave.lock` s'il manque (marqueur local, jamais versionné).
 
-3. **`AGENTS.md`** — copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` à la racine, **tel quel** : Codex le
-   charge depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}`.
-
-4. **`.gitignore`** — y ajouter `.claude/wave.lock` s'il manque (marqueur local, jamais versionné).
-
-5. **`CLAUDE.md`** — partir de `${CLAUDE_PLUGIN_ROOT}/templates/CLAUDE.md` et le remplir avec les
+4. **`CLAUDE.md`** — partir de `.claude/workflow/templates/CLAUDE.md` et le remplir avec les
    **vraies commandes relevées en Phase A**, pas des placeholders. Si un `CLAUDE.md` existe déjà,
    garder son contenu spécifique et n'ajouter que ce qui manque. Ne **jamais** y écrire de ligne
    d'import `@…CLAUDE-BASE.md` : les règles communes sont injectées par le hook `SessionStart`.
@@ -173,7 +194,7 @@ Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement).
    > `<commande typecheck> --listFiles | grep -v node_modules | wc -l` doit être **non nul** ; sinon
    > la commande est `tsc -b --noEmit`.
 
-6. **Fichiers de contexte** — copier depuis `${CLAUDE_PLUGIN_ROOT}/templates/` puis remplir :
+5. **Fichiers de contexte** — copier depuis `.claude/workflow/templates/` puis remplir :
 
    | Fichier | Source du contenu |
    | --- | --- |
@@ -186,45 +207,59 @@ Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement).
    | `VALIDATION.md` | N2 en attente uniquement — souvent vide au départ, et c'est bien |
    | `DESIGN_SPEC.md` | seulement si le projet a une UI |
 
-   **Respecter les plafonds dès l'écriture** (`${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json`) : un
+   **Respecter les plafonds dès l'écriture** (`.claude/workflow/hooks/plafonds.json`) : un
    fichier créé au-dessus de son plafond déclenchera le hook `Stop` à la première session.
    Supprimer les sections de template non pertinentes — une section vide est du bruit payé à chaque
    lecture.
 
-7. **`.claude/launch.json`** — si le projet a un serveur dev (Phase A point 7). Requis par le N1.
+6. **`.claude/launch.json`** — si le projet a un serveur dev (Phase A point 7). Requis par le N1.
 
-8. **Doc existante** — la référencer depuis `PROJECT_MAP.md` plutôt que la recopier. Un `README.md`
+7. **Doc existante** — la référencer depuis `PROJECT_MAP.md` plutôt que la recopier. Un `README.md`
    riche reste la source ; les fichiers de contexte pointent vers lui.
 
 ## Phase D — Gate de vérification (aucun rattachement n'est fini sans elle)
 
 Commune aux deux voies. Les quatre premiers points sont mécaniques et se lancent **maintenant** ; le
-cinquième exige une **nouvelle session**, la config plugin n'étant lue qu'au démarrage.
+cinquième exige une **nouvelle session**, la configuration n'étant lue qu'au démarrage.
 
 1. `grep -c 'CLAUDE-BASE' CLAUDE.md` → **0**. Sinon : import non retiré (voie 1), ou ajouté par
-   erreur (voie 2).
-2. `grep -c 'workflow@templates' .claude/settings.json` → **1**. Sinon : plugin non activé.
-3. `grep -c 'SessionStart' .claude/settings.json` → **1**, et
-   `grep -c 'PreToolUse\|PostToolUse\|Stop' .claude/settings.json` → **0** (seul le hook de bootstrap
-   reste dans le projet, le reste a bien quitté vers le plugin). `test -x .claude/hooks/session-start.sh`
-   → succès.
-4. `ls -l .claude/skills` → aucune skill du workflow, ni fichier ni jonction. Et chaque fichier de
-   contexte sous son plafond (`wc -l`).
-5. **Nouvelle session dans le projet** : un `git add -A` de test doit être **refusé**. C'est la
-   preuve que les hooks du plugin sont chargés, donc que `CLAUDE-BASE.md` est injecté ; combinée au
-   point 1 (import absent), elle place le projet dans la case ✅ sans avoir à inspecter le contexte
-   à l'œil. Vérifier au passage que les skills du plugin sont proposées et que le hook `SessionStart`
+   erreur (voie 2). Les règles viennent du hook, pas d'un import.
+2. **Synchronisation propre** :
+   ```bash
+   node .claude/workflow/bin/sync-workflow.mjs --source <clone> --projet . --check
+   ```
+   → `ÉTAT: à jour`, exit **0**.
+3. **Aucun résidu du modèle plugin** dans `.claude/settings.json` : ni `enabledPlugins`, ni
+   `extraKnownMarketplaces`, ni chemin absolu. Les 4 hooks pointent vers
+   `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`, et `.claude/hooks/session-start.sh` n'existe plus.
+   ```bash
+   node -e "const j=require('./.claude/settings.json');const t=JSON.stringify(j.hooks);console.log('plugin:',!!j.enabledPlugins||!!j.extraKnownMarketplaces,'| absolus:',/[A-Za-z]:[\\\\/]/.test(t),'| hooks:',Object.keys(j.hooks).length)"
+   ```
+   Attendu : `plugin: false | absolus: false | hooks: 4`.
+4. **Les hooks vendorés s'exécutent** — `node --check` sur chacun, et chaque fichier de contexte
+   sous son plafond (`wc -l`) :
+   ```bash
+   for f in .claude/workflow/hooks/*.mjs; do node --check "$f" || echo "KO $f"; done
+   ```
+5. **Nouvelle session dans le projet** (la config n'est lue qu'au démarrage) : un `git add -A` de
+   test doit être **refusé**, et les skills du workflow doivent être proposées. C'est la preuve que
+   le câblage est actif, donc que `CLAUDE-BASE.md` est injecté. Vérifier que le hook `SessionStart`
    est silencieux (sinon : plafond dépassé → `/purge-contexte`).
+6. **Tout est versionné.** `git status` ne doit laisser hors du commit ni `.claude/skills`, ni
+   `.claude/agents`, ni `.claude/workflow`. C'est la condition qui rend le workflow disponible en
+   session cloud et à quiconque clone : ces environnements ne voient que le dépôt.
 
 Un point rouge = rattachement non fini. Ne jamais conclure sur « ça devrait marcher ».
 
 ## Fin
 
 - Staging explicite, fichier par fichier (`git add -A` est refusé par hook). Commit :
-  `chore: migrate to workflow plugin` (voie 1/3) ou `chore: adopter le workflow templates` (voie 2).
+  `chore(workflow): vendoring du workflow` (voie 1/3) ou `chore(workflow): adoption` (voie 2).
+  Le commit **doit inclure** `.claude/skills`, `.claude/agents` et `.claude/workflow`.
   Si le dépôt n'a pas de `git init`, le signaler et demander — ne pas initialiser d'office.
 - **Rapport final** : la voie déroulée, ce qui a été supprimé, ce qui a été conservé par prudence,
   ce qui a été absorbé depuis la doc existante, les écarts non résolus. Cas particulier tranché
-  ici → l'ajouter à l'annexe de `${CLAUDE_PLUGIN_ROOT}/MIGRATION.md`.
+  ici → l'ajouter à l'annexe de `MIGRATION.md` **dans le dépôt source**, pas dans la copie
+  vendorée : celle-ci est un fichier géré, que la prochaine synchronisation écraserait.
 - **Voie 2 — étape suivante à citer, pas à exécuter** : `/nouveau-plan` pour cadrer le premier plan
   à partir du `TASKS.md` fraîchement rempli.
