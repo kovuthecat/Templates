@@ -49,30 +49,37 @@ explicite — cf. `/nouveau-projet` Phase C. `CLAUDE-BASE.md` n'est pas importé
 
 Depuis `main` à jour, après avoir bumpé `plugin/.claude-plugin/plugin.json` :
 
+Dérouler dans un **clone jetable**, jamais dans l'arbre de dev : `reset --hard` et `rm -rf` n'ont
+aucune raison de s'exécuter sur le dépôt de travail.
+
 ```bash
-git checkout --orphan plugin-public && git reset --hard
-git checkout main -- plugin && cp -r plugin/. . && rm -rf plugin
-git add --all
-git update-index --chmod=+x templates/session-start.sh   # cp -r perd le bit sous Windows
+git checkout --orphan plugin-public && git rm -rq --cached .
+rm -rf docs plans CHANGELOG.md DECISIONS.md README.md CLAUDE.md .github
+cp -r plugin/. . && rm -rf plugin
+git add .claude-plugin README.md AGENTS.md CLAUDE-BASE.md CONVENTIONS.md MIGRATION.md WORKFLOW.md agents bin hooks skills templates
 git commit -m "Plugin workflow — marketplace templates"
 git push --force git@github.com:kovuthecat/claude-workflow.git plugin-public:main
-git checkout main && git branch -D plugin-public
 ```
 
-Le `update-index --chmod=+x` n'est pas cosmétique : sous Windows, `cp -r` ne transporte pas le bit
-exécutable jusqu'à l'index, et un `session-start.sh` publié en `100644` donne une session **cloud
-sans plugin**, silencieusement. Contrôler avant de pousser — la commande doit lister le script :
+**L'ordre purge-puis-copie compte** : le payload apporte désormais son propre `README.md`, que la
+purge supprimerait si elle passait après la copie — et le dépôt public se retrouverait sans page
+d'accueil, donc impartageable.
+
+Garde-fou avant de pousser — aucun **vrai** chemin personnel ne doit sortir. Ne pas se contenter de
+chercher `C:\Users` : la documentation en cite en exemple avec une ellipse (`C:\Users\…`), ce qui
+produit un faux positif. Viser un segment d'utilisateur réel :
 
 ```bash
-git ls-files -s | awk '$1=="100755"'
+grep -rnE '[A-Za-z]:\\Users\\[A-Za-z0-9]|/home/[a-z0-9]+/|/Users/[a-z0-9]+/' . --exclude-dir=.git
 ```
 
-Dérouler cette procédure dans un **clone jetable** plutôt que dans l'arbre de dev : `reset --hard`
-et `rm -rf plugin` n'ont aucune raison de s'exécuter sur le dépôt de travail.
+Sortie vide = propre. **Ne pas mettre cette vérification dans un sous-shell** `( … )` d'une chaîne
+`&&` : son `exit` n'y interrompt que le sous-shell, et la publication continue malgré l'alerte
+(constaté en publiant 0.12.0).
 
 `--force` est normal et voulu : le dépôt public est un **artefact de distribution** à un seul
-commit, pas un historique à préserver. Sans bump de version, les projets déjà installés ne verront
-jamais la mise à jour (`/fin-de-tache`).
+commit, pas un historique à préserver. Sans bump de version, les projets vendorés ne verront jamais
+la mise à jour — le manifeste compare les versions.
 
 Projet existant à rattacher au workflow → `/migrer-projet`, quel que soit l'état de départ : son
 diagnostic route vers la bonne voie (bascule d'un projet encore en workflow v1, ou adoption d'un
