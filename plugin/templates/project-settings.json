@@ -1,24 +1,52 @@
 {
-  "_comment": "Copier tel quel dans .claude/settings.json du projet (cf. README.md §Séquence de création). Active le plugin `workflow` (skills + hooks + agents) — le câblage des hooks PreToolUse/PostToolUse/Stop vit dans hooks.json du plugin, plus dans ce fichier ; seule exception : le hook SessionStart de bootstrap ci-dessous (cf. _comment_bootstrap). extraKnownMarketplaces enregistre la marketplace `templates` dès que le dossier est approuvé — sans lui, enabledPlugins ne trouve rien sur une machine/VM neuve. La source est `git-subdir` : le plugin vit sous plugin/ du repo, et ce type de source fait un clone SPARSE — seul ce sous-dossier est rapatrié, pas les plans ni les décisions du repo. effortLevel est le défaut du projet — le bandeau d'une session S<k>.md peut demander plus, il se règle alors à la main au lancement. Projet déjà existant à migrer : dérouler /migrer-projet. permissions.allow = prérequis des vagues headless (orchestrateur `claude -p`) ; à étendre au fil de l'eau après quelques sessions réelles, jamais élargie par précaution à l'avance.",
-  "_comment_source": "La marketplace vit dans le repo PUBLIC kovuthecat/claude-workflow, qui ne contient QUE le plugin. Public volontairement : un repo public se clone sans authentification, donc le plugin se charge aussi en session cloud (claude.ai/code, appli mobile) et sur toute machine neuve, sans PAT ni script de setup — une session cloud n'a pas de credentials git à elle et ne pourrait pas cloner un repo privé. Le développement se fait dans le repo privé Templates (sous plugin/), d'où ce repo est publié ; ne pas éditer le repo public directement.",
-  "_comment_bootstrap": "En session cloud (CLAUDE_CODE_REMOTE=true), la marketplace déclarée ci-dessus n'est jamais clonée au démarrage : enabledPlugins n'a donc rien à activer, et tout le plugin (skills, agents, hooks) est silencieusement absent — mesuré le 2026-08-24 (docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md). C'est ce hook, exécuté avant que le plugin soit chargé, qui fait le `marketplace add` + `install`. Copier aussi templates/session-start.sh → .claude/hooks/session-start.sh du projet (executable). Ce fichier ET ce settings.json doivent être VERSIONNÉS, bit exécutable compris (mode 100755) : une session cloud ne voit que ce que le clone lui apporte. `timeout: 90` couvre le clone réseau de la marketplace, plus lent que les hooks locaux du plugin (15-20 s). Ne jamais lancer `claude plugin uninstall` / `marketplace remove` dans un repo : le CLI vide extraKnownMarketplaces et enabledPlugins de ce fichier au passage.",
+  "_comment": "Settings d'un projet en mode VENDORÉ : le workflow (skills, agents, hooks, docs) est copié dans le repo sous .claude/, pas installé à l'exécution depuis une marketplace. Conséquence directe : rien à installer, nulle part — app Desktop, extension VS Code, session cloud et mobile voient le workflow parce qu'il est dans le clone. Plus de `extraKnownMarketplaces`, plus de `enabledPlugins`, plus de hook de bootstrap : ces trois lignes n'existaient que pour rapatrier des fichiers qui sont désormais déjà là. Instancié et tenu à jour par .claude/workflow/bin/sync-workflow.mjs (skills /migrer-projet et /maj-workflow).",
+  "_comment_hooks": "Le câblage vivait dans hooks.json du plugin ; sans plugin, il revient ici. Les chemins passent par $CLAUDE_PROJECT_DIR — jamais de chemin absolu, qui ne survivrait ni à un autre poste ni à une session cloud. Les scripts, eux, résolvent leurs ressources (CLAUDE-BASE.md, plafonds.json) relativement à leur propre emplacement : ils fonctionnent donc à l'identique vendorés ou non.",
+  "_comment_permissions": "permissions.allow = prérequis des vagues headless (orchestrateur `claude -p`) ; à étendre au fil de l'eau après quelques sessions réelles, jamais élargie par précaution à l'avance.",
   "effortLevel": "medium",
-  "extraKnownMarketplaces": {
-    "templates": {
-      "source": { "source": "github", "repo": "kovuthecat/claude-workflow" }
-    }
-  },
-  "enabledPlugins": {
-    "workflow@templates": true
-  },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
-            "timeout": 90
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/sessionstart-contexte.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/pretooluse-git.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/posttooluse-format.mjs\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/stop-contexte.mjs\"",
+            "timeout": 20,
+            "statusMessage": "Vérification du contexte…"
           }
         ]
       }
