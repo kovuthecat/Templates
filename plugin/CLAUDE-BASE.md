@@ -29,7 +29,8 @@ est déjà tranchée dans « Modifier » de son plan. Sinon → **STOP**.
   vérifier une fois par projet (`--listFiles | wc -l` non nul) — cf. le gabarit `CLAUDE.md`.
 - **N1 visuel auto (non bloquant)** : erreurs console, contenu présent, 4xx/5xx, responsive —
   **uniquement** via le navigateur in-app de Claude Code Desktop, en déroulant `/verif-visuelle`.
-  Indisponible en VSCode/terminal : la skill sort alors la checklist à dérouler à la main.
+  Indisponible partout ailleurs (VSCode, terminal, cloud, mobile) : la skill sort alors la
+  checklist à dérouler à la main.
 - **N2 humain (non bloquant)** : jugement esthétique / UX / ton. Claude ne l'évalue pas, il le
   consigne dans `VALIDATION.md` — et **rien d'autre** n'y va.
 

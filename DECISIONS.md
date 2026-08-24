@@ -83,6 +83,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   verrou posé après le préflight et retiré si rien n'a démarré ; arbre sale tranché par zones ; hook
   `Stop` rendu muet pendant une vague via `vagueParallele()` →
   [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md)
+- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** — Le hook de 0.10.0 comblait le trou du
+  cloud mais appelait `claude plugin install` sans `--yes`, documenté « required when stdin or
+  stdout is not a TTY » : un hook n'en a jamais. Plus un `timeout: 90` (clone réseau) et une garde
+  `command -v claude`. Corollaire consigné : settings **et** hook doivent être versionnés en 100755,
+  le cloud ne voit que le clone. Vocabulaire d'environnement élargi au cloud/mobile — la distinction
+  reste binaire, Desktop étant le seul à avoir navigateur in-app et `spawn_task`.
 - 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Trou entre `/nouveau-projet`
   (repo vide, interview complète) et `/migrer-projet` (workflow v1 déjà en place) : le projet qui a
   du code mais n'a jamais été outillé. D'abord écrit en skill séparée `/adopter-projet`, **fusionné

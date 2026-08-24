@@ -1,6 +1,6 @@
 ---
 name: verif-visuelle
-description: Vérification visuelle d'un écran ou d'un parcours — niveau N1 automatique via le navigateur in-app de Claude Code Desktop, ou sortie d'une checklist à dérouler à la main quand le navigateur n'est pas disponible (VSCode). À utiliser après une tâche qui change l'UI, avant de consigner quoi que ce soit dans VALIDATION.md.
+description: Vérification visuelle d'un écran ou d'un parcours — niveau N1 automatique via le navigateur in-app de Claude Code Desktop, ou sortie d'une checklist à dérouler à la main quand le navigateur n'est pas disponible (VSCode, terminal, session cloud, appli mobile). À utiliser après une tâche qui change l'UI, avant de consigner quoi que ce soit dans VALIDATION.md.
 ---
 
 # Vérification visuelle
@@ -21,7 +21,8 @@ Regarde si les outils `preview_start` / `read_page` / `read_console_messages` so
 dans ta session.
 
 - **Disponibles → Claude Code Desktop** : dérouler le mode A.
-- **Absents → VSCode (ou terminal)** : dérouler le mode B. Ne pas tenter de contourner (pas de
+- **Absents → tout le reste** (VSCode, terminal, session cloud `claude.ai/code`, appli mobile) :
+  dérouler le mode B. Ne pas tenter de contourner (pas de
   Playwright, pas de capture par script) — le navigateur in-app est le seul outil visuel autorisé
   à Claude.
 
@@ -61,7 +62,7 @@ corrige dans la session, il ne se consigne **pas** dans `VALIDATION.md`.
 **Si tout passe** : le noter dans le rapport de fin de tâche (« N1 OK : <écran>, console propre,
 <élément> présent »). Ne rien écrire dans `VALIDATION.md`.
 
-## Mode B — Pas de navigateur (VSCode)
+## Mode B — Pas de navigateur (VSCode, terminal, cloud, mobile)
 
 Ne rien vérifier soi-même. Produire, dans la réponse, un bloc prêt à dérouler :
 

@@ -147,8 +147,8 @@ ne pas traîner le contexte de l'une dans l'autre.
   d'orchestrer :
   - `—` → **headless**, un processus `claude -p` par session, verdict contraint par schéma ;
   - `Desktop` → **pastilles** `spawn_task`, un clic = une conversation neuve, verdict lu dans la
-    colonne Statut de l'`index.md`. Depuis Claude Code Desktop uniquement — ni VSCode ni terminal
-    n'ont le navigateur in-app requis par le N1.
+    colonne Statut de l'`index.md`. Depuis Claude Code Desktop uniquement — ni VSCode, ni terminal,
+    ni session cloud (`claude.ai/code`, appli mobile) n'ont le navigateur in-app requis par le N1.
 - Une vague **mixte** déroule les deux voies : la headless se termine dans le tour, la Desktop attend
   les clics de l'utilisateur. L'orchestrateur rend la main sans surveiller.
 
@@ -165,8 +165,8 @@ in-app (`preview_start`, `read_page`, `read_console_messages`…). Ce qu'un navi
 seul n'a plus à être délégué à un humain — et ne doit donc plus atterrir dans `VALIDATION.md`, qui
 gonflait de checklists jamais dépilées.
 
-**L'environnement conditionne N1** : le navigateur in-app n'existe **pas** en VSCode ni en terminal.
-D'où :
+**L'environnement conditionne N1** : le navigateur in-app n'existe **que** dans Claude Code Desktop —
+ni VSCode, ni terminal, ni session cloud (`claude.ai/code`, appli mobile). D'où :
 
 - le bandeau de chaque `S<k>.md` porte `Environnement : Desktop (navigateur requis) | indifférent`,
   et l'`index.md` a une colonne **Env.** ;

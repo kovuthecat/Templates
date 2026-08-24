@@ -86,10 +86,13 @@ Rien à la sortie = préflight vert. Sinon STOP, en donnant la remédiation
 ### 2b. Le navigateur, pour l'autre voie
 
 La voie Desktop exige que la session courante dispose de la pastille `spawn_task`
-(`mcp__ccd_session__spawn_task`) et du navigateur in-app. Depuis VSCode ou un terminal, ni l'un ni
-l'autre n'existe : les sessions `Desktop` de la vague ne sont **pas** orchestrables ici. Ne pas
-bloquer la vague pour autant — dérouler la voie headless, et lister les sessions Desktop comme
-« à lancer depuis Claude Code Desktop ».
+(`mcp__ccd_session__spawn_task`) et du navigateur in-app. **Claude Code Desktop est le seul
+environnement à les avoir** — ni VSCode, ni un terminal, ni une session cloud (claude.ai/code,
+appli mobile) n'en dispose. Les sessions `Desktop` de la vague n'y sont donc **pas** orchestrables.
+
+Ne pas bloquer la vague pour autant : dérouler la voie headless, et lister les sessions `Desktop`
+comme « à lancer depuis Claude Code Desktop ». La voie headless, elle, marche partout où le
+préflight 2a est vert — y compris en cloud, où le CLI est présent nativement.
 
 ### 2c. Les trois vérifications de plan
 

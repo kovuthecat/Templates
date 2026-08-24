@@ -94,7 +94,9 @@ bloc — la voie headless finit dans le tour, la voie Desktop attend des clics. 
 franchement ; les mélanger est un choix, pas un accident à éviter.
 
 Colonne **Env.** : `Desktop` si la session exige la validation visuelle N1 (navigateur in-app),
-`—` sinon. Une session `Desktop` ne se lance pas depuis VSCode (cf. `/verif-visuelle`).
+`—` sinon. Une session `Desktop` se lance **depuis Claude Code Desktop uniquement** — ni VSCode, ni
+terminal, ni cloud/mobile n'ont le navigateur in-app (cf. `/verif-visuelle`). Une session `—` se
+lance de partout, cloud compris.
 
 L'index ne contient **rien d'autre** : pas de détail d'exécution, il pointe vers les sessions.
 
