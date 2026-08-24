@@ -52,10 +52,23 @@ Depuis `main` à jour, après avoir bumpé `plugin/.claude-plugin/plugin.json` :
 ```bash
 git checkout --orphan plugin-public && git reset --hard
 git checkout main -- plugin && cp -r plugin/. . && rm -rf plugin
-git add -A && git commit -m "Plugin workflow — marketplace templates"
+git add --all
+git update-index --chmod=+x templates/session-start.sh   # cp -r perd le bit sous Windows
+git commit -m "Plugin workflow — marketplace templates"
 git push --force git@github.com:kovuthecat/claude-workflow.git plugin-public:main
 git checkout main && git branch -D plugin-public
 ```
+
+Le `update-index --chmod=+x` n'est pas cosmétique : sous Windows, `cp -r` ne transporte pas le bit
+exécutable jusqu'à l'index, et un `session-start.sh` publié en `100644` donne une session **cloud
+sans plugin**, silencieusement. Contrôler avant de pousser — la commande doit lister le script :
+
+```bash
+git ls-files -s | awk '$1=="100755"'
+```
+
+Dérouler cette procédure dans un **clone jetable** plutôt que dans l'arbre de dev : `reset --hard`
+et `rm -rf plugin` n'ont aucune raison de s'exécuter sur le dépôt de travail.
 
 `--force` est normal et voulu : le dépôt public est un **artefact de distribution** à un seul
 commit, pas un historique à préserver. Sans bump de version, les projets déjà installés ne verront
