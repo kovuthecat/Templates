@@ -9,8 +9,10 @@ Squelettes fournis par le plugin, dans `plugin/templates/` : `PROJECT_BRIEF.md`,
 `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
 (squelette), et — si le projet a une UI — `DESIGN_SPEC.md`.
 `plugin/templates/project-settings.json` → **renommé `.claude/settings.json`** (effort par défaut,
-`enabledPlugins` et permissions ; les hooks voyagent désormais dans le plugin, plus dans ce
-fichier).
+`enabledPlugins` et permissions ; les hooks `PreToolUse`/`PostToolUse`/`Stop` voyagent dans le
+plugin, plus dans ce fichier — seule exception : un hook `SessionStart` de bootstrap, cf.
+`docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md`). `plugin/templates/session-start.sh` →
+copié à côté, en `.claude/hooks/session-start.sh` (executable).
 
 ## Référencés — ne jamais copier
 

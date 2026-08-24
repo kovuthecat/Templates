@@ -62,16 +62,24 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
    > ne l'aurait pas. Fiabiliser avec `claude plugin install workflow@templates --yes` : idempotent
    > si déjà installé (no-op propre, pas d'erreur), donc sans risque à relancer ici.
 
-3. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
+3. Copier `${CLAUDE_PLUGIN_ROOT}/templates/session-start.sh` → `.claude/hooks/session-start.sh` du
+   nouveau projet, puis `chmod +x .claude/hooks/session-start.sh`.
+
+   > Bootstrap le plugin dans les sessions **cloud** : `enabledPlugins` seul n'y active rien (la
+   > marketplace n'y est jamais clonée au démarrage) — cf. `_comment_bootstrap` du settings et
+   > `docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md`. Sans ce script, le projet fonctionne
+   > en local mais perd tout le plugin en session cloud, silencieusement.
+
+4. Copier `${CLAUDE_PLUGIN_ROOT}/AGENTS.md` → `AGENTS.md` du nouveau projet, **tel quel**.
    Codex charge ce fichier depuis le projet et ne sait pas résoudre `${CLAUDE_PLUGIN_ROOT}` : il lui
    faut le contenu, pas un pointeur. Si l'utilisateur utilise le runner Playwright partagé, lui
    rappeler de définir `PLAYWRIGHT_AUDIT_RUNNER` (cf. `AGENTS.md` § Audits UI).
 
-4. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
+5. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).
-5. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
+6. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
    du bruit payé à chaque lecture — ne pas la laisser vide, la retirer).
-6. `git init` puis premier commit, message exact : `chore: instanciation projet depuis Templates`.
+7. `git init` puis premier commit, message exact : `chore: instanciation projet depuis Templates`.
 
 ## Phase D — Annonce des étapes suivantes (les citer, ne PAS les exécuter ici)
 

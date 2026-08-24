@@ -72,6 +72,10 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
 - 2026-08-22 — **Rapport capacités archivé et distillé** — Le rapport de capacités Claude Code est
   archivé daté dans `docs/references/` et distillé en skill `/choisir-mecanisme` →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
+- 2026-08-24 — **Hook `SessionStart` de bootstrap dans `project-settings.json`** — Exception au
+  principe « aucun hook dans le settings projet » : une session cloud ne clone jamais la
+  marketplace au démarrage, donc `enabledPlugins` seul n'y active rien →
+  [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md)
 
 ---
 
