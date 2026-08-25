@@ -51,37 +51,33 @@ périmé sur toute machine neuve.
 
 Depuis `main` à jour, après avoir bumpé `plugin/.claude-plugin/plugin.json` :
 
-Dérouler dans un **clone jetable**, jamais dans l'arbre de dev : `reset --hard` et `rm -rf` n'ont
-aucune raison de s'exécuter sur le dépôt de travail.
-
 ```bash
-git checkout --orphan plugin-public && git rm -rq --cached .
-rm -rf docs plans CHANGELOG.md DECISIONS.md README.md CLAUDE.md .github
-cp -r plugin/. . && rm -rf plugin
-git add .claude-plugin README.md AGENTS.md CLAUDE-BASE.md CONVENTIONS.md MIGRATION.md WORKFLOW.md agents bin hooks skills templates
-git commit -m "Plugin workflow — marketplace templates"
-git push --force git@github.com:kovuthecat/claude-workflow.git plugin-public:main
+node plugin/bin/publier.mjs
 ```
 
-**L'ordre purge-puis-copie compte** : le payload apporte désormais son propre `README.md`, que la
-purge supprimerait si elle passait après la copie — et le dépôt public se retrouverait sans page
-d'accueil, donc impartageable.
+Le script (`plugin/bin/publier.mjs`) se résout depuis son propre emplacement — la racine du
+payload est son dossier parent (`plugin/`), quel que soit le dossier courant. Il construit le
+payload dans un dossier jetable (`fs.mkdtempSync` sous le temp système, jamais l'arbre de dev),
+lit la version dans `.claude-plugin/plugin.json`, applique le garde-fou de sécurité, puis pousse.
 
-Garde-fou avant de pousser — aucun **vrai** chemin personnel ne doit sortir. Ne pas se contenter de
-chercher `C:\Users` : la documentation en cite en exemple avec une ellipse (`C:\Users\…`), ce qui
-produit un faux positif. Viser un segment d'utilisateur réel :
+**Garde-fou intégré, bloquant** : aucun **vrai** chemin personnel ne doit sortir. Le script scanne
+tout fichier texte du payload avec la même regex qu'avant (`[A-Za-z]:\\Users\\[A-Za-z0-9]|
+/home/[a-z0-9]+/|/Users/[a-z0-9]+/`), qui ignore volontairement les exemples en ellipse de cette
+doc (`C:\Users\…`) — l'ellipse ne fournit pas de segment alphanumérique après le séparateur, donc
+pas de faux positif. Un hit affiche `fichier:ligne` et sort en code 1 **sans pousser** : contrairement
+à un garde-fou en sous-shell shell, il ne peut pas être court-circuité par un `&&` qui continue
+malgré l'alerte (constaté en publiant 0.12.0, avant que le script n'existe).
 
-```bash
-grep -rnE '[A-Za-z]:\\Users\\[A-Za-z0-9]|/home/[a-z0-9]+/|/Users/[a-z0-9]+/' . --exclude-dir=.git
-```
+Après le push, le script vérifie via `git ls-remote` que le SHA distant correspond au SHA poussé,
+et affiche un récapitulatif (version, SHA, nombre de fichiers). Le dossier temporaire est nettoyé
+dans un `finally`, y compris en cas d'échec.
 
-Sortie vide = propre. **Ne pas mettre cette vérification dans un sous-shell** `( … )` d'une chaîne
-`&&` : son `exit` n'y interrompt que le sous-shell, et la publication continue malgré l'alerte
-(constaté en publiant 0.12.0).
+`--dry-run` fait tout sauf le push : construit le payload, scanne, affiche ce qui serait poussé,
+nettoie. Utile pour valider une modification du script lui-même avant de l'exécuter pour de bon.
 
-`--force` est normal et voulu : le dépôt public est un **artefact de distribution** à un seul
-commit, pas un historique à préserver. Sans bump de version, les projets vendorés ne verront jamais
-la mise à jour — le manifeste compare les versions.
+Le `--force` implicite au push est normal et voulu : le dépôt public est un **artefact de
+distribution** à un seul commit, pas un historique à préserver. Sans bump de version, les projets
+vendorés ne verront jamais la mise à jour — le manifeste compare les versions.
 
 Projet existant à rattacher au workflow → `/migrer-projet`, quel que soit l'état de départ : son
 diagnostic route vers la bonne voie (bascule d'un projet encore en workflow v1, ou adoption d'un
