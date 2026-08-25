@@ -118,6 +118,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   éphémère) →
   [détail](docs/decisions/2026-08-24-orchestration-par-sous-agents.md)
 
+- 2026-08-25 — **Sous-agent par défaut, headless en exception déclarée (option C)** — le sous-agent
+  devient la voie normale de TOUTES les sessions orchestrées ; `Env. = headless` ne se déclare que
+  pour un effort `high`/`xhigh` à appliquer réellement ou une vague à lancer fenêtre fermée. Verdict
+  = commits ; le lecteur JSON se réduit à l extraction du motif →
+  [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md)
+
 ---
 
 ## Archives

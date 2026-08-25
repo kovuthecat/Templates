@@ -1,7 +1,6 @@
-# 2026-08-25 — Cadrage : une seule voie d'orchestration ? (EN ATTENTE D'ARBITRAGE)
+# 2026-08-25 — Décision : sous-agent par défaut, headless en exception déclarée (option C)
 
-**Statut : proposition cadrée, décision à prendre par Thibault.** Ce fichier est la sortie d'une
-session `/cadrer` ; il devient une décision (et une ligne du registre) quand l'option est choisie.
+**Statut : TRANCHÉE — option C retenue par Thibault le 2026-08-25.** Chantier : plan P3 de ce dépôt.
 
 ## Question
 
