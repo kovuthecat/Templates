@@ -1,0 +1,38 @@
+{
+  "_comment": "Dépôt SOURCE du workflow — il n'est pas vendoré : ni hooks, ni .claude/workflow/ (le payload vit sous plugin/). Ce fichier ne porte donc qu'une allowlist, prérequis des sessions headless orchestrées (`claude -p` : aucun humain n'est là pour confirmer un outil, une session sans allowlist reste bloquée sans fin — cf. /orchestrer-plan, préflight). Étendue au fil de l'eau sur refus réellement observé, jamais élargie par précaution.",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(node --check:*)",
+      "Bash(node -e:*)",
+      "Bash(grep:*)",
+      "Bash(rg:*)",
+      "Bash(wc:*)",
+      "Bash(sed:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(diff:*)",
+      "Bash(sort:*)",
+      "Bash(mkdir:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)",
+      "Read(.env*)",
+      "Read(**/*.pem)"
+    ]
+  }
+}
