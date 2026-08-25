@@ -40,10 +40,12 @@ Le dépôt public **ne contient rien de privé** : ni plans, ni décisions, ni n
 et exposerait sinon des états antérieurs (prénom, chemins personnels) que l'arbre actuel ne contient
 plus.
 
-Un projet active le workflow avec `"enabledPlugins": {"workflow@templates": true}` +
-`extraKnownMarketplaces` (déjà dans `plugin/templates/project-settings.json`), puis une installation
-explicite — cf. `/nouveau-projet` Phase C. `CLAUDE-BASE.md` n'est pas importé par une ligne
-`@chemin` : son contenu est injecté par le hook `SessionStart` à chaque session.
+Un projet n'« active » plus rien : le workflow est **vendoré** dans son `.claude/` par
+`/nouveau-projet` ou `/migrer-projet`, et tenu à jour par `/maj-workflow`. Le dépôt public sert de
+**source de secours** à cette synchronisation — le cas « ni clone du dépôt source, ni rien
+d'installé » de `/maj-workflow` : un `git clone --depth 1` jetable, le temps de synchroniser.
+C'est pourquoi il doit être republié à chaque version : un miroir en retard vendorise un workflow
+périmé sur toute machine neuve.
 
 ### Publier une version
 
@@ -83,7 +85,7 @@ la mise à jour — le manifeste compare les versions.
 
 Projet existant à rattacher au workflow → `/migrer-projet`, quel que soit l'état de départ : son
 diagnostic route vers la bonne voie (bascule d'un projet encore en workflow v1, ou adoption d'un
-projet qui a du code mais n'a jamais été outillé). `plugin/MIGRATION.md` pour les cas tordus.
+projet qui a du code mais n'a jamais été outillé). (`plugin/MIGRATION.md` n'est plus qu'un renvoi vers ces skills.)
 
 ## Skills du workflow
 
