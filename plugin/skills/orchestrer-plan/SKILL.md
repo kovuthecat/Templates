@@ -136,10 +136,22 @@ Si l'enveloppe JSON porte `permission_denials`, le lister dans le rapport final 
 
 ## Étape 5 — Statuts, puis vague suivante ou arrêt
 
-**Statuts.** Vague verrouillée (`.claude/wave.lock` posé) → l'orchestrateur coche `[x]` dans
-`index.md`, date à l'appui, pour les sessions `PASS` que le verrou a empêchées de le faire elles-mêmes,
-puis retire le verrou. Vague non verrouillée → chaque session a déjà coché la sienne (`WORKFLOW.md`
-§4a) : relire l'index, ne pas le réécrire.
+**Vague verrouillée — l'ordre n'est pas négociable.** Sous verrou, aucune session n'a commité : c'est
+à l'orchestrateur de le faire, et le hook `pretooluse-git` refuse tout commit tant que le marqueur
+existe. Donc, dans cet ordre :
+
+1. **Retirer `.claude/wave.lock`** — la vague est collectée, le verrou n'a plus d'objet.
+2. **Committer pour les sessions**, tâche par tâche, staging explicite des seuls fichiers de chaque
+   tâche, message et repère `Plan: P<n>/S<k>/T<m>` pris dans le `S<k>.md` (`WORKFLOW.md` §4b). Le
+   bilan de session se joint au commit de la dernière tâche de sa session.
+3. **Cocher `[x]`** dans `index.md`, date à l'appui, les sessions `PASS`.
+
+Faire l'inverse (committer avant de retirer le verrou) échoue systématiquement : le hook évalue la
+commande **avant** exécution, donc un `rm wave.lock && git commit` dans le même appel est refusé lui
+aussi — il faut deux appels distincts.
+
+**Vague non verrouillée** → chaque session a commité et coché la sienne (`WORKFLOW.md` §4a) : relire
+l'index, ne rien réécrire.
 
 ### Échec — finir la vague, arrêter le plan
 

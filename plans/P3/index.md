@@ -24,8 +24,8 @@ ils restent par-lot, et les renommer coûterait une migration dans 6 projets pou
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1-T2 | Domicilier les règles dans `WORKFLOW.md` | Sonnet | medium | — | — | `plugin/WORKFLOW.md`, `plugin/CLAUDE-BASE.md` | [x] (2026-08-25) |
-| [S2](S2.md) | T3-T4 | `/orchestrer-plan` : boucle de vagues, ≤ 250 lignes | Sonnet | high | headless (effort `high` réellement appliqué) | S1 | `plugin/skills/orchestrer-plan/`, `docs/decisions/` (1 nouveau) | [ ] |
-| [S3](S3.md) | T5-T8 | Satellites : renvois, colonne `Env.`, renommage | Sonnet | medium | — | S1 | `plugin/skills/{fin-de-tache,nouveau-plan,reprendre,reprendre-echec}/`, `plugin/hooks/pretooluse-git.mjs` | [ ] |
+| [S2](S2.md) | T3-T4 | `/orchestrer-plan` : boucle de vagues, ≤ 250 lignes | Sonnet | high | headless (effort `high` réellement appliqué) | S1 | `plugin/skills/orchestrer-plan/`, `docs/decisions/` (1 nouveau) | [x] 2026-08-25 |
+| [S3](S3.md) | T5-T8 | Satellites : renvois, colonne `Env.`, renommage | Sonnet | medium | — | S1 | `plugin/skills/{fin-de-tache,nouveau-plan,reprendre,reprendre-echec}/`, `plugin/hooks/pretooluse-git.mjs` | [x] 2026-08-25 |
 
 ## Ordonnancement
 
