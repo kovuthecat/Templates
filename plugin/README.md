@@ -75,6 +75,23 @@ claude plugin install workflow@templates
 C'est un confort, pas un prérequis — et cette voie ne suit pas vos dépôts en session cloud, ce que
 le vendoring fait.
 
+## Forker ce workflow
+
+Le dépôt public (`kovuthecat/claude-workflow`) est en dur à 6 endroits — les changer tous fait
+tourner amorçage, mise à jour et publication vers **votre** fork au lieu de l'original :
+
+| Fichier | Rôle |
+| --- | --- |
+| `README.md` (celui-ci, 2 occurrences) | commande d'amorçage, installation en plugin |
+| `bin/sync-workflow.mjs` (`fichiers.source` du manifeste généré) | valeur informative écrite dans `manifest.json` de chaque projet synchronisé |
+| `bin/publier.mjs` (`DEPOT_PUBLIC`) | cible du `git push --force` de publication — **jamais vendoré** (voir plus haut), à éditer uniquement dans le dépôt source de votre fork |
+| `skills/nouveau-projet/SKILL.md` | commande d'amorçage recopiée pour un repo vide |
+| `skills/migrer-projet/SKILL.md` | même commande, cas d'un projet existant |
+| `skills/maj-workflow/SKILL.md` | source de secours si aucun clone n'est disponible |
+
+Le nom `templates` (marketplace) et `workflow` (plugin) dans `.claude-plugin/` peuvent rester
+identiques — ce sont des identifiants locaux, pas des références au dépôt.
+
 ## Licence
 
-MIT.
+MIT — voir `LICENSE`.

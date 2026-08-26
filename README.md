@@ -5,21 +5,22 @@ Templates des fichiers de contexte à copier dans chaque nouveau projet.
 
 ## Copiés dans le projet
 
-Squelettes fournis par le plugin, dans `plugin/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
+Squelettes fournis par le plugin, dans `plugin/templates/` — **instanciés** (remplis, pas
+seulement copiés) par `/nouveau-projet` ou `/migrer-projet` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
 `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
 (squelette), et — si le projet a une UI — `DESIGN_SPEC.md`.
-`plugin/templates/project-settings.json` → **renommé `.claude/settings.json`** (effort par défaut,
-`enabledPlugins` et permissions ; les hooks `PreToolUse`/`PostToolUse`/`Stop` voyagent dans le
-plugin, plus dans ce fichier — seule exception : un hook `SessionStart` de bootstrap, cf.
-`docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md`). `plugin/templates/session-start.sh` →
-copié à côté, en `.claude/hooks/session-start.sh` (executable).
+`plugin/templates/project-settings.json` → copié tel quel en `.claude/settings.json` (effort par
+défaut, permissions, 4 hooks câblés en chemins relatifs `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`).
 
-## Référencés — ne jamais copier
+## Vendoré — jamais installé
 
-Fournis par le plugin (`plugin/CLAUDE-BASE.md`, `plugin/WORKFLOW.md`, `plugin/CONVENTIONS.md`,
-`plugin/AGENTS.md`, `plugin/MIGRATION.md`) : pas de copie, ils voyagent avec le plugin installé et
-se référencent depuis lui par `${CLAUDE_PLUGIN_ROOT}/…`. Fichiers privés de ce dépôt, hors
-plugin, jamais distribués : `README.md`, `CHANGELOG.md`, `DECISIONS.md`, `plans/`, `docs/`.
+Le reste de `plugin/` (`skills/`, `agents/`, `hooks/`, `CLAUDE-BASE.md`, `WORKFLOW.md`,
+`CONVENTIONS.md`, `AGENTS.md`, `MIGRATION.md`, `bin/`) est **copié tel quel** sous
+`.claude/skills/`, `.claude/agents/` et `.claude/workflow/` par `plugin/bin/sync-workflow.mjs`
+(skills `/nouveau-projet`, `/migrer-projet`, `/maj-workflow`) — rien n'est installé à l'exécution,
+tout voyage dans le clone. Un manifeste (`.claude/workflow/manifest.json`) garde un hash par
+fichier géré (détail : §Distribution ci-dessous). Fichiers privés de ce dépôt, hors `plugin/`,
+jamais distribués : `README.md`, `CHANGELOG.md`, `DECISIONS.md`, `plans/`, `docs/`.
 
 ## Distribution
 
@@ -91,7 +92,7 @@ projet qui a du code mais n'a jamais été outillé). (`plugin/MIGRATION.md` n'e
 | `/cadrer` | Le QUOI/POURQUOI n'est pas tranché → session de réflexion Opus bornée, sortie = une décision écrite |
 | `/nouveau-plan` | Opus découpe un plan → crée `plans/P<n>/` (contient les squelettes et la règle de découpage) |
 | `/verif-visuelle` | Après une tâche qui touche l'UI → N1 au navigateur in-app, ou checklist si VSCode |
-| `/executer-vague` | Vague prête → voie headless (`claude -p`, verdicts par schéma) et/ou voie Desktop (pastilles `spawn_task`), ne garde que les verdicts |
+| `/orchestrer-plan` | `plans/P<n>/index.md` prêt → déroule le plan entier, vague après vague, sans rendre la main, jusqu'à épuisement, un échec ou une gate humaine |
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |
 | `/purge-contexte` | Un hook signale un plafond dépassé → archivage sans perte |
 | `/reprendre` | Projet laissé de côté, « où j'en étais ? » → lecture bornée, écarts signalés, une prochaine action proposée |

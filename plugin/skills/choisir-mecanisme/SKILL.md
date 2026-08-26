@@ -6,8 +6,9 @@ description: Choisir le bon mécanisme Claude Code et auditer la config .claude/
 # Choisir le bon mécanisme Claude Code
 
 Cette skill ne décrit AUCUNE fonctionnalité en détail (ça se périme vite). Pour une question
-pointue et à jour → agent `claude-code-guide`. Pour l'intégralité du rapport source →
-`docs/references/claude-code-capabilities-2026-08.md` (archive figée).
+pointue et à jour → agent `claude-code-guide`. Pour l'intégralité du rapport source, table de
+liens ci-dessous (§Vérifier avant de construire) — `docs/references/claude-code-capabilities-2026-08.md`
+n'existe que dans le dépôt source du workflow, pas dans une copie vendorée.
 
 ## Arbre de choix
 
@@ -134,5 +135,5 @@ seulement alors, construire de l'infrastructure custom.
 | Changelog | <https://code.claude.com/docs/en/changelog> |
 
 **Renvoi** : question pointue et précise sur une fonctionnalité → agent `claude-code-guide`.
-Besoin de l'intégralité du rapport (contexte, détails, exemples) →
-`docs/references/claude-code-capabilities-2026-08.md`.
+Besoin de l'intégralité du rapport (contexte, détails, exemples) — dans le dépôt source du
+workflow uniquement, pas vendoré → `docs/references/claude-code-capabilities-2026-08.md`.

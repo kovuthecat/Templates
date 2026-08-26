@@ -40,7 +40,11 @@ const PLAN = [
   { de: 'WORKFLOW.md',      vers: '.claude/workflow/WORKFLOW.md' },
   { de: 'CONVENTIONS.md',   vers: '.claude/workflow/CONVENTIONS.md' },
   { de: 'MIGRATION.md',     vers: '.claude/workflow/MIGRATION.md' },
-  { de: 'bin',              vers: '.claude/workflow/bin',      recursif: true },
+  // publier.mjs exclu : il pousse vers LE dépôt public de distribution (URL en dur), un geste qui
+  // n'a de sens que dans le dépôt source. Le vendorer laisserait un utilisateur en aval avec un
+  // script qui republierait — sans les droits, et sans que rien ne l'explique — le dépôt de
+  // quelqu'un d'autre.
+  { de: 'bin',              vers: '.claude/workflow/bin',      recursif: true, sauf: ['publier.mjs'] },
   // AGENTS.md NE VA PAS à la racine. Le AGENTS.md racine appartient au projet : il porte
   // couramment des règles propres (version de framework, contraintes maison) qu'un écrasement
   // perdrait. Le fichier central est donc vendoré ici, et le AGENTS.md du projet y renvoie par
