@@ -78,8 +78,67 @@ function git(args, options = {}) {
   return execFileSync('git', args, { windowsHide: true, stdio: 'pipe', ...options });
 }
 
+// ── Garde-fou de synchronisation du dépôt SOURCE ─────────────────────────────
+// Le 2026-08-28, ce dépôt local était en retard d'un commit sur origin/main : la 0.16.2 avait été
+// poussée depuis un autre poste et jamais rapatriée ici. Le payload est donc parti d'un arbre
+// amputé, en --force — le miroir public a perdu plugin/LICENSE, l'exclusion de publier.mjs du
+// vendoring et les corrections README, jusqu'à ce que la divergence soit repérée à la main et
+// réparée par un rebase + republication. Le scan de chemins personnels regarde le contenu du
+// payload, jamais l'état du dépôt qui le produit : sur un chemin qui pousse en --force, être en
+// retard suffit à détruire du contenu déjà publié.
+//
+// Retard → refus (même modèle que le scan de chemins personnels). Arbre sale ou HEAD en avance →
+// avertissement seulement : publier depuis un commit local non encore poussé est légitime, mais
+// mérite d'être vu passer.
+function verifierSynchroSource() {
+  const gitSource = (args) => git(args, { cwd: RACINE_PAYLOAD }).toString().trim();
+
+  try {
+    gitSource(['fetch', 'origin']);
+  } catch {
+    // Réseau coupé, ou remote absent chez qui aurait forké ce workflow. Non bloquant : le push qui
+    // suit échouerait de lui-même, et --dry-run doit rester utilisable hors ligne. Mais la
+    // comparaison ci-dessous porte alors sur un origin/main peut-être périmé — donc le dire.
+    console.warn('publier: AVERTISSEMENT — `git fetch origin` a échoué ; la vérification ci-dessous');
+    console.warn('  porte sur une référence origin/main possiblement périmée.');
+  }
+
+  let comptes;
+  try {
+    comptes = gitSource(['rev-list', '--left-right', '--count', 'origin/main...HEAD']);
+  } catch {
+    console.warn('publier: AVERTISSEMENT — origin/main introuvable : synchronisation non vérifiée.');
+    return;
+  }
+  // `--left-right --count` sur A...B : « commits de A absents de B » puis « de B absents de A »,
+  // soit ici retard puis avance.
+  const [retard, avance] = comptes.split(/\s+/).map(Number);
+
+  if (retard > 0) {
+    console.error(`publier: dépôt source en retard de ${retard} commit(s) sur origin/main — publication annulée, rien poussé`);
+    console.error('  Le push est un --force : publier depuis un arbre en retard écrase le miroir');
+    console.error('  public avec un contenu amputé (constaté le 2026-08-28, v0.16.2 perdue).');
+    console.error('  → git pull --rebase, puis relancer.');
+    process.exit(1);
+  }
+
+  const sale = gitSource(['status', '--porcelain']);
+  if (sale) {
+    console.warn(`publier: AVERTISSEMENT — arbre de travail non propre (${sale.split('\n').length} entrée(s)) :`);
+    console.warn('  le payload part tel quel, modifications non committées comprises.');
+  }
+  if (avance > 0) {
+    console.warn(`publier: AVERTISSEMENT — HEAD est en avance de ${avance} commit(s) non poussé(s) :`);
+    console.warn("  le miroir public sortira d'un état absent de origin/main.");
+  }
+  if (!sale && avance === 0) console.log('publier: dépôt source synchronisé avec origin/main');
+}
+
 let tmp;
 try {
+  // Avant toute construction : le dépôt qui produit le payload doit être à jour (le push est --force).
+  verifierSynchroSource();
+
   // ── Construction du payload dans un dossier jetable ──────────────────────
   // Tout plugin/ part tel quel : c'est déjà le périmètre exact du dépôt public, rien à exclure.
   tmp = mkdtempSync(join(tmpdir(), 'claude-workflow-publier-'));
