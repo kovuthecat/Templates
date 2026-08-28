@@ -1,5 +1,5 @@
 {
-  "_comment": "Dépôt SOURCE du workflow — il n'est pas vendoré : ni hooks, ni .claude/workflow/ (le payload vit sous plugin/). Ce fichier ne porte donc qu'une allowlist, prérequis des sessions headless orchestrées (`claude -p` : aucun humain n'est là pour confirmer un outil, une session sans allowlist reste bloquée sans fin — cf. /orchestrer-plan, préflight). Étendue au fil de l'eau sur refus réellement observé, jamais élargie par précaution.",
+  "_comment": "Dépôt SOURCE du workflow — il n'est pas vendoré : ni hooks, ni .claude/workflow/ (le payload vit sous plugin/). Ce fichier ne porte donc qu'une allowlist, prérequis des sessions headless orchestrées (`claude -p` : aucun humain n'est là pour confirmer un outil, une session sans allowlist reste bloquée sans fin — cf. /orchestrer-plan, préflight). Étendue au fil de l'eau sur refus réellement observé, jamais élargie par précaution. `git push` retiré du deny le 2026-08-28 sur demande explicite — Thibault délègue désormais le push de ce dépôt à Claude ; le déni initial visait à garder ce geste manuel.",
   "permissions": {
     "allow": [
       "Read",
@@ -30,7 +30,6 @@
       "Bash(mkdir:*)"
     ],
     "deny": [
-      "Bash(git push:*)",
       "Read(.env*)",
       "Read(**/*.pem)"
     ]
