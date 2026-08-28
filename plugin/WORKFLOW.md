@@ -140,7 +140,8 @@ Plan: P<n>/S<k>/T<m>
 - **Ce qu'une session committe** : les fichiers de ses tâches, et son `S<k>.md`. Rien d'autre.
 - **N0 vert d'abord** : `build` + `typecheck` + tests du périmètre. Un commit qui ne compile pas
   transforme le point de retour en piège.
-- **Jamais `git push`** depuis une session : le push est groupé, en fin de vague ou de plan.
+- **Jamais `git push`** depuis une session : seul l'orchestrateur pousse, groupé — en fin de plan
+  hors cloud, à chaque vague en cloud (exception ci-dessous).
 - **L'`index.md` suit le verrou, pas le mot « vague »** : `.claude/wave.lock` présent → la session
   n'y touche pas, l'orchestrateur coche en fin de vague ; verrou absent → la session coche **sa
   propre ligne** dans le commit de ses tâches. Un statut, une seule main (§4a) — mais la main est
@@ -163,7 +164,18 @@ nommé. `/rewind` reste utile **dans** une session ; il n'a jamais rien pu pour 
 deux conversations parallèles.
 
 - **Fin de plan** : plus de consolidation de commits à faire. Restent `STATUS.md`, `TASKS.md`,
-  `VALIDATION.md` à mettre à jour, et **un seul push**.
+  `VALIDATION.md` à mettre à jour, et **un seul push** — hors cloud (exception ci-dessous), où
+  chaque vague a déjà poussé la sienne.
+
+**Exception cloud — push par vague, pas par plan.** Un conteneur de session cloud (`CLAUDE_CODE_REMOTE=true`)
+est éphémère : il peut être réclamé entre deux vagues, avant même une gate humaine ou la fin du plan.
+Des commits validés qui n'existent que dans son arbre local disparaissent alors sans recours — le
+risque identifié sur MYO P15 (`docs/decisions/2026-08-28-push-par-vague-en-cloud.md`). Dans cet
+environnement, l'orchestrateur pousse à **chaque** clôture de vague (Étape 5 de `/orchestrer-plan`),
+pas seulement en fin de plan. La condition se lit sur `CLAUDE_CODE_REMOTE` — elle ne se plaide pas en
+prose à chaque vague, sur des motifs qui varient d'une session à l'autre (« je suis seul à pousser »,
+« le conteneur est éphémère »…). Hors cloud, le poste ne s'évapore pas entre deux tours : la règle
+groupée reste inchangée.
 
 ## 5. Déléguer au lieu de faire
 

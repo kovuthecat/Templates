@@ -164,13 +164,17 @@ existe. Donc, dans cet ordre :
    tâche, message et repère `Plan: P<n>/S<k>/T<m>` pris dans le `S<k>.md` (`WORKFLOW.md` §4b). Le
    bilan de session se joint au commit de la dernière tâche de sa session.
 3. **Cocher `[x]`** dans `index.md`, date à l'appui, les sessions `PASS`.
+4. **Pousser si `CLAUDE_CODE_REMOTE=true`** (`WORKFLOW.md` §4b, exception cloud) — `git push`,
+   immédiatement, avant de passer à la vague suivante ou de rendre la main sur une gate. Hors cloud,
+   ne rien pousser ici : le push reste groupé en fin de plan (Étape 6).
 
 Faire l'inverse (committer avant de retirer le verrou) échoue systématiquement : le hook évalue la
 commande **avant** exécution, donc un `rm wave.lock && git commit` dans le même appel est refusé lui
 aussi — il faut deux appels distincts.
 
 **Vague non verrouillée** → chaque session a commité et coché la sienne (`WORKFLOW.md` §4a) : relire
-l'index, ne rien réécrire.
+l'index, ne rien réécrire. **Pousser quand même si `CLAUDE_CODE_REMOTE=true`** (point 4 ci-dessus) —
+l'absence de verrou ne change rien à l'éphémérité du conteneur.
 
 ### Échec — finir la vague, arrêter le plan
 
@@ -185,7 +189,9 @@ d'abord ou relancer le reste.
 
 Une vague dont la ligne d'ordonnancement de l'index porte le mot **`gate`** arrête l'orchestrateur
 **après** l'avoir collectée, même si tout est `PASS` : il rend la main avec l'état et ce qui reste. La
-vague suivante ne se lance qu'à une relance explicite de cette skill.
+vague suivante ne se lance qu'à une relance explicite de cette skill. La collecte (Étape 5, point 4)
+a déjà poussé si le conteneur est cloud : rendre la main sur une gate n'y laisse donc jamais de
+commits qu'un conteneur réclamé emporterait.
 
 **Sinon** : dépendances de la vague suivante satisfaites (toutes `[x]`) → l'enchaîner dans le même
 tour, retour à l'Étape 2. Plan épuisé (dernière vague collectée) → Étape 6 puis fin.
@@ -211,7 +217,9 @@ Une ligne par session lancée (`S<k> · PASS/FAIL · motif`), les deux voies con
 écart entre effort demandé et effort réellement appliqué (le sous-agent ne règle pas l'effort, §5b).
 Sur `FAIL` : chemin du rapport de passation + `/reprendre-echec`, jamais le contenu ouvert ici ;
 `claude --resume <uuid>` en dernier recours seulement. Push groupé une fois le plan fini ou arrêté —
-jamais depuis une session, jamais si une vague reste `EN ATTENTE`.
+jamais depuis une session, jamais si une vague reste `EN ATTENTE`. **Hors cloud uniquement** : en
+cloud, chaque vague a déjà poussé la sienne à l'Étape 5 (`WORKFLOW.md` §4b) ; rien à pousser ici de
+plus, y compris sur une gate ou un arrêt en cours de plan.
 
 **Ce qui reste à lancer à la main** — sessions restantes après une gate, un `FAIL` ou un repli
 pastille : une ligne « À régler AVANT de lancer » par session prête (`WORKFLOW.md` §3), modèle et

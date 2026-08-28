@@ -124,6 +124,13 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   = commits ; le lecteur JSON se réduit à l extraction du motif →
   [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md)
 
+- 2026-08-28 — **Push par vague en cloud, pas par plan** — MYO P15 : l'orchestrateur a dû plaider en
+  prose, contre la règle groupée (`WORKFLOW.md` §4b), le push de vagues déjà validées avant une gate
+  — motif juste (conteneur cloud éphémère, un seul orchestrateur) mais rejoué à chaque vague. Devient
+  mécanique : un conteneur cloud (`CLAUDE_CODE_REMOTE=true`) pousse à chaque clôture de vague
+  (`/orchestrer-plan` Étape 5), gate comprise ; hors cloud, le push reste groupé en fin de plan →
+  [détail](docs/decisions/2026-08-28-push-par-vague-en-cloud.md)
+
 ---
 
 ## Archives
