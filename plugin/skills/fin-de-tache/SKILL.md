@@ -105,10 +105,14 @@ Le reste ne vaut que pour une session **lancée à la main**, ou par une pastill
 hors Desktop) :
 
 - S'il reste des sessions prêtes dans l'`index.md` (dépendances satisfaites, vague en cours ou
-  suivante) : poser une pastille via `spawn_task` — titre `P<n> · S<k> — <titre>`, prompt « Ouvre
-  plans/P<n>/S<k>.md et exécute-le. Modèle/effort : voir bandeau du fichier. » — ou, hors Desktop,
-  afficher la commande de lancement du bandeau du `S<k>.md` suivant. Jamais dans la même
-  conversation : démarrage froid systématique (§5b).
+  suivante) : poser une pastille via `spawn_task` — titre `P<n> · S<k> — <titre> · <M>/<E>`, prompt
+  « Ouvre plans/P<n>/S<k>.md et exécute-le. » — ou, hors Desktop, afficher la commande de lancement
+  du bandeau du `S<k>.md` suivant. Jamais dans la même conversation : démarrage froid systématique
+  (§5b).
+- **Avec la pastille, la ligne « À régler AVANT de lancer »** (`WORKFLOW.md` §3, domicile) : modèle
+  et effort de la session suivante, lus dans l'`index.md`. Une pastille démarre sur les réglages
+  courants de l'application — sans ce rappel, une session `Sonnet`/`high` part au hasard de ce qui
+  était réglé la veille, et personne ne s'en aperçoit avant le résultat.
 - **Si cette session était la dernière `[ ]` de sa vague**, poser en plus une pastille de collecte —
   titre `P<n> — collecter la vague <w>`, prompt « Déroule /orchestrer-plan sur la vague <w> du plan
   P<n> : collecte et vague suivante. »

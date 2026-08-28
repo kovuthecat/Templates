@@ -19,6 +19,9 @@ Déterministe (code/script peut le garantir) ?
 Connaissance permanente du projet ou d'un scope de fichiers ?
   → OUI, globale : CLAUDE.md   |   OUI, scopée à un chemin : .claude/rules/
   → NON ↓
+Ton, rôle ou format de réponse par défaut, à CHAQUE tour (une façon de répondre, pas un savoir) ?
+  → OUI : output style (~/.claude/output-styles/<nom>.md + champ "outputStyle" des settings)
+  → NON ↓
 Procédure réutilisable, multi-étapes, appelée plus d'une fois ?
   → OUI : Skill
   → NON ↓
@@ -76,6 +79,13 @@ problème de façon fiable, jamais le plus impressionnant :
 **Créer une skill PROJET quand** : la procédure a plusieurs étapes · elle sera répétée au moins
 2 fois · elle est spécifique à ce projet (sinon candidate à une skill globale) · **coût** : chaque
 skill installée paie sa description à CHAQUE session, même non utilisée — ne pas en créer « au cas où ».
+
+**Output style plutôt que CLAUDE.md quand** : ce qui doit changer est la **façon de répondre** (ton,
+rôle, format), pas ce que Claude sait du projet — le style modifie le prompt système, `CLAUDE.md`
+ajoute un message. Trois pièges : il ne s'applique **qu'à la conversation principale** (un sous-agent
+garde son propre prompt) · un style custom **retire** les instructions d'ingénierie logicielle
+intégrées, sauf `keep-coding-instructions: true` · la commande `/output-style` a été supprimée en
+v2.1.91, ça se règle par le champ `outputStyle` d'un `settings.json`, effectif à la session suivante.
 
 **Hook plutôt qu'instruction écrite quand** : l'événement doit être GARANTI à chaque occurrence,
 pas seulement probable · une instruction en prose du type « toujours / ne jamais » a déjà été
