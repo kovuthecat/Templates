@@ -1,6 +1,6 @@
 {
   "name": "workflow",
   "description": "Workflow Claude Code vendoré : plans multi-sessions, validation N0-N2, contexte plafonné. Se copie dans le dépôt, ne s installe pas.",
-  "version": "0.17.1",
+  "version": "0.17.2",
   "author": { "name": "templates" }
 }
