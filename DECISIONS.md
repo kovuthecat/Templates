@@ -147,6 +147,13 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   ou `ARBITRAGE` (gate : destructif, prémisse fausse, hypothèse épuisée) → arbitrage humain.
   Opt-out `reprise-manuelle` → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
 
+- 2026-08-30 — **Écrire pour qui décide** — registre opposable dans `CLAUDE-BASE.md` : ce qu'un humain
+  lit dit d'abord ce que ça change et à quoi il le verra. L'`index.md` porte un *Pourquoi maintenant*
+  par vague et une ligne « en clair » par session ; `/orchestrer-plan` la relaie **mot pour mot** en
+  strophe détaillée au lancement (sans jamais ouvrir un `S<k>.md`) ; chaque tâche d'un `S<k>.md` gagne
+  un `### Pourquoi` ; `/cadrer` présente ses options par conséquences observables →
+  [détail](docs/decisions/2026-08-30-ecrire-pour-qui-decide.md)
+
 ---
 
 ## Archives

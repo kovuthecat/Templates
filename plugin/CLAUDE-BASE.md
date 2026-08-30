@@ -15,6 +15,17 @@ projet ; ne pas copier. Chargé à **chaque** session : rester court.
 - Instruction utile seulement sur un sous-ensemble de fichiers d'un projet → `.claude/rules/` de CE
   projet (règle scopée), pas une ligne ajoutée à `CLAUDE.md` (voir `CONVENTIONS.md`).
 
+## Écrire pour qui décide
+
+Le lecteur connaît son projet, pas le code. Tout ce qu'il lit — proposition, option, annonce de
+vague, rapport, décision — dit d'abord **ce que ça change et à quoi il le verra**, et seulement
+ensuite comment. Un terme technique inévitable est suivi une fois de ce qu'il désigne. Une
+recommandation énonce son revers, sinon elle ne laisse rien à arbitrer.
+
+Ce n'est pas un cours : on explique ce que fait la chose et ce qu'elle coûte, jamais comment le
+langage ou l'outil fonctionne. Ce qui est déjà écrit dans un fichier ne se recopie pas ici — le
+registre s'applique à ce qu'on rédige, pas au volume.
+
 ## Dépendances
 
 Un exécutant n'ajoute **jamais** de dépendance de lui-même : si une tâche en requiert une, elle
