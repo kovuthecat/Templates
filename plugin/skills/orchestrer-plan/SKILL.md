@@ -72,6 +72,10 @@ retrouvera commité. Format imposé, une ligne par session, rien de plus :
 Une vague qui s'enchaîne dans le même tour (Étape 5) réécrit ce bloc : c'est le seul repère de
 l'utilisateur entre deux vagues, et il ne coûte que les lignes de l'index déjà en contexte.
 
+**Repli pastille uniquement** (voir plus bas) : ajouter à l'annonce la consigne `/rename P<n>·S<k>`
+— trois sessions ouvertes en parallèle sont indistinguables dans la liste, et le nom suit la session
+jusqu'à son `--resume`. Inutile pour un sous-agent ou un `claude -p`, qui n'ont pas de fenêtre.
+
 **Sous-agent, la voie par défaut** (`WORKFLOW.md` §5b) — pour toute session, quel que soit `Env.`,
 sauf déclaration explicite `headless` :
 
@@ -91,7 +95,9 @@ Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL · MOTIF: <une phr
 
 Un agent par session, dans l'ordre de l'index ; vague parallèle → tous en arrière-plan d'affilée,
 vague séquentielle → un seul à la fois, arrêt au premier `FAIL` (Étape 5). `isolation: "worktree"`
-interdit — la vague partage un arbre. Ne jamais recopier le contenu du `S<k>.md` dans le prompt.
+interdit — la vague partage un arbre. **`subagent_type: "fork"` interdit** : un fork hérite de toute
+la conversation d'orchestration, alors que l'invariant du workflow est qu'un exécutant ne connaisse
+que son `S<k>.md`. Ne jamais recopier le contenu du `S<k>.md` dans le prompt.
 Attendre la notification de fin ; ne pas sonder.
 
 **Bloc headless**, uniquement pour les sessions déclarées `Env. = headless` — effort réellement
@@ -101,7 +107,7 @@ appliqué, ou vague à lancer sans garder la fenêtre ouverte (`WORKFLOW.md` §5
 claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le. [même consigne d'échec que ci-dessus]" \
   --session-id "$(node -e "console.log(require('crypto').randomUUID())")" \
   --model <modèle index> --effort <effort index> \
-  --settings '{"outputStyle":"Default"}' \
+  --settings '{"outputStyle":"Concise"}' \
   --output-format json \
   --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["PASS","FAIL"]},"motif":{"type":"string"},"rapport":{"type":"string"}},"required":["verdict","motif","rapport"]}' \
   > ".claude/vague/$k.json" 2> ".claude/vague/$k.stderr.log"; echo $? > ".claude/vague/$k.exit"
@@ -110,7 +116,10 @@ claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le. [même consigne d'échec que
 Lancer détaché (arrière-plan du harnais) et sonder `.exit` plutôt qu'un `wait` bloquant : un appel
 Bash plafonné tuerait une session longue et produirait un JSON vide. Le `--settings` neutralise
 l'`outputStyle` de l'utilisateur pour ce processus : un exécutant headless n'a pas de lecteur, ses
-explications ne seraient que des tokens de sortie. Un sous-agent n'en a pas besoin — un style ne
+explications ne seraient que des tokens de sortie. `Concise` plutôt que `Default` — style intégré
+depuis v2.1.237, qui attaque par le résultat et supprime préambule et narration sans toucher au
+travail. Sur une version antérieure le nom serait inconnu et le réglage silencieusement sans effet :
+repasser à `Default` en cas de doute. Un sous-agent n'en a pas besoin — un style ne
 s'applique jamais à un sous-agent, qui a son propre prompt système.
 
 **Repli pastille**, uniquement hors Claude Code Desktop (aucun navigateur à transmettre, ni pour un
@@ -123,6 +132,13 @@ hérite des réglages courants, elle ne pose ni le modèle ni l'effort du plan.
 ## Étape 4 — Collecter le verdict de chaque session
 
 **Sous-agent** : lire la ligne `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre.
+
+**Un retour marqué `partial` n'est jamais un `PASS`.** Depuis 2.1.246, un sous-agent qui épuise son
+`maxTurns` rend ce qu'il a en le marquant partiel, au lieu d'avoir l'air d'avoir fini — c'est
+exactement le faux vert que le recoupement par les commits existe pour attraper, et il vaut mieux le
+lire directement. Le traiter comme un `FAIL`, motif « tours épuisés », et **ne pas le reprendre par
+`SendMessage`** : continuer l'agent rapatrierait ses fausses pistes, alors que la réparation passe
+par le rapport de passation et un démarrage à froid (`/reprendre-echec`).
 
 **Headless** : lecteur réduit à l'extraction, ~30 lignes — les commits jugent déjà (§4b), donc plus
 de verdict `PANNE` élaboré, plus de fail-closed à trois branches :

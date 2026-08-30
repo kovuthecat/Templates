@@ -130,6 +130,17 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   pour finir `P16` ; plafond à deux vagues de remédiation, la troisième passe par `/cadrer` →
   [détail](docs/decisions/2026-08-30-extension-de-plan.md)
 
+- 2026-08-30 — **Contexte d'un sous-agent : fork oui, mémoire non** — le `fork` (hérite la conversation,
+  réutilise le cache du parent) est autorisé quand la tâche a besoin du contexte courant ET produit du
+  bruit à retenir dehors ; interdit pour une session de plan, une reprise d'échec, une restitution pure.
+  Aucune mémoire sur les quatre agents mécaniques : l'information qu'ils mémoriseraient a déjà sa source
+  dans le dépôt → [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
+
+- 2026-08-30 — **Relecture qualité en fin de session** — `/code-review` effort `high` (arrière-plan) sur
+  le diff de chaque session ayant produit du code ; résultats non corrigés → `TASKS.md`, jamais
+  `VALIDATION.md` ; pas de niveau N3, c'est une étape de `/fin-de-tache` →
+  [détail](docs/decisions/2026-08-30-branchement-code-review.md)
+
 ---
 
 ## Archives

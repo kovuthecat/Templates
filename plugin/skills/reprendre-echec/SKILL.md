@@ -15,6 +15,10 @@ passation existe pour éviter (`WORKFLOW.md` §5b). Le rapport est la seule entr
 `claude --resume <uuid>` (identifiant dans `.claude/vague/S<k>.session`) reste un **recours**, à
 n'ouvrir que si le rapport s'avère insuffisant — et à refermer sans y corriger quoi que ce soit.
 
+Pour la même raison, **jamais de sous-agent `fork` ici** : un fork hérite de toute la conversation,
+c'est-à-dire précisément des fausses pistes qu'on veut laisser derrière. Le seul contexte légitime
+d'une reprise est le rapport de passation.
+
 ---
 
 ## Gabarit — le rapport de passation
