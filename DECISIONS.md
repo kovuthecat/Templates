@@ -83,22 +83,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   verrou posé après le préflight et retiré si rien n'a démarré ; arbre sale tranché par zones ; hook
   `Stop` rendu muet pendant une vague via `vagueParallele()` →
   [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md)
-- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** — Le hook de 0.10.0 comblait le trou du
-  cloud mais appelait `claude plugin install` sans `--yes`, documenté « required when stdin or
-  stdout is not a TTY » : un hook n'en a jamais. Plus un `timeout: 90` (clone réseau) et une garde
-  `command -v claude`. Corollaire consigné : settings **et** hook doivent être versionnés en 100755,
-  le cloud ne voit que le clone. Vocabulaire d'environnement élargi au cloud/mobile — la distinction
-  reste binaire, Desktop étant le seul à avoir navigateur in-app et `spawn_task`.
-- 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Trou entre `/nouveau-projet`
-  (repo vide, interview complète) et `/migrer-projet` (workflow v1 déjà en place) : le projet qui a
-  du code mais n'a jamais été outillé. D'abord écrit en skill séparée `/adopter-projet`, **fusionné
-  le jour même** : choisir entre les deux exigeait de l'utilisateur un diagnostic que la Phase A des
-  deux skills faisait déjà, et la séparée devait porter une trappe « arrête-toi et lance l'autre » —
-  signe que la coupure était au mauvais endroit. Un seul point d'entrée, un diagnostic qui classe en
-  4 états, deux voies (bascule / adoption) encadrées par une gate et une Phase D communes. Principe
-  de la voie adoption : le contexte se **dérive du code** (inventaire délégué à `explorateur` et
-  `resumeur-git`), l'interview est réduite aux 6 choses qu'aucune lecture ne donne — pourquoi le
-  projet existe, où il en est, la suite.
+- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** — `claude plugin install` appelé avec
+  `--yes` (requis hors TTY), `timeout: 90` et garde `command -v claude` →
+  [détail](docs/decisions/2026-08-24-bootstrap-cloud-yes-timeout.md)
+- 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
+  `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
+  [détail](docs/decisions/2026-08-24-migrer-projet-jamais-outille.md)
 
 - 2026-08-24 — **Chaque session committe son propre travail** — Renversement de §4b : les commits
   ne sont plus reportés en fin de plan, chaque session prend le sien avant de rendre la main (repère
