@@ -104,7 +104,11 @@ Modèle et effort : grille dans `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §2-3.
 ```
 
 **Vagues orchestrées (optionnel)** — toute vague s'exécute via `/orchestrer-plan`, qui déroule les
-sessions les unes après les autres jusqu'à épuisement, un échec, ou une gate humaine. Voies et
+sessions les unes après les autres jusqu'à épuisement, un échec non repris, ou une gate humaine.
+Un `FAIL` déclenche par défaut **une** reprise automatique à froid (`/orchestrer-plan` Étape 5c) ;
+le mot **`reprise-manuelle`** sur la ligne d'ordonnancement d'une vague la désactive — à déclarer
+au cadrage quand un échec dans cette vague doit passer par un humain d'emblée (état coûteux à
+annuler, zone sensible). Voies et
 colonne `Env.` : domicile `WORKFLOW.md` §5b, ne pas le reformuler ici. Résumé pour le découpage :
 
 Colonne **Env.** : `—` (sous-agent, défaut) sauf exception `headless` déclarée et justifiée dans le

@@ -141,6 +141,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   `VALIDATION.md` ; pas de niveau N3, c'est une étape de `/fin-de-tache` →
   [détail](docs/decisions/2026-08-30-branchement-code-review.md)
 
+- 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`,
+  `/orchestrer-plan` lance **une** reprise à froid (`/reprendre-echec` mode orchestré, sous-agent
+  frais, un cran au-dessus plancher Sonnet) et enchaîne sur `PASS` ; `FAIL` (2e échec consécutif)
+  ou `ARBITRAGE` (gate : destructif, prémisse fausse, hypothèse épuisée) → arbitrage humain.
+  Opt-out `reprise-manuelle` → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
+
 ---
 
 ## Archives
