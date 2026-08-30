@@ -76,12 +76,9 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   principe « aucun hook dans le settings projet » : une session cloud ne clone jamais la
   marketplace au démarrage, donc `enabledPlugins` seul n'y active rien →
   [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md)
-- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** — Première exécution réelle
-  (MYO/P1) : 7 blocages, vague jamais démarrée. La colonne `Env.` décide de la voie (headless
-  `claude -p` / pastilles `spawn_task`), plus du droit d'orchestrer ; `PANNE` distingue une panne
-  d'environnement d'un échec de tâche que le fail-closed confondait ; préflight du binaire `claude` ;
-  verrou posé après le préflight et retiré si rien n'a démarré ; arbre sale tranché par zones ; hook
-  `Stop` rendu muet pendant une vague via `vagueParallele()` →
+- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** — la colonne `Env.` décide de la
+  voie d'exécution (headless / pastilles), plus du droit d'orchestrer ; `PANNE` distingue une panne
+  d'environnement d'un échec de tâche, que le fail-closed confondait →
   [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md)
 - 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** — `claude plugin install` appelé avec
   `--yes` (requis hors TTY), `timeout: 90` et garde `command -v claude` →
@@ -89,59 +86,34 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
 - 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
   `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
   [détail](docs/decisions/2026-08-24-migrer-projet-jamais-outille.md)
-
-- 2026-08-24 — **Chaque session committe son propre travail** — Renversement de §4b : les commits
-  ne sont plus reportés en fin de plan, chaque session prend le sien avant de rendre la main (repère
-  `Plan: P<n>/S<k>/T<m>`, qui sert aussi de verdict à la voie Desktop). Motif : l attribution était
-  reconstituée après coup, dans un arbre où trois sessions avaient déposé leurs fichiers, par le
-  modèle le moins cher du plan. `wave.lock` réduit au parallélisme réel ; `index.md` garde un
-  rédacteur unique (proposition « chaque session coche la sienne » écartée) ; push toujours groupé →
+- 2026-08-24 — **Chaque session committe son propre travail** — renversement de §4b : le commit n'est
+  plus reporté en fin de plan, chaque session prend le sien avant de rendre la main (repère
+  `Plan: P<n>/S<k>/T<m>`) ; `index.md` garde un rédacteur unique, push toujours groupé →
   [détail](docs/decisions/2026-08-24-commit-par-session.md)
-
-- 2026-08-24 — **Orchestration par sous-agents : une vague sans intervention** — Objectif : dérouler
-  une vague, voire un plan, sans clic. Deux mesures : `claude -p` n a effectivement aucun outil
-  navigateur, mais un **sous-agent hérite des 18** depuis une session Desktop. La voie Desktop passe
-  donc de la pastille `spawn_task` (un clic par session) à l outil `Agent` en arrière-plan ; la
-  pastille devient un repli hors Desktop. Verdict = ligne imposée **recoupée par les commits**.
-  Coûts assumés : l effort n est pas réglable par `Agent`, et la session d orchestration doit rester
-  ouverte. `SendMessage` écarté (aucune session ne peut s identifier elle-même, et un message est
-  éphémère) →
+- 2026-08-24 — **Orchestration par sous-agents : une vague sans intervention** — la voie Desktop passe
+  de la pastille `spawn_task` (un clic par session) à l'outil `Agent` en arrière-plan, qui hérite des
+  outils navigateur là où `claude -p` n'en a aucun ; la pastille devient un repli hors Desktop →
   [détail](docs/decisions/2026-08-24-orchestration-par-sous-agents.md)
-
 - 2026-08-25 — **Sous-agent par défaut, headless en exception déclarée (option C)** — le sous-agent
-  devient la voie normale de TOUTES les sessions orchestrées ; `Env. = headless` ne se déclare que
-  pour un effort `high`/`xhigh` à appliquer réellement ou une vague à lancer fenêtre fermée. Verdict
-  = commits ; le lecteur JSON se réduit à l extraction du motif →
+  devient la voie normale de TOUTES les sessions orchestrées ; `Env. = headless` ne se déclare que pour
+  un effort `high`/`xhigh` à appliquer réellement, ou une vague à lancer fenêtre fermée →
   [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md)
-
 - 2026-08-30 — **Un échec de prémisse étend le plan, il ne crée pas le plan suivant** — `/nouveau-plan`
-  gagne une Étape 0 (plan neuf vs extension de `P<n>`), critère unique = la correction débloque-t-elle
-  une session restante sans changer l'objectif d'ensemble. Évite la récursion `P20` pour finir `P19`
-  pour finir `P16` ; plafond à deux vagues de remédiation, la troisième passe par `/cadrer` →
-  [détail](docs/decisions/2026-08-30-extension-de-plan.md)
-
-- 2026-08-30 — **Contexte d'un sous-agent : fork oui, mémoire non** — le `fork` (hérite la conversation,
-  réutilise le cache du parent) est autorisé quand la tâche a besoin du contexte courant ET produit du
-  bruit à retenir dehors ; interdit pour une session de plan, une reprise d'échec, une restitution pure.
-  Aucune mémoire sur les quatre agents mécaniques : l'information qu'ils mémoriseraient a déjà sa source
-  dans le dépôt → [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
-
+  gagne une Étape 0 (plan neuf vs extension de `P<n>`) ; plafond à deux vagues de remédiation, la
+  troisième passe par `/cadrer` → [détail](docs/decisions/2026-08-30-extension-de-plan.md)
+- 2026-08-30 — **Contexte d'un sous-agent : fork oui, mémoire non** — le `fork` est autorisé quand la
+  tâche a besoin du contexte courant, interdit pour une session de plan, une reprise d'échec ou une
+  restitution pure ; aucune mémoire sur les quatre agents mécaniques →
+  [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
 - 2026-08-30 — **Relecture qualité en fin de session** — `/code-review` effort `high` (arrière-plan) sur
   le diff de chaque session ayant produit du code ; résultats non corrigés → `TASKS.md`, jamais
-  `VALIDATION.md` ; pas de niveau N3, c'est une étape de `/fin-de-tache` →
-  [détail](docs/decisions/2026-08-30-branchement-code-review.md)
-
-- 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`,
-  `/orchestrer-plan` lance **une** reprise à froid (`/reprendre-echec` mode orchestré, sous-agent
-  frais, un cran au-dessus plancher Sonnet) et enchaîne sur `PASS` ; `FAIL` (2e échec consécutif)
-  ou `ARBITRAGE` (gate : destructif, prémisse fausse, hypothèse épuisée) → arbitrage humain.
-  Opt-out `reprise-manuelle` → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
-
-- 2026-08-30 — **Écrire pour qui décide** — registre opposable dans `CLAUDE-BASE.md` : ce qu'un humain
-  lit dit d'abord ce que ça change et à quoi il le verra. L'`index.md` porte un *Pourquoi maintenant*
-  par vague et une ligne « en clair » par session ; `/orchestrer-plan` la relaie **mot pour mot** en
-  strophe détaillée au lancement (sans jamais ouvrir un `S<k>.md`) ; chaque tâche d'un `S<k>.md` gagne
-  un `### Pourquoi` ; `/cadrer` présente ses options par conséquences observables →
+  `VALIDATION.md` → [détail](docs/decisions/2026-08-30-branchement-code-review.md)
+- 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`, une reprise à
+  froid automatique (sous-agent frais, un cran au-dessus) ; 2e échec consécutif ou gate `ARBITRAGE` →
+  arbitrage humain → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
+- 2026-08-30 — **Écrire pour qui décide** — registre d'écriture opposable dans `CLAUDE-BASE.md` : ce
+  qu'un humain lit dit d'abord ce que ça change et à quoi il le verra ; appliqué par `/nouveau-plan`
+  (index et `S<k>.md`), `/orchestrer-plan` et `/cadrer` →
   [détail](docs/decisions/2026-08-30-ecrire-pour-qui-decide.md)
 
 ---
