@@ -16,6 +16,25 @@ coûtent des tokens qu'au découpage.
 décidée, ce n'est pas ce plan qu'il faut écrire : dérouler `/cadrer` d'abord, dans une session
 séparée, et repartir de la décision écrite qu'elle produit.
 
+## Étape 0 — Plan neuf, ou extension d'un plan en cours ?
+
+Un plan en cours peut produire un résultat qui invalide une hypothèse dont dépendent ses sessions
+restantes : vérité de référence fausse, contrat à changer, mesure qui contredit l'attendu d'une
+gate. La correction est du travail non prévu, mais **au service de l'objectif inchangé du plan**.
+L'écrire comme un plan `P<n+1>` crée une récursion — `P20` pour finir `P19` pour finir `P16` — où
+le plan bloqué ne se ferme qu'après un plan qui ne se ferme qu'après un autre.
+
+**Critère d'aiguillage, unique** : la correction débloque-t-elle une session restante de `P<n>`,
+l'« Objectif d'ensemble » de `P<n>` restant vrai tel qu'il est écrit ?
+
+- **Oui → mode extension.** Ajouter des sessions à `plans/P<n>/` existant. Étapes 1, 2 et 4
+  inchangées ; l'Étape 3 modifie l'`index.md` au lieu de le créer.
+- **Non** — l'objectif lui-même bouge, ou la correction sert plusieurs plans → mode normal, plan
+  neuf, et le plan bloqué note sa dépendance dans son ordonnancement.
+
+**Plafond** : une **troisième** vague de remédiation sur le même plan n'est plus une extension,
+c'est la prémisse du plan qui est fausse. S'arrêter et dérouler `/cadrer` sur cette prémisse.
+
 ## Étape 1 — Investiguer (jamais modifier)
 
 Se mettre en **Plan Mode** pour toute la phase d'investigation — ce mode interdit l'écriture de
@@ -101,6 +120,21 @@ dépendances le permet donne des vagues homogènes ; les mélanger est un choix,
 
 L'index ne contient **rien d'autre** : pas de détail d'exécution, il pointe vers les sessions.
 
+### En mode extension — modifier l'index, ne pas le récrire
+
+Trois éditions ponctuelles, rien de plus :
+
+1. **Table des sessions** : ajouter les lignes en continuant la numérotation du plan. Jamais de
+   `S5bis` — le repère `Plan: P<n>/S<k>/T<m>` des commits doit rester unique et triable.
+2. **Ordonnancement** : insérer la vague **avant** celles qu'elle débloque, avec sa cause dans le
+   titre — `**Vague <w> — remédiation de S<j>** (ajoutée le YYYY-MM-DD) : S8 · S9.` Sans cette
+   trace, un plan relu dans un mois ne distingue plus le prévu du réparé.
+3. **Statuts en aval** : une session déjà `[x]` dont le résultat repose sur l'hypothèse invalidée
+   redevient `[ ]`, et on le dit explicitement à l'utilisateur. Un vert faux coûte plus cher qu'un
+   statut manquant.
+
+L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas une extension (Étape 0).
+
 ## Étape 4 — Écrire un `plans/P<n>/S<k>.md` par session
 
 ```md
@@ -177,3 +211,6 @@ Principes :
 
 Une ligne par tâche du plan, statut remplacé par le renvoi : `- T-012 — <titre> · → plans/P2/S1.md`.
 Le suivi d'avancement se lit dans l'`index.md`.
+
+En mode extension, mêmes lignes pour les seules tâches ajoutées ; les tâches déjà reportées ne
+bougent pas.

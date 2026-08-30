@@ -83,6 +83,13 @@ elle ne s'improvise pas dans une reprise.
 Partir de **Hypothèse en cours**, et traiter **Déjà écarté** comme acquis : ne pas réexplorer une
 piste invalidée sans une raison explicite de douter de son invalidation. Le dire si on en a une.
 
+**Aiguillage avant de corriger.** Le diagnostic peut montrer que ce n'est pas la tâche qui a raté,
+mais une hypothèse du plan qui est fausse : vérité de référence erronée, contrat à changer, mesure
+qui contredit l'attendu d'une gate. Ce n'est alors pas une reprise — le périmètre de la tâche
+d'origine ne suffit pas. Rendre la main vers **`/nouveau-plan`, Étape 0 (mode extension)** : la
+correction devient une ou deux sessions ajoutées au **même** plan, pas un plan suivant dont
+dépendrait celui-ci. Laisser le `.echec.md` en place et à jour : c'est l'entrée du cadrage.
+
 Si l'hypothèse tombe et qu'aucune autre ne se présente en une passe : ne pas s'entêter. Écrire un
 rapport de passation **mis à jour** (même gabarit, section « Déjà écarté » enrichie de ce qui vient
 d'être invalidé) et rendre la main. Deux tentatives sur la même hypothèse coûtent plus qu'un
@@ -90,8 +97,9 @@ cadrage (`/cadrer`).
 
 ## Étape 4 — Corriger, puis prouver
 
-1. Corriger — périmètre de la tâche d'origine, rien de plus. Une correction qui déborde est une
-   nouvelle tâche : la noter dans `TASKS.md`, ne pas la faire ici.
+1. Corriger — périmètre de la tâche d'origine, rien de plus. Une correction qui déborde **sans
+   servir le plan** est une nouvelle tâche : la noter dans `TASKS.md`, ne pas la faire ici. Si elle
+   déborde **en servant le plan**, c'est l'aiguillage de l'Étape 3 : `/nouveau-plan` en extension.
 2. **N0** : `build` + `typecheck` (+ tests du périmètre) via `verificateur-n0`. Sans N0 vert, la
    session est toujours en échec — on ne remonte pas un PASS sur une intuition.
 3. La tâche touchait l'UI → `/verif-visuelle` pour le N1.

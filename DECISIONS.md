@@ -124,6 +124,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   = commits ; le lecteur JSON se réduit à l extraction du motif →
   [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md)
 
+- 2026-08-30 — **Un échec de prémisse étend le plan, il ne crée pas le plan suivant** — `/nouveau-plan`
+  gagne une Étape 0 (plan neuf vs extension de `P<n>`), critère unique = la correction débloque-t-elle
+  une session restante sans changer l'objectif d'ensemble. Évite la récursion `P20` pour finir `P19`
+  pour finir `P16` ; plafond à deux vagues de remédiation, la troisième passe par `/cadrer` →
+  [détail](docs/decisions/2026-08-30-extension-de-plan.md)
+
 ---
 
 ## Archives
