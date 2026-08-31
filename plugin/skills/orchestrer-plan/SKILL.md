@@ -216,6 +216,17 @@ aussi — il faut deux appels distincts.
 **Vague non verrouillée** → chaque session a commité et coché la sienne (`WORKFLOW.md` §4a) : relire
 l'index, ne rien réécrire.
 
+### Revues de session — relayer, sans ouvrir
+
+Une fois la vague collectée, lister les `plans/P<n>/S<k>.revue.md` déposés par ses sessions
+(`/fin-de-tache`, relecture qualité — fichiers non commités, c'est normal). Pour chacun dont la
+première ligne `Bloquant : <n>` porte n > 0 : **une ligne** dans le bloc de fin de vague et le
+rapport final — `Revue S<k> : <n> bloquant(s) → plans/P<n>/S<k>.revue.md` — rien de plus. Ne
+jamais ouvrir les trouvailles (relayer, jamais reformuler) ; **non bloquant** : la vague suivante
+s'enchaîne, l'arbitrage appartient à l'humain, le versement dans `TASKS.md` au tri de clôture
+(`/fin-de-tache` point 16). Un bloquant qui invalide une hypothèse du plan suit le chemin déjà
+écrit : extension (`/nouveau-plan` Étape 0), sur décision humaine.
+
 ### Échec — finir la vague, puis une reprise automatique
 
 Un `FAIL` ne tue pas les sous-agents déjà lancés de la vague en cours : ils vont au bout, on ne peut
@@ -308,6 +319,7 @@ rapport, avec leur `.echec.md` intact).
 Une ligne par session lancée (`S<k> · PASS/FAIL · motif`), les deux voies confondues ; une session
 reprise porte les deux verdicts (`S<k> · FAIL → reprise PASS/FAIL/ARBITRAGE · motif`). Signaler tout
 écart entre effort demandé et effort réellement appliqué (le sous-agent ne règle pas l'effort, §5b).
+Une ligne par revue à bloquants non encore relayée (Étape 5, « Revues de session »).
 
 **Écrit pour qui n'a pas suivi la vague.** Sur `PASS`, le titre suffit — le travail est commité, il
 se relit. C'est sur `FAIL` et `ARBITRAGE` que l'utilisateur a besoin de comprendre : ajouter, en

@@ -107,7 +107,8 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
 - 2026-08-30 — **Relecture qualité en fin de session** — `/code-review` effort `high` (arrière-plan) sur
   le diff de chaque session ayant produit du code ; résultats non corrigés → `TASKS.md`, jamais
-  `VALIDATION.md` → [détail](docs/decisions/2026-08-30-branchement-code-review.md)
+  `VALIDATION.md` → [détail](docs/decisions/2026-08-30-branchement-code-review.md) — plomberie
+  amendée le 2026-08-31
 - 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`, une reprise à
   froid automatique (sous-agent frais, un cran au-dessus) ; 2e échec consécutif ou gate `ARBITRAGE` →
   arbitrage humain → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
@@ -115,6 +116,10 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   qu'un humain lit dit d'abord ce que ça change et à quoi il le verra ; appliqué par `/nouveau-plan`
   (index et `S<k>.md`), `/orchestrer-plan` et `/cadrer` →
   [détail](docs/decisions/2026-08-30-ecrire-pour-qui-decide.md)
+- 2026-08-31 — **Relecture de session : clôture d'abord, fichier ensuite** — la revue se lance après
+  commits et statuts (elle ne peut plus coûter la session) ; résultats dans `S<k>.revue.md` classés
+  bloquant/backlog, une ligne par vague relayée par l'orchestrateur, tri en clôture de plan →
+  [détail](docs/decisions/2026-08-31-revue-plomberie.md)
 
 ---
 

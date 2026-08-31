@@ -50,8 +50,9 @@ la régression visuelle scriptée est le rôle de Codex
 (`${CLAUDE_PLUGIN_ROOT}/AGENTS.md`).
 
 **La grille s'arrête à trois.** La relecture `/code-review` de fin de session (`/fin-de-tache`) est
-automatique et non bloquante, mais **n'est pas un niveau** : ses trouvailles se corrigent dans la
-session ou partent dans `TASKS.md`, jamais dans `VALIDATION.md`.
+automatique et non bloquante, mais **n'est pas un niveau** : elle se lance APRÈS commits et statuts,
+ses trouvailles vont dans `plans/P<n>/S<k>.revue.md` (classées bloquant/backlog) puis `TASKS.md` au
+tri de clôture du plan — jamais dans `VALIDATION.md`.
 
 En mode autonome : enchaîner les tâches (gate = N0), accumuler les points N2, rendre la main en fin de lot.
 
