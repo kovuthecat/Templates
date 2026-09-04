@@ -68,6 +68,14 @@ Déléguer plutôt que faire soi-même (le contexte accumulé se paie à chaque 
 - besoin du contexte courant **et** travail bruyant (outils, itérations) → sous-agent `fork`, qui
   hérite la conversation et réutilise le cache : seul son résultat revient, ses appels restent dehors
 
+**Les quatre premiers tournent au premier plan, jamais en arrière-plan** (pas de
+`run_in_background: true` sur l'outil `Agent`) : leur conclusion conditionne la suite immédiate de
+la tâche en cours — N0 bloque le commit (ci-dessus), une localisation conditionne le code qui suit.
+Les lancer en arrière-plan puis rendre la main revient, pour le harnais, à clore une session qui n'a
+encore rien commité : le verdict arrive dans un tour que plus personne ne lit. L'arrière-plan est
+réservé à la voie sous-agent de **session entière** (`WORKFLOW.md` §5b), où c'est la conversation
+d'orchestration — pas l'exécutant — qui reste ouverte à attendre la notification.
+
 **La délégation empêche le contexte d'entrer, elle ne l'évacue pas** : un agent neuf ne peut pas
 alléger une conversation déjà chargée, il devrait tout relire pour reconstruire ce qu'on a sous la
 main. Ce qui est entré ne se retire que par un démarrage à froid. Un `fork` échappe à ce coût

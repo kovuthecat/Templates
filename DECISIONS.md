@@ -120,6 +120,11 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   commits et statuts (elle ne peut plus coûter la session) ; résultats dans `S<k>.revue.md` classés
   bloquant/backlog, une ligne par vague relayée par l'orchestrateur, tri en clôture de plan →
   [détail](docs/decisions/2026-08-31-revue-plomberie.md)
+- 2026-09-04 — **Les quatre agents de délégation tournent au premier plan** — `explorateur`,
+  `verificateur-n0`, `resumeur-git`, `lecteur-doc` ne se lancent jamais en arrière-plan
+  (`run_in_background: true`) : leur verdict conditionne la suite immédiate de la tâche, à la
+  différence de la voie sous-agent de session entière (`WORKFLOW.md` §5b) →
+  [détail](docs/decisions/2026-09-04-delegation-au-premier-plan.md)
 
 ---
 

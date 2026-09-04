@@ -182,6 +182,9 @@ Quatre agents du plugin, chacun ne rend que sa **conclusion** — jamais les tra
 - `resumeur-git` → résumer un diff ou un historique.
 - `lecteur-doc` → lire une doc externe.
 
+Les quatre se lancent **au premier plan** (jamais `run_in_background: true`) : leur verdict
+conditionne la suite de la même tâche — une session ne rend la main qu'après l'avoir lu.
+
 Table de délégation détaillée : `CLAUDE-BASE.md` (section « Avant de coder »).
 
 ## 5b. Sessions & voies d'orchestration
