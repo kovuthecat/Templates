@@ -54,3 +54,13 @@ mécanisme.
 - Aucun changement à `/orchestrer-plan` ni `/fin-de-tache` : leur délégation de **session entière**
   en arrière-plan (§5b) reste correcte telle quelle — c'est la distinction que cette décision
   rend explicite, pas une remise en cause.
+
+## Amendement (même jour)
+
+Relecture : la règle n'était écrite que côté §5 (les quatre agents) et risquait de se lire comme
+« l'arrière-plan de §5b est différent, donc sûr » sans dire pourquoi une session **lancée par
+l'orchestrateur** reste, elle aussi, tenue au premier plan pour ses propres délégations. §5b
+gagne la phrase symétrique, au domicile même de l'arrière-plan légitime : une session exécutante
+reste soumise à §5 quel que soit qui l'a lancée — à la main, par une pastille, ou par
+`/orchestrer-plan`. Aucun changement de fond, la distinction est la même ; seul le risque de
+lecture partielle (ouvrir `WORKFLOW.md` §5b sans avoir lu §5) est fermé.

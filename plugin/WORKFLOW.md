@@ -205,6 +205,13 @@ environnement (permissions, MCP) : zéro préflight, zéro clic. Le verdict est 
 (§4b). La session d'orchestration doit rester ouverte pendant ce temps : les sous-agents vivent en
 elle.
 
+**Cet arrière-plan-là est celui de la session entière — pas celui de ses délégations internes.**
+Une fois lancée, la session exécutante reste soumise à §5 : ses propres appels à `verificateur-n0`
+et aux trois autres agents restent au premier plan, qu'elle ait été lancée à la main ou par
+l'orchestrateur. Confondre les deux a déjà coûté plusieurs échecs — une session qui lance son N0 en
+arrière-plan avant de committer se referme, elle aussi, sans rien avoir committé
+(`docs/decisions/2026-09-04-delegation-au-premier-plan.md`).
+
 **Exception headless**, à déclarer et justifier dans la colonne `Env.` de l'index (`headless`) —
 jamais par défaut. Légitime dans exactement deux cas :
 
