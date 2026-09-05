@@ -87,8 +87,16 @@ permanence est le poste de dépense le plus silencieux du workflow.
 
 Le backlog vit dans `TASKS.md` (index global). Un plan est toujours précédé d'une **décision écrite** :
 si le QUOI ou le POURQUOI n'est pas tranché, dérouler **`/cadrer`** dans une session séparée — sa
-sortie (`docs/decisions/`) est l'entrée du plan. Puis Opus déroule **`/nouveau-plan`**, qui crée un
-dossier `plans/P<n>/` :
+sortie (`docs/decisions/`) est l'entrée du plan.
+
+En amont encore : quand la question elle-même n'est pas identifiée — les correctifs et les ajouts se
+sont empilés, personne ne sait plus si le chemin pris tient — **`/revue-de-conception`** la trouve.
+Elle constate l'écart entre l'intention écrite et le code réel, **recale l'objectif avec
+l'utilisateur en interview** (c'est souvent le but qui a bougé, pas le code qui a dérivé), puis sort
+un rapport dans `docs/revues/` et remet l'écrit à jour. Tout autre arbitrage sort en `/cadrer`, à
+froid.
+
+Puis Opus déroule **`/nouveau-plan`**, qui crée un dossier `plans/P<n>/` :
 
 - **`plans/P<n>/index.md`** — guide d'orchestration : objectif, table des sessions, ordonnancement
   par vagues. **C'est le seul endroit où vit le statut des tâches.**

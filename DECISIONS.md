@@ -125,6 +125,11 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   (`run_in_background: true`) : leur verdict conditionne la suite immédiate de la tâche, à la
   différence de la voie sous-agent de session entière (`WORKFLOW.md` §5b) →
   [détail](docs/decisions/2026-09-04-delegation-au-premier-plan.md)
+- 2026-09-05 — **Une revue a posteriori qui recale l'objectif avant de juger le code** — skill
+  `/revue-de-conception` : constat écrit/code, puis **interview de recalage** avec gate explicite,
+  puis 7 écarts max classés A/B/C/D pondérés par la phase du projet ; sortie `docs/revues/` + mise à
+  jour de `PROJECT_BRIEF.md` si l'objectif a bougé ; sans humain, s'arrête au constat →
+  [détail](docs/decisions/2026-09-05-revue-de-conception.md)
 
 ---
 
