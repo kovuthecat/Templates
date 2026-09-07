@@ -37,7 +37,7 @@ que tout environnement Claude Code possède déjà. Le clone temporaire peut êt
 | Emplacement | Contenu |
 | --- | --- |
 | `.claude/skills/` | les skills du workflow (découverte native par Claude Code) |
-| `.claude/agents/` | 4 agents mécaniques : exploration, build/tests, git, doc externe |
+| `.claude/agents/` | 5 agents de délégation : exploration, build/tests, git, doc externe, relecture de session |
 | `.claude/workflow/hooks/` | garde-fous git, dérive du contexte, formatage |
 | `.claude/workflow/` | `WORKFLOW.md`, `CONVENTIONS.md`, `CLAUDE-BASE.md`, squelettes |
 | `.claude/workflow/manifest.json` | un hash par fichier géré — c'est lui qui rend la mise à jour possible |

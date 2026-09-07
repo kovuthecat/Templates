@@ -130,6 +130,12 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   puis 7 écarts max classés A/B/C/D pondérés par la phase du projet ; sortie `docs/revues/` + mise à
   jour de `PROJECT_BRIEF.md` si l'objectif a bougé ; sans humain, s'arrête au constat →
   [détail](docs/decisions/2026-09-05-revue-de-conception.md)
+- 2026-09-07 — **La revue de session dépose son fichier elle-même, au premier plan** — agent
+  `relecteur-session` (5e agent du plugin) à la place de `/code-review` en arrière-plan : il écrit
+  `plans/P<n>/S<k>.revue.md` lui-même, **toujours** (`Bloquant : 0` inclus), donc un fichier absent
+  ne veut plus dire que « la revue n'a pas tourné » — signalé par le hook `Stop` et par
+  `/orchestrer-plan`. Un plan entier avait perdu 100 % de ses revues sans que rien ne le montre →
+  [détail](docs/decisions/2026-09-07-revue-orpheline.md)
 
 ---
 
