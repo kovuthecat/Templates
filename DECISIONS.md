@@ -16,30 +16,10 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
 
 `- YYYY-MM-DD — **<titre>** — <verdict en une phrase> → [détail](docs/decisions/YYYY-MM-DD-<slug>.md)`
 
-## Format d'un fichier de détail (`docs/decisions/YYYY-MM-DD-<slug>.md`)
+## Format d'un fichier de détail
 
-```md
-# YYYY-MM-DD — <titre>
-
-## Décision
-<le verdict, sans détour>
-
-## Contexte
-<le problème posé, l'état au moment du choix>
-
-## Alternatives envisagées
-- Option A : <et pourquoi écartée>
-- Option B :
-
-## Raison du choix
-...
-
-## Conséquences
-<ce que ça oblige ou interdit désormais>
-
-## Impact IA _(optionnel)_
-<une ligne si la décision change la complexité, le contexte nécessaire ou `PROJECT_MAP.md`>
-```
+Gabarit dans `plugin/templates/DECISIONS.md` (Décision · Contexte · Alternatives · Raison ·
+Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque cadrage.
 
 ---
 
@@ -136,6 +116,13 @@ n'a aucune raison d'être en contexte tant que la décision n'est pas remise en 
   ne veut plus dire que « la revue n'a pas tourné » — signalé par le hook `Stop` et par
   `/orchestrer-plan`. Un plan entier avait perdu 100 % de ses revues sans que rien ne le montre →
   [détail](docs/decisions/2026-09-07-revue-orpheline.md)
+- 2026-09-09 — **La nature de l'échec décide de la reprise ; les incidents remontent par fichier** —
+  une session nomme `Nature : environnement | exécution | prémisse` avant de conclure (corrige
+  elle-même ce qui est à sa portée) ; la reprise auto suit la nature (même modèle / un cran
+  au-dessus / `ARBITRAGE` direct) ; hook `Stop` muet sous verrou ; revue lancée par l'orchestrateur
+  quand la session n'a pas l'outil ; headless outillé pour écrire ; un incident de workflow = un
+  fichier `docs/workflow/incidents/` commité, ramassé par `bin/collecter-incidents.mjs` →
+  [détail](docs/decisions/2026-09-09-nature-de-l-echec-et-incidents.md) — amende le 2026-08-30
 
 ---
 

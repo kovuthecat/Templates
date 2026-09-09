@@ -1,5 +1,10 @@
 # 2026-08-30 — Reprise automatique d'un échec dans l'orchestration
 
+> **Amendée le 2026-09-09** (`2026-09-09-nature-de-l-echec-et-incidents.md`) : le « cran
+> au-dessus » ne vaut plus que pour un échec d'**exécution**. Un échec d'environnement se reprend
+> au même modèle en sous-agent, une prémisse fausse ne se reprend pas (`ARBITRAGE` direct). Le
+> reste — une reprise, à froid, trois verdicts, opt-out `reprise-manuelle` — est inchangé.
+
 ## Décision
 
 `/orchestrer-plan` gagne une **Étape 5c** : après la clôture d'une vague contenant un `FAIL`,
