@@ -383,6 +383,10 @@ l'échec, parce que c'est elle — pas le modèle en place — qui décide de ce
 | **exécution** | tentée dans un environnement sain, elle n'aboutit pas : N0 rouge, résultat faux, bug non localisé | **une** correction sur l'hypothèse principale, N0 juge ; encore rouge → `FAIL`, la tentative va dans « Déjà écarté » | **un cran au-dessus** (règle de 2026-08-30) |
 | **prémisse** | le diagnostic montre qu'une hypothèse du plan est fausse : attendu contredit par la mesure, contrat à changer, tâche irréalisable dans son périmètre | `FAIL` **sans corriger** — on ne corrige pas un plan dans une session | **aucune** : `ARBITRAGE` direct → `/nouveau-plan` Étape 0 |
 
+Un échec par **filtre de contenu** (sortie bloquée par la politique du modèle) est une nature à
+part, ni environnement ni exécution : il ne se reprend jamais à mécanique d'écriture identique.
+Table et motif d'arbitrage : `/orchestrer-plan` 5c.
+
 Le plafond d'une correction n'est pas négociable : au-delà, c'est l'anti-pattern de §3 (tourner en
 rond sur la même erreur), et c'est précisément ce qu'un modèle au-dessus règle mieux qu'une
 troisième tentative. Le rapport `plans/P<n>/S<k>.echec.md` porte la nature en ligne mécanique

@@ -181,6 +181,8 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
 
 > **Modèle : <Sonnet/Haiku/Codex> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
 > **Environnement : <indifférent | headless (<motif : effort high/xhigh réellement appliqué | vague fenêtre fermée>)>**
+> **Latitude : <ce que l'exécutant peut ajuster seul, ou aucune>** (optionnel, déclaré par le
+> cadreur session par session ; absent = aucune, tout écart reste un STOP — mesure B3)
 > **Lancement (si headless) : `claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le." --model <modèle> --effort <effort> --permission-mode acceptEdits`**
 > (personne n'approuve un outil en `claude -p` : sans cette option ni l'allowlist du projet, la session ne peut pas écrire — `WORKFLOW.md` §5b)
 > Exécutant : UNIQUEMENT les tâches ci-dessous, dans l'ordre ; fichiers sous « Lire » / « Modifier ».
@@ -209,6 +211,10 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
 
 ### Décision clé
 <ce qu'il faut savoir sans relire le repo ; pointer une décision précise, ex. « docs/decisions/2026-07-12-auth.md »>
+
+### Référence
+<optionnel : chemin d'un code à imiter, un script qui fait déjà la chose, une maquette — et ce
+ qu'il faut y regarder. « Fais comme là » remplace six lignes d'étapes (mesure B4).>
 
 ### Lire / Modifier
 <en plus du commun : lectures spécifiques ; fichiers à modifier/créer — liste exhaustive>
@@ -257,6 +263,10 @@ Principes :
   dit *ce que ça sert*. Si les deux se paraphrasent, c'est le pourquoi qui manque : remonter d'un
   cran vers l'objectif d'ensemble du plan jusqu'à trouver ce que cette tâche-là rend possible.
 - **« Validation » = critères vérifiables** (commande + résultat, ou écran + attendu), jamais « ça marche ».
+- **Toute décision de `docs/decisions/` en jeu s'écrit sous sa forme opérationnelle** : la
+  mécanique à employer (« passe par le script X »), jamais seulement l'interdit de contenu
+  (« n'écris jamais de paroles ») — un exécutant reconnaît une mécanique, pas une interdiction
+  abstraite écrite la veille (constat du 2026-09-10).
 - **N1 ≠ N2** : ce qu'un navigateur peut constater (erreur console, texte absent, 404, débordement)
   est N1 et ne va **jamais** dans `VALIDATION.md`. N2 = uniquement le jugement humain.
 

@@ -190,6 +190,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A7 — Commandes silencieuses dans le gabarit `CLAUDE.md` et `verificateur-n0` [contexte]
 
 - Classe A · confiance **haute** · coût : dix lignes.
+- Statut : faite v0.28.0.
 - **Ce que ça change** : le gabarit demande les commandes réelles sans reporter compact ; un runner
   qui imprime 400 tests reste dans le contexte de l'agent N0 pendant ses 12 tours. Ajouter « avec
   reporter compact » au gabarit (`--reporter=dot`, `--silent`…) et une consigne à l'agent.
@@ -228,6 +229,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### B3 — Ligne « Écarts au plan » dans le bilan de session [jugement]
 
 - Classe B · confiance moyenne · coût : dix minutes.
+- Statut : faite v0.28.0.
 - **Ce que ça change** : le bandeau dit « design fixé, doute → STOP » ; le guide dit « option
   conservatrice, note-la sous Deviations, continue ». La règle §9a a déjà ouvert la brèche pour
   l'environnement. Extension : un exécutant peut s'écarter si l'objectif reste servi, à condition
@@ -237,17 +239,21 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 - **Ce qu'on verra** : moins de `FAIL` pour un détail ; une trace de ce que le modèle a décidé seul.
 - Fichiers : gabarits de `/nouveau-plan` Étape 4, `/fin-de-tache` point 3,
   `plugin/agents/relecteur-session.md`.
-- Incidents liés :
+- Incidents liés : Chords `2026-09-09-headless-permissions-allow-sans-pytest.md` (écart d'effort
+  assumé sans ligne pour le tracer).
 
 ### B4 — Champ « Référence » dans le gabarit de tâche [jugement]
 
 - Classe B · confiance moyenne · coût : dix minutes.
+- Statut : faite v0.28.0.
 - **Ce que ça change** : la meilleure spécification est du code (fonction à imiter, dossier qui
   fait déjà la chose, maquette HTML). Le workflow le fait pour les maquettes, pas pour le code.
   Champ optionnel « Référence : chemin, et ce qu'il faut y regarder » dans le bloc `T<n>`.
 - **Ce qu'on verra** : des « Étapes » plus courtes — « fais comme là » remplace six lignes.
 - Fichiers : `/nouveau-plan` Étape 4.
-- Incidents liés :
+- Incidents liés : Chords `2026-09-10-agent-content-filter-sessions-tuees-S4-S6.md` (leçon 2 : une
+  décision écrite comme interdit de contenu plutôt que comme mécanique à imiter n'a pas été
+  reconnue par l'exécutant).
 
 ### B5 — Évals sur `fin-de-tache` et `orchestrer-plan` [vérification]
 
@@ -282,13 +288,35 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
   tour de lecture par session **si** la mention est expansée dans ces canaux — à vérifier avant
   d'écrire.
 - **C2** `/rewind` avant `/compact` dans `/cadrer` 4b : couper une fausse piste par rewind ne coûte
-  rien (cache conservé), le compactage réécrit tout.
+  rien (cache conservé), le compactage réécrit tout. Statut : faite v0.28.0.
 - **C3** Un `model:` en frontmatter de skill invoquée **en cours** de conversation invalide le cache
   pour ce tour, comme un `/model`. Sans effet quand la skill ouvre la session ; coûteux pour
   `/purge-contexte` lancée après un signal du hook Stop. À noter dans `/choisir-mecanisme`.
 - **C4** Explicatif HTML + quiz de fin de plan (guide de terrain) : dans l'esprit de « Écrire pour
   qui décide », à réserver aux plans longs, sur demande.
 - Incidents liés :
+
+## Signaux neufs — 2026-09-12
+
+Quatre groupes d'incidents ramassés depuis la publication de ce fichier, sans mesure existante pour
+les expliquer — traités en correction directe plutôt qu'attendre un second groupe (règle du point 1
+de « Comment ce fichier se consomme ») :
+
+- **G1** — `relecteur-session` épuise ses 30 tours sans écrire son `.revue.md` (enquête avant
+  d'écrire, commits documentaires ou fichiers de données relus en clair). 7 occurrences, Chords +
+  DoxUploader. `Chords/.../2026-09-09-relecteur-session-limite-de-tours.md`,
+  `...-limite-de-tours-S11.md`, `2026-09-10-relecteur-session-limite-de-tours-S7.md`,
+  `DoxUploader/.../2026-09-11-relecteur-session-tours-epuises.md`. Correction directe v0.28.0.
+- **G2** — `Agent({subagent_type: "relecteur-session"})` introuvable dans l'orchestrateur. 2
+  occurrences, MYO. `MYO/.../2026-09-11-relecteur-session-absent.md`, `...-absent-s5.md`.
+  Correction directe v0.28.0.
+- **G3** — session orchestrée qui lance une tâche de fond puis rend la main sans `VERDICT:`, lue à
+  tort comme un `FAIL`. 2 occurrences, MYO + Chords. `MYO/.../2026-09-11-verdict-perdu-en-route-s5.md`,
+  `Chords/.../2026-09-10-session-sans-verdict-sous-agent-interne.md`. Correction directe v0.28.0.
+- **G4** — sessions tuées par le filtre de contenu, reprises automatiques identiques et payées pour
+  rien. 3 occurrences, Chords. `Chords/.../2026-09-10-agent-content-filter-sessions-tuees-S4-S6.md`,
+  `...-faux-positifs.md`, `2026-09-10-filtre-contenu-S6-pendant-lecture-page.md`. Correction directe
+  v0.28.0.
 
 ## Priorité et confiance
 

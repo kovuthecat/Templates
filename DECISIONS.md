@@ -123,6 +123,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   quand la session n'a pas l'outil ; headless outillé pour écrire ; un incident de workflow = un
   fichier `docs/workflow/incidents/` commité, ramassé par `bin/collecter-incidents.mjs` →
   [détail](docs/decisions/2026-09-09-nature-de-l-echec-et-incidents.md) — amende le 2026-08-30
+- 2026-09-12 — **La revue dépose son fichier d'abord, l'orchestrateur attend ses enfants** — le
+  relecteur écrit son `.revue.md` en premier geste (`Couverture : en cours → complète`), périmètre
+  restreint au code ; repli `general-purpose` si l'agent manque ; `ListAgents` avant un `FAIL` sans
+  verdict ; le filtre de contenu devient une nature d'échec sans reprise →
+  [détail](docs/decisions/2026-09-12-revue-deposee-d-abord-et-collecte-patiente.md)
 
 ---
 

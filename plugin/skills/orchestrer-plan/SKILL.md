@@ -128,6 +128,8 @@ Agent({
   prompt: "Ouvre plans/P<n>/S<k>.md et exécute-le. Reste dans l'arbre de travail courant : n'ouvre
 AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
+Ne lance rien en arrière-plan (ni Agent en run_in_background, ni commande détachée) : ta réponse
+finale est ton seul retour, ce qui finit après elle n'est lu par personne.
 Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se
 corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
 plans/P<n>/S<k>.echec.md, ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis
@@ -147,7 +149,8 @@ Attendre la notification de fin ; ne pas sonder.
 appliqué, ou vague à lancer sans garder la fenêtre ouverte (`WORKFLOW.md` §5b) :
 
 ```bash
-claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le. [même consigne d'échec et de relecture que ci-dessus]" \
+claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le. Ne lance rien en arrière-plan : ta sortie
+structurée est ton seul retour. [même consigne d'échec et de relecture que ci-dessus]" \
   --session-id "$(node -e "console.log(require('crypto').randomUUID())")" \
   --model <modèle index> --effort <effort index> \
   --permission-mode acceptEdits \
@@ -182,6 +185,14 @@ hérite des réglages courants, elle ne pose ni le modèle ni l'effort du plan.
 ## Étape 4 — Collecter le verdict de chaque session
 
 **Sous-agent** : lire la ligne `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre.
+
+**Une réponse sans ligne `VERDICT:` et sans commit n'est pas forcément finie.** C'est le cas d'une
+session qui a lancé une tâche de fond (un `Agent` en `run_in_background`, une conversion longue)
+puis a rendu la main avant que cette tâche ne se termine. Avant de conclure `FAIL` et de lancer une
+reprise : `ListAgents` — si un enfant de cette session tourne encore, attendre sa notification de
+fin plutôt que de conclure sur une réponse partielle. Une reprise Opus a déjà été payée pour rien
+sur ce mode d'échec (2026-09-11) : 40 minutes après le `FAIL`, l'agent avait fini par rendre
+`VERDICT: PASS` avec ses commits.
 
 **Un retour marqué `partial` n'est jamais un `PASS`.** Depuis 2.1.246, un sous-agent qui épuise son
 `maxTurns` rend ce qu'il a en le marquant partiel, au lieu d'avoir l'air d'avoir fini — c'est
@@ -254,6 +265,10 @@ s'enchaîne, l'arbitrage appartient à l'humain, le versement dans `TASKS.md` au
 (`/fin-de-tache` point 16). Un bloquant qui invalide une hypothèse du plan suit le chemin déjà
 écrit : extension (`/nouveau-plan` Étape 0), sur décision humaine.
 
+**Lire aussi la ligne 2, `Couverture :`.** Si elle n'est pas `complète` : relayer `Revue S<k> :
+partielle → plans/P<n>/S<k>.revue.md`, non bloquant, **sans fichier d'incident** — le fichier
+existe, c'est précisément le but du dépôt en premier geste.
+
 **Une revue absente se lance ici, elle ne se relaie pas comme un silence.** Le dépôt est
 inconditionnel (`Bloquant : 0` quand il n'y a rien à dire) : un `.revue.md` manquant veut donc dire
 que la revue n'a pas tourné, jamais qu'elle n'a rien trouvé — et la cause la plus fréquente est
@@ -273,6 +288,13 @@ Agent({
 \"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, puis rends tes deux lignes."
 })
 ```
+
+**`Agent type 'relecteur-session' not found`** : repli, même appel avec `subagent_type:
+"general-purpose"`, `model: "sonnet"`, `run_in_background: false`, prompt commençant par « Lis
+`.claude/agents/relecteur-session.md` et tiens ce rôle pour la session S<k> du plan P<n> … » — deux
+revues perdues le 2026-09-11 faute de cet agent dans la liste disponible, alors qu'un agent
+générique tenu par le même fichier suffit. Le fichier d'incident ne se dépose que si ce repli échoue
+aussi.
 
 **Au premier plan, une à la fois**, dans l'ordre de l'index : le fichier est le livrable, et
 l'orchestrateur ne lit que les deux lignes rendues — jamais les trouvailles. Ce n'est pas lire un
@@ -338,10 +360,13 @@ jamais le reste : `grep -m1 '^Nature :' plans/P<n>/S<k>.echec.md` (rapport absen
 | `prémisse` | **aucune** — la session a déjà diagnostiqué que le plan est faux, une reprise ne ferait que le redire | `ARBITRAGE` direct, motif « prémisse fausse → /nouveau-plan extension », `RAPPORT: <chemin>` |
 | `environnement` | oui, **en sous-agent même si l'index disait `headless`** : c'est l'héritage de l'environnement de cette conversation (permissions, outils) qui débloque | **même modèle** que l'index |
 | `exécution` (ou absente) | oui | **un cran au-dessus**, plancher Sonnet (Haiku→Sonnet, Sonnet→Opus, Opus→Fable en le signalant) ; session Fable en échec → pas de cran au-dessus, `ARBITRAGE` direct |
+| session **tuée par le filtre de contenu** (`Output blocked by content filtering`, HTTP 400, visible dans la notification du harnais — la session n'a pas pu écrire de `.echec.md`) | **aucune** | `ARBITRAGE` direct, motif « sortie filtrée : changer la mécanique d'écriture, pas le modèle » |
 
 Monter de modèle sur un échec d'environnement ou de prémisse a coûté plusieurs reprises Opus et
 Fable pour rien (constat du 2026-09-09) : le modèle n'était pas la cause, et la reprise ne faisait
-que refaire le diagnostic.
+que refaire le diagnostic. Même constat pour le filtre de contenu : quatre relances identiques
+payées le 2026-09-10 pour un verdict identique — à sortie filtrée inchangée, seule la mécanique
+d'écriture change quelque chose.
 
 ```
 Agent({
