@@ -106,7 +106,7 @@ Modèle et effort : grille dans `${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §2-3.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1-T3 | … | Haiku | low | — | — | `css/`, `index.html` | [ ] |
-| [S2](S2.md) | T5 | … | Sonnet | high | headless (effort `high` réellement appliqué) | S1 | `js/edit/` | [ ] |
+| [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `js/edit/` | [ ] |
 
 ## Ordonnancement
 - **Vague 1 — parallélisable** : S1 · S3 (zones disjointes, aucune dépendance).
@@ -131,6 +131,15 @@ d'édition ») ne lui apprend rien ; deux phrases suffisent, à condition d'êtr
 Même exigence pour le *Pourquoi maintenant* d'une vague : il justifie l'**ordre**, pas le contenu —
 « sans ça, S4 travaillerait sur une structure de données qui va changer » plutôt que « prérequis ».
 
+**Trois mots-clés déclarent une exception à l'exécution normale**, deux sur la ligne d'une **vague**,
+un sur la ligne « en clair » d'une **session** : `gate` (la vague arrête l'orchestrateur une fois
+collectée, même si tout est `PASS`) et `reprise-manuelle` (un `FAIL` de cette vague n'a pas droit à
+la reprise automatique) portent sur la vague entière ; **`pastille`**, lui, porte sur une session
+précise — elle se lance par le repli pastille (premier plan, navigateur complet), **même en
+Desktop** : c'est le cadreur qui le décide ici, au cadrage, quand le N1 de cette session est
+structurant (nouvel écran, refonte de mise en page) et mérite un déroulé surveillé plutôt qu'un
+sous-agent (`/orchestrer-plan` Étape 3, `/verif-visuelle`).
+
 **Vagues orchestrées (optionnel)** — toute vague s'exécute via `/orchestrer-plan`, qui déroule les
 sessions les unes après les autres jusqu'à épuisement, un échec non repris, ou une gate humaine.
 Un `FAIL` déclenche par défaut **une** reprise automatique à froid (`/orchestrer-plan` Étape 5c) ;
@@ -139,19 +148,12 @@ au cadrage quand un échec dans cette vague doit passer par un humain d'emblée 
 annuler, zone sensible). Voies et
 colonne `Env.` : domicile `WORKFLOW.md` §5b, ne pas le reformuler ici. Résumé pour le découpage :
 
-Colonne **Env.** : `—` (sous-agent, défaut) sauf exception `headless` déclarée et justifiée dans le
-bandeau du `S<k>.md` — légitime dans deux cas seulement (§5b) : effort **strictement supérieur** à
-celui que portera la conversation d'orchestration (le sous-agent en hérite — une orchestration
-lancée en `high` couvre `high`), ou vague à lancer sans garder la fenêtre ouverte. Écrire dans
-l'index l'effort d'orchestration attendu quand une session dépasse `medium`, pour que le rappel
-« À régler AVANT de lancer » de `/orchestrer-plan` porte la bonne valeur. *Legacy : dans un plan antérieur à
-P3, `Desktop` se lit comme `—`.*
-
-**Ce que le découpage doit peser** : une vague mixte est valide, mais elle ne se termine pas d'un
-bloc de la même façon — la voie sous-agent vit dans la fenêtre d'orchestration ouverte, la voie
-headless survit à sa fermeture. Grouper les sessions `headless` entre elles quand le graphe de
-dépendances le permet donne des vagues homogènes ; les mélanger est un choix, pas un accident à
-éviter.
+Colonne **Env.** : toujours `—` (sous-agent — seule voie depuis v0.30.0, §5b) ; une session dont
+l'effort dépasse `medium` reste couverte, le sous-agent héritant de l'effort **ambiant** de la
+conversation d'orchestration (une orchestration lancée en `high` couvre `high`) — écrire alors dans
+l'index l'effort d'orchestration attendu, pour que le rappel « À régler AVANT de lancer » de
+`/orchestrer-plan` porte la bonne valeur. *Legacy : dans un plan antérieur à P3, `Desktop` se lit
+comme `—` ; dans un plan antérieur à v0.30.0, `headless` se lit comme `—` (sous-agent).*
 
 L'index ne contient **rien d'autre** : aucun détail d'exécution (étapes, commandes, fichiers à la
 ligne près) — il pointe vers les sessions. Les lignes « en clair » et les *Pourquoi maintenant* sont
@@ -180,11 +182,9 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
 # P<n> · S<k> — <titre>   (rédigé par Opus)
 
 > **Modèle : <Sonnet/Haiku> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
-> **Environnement : <indifférent | headless (<motif : effort high/xhigh réellement appliqué | vague fenêtre fermée>)>**
+> **Environnement : <Desktop (navigateur requis) | indifférent>** (`WORKFLOW.md` §6, N1)
 > **Latitude : <ce que l'exécutant peut ajuster seul, ou aucune>** (optionnel, déclaré par le
 > cadreur session par session ; absent = aucune, tout écart reste un STOP — mesure B3)
-> **Lancement (si headless) : `claude -p "Ouvre plans/P<n>/S<k>.md et exécute-le." --model <modèle> --effort <effort> --permission-mode acceptEdits`**
-> (personne n'approuve un outil en `claude -p` : sans cette option ni l'allowlist du projet, la session ne peut pas écrire — `WORKFLOW.md` §5b)
 > Exécutant : UNIQUEMENT les tâches ci-dessous, dans l'ordre ; fichiers sous « Lire » / « Modifier ».
 > Design fixé — ne reconçois pas. Doute ou blocage → nomme sa nature (`WORKFLOW.md` §9a) ; ce qui
 > est à ta portée se corrige, le reste → STOP, rapport, rends la main.

@@ -140,14 +140,6 @@ Ordre imposé : le gain décroît, le risque croît.
    rapatrier au démarrage des fichiers désormais présents dans le repo ; les garder chargerait le
    workflow **deux fois**.
 
-   Poser aussi la confiance du workspace sur les deux formes du chemin projet (`claude -p` ignore
-   silencieusement `permissions.allow` sinon — la confiance est indexée sur la chaîne du chemin,
-   `C:\Users\...` et `C:/Users/...` comptant comme deux entrées) :
-
-   ```bash
-   node -e "const fs=require('fs'),os=require('os'),p=require('path');const f=p.join(os.homedir(),'.claude.json');const c=JSON.parse(fs.readFileSync(f,'utf8'));c.projects=c.projects||{};const cwd=process.cwd();for(const k of [cwd, cwd.replace(/\\\\/g,'/')]){c.projects[k]=c.projects[k]||{};c.projects[k].hasTrustDialogAccepted=true;}fs.writeFileSync(f,JSON.stringify(c,null,2));"
-   ```
-
 3. **Bootstrap obsolète** — supprimer `.claude/hooks/session-start.sh` s'il existe.
 
 4. **`CLAUDE.md`** — supprimer la ligne d'import `@…CLAUDE-BASE.md`. Ne **rien** mettre à la place
@@ -258,6 +250,12 @@ cinquième exige une **nouvelle session**, la configuration n'étant lue qu'au d
 6. **Tout est versionné.** `git status` ne doit laisser hors du commit ni `.claude/skills`, ni
    `.claude/agents`, ni `.claude/workflow`. C'est la condition qui rend le workflow disponible en
    session cloud et à quiconque clone : ces environnements ne voient que le dépôt.
+7. **Dépôt sous un dossier synchronisé ?** (`SynologyDrive`, `OneDrive`, `Dropbox`, `iCloud` dans le
+   chemin) : demander à l'utilisateur d'exclure le dossier `.git` dans son client de synchro (gate :
+   attendre le oui), puis `touch .git/info/synchro-exclue` — corruption vue le 2026-09-11
+   (torrent-uploader), sinon rappelé à chaque session par `sessionstart-contexte.mjs`.
+8. **Coût de contexte** (mesure A1, `/choisir-mecanisme` point 8) : `/context` dans une session
+   neuve pour ce projet, MCP scopés au projet, `CLAUDE.md` élagué si `/doctor` le propose.
 
 Un point rouge = rattachement non fini. Ne jamais conclure sur « ça devrait marcher ».
 

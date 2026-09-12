@@ -132,6 +132,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   Fable hors grille/escalade/skill, lancé à la main ; Codex retiré, `AGENTS.md` central supprimé ;
   `CLAUDE-BASE.md` dédupliqué à 80 lignes, nouveau `EXECUTANT.md` pour les sessions de plan →
   [détail](docs/decisions/2026-09-12-fable-et-codex-hors-workflow-socle-et-executant.md)
+- 2026-09-12 — **Une seule voie d'orchestration ; hooks testés ; `.git` hors synchro** — voie
+  headless retirée (sous-agent seul) ; `tests/tester-hooks.mjs` gate `publier.mjs` ; témoin
+  `.git/info/synchro-exclue` signalé par `SessionStart` ; mot `pastille` par session →
+  [détail](docs/decisions/2026-09-12-une-seule-voie-d-orchestration-et-hooks-testes.md)
 
 ---
 

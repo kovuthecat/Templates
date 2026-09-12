@@ -74,9 +74,6 @@ session écrit donc, juste avant, cette ligne — valeurs prises dans l'`index.m
 À régler AVANT de lancer — S<k> : modèle <M> · effort <E>   (la pastille hérite des réglages courants)
 ```
 
-Seule exception : une session lancée en `claude -p` porte `--model`/`--effort` dans sa commande,
-donc la commande affichée suffit — le rappel devient inutile.
-
 Un effort élevé consomme plus de tokens sur *chaque* tour de la session : le laisser à `xhigh` en
 permanence est le poste de dépense le plus silencieux du workflow.
 
@@ -206,8 +203,8 @@ miroir public (d'où le garde-fou de `bin/publier.mjs`). Un commit qui dort en l
 aucune autre machine : ni le poste voisin, ni une session cloud, ni le mobile.
 
 **Parallélisme réel — l'unique exception.** Deux sessions lancées en même temps partagent un
-seul index git — sous-agents concurrents comme processus `claude -p` concurrents, indépendamment de
-la voie (§5b) : `git commit` prend l'état du dépôt, pas celui de la session, donc chacune emporterait
+seul index git — sous-agents concurrents (§5b) : `git commit` prend l'état du dépôt, pas celui de la
+session, donc chacune emporterait
 le travail en cours de l'autre. Pour ces vagues-là **seulement**, poser `.claude/wave.lock` (à mettre
 en `.gitignore` — marqueur local, pas du contenu de projet) : un hook refuse alors commit et push
 (§7), les sessions laissent leur diff dans l'arbre, et **l'orchestrateur committe pour elles en fin
@@ -284,27 +281,12 @@ Régler cette conversation à l'effort le plus haut de la vague **avant** de dé
 lui-même) couvre donc `high` sans sortir de la voie normale — l'orchestrateur tourne sur Haiku et
 ne fait que lancer et collecter, l'effort élevé lui coûte peu.
 
-**Exception headless**, à déclarer et justifier dans la colonne `Env.` de l'index (`headless`) —
-jamais par défaut. Légitime dans exactement deux cas :
-
-| Cas | Pourquoi le sous-agent ne suffit pas |
-| --- | --- |
-| Effort **strictement supérieur** à l'effort ambiant de l'orchestration (en pratique `xhigh`) | le sous-agent hérite de l'effort ambiant, il ne le dépasse pas |
-| Vague à lancer sans garder la fenêtre ouverte | un `claude -p` détaché survit à la fermeture, un sous-agent non |
-
-Une vague headless lance un processus `claude -p` par session ; le verdict reste lu dans les commits
-(§4b) — un motif de sortie absent n'est qu'une information manquante, pas une panne à instruire.
-
-**Un `claude -p` n'a personne pour approuver un outil.** Tout ce qui n'est ni dans
-`permissions.allow` du projet ni dans les options de lancement est **refusé**, et la session échoue
-sans avoir pu écrire une ligne — constaté sur une session dont l'allowlist ne portait pas `Edit`.
-Trois garde-fous, tous appliqués par `/orchestrer-plan` : l'allowlist du gabarit
-`project-settings.json` porte le socle (`Edit`, `Write`, `git add`, `git commit`, `git pull`) ; le
-lancement ajoute `--permission-mode acceptEdits` et les commandes git de base en `--allowedTools`
-(elles s'**ajoutent** à l'allowlist du projet, sans la remplacer) ; et le préflight **sonde**
-l'écriture réelle avec ces mêmes options avant de lancer la vague. Un refus qui passe quand même
-est un échec d'**environnement** (§9) : la reprise se lance en sous-agent, qui hérite des
-permissions de la conversation — jamais en montant de modèle.
+**Voie headless retirée (v0.30.0).** L'orchestrateur tournait en Sonnet `high` de toute façon (les
+sous-agents héritent de l'effort ambiant, §3b) : la voie `claude -p` ne servait plus qu'à survivre à
+une fenêtre fermée, et elle a produit une classe entière d'incidents propres à son outillage
+(allowlist incomplète, trust dialog, refus d'`Edit`, classificateur de sortie) — le sous-agent, seule
+voie désormais, hérite de tout l'environnement de la conversation et n'a besoin d'aucun de ces
+garde-fous. Réintroduire une voie headless : `docs/decisions/2026-09-12-une-seule-voie-d-orchestration-et-hooks-testes.md`.
 
 **Repli — hors Claude Code Desktop** (VSCode, terminal, session cloud), quand aucune pastille ni
 navigateur in-app n'est disponible : revenir au chaînage manuel du premier point, une pastille
@@ -348,7 +330,7 @@ définition. Une instruction ne contraint rien ; un hook si.
 
 | Hook | Événement | Ce qu'il fait |
 | --- | --- | --- |
-| `sessionstart-contexte.mjs` | SessionStart | Signale : retard sur `origin/main` (après un `git fetch` plafonné à 6 s) et branche autre que celle d'intégration (§4b), vague en cours, `STATUS.md` en retard de ≥3 commits, plafonds dépassés. Silencieux si tout est sain, et sans objet sur un dépôt sans remote. Mémorise `HEAD` au démarrage — c'est ce repère qui permet au hook `Stop` de savoir ce que la session a commité. |
+| `sessionstart-contexte.mjs` | SessionStart | Signale : retard sur `origin/main` (après un `git fetch` plafonné à 6 s) et branche autre que celle d'intégration (§4b), vague en cours, `STATUS.md` en retard de ≥3 commits, plafonds dépassés, dépôt sous un dossier synchronisé (`SynologyDrive`/`OneDrive`/`Dropbox`/`iCloud`) sans témoin `.git/info/synchro-exclue`. Silencieux si tout est sain, et sans objet sur un dépôt sans remote. Mémorise `HEAD` au démarrage — c'est ce repère qui permet au hook `Stop` de savoir ce que la session a commité. |
 | `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell/EnterWorktree) | Refuse `git add -A`/`.`/`--all` et `git commit -a` ; refuse commit, push et ouverture de worktree tant que `.claude/wave.lock` existe. |
 | `posttooluse-format.mjs` | PostToolUse (Edit/Write) | Formate via prettier si configuré dans le projet, silencieux sinon. |
 | `stop-contexte.mjs` | Stop | Refuse de rendre la main si du code a été modifié sans qu'aucun fichier de suivi ne le soit, si une session de plan a commité du code sans laisser trace de sa revue (ni `.revue.md` sur disque, ni repère `Revues:` de tri de clôture — §4b), ou si un plafond est dépassé. Ne bloque qu'une fois par session, et ne rappelle ensuite que si la liste des manquements a changé. **Sous `.claude/wave.lock`, seuls les plafonds sont signalés** : un diff non commité et une revue absente y sont le fonctionnement normal (§4b), pas un manquement — les signaler à chaque tour ne faisait que polluer l'orchestrateur. |
@@ -444,7 +426,7 @@ committe en fin de vague ; c'est le push de fin d'unité de travail qui le fait 
 - Projet : <nom du dépôt>
 - Workflow : v<version, lue dans .claude/workflow/manifest.json>
 - Plan : P<n>/S<k>[/T<m>] ou —
-- Environnement : <Desktop | VSCode | cloud> · <sous-agent | headless | à la main>
+- Environnement : <Desktop | VSCode | cloud> · <sous-agent | à la main>
 - Étape : <skill et étape — /orchestrer-plan Étape 4, /fin-de-tache relecture, hook Stop…>
 - Nature : <environnement | exécution | prémisse | orchestration>
 
@@ -460,7 +442,7 @@ committe en fin de vague ; c'est le push de fin d'unité de travail qui le fait 
 
 Qui écrit : la session qui rencontre l'incident (`/fin-de-tache`, avant son commit) ; la session en
 échec d'environnement, à côté de son `.echec.md` ; l'orchestrateur pour ce que lui seul voit
-(verdict perdu, `partial`, `permission_denials`, revue qu'il n'a pas pu lancer, préflight rouge).
+(verdict perdu, `partial`, revue qu'il n'a pas pu lancer, préflight rouge).
 Ni `TASKS.md` ni `STATUS.md` : un incident n'est pas une tâche du projet, c'est une donnée pour le
 dépôt source. Un `.echec.md` se supprime quand l'échec est résolu ; un incident **reste** — c'est
 sa raison d'être.

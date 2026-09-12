@@ -118,6 +118,9 @@ un wrapper MCP ajouterait de la complexité sans bénéfice récurrent.
 7. Classer chaque proposition A (gain fort/complexité faible, à faire en premier) / B (gain
    net/complexité modérée, si l'usage le justifie) / C (gain marginal, ne pas implémenter par
    défaut) / D (sur-ingénierie, à rejeter explicitement).
+8. **Coût de contexte mesuré** (mesure A1) : `/context` dans une session neuve — part de
+   `CLAUDE.md`, des skills, des serveurs MCP. Scoper les MCP au projet (`.mcp.json`, `/mcp`), couper
+   ceux sans rapport ; `/doctor` (≥ 2.1.206) propose des coupes dans `CLAUDE.md`.
 
 ## Vérifier avant de construire
 

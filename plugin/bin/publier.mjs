@@ -16,6 +16,12 @@
 //
 // Idempotent : rejouable à l'identique, le dépôt public n'a pas d'historique à préserver
 // (--force assumé, cf. README §Distribution — c'est un artefact, pas un historique).
+//
+// TEST DES HOOKS AVANT PUBLICATION (v0.30.0)
+// Avant toute construction de payload — y compris en --dry-run —, `tests/tester-hooks.mjs` (racine
+// du dépôt, jamais vendoré) rejoue les quatre hooks sur des dépôts git jetables. Un hook qui refuse
+// à tort ou laisse passer à tort n'est visible qu'en session, dans un projet aval, longtemps après
+// la publication : le test échoue → publication annulée, rien poussé.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync } from 'node:fs';
@@ -78,6 +84,20 @@ function git(args, options = {}) {
   return execFileSync('git', args, { windowsHide: true, stdio: 'pipe', ...options });
 }
 
+// ── Test des hooks — condition d'entrée, avant tout le reste ─────────────────
+// Racine du dépôt = parent de RACINE_PAYLOAD (plugin/ → racine). Le test vit hors `plugin/` : il
+// n'est jamais vendoré, un projet aval n'a pas à le committer pour un outillage qu'il ne modifie pas.
+function testerHooks() {
+  const racineDepot = dirname(RACINE_PAYLOAD);
+  const scriptTest = join(racineDepot, 'tests', 'tester-hooks.mjs');
+  try {
+    execFileSync('node', [scriptTest], { cwd: racineDepot, stdio: 'inherit', windowsHide: true });
+  } catch {
+    console.error('publier: test des hooks en échec — publication annulée, rien poussé');
+    process.exit(1);
+  }
+}
+
 // ── Garde-fou de synchronisation du dépôt SOURCE ─────────────────────────────
 // Le 2026-08-28, ce dépôt local était en retard d'un commit sur origin/main : la 0.16.2 avait été
 // poussée depuis un autre poste et jamais rapatriée ici. Le payload est donc parti d'un arbre
@@ -136,6 +156,10 @@ function verifierSynchroSource() {
 
 let tmp;
 try {
+  // Avant tout le reste, --dry-run compris : les hooks doivent tenir avant qu'on publie quoi que
+  // ce soit qui les embarque.
+  testerHooks();
+
   // Avant toute construction : le dépôt qui produit le payload doit être à jour (le push est --force).
   verifierSynchroSource();
 

@@ -110,6 +110,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A1 — `/context` et `/mcp` dans l'audit et la gate de migration [contexte]
 
 - Classe A · confiance **haute** · coût : deux paragraphes.
+- Statut : faite v0.30.0.
 - **Ce que ça change** : `/choisir-mecanisme` (audit, point 6) et `/migrer-projet` (Phase D)
   demandent de lancer `/context` dans une session neuve, de noter la part de `CLAUDE.md`, des
   skills et des serveurs MCP, et de couper par `/mcp` les serveurs sans rapport avec le projet.
@@ -140,6 +141,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A3 — Sortir les scripts des skills vers `bin/` [contexte] [vérification]
 
 - Classe A · confiance **haute** · coût : une session Sonnet.
+- Statut : écartée — voie headless retirée v0.30.0, les trois scripts n'ont plus d'objet.
 - **Ce que ça change** : trois blocs de code vivent en prose et sont recopiés par le modèle à
   chaque exécution : le lecteur de verdict headless (`lire()` en `node -e`, `/orchestrer-plan`
   Étape 4), la pose du trust dialog (dupliquée dans `/nouveau-projet` C3 et `/migrer-projet` B1.2),
@@ -182,6 +184,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A6 — Point d'extension de vérification par projet (`verif-*`) [vérification]
 
 - Classe A/B · confiance moyenne · coût : un paragraphe.
+- Statut : faite v0.30.0.
 - **Ce que ça change** : convention — toute skill projet nommée `verif-<chose>` est déroulée par
   `/fin-de-tache` après N0, sans que le workflow vendoré ait à la connaître. Ordre aligné sur la
   chaîne citée par l'équipe Claude Code : revue, simplification, vérification, design. Le point 6
@@ -326,6 +329,20 @@ de « Comment ce fichier se consomme ») :
   `...-faux-positifs.md`, `2026-09-10-filtre-contenu-S6-pendant-lecture-page.md`. Correction directe
   v0.28.0.
 
+Trois groupes de plus, ramassés depuis :
+
+- **G5** — en sous-agent orchestré, `navigate` vers `localhost` refusé (« navigation to … was denied
+  or failed »), alors que `preview_start` ouvre l'onglet sans problème. 2 occurrences,
+  torrent-uploader. `torrent-uploader/.../2026-09-10-navigation-localhost-refusee.md`,
+  `.../2026-09-11-navigation-localhost-refusee.md`. Correction directe v0.30.0 (`/verif-visuelle` :
+  un seul essai, repli mode B, ligne N1 relayée par l'orchestrateur).
+- **G6** — dépôt `.git` sous `SynologyDrive` corrompu par une reprise de synchro en cours d'écriture
+  git. 1 occurrence, torrent-uploader. `torrent-uploader/.../2026-09-11-git-corrompu-synology-drive.md`.
+  Correction directe v0.30.0 (signal `sessionstart-contexte.mjs` + témoin `.git/info/synchro-exclue`).
+- **G7** — vague headless : allowlist incomplète, permission refusée sans avoir écrit une ligne. 1
+  occurrence, Chords. `Chords/.../2026-09-09-headless-permissions-allow-sans-pytest.md`. Correction
+  directe v0.30.0 (voie headless retirée : la classe d'incident disparaît avec elle).
+
 ## Priorité et confiance
 
 | Rang | Mesure | Gain | Confiance | Coût |
@@ -364,6 +381,8 @@ Les mesures [contexte] et [vérification] sont plus sûres et indépendantes de 
 - Compaction et nettoyage des résultats d'outils côté API : Claude Code le gère seul.
 - Exemples few-shot : l'article dit qu'ils contraignent les nouveaux modèles ; le plugin n'en met pas.
 - `/loop` dans une session séparée : le workflow n'utilise pas `/loop`.
+- La voie headless (`claude -p`) elle-même : retirée v0.30.0, tout ce qui en dépendait (A3, le
+  bloc headless, le préflight CLI/trust/allowlist) n'a donc plus d'objet.
 
 ## Comment ce fichier se consomme
 

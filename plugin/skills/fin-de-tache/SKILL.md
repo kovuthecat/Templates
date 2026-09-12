@@ -14,7 +14,9 @@ un `S<k>.md` ni dans `TASKS.md`.
 ## Après CHAQUE tâche (les deux modes)
 
 1. **N0** : `build` + `typecheck` (+ tests unitaires si logique pure) passent. Sinon la tâche n'est
-   pas finie.
+   pas finie. **Juste après** : toute skill du projet nommée `verif-<chose>` (`.claude/skills/`,
+   propre au projet, jamais du workflow vendoré) se déroule ici, avant le N1 — c'est le point
+   d'entrée d'un contrôle mécanique propre au projet (mesure A6).
 2. **N1** : si la tâche touchait l'UI, dérouler `/verif-visuelle`. Un défaut N1 se corrige
    maintenant, il ne se reporte pas.
 3. **Bilan dans le `S<k>.md`** — section « Bilan de session », complétée au fil des tâches :
@@ -39,6 +41,9 @@ un `S<k>.md` ni dans `TASKS.md`.
 6. **Skill projet ?** : une procédure spécifique au projet a été déroulée ≥ 2 fois ou dictée en
    prompt ? → la proposer comme `.claude/skills/<nom>/` du projet (critères : `/choisir-mecanisme`).
    On PROPOSE, on ne crée JAMAIS silencieusement ; nom **distinct** de ceux du workflow vendoré.
+   **Un contrôle manuel revenu ≥ 2 fois** (relecture d'un écran, vérification d'un export, contrôle
+   qu'aucune régression n'a eu lieu sur une zone sensible) → proposer explicitement une skill nommée
+   `verif-<chose>` : c'est ce nom précis que le point 1 reconnaît et déroule après le N0.
 7. **Un fichier géré a-t-il été modifié ?** Si la tâche a touché un fichier listé dans
    `.claude/workflow/manifest.json`, **c'est une erreur à réparer, pas à committer** : porter la
    modification dans le dépôt source, publier, puis `/maj-workflow` ici.
@@ -169,9 +174,9 @@ Le travail de code est déjà commité — chaque session a pris le sien. Il ne 
 
 ## Enchaînement — session suivante du plan
 
-**D'abord : suis-je orchestrée ?** Si cette session a été lancée par `/orchestrer-plan` — sous-agent
-ou `claude -p` (§5b) — l'enchaînement ne la regarde pas : l'orchestrateur collecte les verdicts et
-ouvre la vague suivante lui-même. Rendre la main, point.
+**D'abord : suis-je orchestrée ?** Si cette session a été lancée par `/orchestrer-plan` (sous-agent,
+§5b) l'enchaînement ne la regarde pas : l'orchestrateur collecte les verdicts et ouvre la vague
+suivante lui-même. Rendre la main, point.
 
 Le reste ne vaut que pour une session **lancée à la main**, ou par une pastille de repli (§5b, repli
 hors Desktop) :
