@@ -31,6 +31,20 @@ lui-même un signal — le gabarit ou la consigne qui l'a produit n'est pas asse
 
 Pour chaque groupe, une ligne : `<n> incident(s) · <étape> · <ce qui casse> · projets : …`.
 
+## Étape 2b — Croiser avec les analyses en attente
+
+`docs/analyses/` porte des analyses externes au statut `à arbitrer` (conseils Anthropic, audits,
+relectures du plugin), chacune découpée en mesures à identifiant stable et champ
+`Incidents liés :`. Pour chaque groupe de l'Étape 2, chercher la mesure qui l'expliquerait :
+
+- elle existe → ajouter le chemin des incidents du groupe dans son champ `Incidents liés :` ; une
+  mesure qui reçoit deux groupes de deux projets différents passe d'office en « correction
+  directe » à l'Étape 3, quelle que soit sa classe ;
+- aucune mesure ne l'explique → signal neuf, à traiter à l'Étape 3 sans cette analyse.
+
+Une mesure sans incident après plusieurs passes reste un conseil, pas un besoin constaté : ne pas
+la faire remonter sur la seule foi de l'article qui la propose.
+
 ## Étape 3 — Décider, groupe par groupe
 
 Trois issues, et une seule par groupe :
