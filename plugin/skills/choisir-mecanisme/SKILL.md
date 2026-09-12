@@ -79,6 +79,8 @@ problème de façon fiable, jamais le plus impressionnant :
 **Créer une skill PROJET quand** : la procédure a plusieurs étapes · elle sera répétée au moins
 2 fois · elle est spécifique à ce projet (sinon candidate à une skill globale) · **coût** : chaque
 skill installée paie sa description à CHAQUE session, même non utilisée — ne pas en créer « au cas où ».
+Un `model:` en frontmatter coûte un préfixe de cache complet s'il est invoqué **en cours** de
+conversation — sans effet pour une skill qui ouvre la session : `WORKFLOW.md` §3b.
 
 **Output style plutôt que CLAUDE.md quand** : ce qui doit changer est la **façon de répondre** (ton,
 rôle, format), pas ce que Claude sait du projet — le style modifie le prompt système, `CLAUDE.md`

@@ -125,8 +125,8 @@ Agent({
   subagent_type: "claude",
   model: <modèle lu dans l'index>,
   run_in_background: true,
-  prompt: "Ouvre plans/P<n>/S<k>.md et exécute-le. Reste dans l'arbre de travail courant : n'ouvre
-AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
+  prompt: "Lis d'abord .claude/workflow/EXECUTANT.md. Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
+dans l'arbre de travail courant : n'ouvre AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
 Ne lance rien en arrière-plan (ni Agent en run_in_background, ni commande détachée) : ta réponse
 finale est ton seul retour, ce qui finit après elle n'est lu par personne.
@@ -330,7 +330,7 @@ tour, retour à l'Étape 2. Plan épuisé (dernière vague collectée) → Étap
 
 Désactivé par défaut ; utile pour une vague headless lancée sans surveillance. N'enrichit que le
 rapport de passation, ne corrige rien, ne relance rien. Escalade d'un cran au-dessus du modèle en
-échec (Haiku→Sonnet, Sonnet→Opus, Opus→Fable en le signalant, Fable→rien) :
+échec (Haiku→Sonnet, Sonnet→Opus, Opus→rien : déjà au plafond) :
 
 ```bash
 claude -p "Lis plans/P<n>/S<k>.echec.md et la tâche visée. NE CORRIGE RIEN. Approfondis le
@@ -359,7 +359,7 @@ jamais le reste : `grep -m1 '^Nature :' plans/P<n>/S<k>.echec.md` (rapport absen
 | --- | --- | --- |
 | `prémisse` | **aucune** — la session a déjà diagnostiqué que le plan est faux, une reprise ne ferait que le redire | `ARBITRAGE` direct, motif « prémisse fausse → /nouveau-plan extension », `RAPPORT: <chemin>` |
 | `environnement` | oui, **en sous-agent même si l'index disait `headless`** : c'est l'héritage de l'environnement de cette conversation (permissions, outils) qui débloque | **même modèle** que l'index |
-| `exécution` (ou absente) | oui | **un cran au-dessus**, plancher Sonnet (Haiku→Sonnet, Sonnet→Opus, Opus→Fable en le signalant) ; session Fable en échec → pas de cran au-dessus, `ARBITRAGE` direct |
+| `exécution` (ou absente) | oui | **un cran au-dessus**, plancher Sonnet (Haiku→Sonnet, Sonnet→Opus) ; session Opus en échec → pas de cran au-dessus, `ARBITRAGE` direct |
 | session **tuée par le filtre de contenu** (`Output blocked by content filtering`, HTTP 400, visible dans la notification du harnais — la session n'a pas pu écrire de `.echec.md`) | **aucune** | `ARBITRAGE` direct, motif « sortie filtrée : changer la mécanique d'écriture, pas le modèle » |
 
 Monter de modèle sur un échec d'environnement ou de prémisse a coûté plusieurs reprises Opus et

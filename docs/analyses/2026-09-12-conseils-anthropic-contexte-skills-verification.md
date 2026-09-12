@@ -52,6 +52,7 @@ Le workflow applique déjà l'essentiel de ces conseils, souvent avant leur publ
 | Définitions d'outils MCP du compte | non mesuré — mesurer par `/context` | toutes sessions |
 | `orchestrer-plan`, relue par un Haiku qui boucle | 408 lignes / ~3 900 mots | chaque orchestration |
 | `WORKFLOW.md` (référencé, pas injecté) | 437 lignes / ~4 400 mots | quand une skill y renvoie |
+| Préfixe (règles, skills, `CLAUDE.md`) d'un sous-agent | plein tarif, jamais à 1/10 | par session, à froid (source cache : `WORKFLOW.md` §3b) |
 
 Aucune skill ne dépasse 5 000 mots, aucune n'utilise de `references/`.
 
@@ -91,6 +92,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### J0 — Scinder CLAUDE-BASE en socle commun + fichier d'exécutant [jugement] [contexte]
 
 - Classe A · confiance moyenne-haute · coût : une session Opus courte + bump + sync des projets.
+- Statut : faite v0.29.0.
 - **Ce que ça change** : un socle court chargé partout (dépendances, trois niveaux de validation,
   où vit chaque information, fin de tâche, compactage) ; un fichier d'exécutant (table de
   délégation, interdits de fork et d'arrière-plan, « design fixé ») chargé **seulement** par les
@@ -123,6 +125,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A2 — Dédupliquer CLAUDE-BASE [jugement] [contexte]
 
 - Classe A · confiance haute sur le coût, moyenne sur l'effet · coût : une session Opus courte.
+- Statut : faite v0.29.0.
 - **Ce que ça change** : la section « Avant de coder » reformule sur ~25 lignes le §5 et le §5b de
   `WORKFLOW.md` et la décision du 2026-09-04, justification et historique d'incident compris. On
   garde une ligne par règle, énoncée comme un fait, et on pointe la décision pour le pourquoi.
@@ -166,6 +169,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A5 — Le relecteur lit l'Objectif et la Validation du `S<k>.md` [vérification]
 
 - Classe A · confiance moyenne · coût : trois lignes.
+- Statut : faite v0.29.0.
 - **Ce que ça change** : `relecteur-session` relit le diff sans connaître l'intention — il attrape
   un crash, pas un livrable qui fait autre chose que demandé. Il reçoit les sections « Objectif »
   et « Validation » de chaque tâche et confronte le diff au critère écrit (la « validation contre
@@ -203,6 +207,8 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 
 - Classe B · confiance moyenne · coût : **un cadrage** (change la grille §2 et le prix par défaut
   d'une réflexion).
+- Statut : écartée — Fable hors workflow, déclenché à la main (décision du mainteneur, 2026-09-12) ;
+  la moitié utile (escalade qui s'arrête à Opus) est faite v0.29.0.
 - **Ce que ça change** : la grille réserve Fable au problème qu'Opus n'a pas résolu, donc à une
   reprise à froid, sans humain, avec un rapport de 40 lignes pour seul contexte. Le guide de terrain
   dit l'inverse : la qualité de Fable est bornée par la capacité de l'humain à clarifier ses
@@ -268,6 +274,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### B6 — Politique sur la mémoire automatique [contexte]
 
 - Classe B · confiance basse · coût : une vérification (`lecteur-doc`).
+- Statut : faite v0.29.0.
 - **Ce que ça change** : Claude Code enregistre désormais seul des souvenirs. La décision du
   2026-08-30 ne couvre que la mémoire des agents. Rien ne dit ce qu'il advient d'un souvenir
   d'état projet qui contredit `STATUS.md`. Une ligne de politique, après vérification de ce qui est
@@ -291,7 +298,8 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
   rien (cache conservé), le compactage réécrit tout. Statut : faite v0.28.0.
 - **C3** Un `model:` en frontmatter de skill invoquée **en cours** de conversation invalide le cache
   pour ce tour, comme un `/model`. Sans effet quand la skill ouvre la session ; coûteux pour
-  `/purge-contexte` lancée après un signal du hook Stop. À noter dans `/choisir-mecanisme`.
+  `/purge-contexte` lancée après un signal du hook Stop. À noter dans `/choisir-mecanisme`. Statut :
+  faite v0.29.0 (`WORKFLOW.md` §3b, `/choisir-mecanisme`).
 - **C4** Explicatif HTML + quiz de fin de plan (guide de terrain) : dans l'esprit de « Écrire pour
   qui décide », à réserver aux plans longs, sur demande.
 - Incidents liés :

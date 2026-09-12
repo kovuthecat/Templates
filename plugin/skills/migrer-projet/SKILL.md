@@ -154,9 +154,10 @@ Ordre imposé : le gain décroît, le risque croît.
    (le hook `SessionStart` vendoré injecte les règles). Garder tout le reste. Ajouter en fin de
    fichier la section `# Compact instructions` de `.claude/workflow/templates/CLAUDE.md` si absente.
 
-5. **`AGENTS.md` racine** — s'il pointe vers un chemin **absolu** (`C:\Users\…`, `/home/…`), le
-   remplacer par `.claude/workflow/AGENTS.md`. Un chemin absolu ne survit ni à une autre machine ni
-   à une session cloud. Conserver intégralement les règles propres au projet qu'il porte.
+5. **`AGENTS.md` racine** — Codex est sorti du workflow (v0.29.0) : il n'y a plus de fichier central
+   à pointer. S'il existe et renvoie vers `.claude/workflow/AGENTS.md` (chemin relatif ou absolu),
+   le signaler dans le rapport final — à supprimer ou à réécrire par l'utilisateur, jamais par cette
+   skill. Conserver intégralement les règles propres au projet qu'il porte.
 
 6. **Skills locales et copies** — supprimer les copies locales de la doc centrale (point 4 du
    diagnostic) et les **jonctions** `~/.claude/skills/<nom>` du workflow, qui masqueraient les
@@ -186,8 +187,9 @@ Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement).
    `permissions.allow` si un settings existait déjà). Rien de spécifique à l'adoption ici : les
    deux voies posent le même socle.
 
-2. **`AGENTS.md`** — créer à la racine un fichier renvoyant à `.claude/workflow/AGENTS.md` par un
-   chemin **relatif**. S'il en existe déjà un, conserver son contenu et n'ajouter que le renvoi.
+2. **`AGENTS.md` racine** — ne plus en créer : Codex est sorti du workflow (v0.29.0). S'il en existe
+   déjà un renvoyant à `.claude/workflow/AGENTS.md`, le signaler dans le rapport final — à supprimer
+   ou à réécrire par l'utilisateur.
 
 3. **`.gitignore`** — y ajouter `.claude/wave.lock` s'il manque (marqueur local, jamais versionné).
 

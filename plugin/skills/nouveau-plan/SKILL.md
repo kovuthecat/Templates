@@ -179,7 +179,7 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
 ```md
 # P<n> · S<k> — <titre>   (rédigé par Opus)
 
-> **Modèle : <Sonnet/Haiku/Codex> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
+> **Modèle : <Sonnet/Haiku> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
 > **Environnement : <indifférent | headless (<motif : effort high/xhigh réellement appliqué | vague fenêtre fermée>)>**
 > **Latitude : <ce que l'exécutant peut ajuster seul, ou aucune>** (optionnel, déclaré par le
 > cadreur session par session ; absent = aucune, tout écart reste un STOP — mesure B3)
@@ -192,6 +192,7 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
 - Date : YYYY-MM-DD · Branche : <ou —>
 
 ## Lire (commun à la session)
+`.claude/workflow/EXECUTANT.md` (toujours en premier), puis :
 <fichiers + portée précise (section / fonction / lignes) — RIEN d'autre>
 
 ## Hors périmètre

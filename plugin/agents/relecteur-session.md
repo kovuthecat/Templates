@@ -23,6 +23,13 @@ l'orchestrateur ne confond plus jamais tours épuisés et revue jamais lancée. 
 diff ne commencent qu'après. À la fin de la revue, réécrire le fichier en entier avec `Couverture :
 complète` et les trouvailles réelles.
 
+## Objectif et Validation, avant le diff
+
+Avant d'ouvrir un diff, lis l'Objectif et la Validation de chaque tâche par un grep borné, jamais
+le fichier entier : `grep -n -A4 '^### Objectif\|^### Validation' plans/P<n>/S<k>.md`. Confronte le
+diff à ces critères : « l'objectif demandait X, le diff fait Y » est un bloquant. Un Objectif mal
+rédigé est pris au pied de la lettre — le défaut remonte au cadrage, pas à toi.
+
 ## Périmètre
 
 Le parent te donne `P<n>`, `S<k>` et le mode. Délimite le diff ainsi :

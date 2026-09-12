@@ -12,11 +12,10 @@ charge qu'au cadrage. Ce fichier reste lisible d'un bout à l'autre sans coûter
 **Opus pense, les autres font.**
 
 - **Opus** (cher) : design, cadrage, écrit les plans.
-- **Fable** (2× Opus, rare) : uniquement les problèmes qu'Opus n'arrive pas à résoudre.
+- **Fable** : hors workflow — lancé à la main par le mainteneur pour un cadrage ou une analyse ;
+  jamais dans une grille, une escalade ou une skill.
 - **Sonnet** : exécute les tâches cadrées de complexité moyenne, juge le code.
 - **Haiku** (rapide) : exécute les tâches cadrées et mécaniques.
-- **Codex** (hors budget Claude) : régression visuelle scriptée via Playwright (`AGENTS.md`) —
-  plus le premier recours depuis que le navigateur in-app couvre le N1 (§6).
 - **Claude Design** (claude.ai, humain aux commandes) : maquette UI au cadrage d'un projet ou d'un
   nouvel écran — entrée = `ARCHITECTURE.md` envoyé tel quel, sortie = `design/maquettes/`. Le
   câblage se fait ensuite sur la maquette, jamais l'inverse.
@@ -28,11 +27,9 @@ Une fois le plan écrit, chaque exécutant lit **UNIQUEMENT** les fichiers list�
 
 | Nature de la tâche | Modèle | Exemples |
 | --- | --- | --- |
-| Problème que même Opus n'a pas résolu (rare, cher) | **Fable** | Bug retors resté sans cause après un passage Opus |
 | Design, bug non localisé, scope flou, transverse, arbitrage produit | **Opus** | Architecture, cadrage neuf, plan multi-tâche |
 | Cadré, jugement de code, localisé, complexité moyenne | **Sonnet** | Bug isolé, refactor limité, feature moyenne, code review |
 | Cadré, mécanique, peu de jugement, petit | **Haiku** | Renommage, purge de contexte, boilerplate, consolidation de fin de plan |
-| Régression visuelle scriptée, rapport JSON | **Codex** | Audit Playwright d'un parcours complet |
 
 **Départage une fois le périmètre clair :**
 
@@ -82,6 +79,31 @@ donc la commande affichée suffit — le rappel devient inutile.
 
 Un effort élevé consomme plus de tokens sur *chaque* tour de la session : le laisser à `xhigh` en
 permanence est le poste de dépense le plus silencieux du workflow.
+
+## 3b. Coût et cache
+
+Faits vérifiés (source : <https://code.claude.com/docs/en/prompt-caching.md>). Un hit de cache
+coûte **0,1×** le prix d'entrée ; TTL 5 min par défaut, 1 h possible. **Invalident le préfixe** :
+`/model`, une skill avec `model:` en frontmatter invoquée en cours de conversation, un changement
+d'effort, l'ajout ou le retrait d'un serveur MCP, `/compact`. `/rewind` **conserve** le préfixe.
+Éditer `CLAUDE.md` en cours de session n'invalide rien — l'édition ne s'applique qu'après `/clear`.
+Deux sessions parallèles du même dossier partagent le cache **si le snapshot git est identique**.
+Un sous-agent **ne lit jamais** le cache de son parent : son premier appel est à froid.
+
+Conséquences pour le workflow :
+
+- Régler modèle **et effort** avant de lancer (§3) est une règle de cache, pas d'hygiène : un
+  changement en cours de session repaie tout le préfixe.
+- `/rewind` pour couper une fausse piste ; `/compact` seulement avant une pause.
+- Une skill avec `model:` en frontmatter invoquée en cours de conversation coûte un préfixe
+  complet — acceptable pour une skill qui ouvre la session (`/orchestrer-plan`), pas pour une
+  skill courte lancée en cours de route (`/purge-contexte`).
+- Chaque sous-agent d'une vague part à froid : le préfixe (règles injectées, descriptions de
+  skills, `CLAUDE.md`) est payé plein tarif **par session**, pas à 1/10 — d'où l'exigence d'un
+  socle commun court.
+- Une vague parallèle lancée d'un bloc après le dernier commit est la seule configuration où des
+  sessions partagent un préfixe : ne rien committer entre deux lancements de la même vague.
+- Éditer `CLAUDE.md` en cours de session ne sert à rien avant `/clear`.
 
 ## 4. Plans
 
@@ -220,7 +242,15 @@ conditionne la suite de la même tâche — une session ne rend la main qu'aprè
 cinquième est le dernier geste de la session : lancé en arrière-plan, son retour n'atteindrait
 aucun tour et la revue ne serait jamais déposée.
 
-Table de délégation détaillée : `CLAUDE-BASE.md` (section « Avant de coder »).
+**`fork`** : légitime quand la tâche a besoin du contexte courant **et** produit du bruit à
+retenir dehors (outils, itérations) — il hérite la conversation et réutilise le cache, seul son
+résultat revient. Jamais pour une session de plan ni une reprise d'échec (il rapatrierait le
+contexte qu'elles existent pour laisser derrière), ni pour une restitution pure sans appel d'outil
+(écrire soi-même coûte moins). Détail : `docs/decisions/2026-08-30-contexte-des-sous-agents.md`.
+
+**Pas de `memory:` sur les cinq agents** : une mémoire d'agent n'est légitime que pour une
+information dont aucun fichier du dépôt n'est déjà la source — commandes (`CLAUDE.md`),
+localisation (`PROJECT_MAP.md`) et état git n'en sont pas.
 
 ## 5b. Sessions & voies d'orchestration
 
@@ -305,8 +335,7 @@ ni VSCode, ni terminal, ni session cloud (`claude.ai/code`, appli mobile). D'où
   checklist** au lieu de vérifier, et rend la main.
 
 Hors navigateur in-app, Claude ne valide **jamais** l'UI autrement : pas de Playwright, pas de
-capture par script. Les audits Playwright restent le rôle de Codex (`AGENTS.md`), pour la
-régression scriptée.
+capture par script.
 
 Protocole complet : skill **`/verif-visuelle`**.
 
@@ -342,16 +371,12 @@ Ces fichiers sont relus à chaque session — leur longueur est un coût récurr
 
 ## 8. Anti-patterns
 
-- Lancer Opus sur une tâche déjà cadrée ; lancer Fable sans passage Opus préalable.
-- Reprendre un échec d'environnement ou de prémisse avec un modèle au-dessus (§9) : le modèle n'y
-  était pour rien, l'escalade paie deux fois le même diagnostic.
+- Lancer Opus sur une tâche déjà cadrée.
+- Reprendre un échec d'environnement ou de prémisse avec un modèle au-dessus (§9a).
 - Conclure `FAIL` sans avoir nommé la nature de l'échec, ou s'entêter au-delà d'une correction sur
-  la même hypothèse (§9).
-- Signaler un incident de workflow en prose dans une conversation, ou dans `TASKS.md` : il ne
-  remonte jamais au dépôt source (§9).
-- **Relancer une 3ᵉ fois la même session en montant l'effort** alors que le modèle est le problème
-  (§3) : sur du multi-étapes, un modèle plus capable coûte souvent moins cher au total qu'une suite
-  d'allers-retours ratés.
+  la même hypothèse (§9a).
+- Signaler un incident de workflow en prose dans une conversation, ou dans `TASKS.md` (§9b).
+- **Relancer une 3ᵉ fois la même session en montant l'effort** alors que le modèle est le problème (§3).
 - Laisser `xhigh` comme effort permanent « au cas où ».
 - Envoyer à Sonnet/Haiku un scope flou ou trop large → dérive.
 - Empiler dans une session des tâches qui ne remplissent pas les critères de regroupement — ou, à

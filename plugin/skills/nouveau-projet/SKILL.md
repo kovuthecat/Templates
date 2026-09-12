@@ -85,25 +85,13 @@ d'écrire le moindre fichier**. Pas de « je considère que c'est validé » imp
    > Les squelettes voyagent **dans le repo** depuis le vendoring : ne jamais aller les chercher
    > dans un checkout du dépôt source (chemin qui n'existe que sur la machine du développeur).
 
-5. Créer `AGENTS.md` à la racine, renvoyant à la copie vendorée :
+5. Ajouter `.claude/wave.lock` au `.gitignore` (marqueur local, jamais versionné).
 
-   ```md
-   Lire et appliquer `.claude/workflow/AGENTS.md` (rôle Codex : régression visuelle scriptée).
-   Commandes du projet : `CLAUDE.md`.
-   ```
-
-   > Chemin **relatif**, jamais absolu : un `C:\Users\…` ne survit ni à une autre machine ni à une
-   > session cloud. Ce fichier appartient au projet — le vendoring ne l'écrase jamais, c'est là que
-   > vont les règles propres (version de framework, contraintes maison). Si l'utilisateur se sert du
-   > runner Playwright partagé, lui rappeler de définir `PLAYWRIGHT_AUDIT_RUNNER`.
-
-6. Ajouter `.claude/wave.lock` au `.gitignore` (marqueur local, jamais versionné).
-
-7. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
+6. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).
-8. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
+7. Supprimer les sections de template non pertinentes pour ce projet précis (une section vide est
    du bruit payé à chaque lecture — ne pas la laisser vide, la retirer).
-9. `git init` (s'il n'a pas eu lieu avant l'amorçage) puis premier commit, staging explicite,
+8. `git init` (s'il n'a pas eu lieu avant l'amorçage) puis premier commit, staging explicite,
    message exact : `chore: instanciation projet depuis Templates`. Le commit inclut `.claude/` —
    c'est ce qui rend le workflow disponible à quiconque clone, dans tous les environnements.
 

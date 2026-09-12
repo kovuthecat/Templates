@@ -128,6 +128,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   restreint au code ; repli `general-purpose` si l'agent manque ; `ListAgents` avant un `FAIL` sans
   verdict ; le filtre de contenu devient une nature d'échec sans reprise →
   [détail](docs/decisions/2026-09-12-revue-deposee-d-abord-et-collecte-patiente.md)
+- 2026-09-12 — **Fable et Codex sortent du workflow ; socle scindé d'un fichier d'exécutant** —
+  Fable hors grille/escalade/skill, lancé à la main ; Codex retiré, `AGENTS.md` central supprimé ;
+  `CLAUDE-BASE.md` dédupliqué à 80 lignes, nouveau `EXECUTANT.md` pour les sessions de plan →
+  [détail](docs/decisions/2026-09-12-fable-et-codex-hors-workflow-socle-et-executant.md)
 
 ---
 

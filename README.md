@@ -14,8 +14,8 @@ défaut, permissions, 4 hooks câblés en chemins relatifs `$CLAUDE_PROJECT_DIR/
 
 ## Vendoré — jamais installé
 
-Le reste de `plugin/` (`skills/`, `agents/`, `hooks/`, `CLAUDE-BASE.md`, `WORKFLOW.md`,
-`CONVENTIONS.md`, `AGENTS.md`, `MIGRATION.md`, `bin/`) est **copié tel quel** sous
+Le reste de `plugin/` (`skills/`, `agents/`, `hooks/`, `CLAUDE-BASE.md`, `EXECUTANT.md`,
+`WORKFLOW.md`, `CONVENTIONS.md`, `MIGRATION.md`, `bin/`) est **copié tel quel** sous
 `.claude/skills/`, `.claude/agents/` et `.claude/workflow/` par `plugin/bin/sync-workflow.mjs`
 (skills `/nouveau-projet`, `/migrer-projet`, `/maj-workflow`) — rien n'est installé à l'exécution,
 tout voyage dans le clone. Un manifeste (`.claude/workflow/manifest.json`) garde un hash par
@@ -121,7 +121,7 @@ projet qui a du code mais n'a jamais été outillé). (`plugin/MIGRATION.md` n'e
 - **Délégation** : les tâches mécaniques (exploration, build/typecheck/tests, résumé de diff,
   lecture de doc externe, relecture d'une session close) passent par les cinq agents du plugin —
   seule leur conclusion remonte dans la conversation principale, jamais les traces brutes
-  (`CLAUDE-BASE.md` §Avant de coder). Tous se lancent **au premier plan** : un agent en
+  (`WORKFLOW.md` §5). Tous se lancent **au premier plan** : un agent en
   arrière-plan dont on rend la main aussitôt rend son verdict à personne.
 
 Workflow modifié ? → une ligne dans `CHANGELOG.md` ; projets existants : `MIGRATION.md`, au fil
