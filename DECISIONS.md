@@ -84,22 +84,17 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   différence de la voie sous-agent de session entière (`WORKFLOW.md` §5b) →
   [détail](docs/decisions/2026-09-04-delegation-au-premier-plan.md)
 - 2026-09-05 — **Une revue a posteriori qui recale l'objectif avant de juger le code** — skill
-  `/revue-de-conception` : constat écrit/code, puis **interview de recalage** avec gate explicite,
-  puis 7 écarts max classés A/B/C/D pondérés par la phase du projet ; sortie `docs/revues/` + mise à
-  jour de `PROJECT_BRIEF.md` si l'objectif a bougé ; sans humain, s'arrête au constat →
+  `/revue-de-conception` : constat écrit/code, **interview de recalage** avec gate explicite, puis
+  7 écarts max pondérés par la phase ; sortie `docs/revues/` + `PROJECT_BRIEF.md` recalé →
   [détail](docs/decisions/2026-09-05-revue-de-conception.md)
 - 2026-09-07 — **La revue de session dépose son fichier elle-même, au premier plan** — agent
-  `relecteur-session` (5e agent du plugin) à la place de `/code-review` en arrière-plan : il écrit
-  `plans/P<n>/S<k>.revue.md` lui-même, **toujours** (`Bloquant : 0` inclus), donc un fichier absent
-  ne veut plus dire que « la revue n'a pas tourné » — signalé par le hook `Stop` et par
-  `/orchestrer-plan`. Un plan entier avait perdu 100 % de ses revues sans que rien ne le montre →
-  [détail](docs/decisions/2026-09-07-revue-orpheline.md)
+  `relecteur-session` au lieu de `/code-review` en arrière-plan : il écrit `S<k>.revue.md` lui-même
+  et **toujours** (`Bloquant : 0` inclus), donc un fichier absent ne peut plus vouloir dire que
+  « la revue n'a rien trouvé » → [détail](docs/decisions/2026-09-07-revue-orpheline.md)
 - 2026-09-09 — **La nature de l'échec décide de la reprise ; les incidents remontent par fichier** —
-  une session nomme `Nature : environnement | exécution | prémisse` avant de conclure (corrige
-  elle-même ce qui est à sa portée) ; la reprise auto suit la nature (même modèle / un cran
-  au-dessus / `ARBITRAGE` direct) ; hook `Stop` muet sous verrou ; revue lancée par l'orchestrateur
-  quand la session n'a pas l'outil ; headless outillé pour écrire ; un incident de workflow = un
-  fichier `docs/workflow/incidents/` commité, ramassé par `bin/collecter-incidents.mjs` →
+  une session nomme `Nature : environnement | exécution | prémisse` avant de conclure et corrige
+  elle-même ce qui est à sa portée ; la reprise suit la nature ; hook `Stop` muet sous verrou ; un
+  incident de workflow = un fichier `docs/workflow/incidents/` commité →
   [détail](docs/decisions/2026-09-09-nature-de-l-echec-et-incidents.md) — amende le 2026-08-30
 - 2026-09-12 — **La revue dépose son fichier d'abord, l'orchestrateur attend ses enfants** — le
   relecteur écrit son `.revue.md` en premier geste (`Couverture : en cours → complète`), périmètre
@@ -124,6 +119,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `verificateur-plan` entre l'écriture et le commit d'un plan ; statut `[x]!` pour une session
   `PASS` dont la revue a trouvé un bloquant ; repères mécaniques ajoutés au §Compactage →
   [détail](docs/decisions/2026-09-13-verifier-ce-qui-se-declare-soi-meme.md)
+- 2026-09-13 — **L'orchestrateur enquête avant de demander** — `ARBITRAGE` scindé en `ENQUETE`
+  (manque d'information → enquête en lecture seule, Étape 5d) et `DECISION` (choix → question à
+  options) ; 7ᵉ agent `verificateur-premisse` ; budget `Tentatives :` — §9c →
+  [détail](docs/decisions/2026-09-13-enqueter-avant-de-demander.md)
 
 ---
 
