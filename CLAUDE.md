@@ -41,12 +41,3 @@ il pointe vers le reste, sans le recopier. Plafond : **200 lignes** — au-delà
 ## Règles spécifiques au projet
 
 > À remplir à l'instanciation.
-
-# Compact instructions
-
-Préserver en priorité : les **décisions prises et leur justification**, les **chemins des fichiers
-modifiés**, les **résultats de validation** N0/N1, et les **tâches du plan restant à faire**.
-Élaguer le reste : exploration, fausses pistes, sorties de commandes, contenus déjà écrits sur
-disque (ils se relisent).
-
-En session `/cadrer`, la question et le critère de fin survivent au compactage, toujours.
