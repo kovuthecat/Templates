@@ -39,9 +39,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `resumeur-git`, `lecteur-doc`) à délégation proactive remplacent l'exécution directe des tâches
   mécaniques dans la conversation principale →
   [détail](docs/decisions/2026-08-22-agents-mecaniques.md)
-- 2026-08-22 — **Enchaînement de sessions** — Pastille `spawn_task` en Desktop et orchestrateur
-  headless `claude -p` pour les vagues sans validation N1, jamais de `/clear` automatique →
-  [détail](docs/decisions/2026-08-22-agents-mecaniques.md)
 - 2026-08-22 — **`VALIDATION.md` = N2 en attente uniquement** — Item tranché = ligne supprimée
   (git reste l'archive), plafond abaissé de 120 à 60 lignes →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
@@ -52,17 +49,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-08-22 — **Rapport capacités archivé et distillé** — Le rapport de capacités Claude Code est
   archivé daté dans `docs/references/` et distillé en skill `/choisir-mecanisme` →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
-- 2026-08-24 — **Hook `SessionStart` de bootstrap dans `project-settings.json`** — Exception au
-  principe « aucun hook dans le settings projet » : une session cloud ne clone jamais la
-  marketplace au démarrage, donc `enabledPlugins` seul n'y active rien →
-  [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md)
-- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** — la colonne `Env.` décide de la
-  voie d'exécution (headless / pastilles), plus du droit d'orchestrer ; `PANNE` distingue une panne
-  d'environnement d'un échec de tâche, que le fail-closed confondait →
-  [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md)
-- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** — `claude plugin install` appelé avec
-  `--yes` (requis hors TTY), `timeout: 90` et garde `command -v claude` →
-  [détail](docs/decisions/2026-08-24-bootstrap-cloud-yes-timeout.md)
 - 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
   `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
   [détail](docs/decisions/2026-08-24-migrer-projet-jamais-outille.md)
@@ -74,10 +60,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   de la pastille `spawn_task` (un clic par session) à l'outil `Agent` en arrière-plan, qui hérite des
   outils navigateur là où `claude -p` n'en a aucun ; la pastille devient un repli hors Desktop →
   [détail](docs/decisions/2026-08-24-orchestration-par-sous-agents.md)
-- 2026-08-25 — **Sous-agent par défaut, headless en exception déclarée (option C)** — le sous-agent
-  devient la voie normale de TOUTES les sessions orchestrées ; `Env. = headless` ne se déclare que pour
-  un effort `high`/`xhigh` à appliquer réellement, ou une vague à lancer fenêtre fermée →
-  [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md)
 - 2026-08-30 — **Un échec de prémisse étend le plan, il ne crée pas le plan suivant** — `/nouveau-plan`
   gagne une Étape 0 (plan neuf vs extension de `P<n>`) ; plafond à deux vagues de remédiation, la
   troisième passe par `/cadrer` → [détail](docs/decisions/2026-08-30-extension-de-plan.md)
@@ -85,10 +67,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   tâche a besoin du contexte courant, interdit pour une session de plan, une reprise d'échec ou une
   restitution pure ; aucune mémoire sur les quatre agents mécaniques →
   [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
-- 2026-08-30 — **Relecture qualité en fin de session** — `/code-review` effort `high` (arrière-plan) sur
-  le diff de chaque session ayant produit du code ; résultats non corrigés → `TASKS.md`, jamais
-  `VALIDATION.md` → [détail](docs/decisions/2026-08-30-branchement-code-review.md) — plomberie
-  amendée le 2026-08-31
 - 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`, une reprise à
   froid automatique (sous-agent frais, un cran au-dessus) ; 2e échec consécutif ou gate `ARBITRAGE` →
   arbitrage humain → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
@@ -141,6 +119,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   utilisateur) ; `SessionStart` compare le modèle courant au plan ; 5ᵉ hook `PostModelSwitch` en
   journal, jamais bloquant ; bloc de passation sans `S<k>.md` ; §3b réécrite, vague lancée en
   décalé → [détail](docs/decisions/2026-09-13-reglages-qui-tiennent-passation-journal-modele.md)
+- 2026-09-13 — **Vérifier ce qui se déclare soi-même** — ligne `Anti-raccourci` dans la Validation
+  d'une tâche (le cadreur nomme le faux-vert, le relecteur le vérifie) ; 6ᵉ agent
+  `verificateur-plan` entre l'écriture et le commit d'un plan ; statut `[x]!` pour une session
+  `PASS` dont la revue a trouvé un bloquant ; repères mécaniques ajoutés au §Compactage →
+  [détail](docs/decisions/2026-09-13-verifier-ce-qui-se-declare-soi-meme.md)
 
 ---
 
@@ -148,3 +131,16 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 > Décisions caduques ou remplacées. Même format, avec ` — remplacée par <date/titre>`.
 > On archive, on ne supprime pas.
+
+- 2026-08-22 — **Enchaînement de sessions** — pastille + orchestrateur headless →
+  [détail](docs/decisions/2026-08-22-agents-mecaniques.md) — remplacée par 2026-09-12 (voie unique)
+- 2026-08-24 — **Hook `SessionStart` de bootstrap** →
+  [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md) — caduque : workflow vendoré
+- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** →
+  [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md) — remplacée par `/orchestrer-plan`
+- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** →
+  [détail](docs/decisions/2026-08-24-bootstrap-cloud-yes-timeout.md) — caduque : workflow vendoré
+- 2026-08-25 — **Sous-agent par défaut, headless en exception déclarée** →
+  [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md) — remplacée par 2026-09-12
+- 2026-08-30 — **Relecture qualité par `/code-review` en arrière-plan** →
+  [détail](docs/decisions/2026-08-30-branchement-code-review.md) — remplacée par 2026-09-07
