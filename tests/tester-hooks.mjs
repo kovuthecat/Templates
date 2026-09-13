@@ -174,6 +174,25 @@ cas('sessionstart-contexte : signale STATUS.md en retard (≥3 commits)', () => 
   return /STATUS\.md a \d+ commit/.test(s) ? null : `signal de retard absent, reçu: ${s || '(vide)'}`;
 });
 
+cas('sessionstart-contexte : muet sur un STATUS.md supprimé, même très en retard', () => {
+  const repo = creerDepot();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'STATUS.md'), 'État\n');
+  git('add', 'STATUS.md');
+  git('commit', '-q', '-m', 'status');
+  git('rm', '-q', 'STATUS.md');
+  git('commit', '-q', '-m', 'retrait de STATUS.md');
+  for (const f of ['a.txt', 'b.txt', 'c.txt']) {
+    writeFileSync(join(repo, f), 'x\n');
+    git('add', f);
+    git('commit', '-q', '-m', f);
+  }
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  // `git log -- STATUS.md` retrouve encore le commit d'origine : c'est le test d'existence sur
+  // disque, et lui seul, qui doit taire un retard que plus rien ne peut résorber.
+  return /STATUS\.md a \d+ commit/.test(s) ? `retard signalé sur un fichier supprimé: ${s}` : null;
+});
+
 cas('sessionstart-contexte : signale .git sous dossier synchronisé sans témoin', () => {
   const repo = creerDepot({ synologyDrive: true });
   const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
