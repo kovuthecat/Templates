@@ -1,5 +1,5 @@
 {
-  "_comment": "Câblage des hooks du plugin workflow — seule source du câblage depuis D-P2-3 (le settings.json d'un projet n'en porte plus). SessionStart (injection CLAUDE-BASE + dérive du contexte) · PreToolUse Bash|PowerShell (garde-fous git) · PostToolUse Edit|Write (formatage prettier conditionnel) · Stop (garde-fou de fin de session). Chemins résolus via ${CLAUDE_PLUGIN_ROOT}, portables (cache local ou cloud).",
+  "_comment": "Câblage des hooks du plugin workflow — seule source du câblage depuis D-P2-3 (le settings.json d'un projet n'en porte plus). SessionStart (injection CLAUDE-BASE + dérive du contexte + modèle contre plan) · PreToolUse Bash|PowerShell (garde-fous git) · PostToolUse Edit|Write (formatage prettier conditionnel) · PostModelSwitch (journal des changements de modèle, jamais bloquant) · Stop (garde-fou de fin de session). Chemins résolus via ${CLAUDE_PLUGIN_ROOT}, portables (cache local ou cloud).",
   "hooks": {
     "SessionStart": [
       {
@@ -32,6 +32,17 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/posttooluse-format.mjs\"",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostModelSwitch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/postmodelswitch-journal.mjs\"",
+            "timeout": 10
           }
         ]
       }

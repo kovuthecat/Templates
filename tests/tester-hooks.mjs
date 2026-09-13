@@ -19,7 +19,7 @@
 // Sortie : une ligne OK/FAIL par cas ; exit 1 si un cas échoue, 0 sinon.
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -186,6 +186,89 @@ cas('sessionstart-contexte : silencieux sur ce point avec le témoin posé', () 
   writeFileSync(join(repo, '.git', 'info', 'synchro-exclue'), '');
   const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
   return s.includes('dossier synchronisé') ? `signal présent malgré le témoin: ${s}` : null;
+});
+
+// Contrôle « modèle courant contre modèle du plan » (v0.31.0). Le plan est lu dans
+// `plans/P<n>/index.md`, seul porteur des statuts — d'où une table complète dans le dépôt jetable.
+function poserPlan(repo, lignes) {
+  mkdirSync(join(repo, 'plans', 'P1'), { recursive: true });
+  writeFileSync(
+    join(repo, 'plans', 'P1', 'index.md'),
+    '# Plan P1 — test\n\n## Sessions\n' +
+      '| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |\n' +
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n' +
+      lignes.join('\n') + '\n',
+  );
+}
+
+cas('sessionstart-contexte : signale un modèle absent des sessions restantes', () => {
+  const repo = creerDepot();
+  poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']);
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  return /lancée en haiku/.test(s) ? null : `signal absent, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : silencieux quand le modèle correspond au plan', () => {
+  const repo = creerDepot();
+  poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']);
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5' });
+  return /lancée en/.test(s) ? `signal présent à tort: ${s}` : null;
+});
+
+cas('sessionstart-contexte : ignore les sessions déjà faites', () => {
+  const repo = creerDepot();
+  poserPlan(repo, [
+    '| [S1](S1.md) | T1 | … | Haiku | low | — | — | `src/` | [x] |',
+    '| [S2](S2.md) | T2 | … | Sonnet | medium | — | — | `src/` | [ ] |',
+  ]);
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  // Haiku ne vaut que pour S1, déjà faite : le signal doit tomber.
+  return /lancée en haiku/.test(s) ? null : `signal absent alors que S1 est faite, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : muet sans plan', () => {
+  const repo = creerDepot();
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  return /lancée en/.test(s) ? `signal présent sans plan: ${s}` : null;
+});
+
+// ── postmodelswitch-journal.mjs ──────────────────────────────────────────────
+cas('postmodelswitch-journal : écrit une ligne JSONL et reste silencieux', () => {
+  const repo = creerDepot();
+  const s = lancerHook('postmodelswitch-journal.mjs', {
+    cwd: repo,
+    session_id: 'test-' + randomUUID(),
+    from_model: 'claude-sonnet-5',
+    to_model: 'claude-opus-5',
+  });
+  if (s !== '') return `attendu vide (jamais bloquant), reçu: ${s}`;
+  const journal = join(repo, '.claude', 'journal-modeles.jsonl');
+  if (!existsSync(journal)) return 'journal non écrit';
+  const ligne = JSON.parse(readFileSync(journal, 'utf8').trim());
+  if (ligne.de !== 'claude-sonnet-5' || ligne.vers !== 'claude-opus-5') {
+    return `contenu inattendu: ${JSON.stringify(ligne)}`;
+  }
+  return null;
+});
+
+cas('postmodelswitch-journal : n’écrit rien sur un changement nul', () => {
+  const repo = creerDepot();
+  lancerHook('postmodelswitch-journal.mjs', {
+    cwd: repo,
+    from_model: 'claude-opus-5',
+    to_model: 'claude-opus-5',
+  });
+  return existsSync(join(repo, '.claude', 'journal-modeles.jsonl'))
+    ? 'journal écrit alors que le modèle n’a pas changé'
+    : null;
+});
+
+cas('postmodelswitch-journal : contrat non tenu (champs absents) → rien, sans erreur', () => {
+  const repo = creerDepot();
+  lancerHook('postmodelswitch-journal.mjs', { cwd: repo });
+  return existsSync(join(repo, '.claude', 'journal-modeles.jsonl'))
+    ? 'journal écrit sans from_model/to_model'
+    : null;
 });
 
 // ── posttooluse-format.mjs ───────────────────────────────────────────────────

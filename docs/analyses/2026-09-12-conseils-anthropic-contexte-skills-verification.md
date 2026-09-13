@@ -369,6 +369,13 @@ Vague 2 : J0, A4, A6, B3, B4 — touchent les gabarits, exigent une publication 
 sur les projets. B1 passe par `/cadrer`, avec les incidents du 2026-09-09 et ce fichier comme
 entrée. B5, B6, B7 attendent leur signal d'entrée.
 
+**Révision du 2026-09-13 (mesure K6 du fichier du 2026-09-13).** Les mesures A2, J0 et le fil
+directeur ci-dessous n'étaient adossés qu'à du jugement ; ils ont maintenant un chiffre publié par
+Anthropic : des prompts écrits pour un modèle antérieur et exécutés sur Opus 5 ont coûté **+36 %
+par tâche sans aucun gain de précision** ; audités, les mêmes prompts coûtaient 14 % de moins **et**
+résolvaient 97 % des cas contre 92 %. Sur la migration Sonnet 4.6 → Sonnet 5, l'audit a retiré 14 %
+à précision constante. A2 et J0 montent donc en priorité effective, sans changer de contenu.
+
 **Le fil directeur.** Les mesures [jugement] forment un ensemble : A2 et J0 retirent aux sessions
 Opus les contraintes écrites pour Haiku ; B3 et B4 donnent aux exécutants l'intention et la
 référence plutôt que la lettre ; B1 et B2 mettent Fable là où son jugement a un interlocuteur.

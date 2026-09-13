@@ -136,6 +136,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   headless retirée (sous-agent seul) ; `tests/tester-hooks.mjs` gate `publier.mjs` ; témoin
   `.git/info/synchro-exclue` signalé par `SessionStart` ; mot `pastille` par session →
   [détail](docs/decisions/2026-09-12-une-seule-voie-d-orchestration-et-hooks-testes.md)
+- 2026-09-13 — **Les réglages du plan tiennent ; la passation s'écrit ; le modèle laisse une trace**
+  — `modelSettings` vendoré (l'effort suit le modèle, et reprend la main sur un `/effort`
+  utilisateur) ; `SessionStart` compare le modèle courant au plan ; 5ᵉ hook `PostModelSwitch` en
+  journal, jamais bloquant ; bloc de passation sans `S<k>.md` ; §3b réécrite, vague lancée en
+  décalé → [détail](docs/decisions/2026-09-13-reglages-qui-tiennent-passation-journal-modele.md)
 
 ---
 
