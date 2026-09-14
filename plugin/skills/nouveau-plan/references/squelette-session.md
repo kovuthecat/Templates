@@ -17,7 +17,7 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
 - Date : YYYY-MM-DD · Branche : <ou —>
 
 ## Lire (commun à la session)
-`.claude/workflow/EXECUTANT.md` (toujours en premier), puis :
+`${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md` (toujours en premier), puis :
 <fichiers + portée précise (section / fonction / lignes) — RIEN d'autre>
 
 ## Hors périmètre

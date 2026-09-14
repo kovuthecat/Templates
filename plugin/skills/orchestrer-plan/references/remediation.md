@@ -47,7 +47,8 @@ Agent({
   description: "P<n>/S<k> prémisse",
   subagent_type: "verificateur-premisse",
   run_in_background: false,
-  prompt: "Vérifie cette affirmation contre le dépôt : « <l'affirmation, telle quelle> ».
+  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+Vérifie cette affirmation contre le dépôt : « <l'affirmation, telle quelle> ».
 Réponse finale en UNE ligne, exactement : PREMISSE: CONFIRMEE|REFUTEE|INDECIDABLE · PREUVE: <une phrase>"
 })
 ```
@@ -74,7 +75,8 @@ Agent({
   subagent_type: "claude",
   model: <selon la table ci-dessus>,
   run_in_background: true,
-  prompt: "Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
+  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
 P<n>). Mode orchestré. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.
 <si prémisse réfutée : « La prémisse du rapport a été vérifiée et RÉFUTÉE : <preuve, telle quelle>.
 Traite la session comme une nature exécution et cherche la cause ailleurs. »>
@@ -118,7 +120,8 @@ Agent({
   model: <modèle de l'index, plancher Sonnet — jamais un cran au-dessus : le levier est
           l'information, pas le modèle>,
   run_in_background: true,
-  prompt: "Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
+  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
 P<n>). Mode enquête : LECTURE SEULE — ne corrige rien, ne committe rien, ne lance pas N0.
 Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree. Une passe.
 Écris le rapport mis à jour avant de répondre, `Tentatives :` comprise.

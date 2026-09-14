@@ -123,7 +123,8 @@ Agent({
   subagent_type: "claude",
   model: <modèle lu dans l'index>,
   run_in_background: true,
-  prompt: "Lis d'abord .claude/workflow/EXECUTANT.md. Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
+  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
 dans l'arbre de travail courant : n'ouvre AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
 Tout appel Agent que tu fais porte run_in_background: false — verificateur-n0 compris — et aucune
@@ -247,7 +248,8 @@ Agent({
   description: "P<n>/S<k> revue",
   subagent_type: "relecteur-session",
   run_in_background: false,
-  prompt: "Relis la session S<k> du plan P<n>, mode orchestré, commits présents (git log --grep
+  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+Relis la session S<k> du plan P<n>, mode orchestré, commits présents (git log --grep
 \"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, puis rends tes deux lignes."
 })
 ```
