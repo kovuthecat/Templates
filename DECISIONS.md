@@ -126,6 +126,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 ---
 
+- 2026-09-14 — **Preuve avant plan** — un problème dont la réponse n'existe qu'à l'exécution ne
+  reçoit plus de plan : 4ᵉ issue de `/cadrer` (protocole de preuve, branche jetable, livrable =
+  résultat mesuré) ; le juge n'est jamais gelé ; une preuve peut dégeler un « tranché » ; le code
+  produit est un candidat → [détail](docs/decisions/2026-09-14-preuve-avant-plan.md)
+
 ## Archives
 
 > Décisions caduques ou remplacées. Même format, avec ` — remplacée par <date/titre>`.
