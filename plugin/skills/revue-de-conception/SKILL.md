@@ -124,6 +124,8 @@ Squelette à adapter au constat — n'en garder que ce que l'Étape 2 a réellem
 Restituer en **dix lignes au plus** : l'objectif recalé, ce qui entre dans le périmètre, ce qui en
 sort, la phase du projet. **Faire valider explicitement.** Pas de « je considère que c'est
 validé » : attendre le oui. C'est cet écrit-là, et pas le brief d'origine, qui mesure la suite.
+Jugement produit (`WORKFLOW.md` §9c) : c'est cette étape qui définit le but, aucune gate ne peut le
+faire à sa place.
 
 ## Étape 4 — Nommer les écarts, mesurés contre l'étalon arrêté
 
