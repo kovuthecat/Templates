@@ -21,10 +21,20 @@ le plan (§9c).
 | résumer un diff/historique | `resumeur-git` |
 | lire une doc externe | `lecteur-doc` |
 
-Les quatre se lancent **au premier plan**, jamais `run_in_background: true` : leur verdict
-conditionne la suite immédiate de la tâche (`WORKFLOW.md` §5). Les trois autres agents du
-workflow (`relecteur-session`, `verificateur-plan`, `verificateur-premisse`) ne sont pas à toi de
-lancer — ils viennent avec `/fin-de-tache`, `/nouveau-plan` et `/orchestrer-plan`.
+**Premier plan ou arrière-plan : une seule condition, jamais deux règles de catégorie.**
+
+> **Au premier plan si quelqu'un attend ce verdict dans le tour courant. En arrière-plan si ce qui
+> attend est une notification, pas une réponse.**
+
+Les quatre se lancent donc **au premier plan**, jamais `run_in_background: true` : ton appel
+conditionne la suite immédiate de la même tâche (`WORKFLOW.md` §5) — c'est le premier cas connu.
+Le second est la session que tu es toi-même : l'orchestrateur t'a lancée en arrière-plan parce que
+ce qui l'attend est une boucle de notification, pas une réponse dans son tour — ça ne change rien à
+ce que tu fais, c'est la même condition vue de l'autre côté. Toute commande détachée obéit à la
+même règle : rien n'attend son achèvement dans ton tour, donc jamais dans ta session — ce qui finit
+après ta réponse finale n'est lu par personne. Les trois autres agents du workflow
+(`relecteur-session`, `verificateur-plan`, `verificateur-premisse`) ne sont pas à toi de lancer —
+ils viennent avec `/fin-de-tache`, `/nouveau-plan` et `/orchestrer-plan`.
 
 ## Interdits
 
@@ -33,8 +43,6 @@ lancer — ils viennent avec `/fin-de-tache`, `/nouveau-plan` et `/orchestrer-pl
 - **Jamais de `fork`** : il rapatrierait le contexte qu'une session de plan existe pour laisser
   derrière.
 - **Jamais de worktree.**
-- **Jamais d'arrière-plan** — ni `Agent` en `run_in_background`, ni commande détachée : ce qui finit
-  après ta réponse finale n'est lu par personne.
 
 ## Fin de tâche
 

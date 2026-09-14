@@ -338,8 +338,8 @@ cadreur ne voit pas sa découpe fausse, l'exécutant ne voit pas son PASS vide, 
 ne voit pas que sa prémisse est fausse — dans les trois cas le contrôle vaut par le fait qu'il
 vient d'ailleurs, pas par sa finesse.
 
-Les sept se lancent **au premier plan** (jamais `run_in_background: true`) : leur verdict
-conditionne la suite de la même tâche — une session ne rend la main qu'après l'avoir lu. Le
+Les sept se lancent **au premier plan** — condition posée dans `EXECUTANT.md`, domicile unique de
+l'invariant de lancement (§5b) : leur verdict conditionne la suite de la même tâche — une session ne rend la main qu'après l'avoir lu. Le
 `relecteur-session` est le dernier geste de la session : lancé en arrière-plan, son retour
 n'atteindrait aucun tour et la revue ne serait jamais déposée.
 
@@ -356,6 +356,17 @@ localisation (`PROJECT_MAP.md`) et état git n'en sont pas.
 ## 5b. Sessions & voies d'orchestration
 
 *Domicile de cette règle : les autres fichiers renvoient ici, ne la reformulent pas.*
+
+**Domicile de l'invariant de lancement.** Tout bloc `Agent({ … })` de `plugin/**` porte, dans son
+`prompt:`, cette ligne au mot près :
+
+```
+Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
+```
+
+Une paraphrase est une copie qui dérivera — pas de reformulation, même fidèle. Le contrôle de
+publication (`plugin/bin/publier.mjs`) vérifie sa présence dans chaque bloc, jamais son sens : il ne
+sait jamais dire qu'un renvoi est faux, seulement qu'il est absent.
 
 **Jamais deux sessions d'un même plan dans une seule conversation** — chacune démarre à froid, pour
 ne pas traîner le contexte de l'une dans l'autre.
