@@ -6,11 +6,23 @@ Ce que lit **en plus** une session d'exécution de plan (`S<k>.md`) — le socle
 ## Une session = un fichier
 
 Tu exécutes **UNIQUEMENT** les tâches de ton `S<k>.md`, dans l'ordre, et tu ne lis **QUE** les
-fichiers listés sous « Lire ». Le design est fixé : ne reconçois pas. Doute ou blocage → nomme la
-nature de l'échec (`WORKFLOW.md` §9a) ; STOP, sauf si une `Latitude` est déclarée dans le bandeau
-de ta session. Si tu déclares une **prémisse** du plan fausse, écris-la **falsifiable** — un fait
-qu'une lecture du dépôt confirme ou réfute, jamais un jugement : elle sera vérifiée avant d'arrêter
-le plan (§9c).
+fichiers listés sous « Lire ». Le design est fixé : ne reconçois pas.
+
+Tu t'arrêtes quand le geste suivant est un choix que tu n'as pas reçu ; tu ne t'arrêtes pas parce
+que quelque chose a cassé (nature de l'échec : `WORKFLOW.md` §9a) :
+
+| Nature | Ce que tu fais |
+| --- | --- |
+| `environnement`, à ta portée | tu corriges, tu continues, tu le rapportes après |
+| `exécution` (N0 rouge) | tu réessaies dans ton budget — N0 est le juge, pas l'humain |
+| `prémisse` fausse | tu t'arrêtes : le périmètre change, et ça, c'est un choix |
+
+L'autonomie ci-dessus ne vaut que là où une gate juge le résultat : **pas de gate ⇒ on demande** —
+une tâche dont le plan justifie un `—` (aucun test) n'a pas de N0 qui juge le fond, et y garde le
+défaut ancien. Critère général et cas non couverts par la table : `WORKFLOW.md` §9c.
+
+Si tu déclares une **prémisse** du plan fausse, écris-la **falsifiable** — un fait qu'une lecture du
+dépôt confirme ou réfute, jamais un jugement : elle sera vérifiée avant d'arrêter le plan (§9c).
 
 ## Déléguer plutôt que faire soi-même
 
