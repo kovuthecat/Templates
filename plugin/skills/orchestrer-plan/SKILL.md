@@ -28,11 +28,12 @@ dynamique qui recalculerait un lot prêt à partir des dépendances.
 - **Ne jamais corriger soi-même, ni reprendre la conversation d'une session en échec.** Une session
   qui échoue rend la main ; l'orchestrateur ne touche ni au code ni au rapport de passation. Ce
   qu'il a le droit de lancer après un `FAIL` : la **vérification de prémisse** et la **reprise** de
-  l'Étape 5c, puis l'**enquête** de l'Étape 5d — chacune à froid, dans une session dédiée qui
-  travaille *chez elle*, chacune bornée par le budget de la session (`Tentatives :`). Jamais un
-  `SendMessage` ou un `fork` vers l'agent en échec. Ce qu'il lance après un `PASS` : la **revue de
-  session** qui manque (Étape 5) — le relecteur écrit son fichier, l'orchestrateur n'en lit que
-  deux lignes.
+  l'Étape 5c, puis l'**enquête** de l'Étape 5d — chacune bornée par le budget de la session
+  (`Tentatives :`). Jamais un `fork` vers l'agent en échec — interdit sans condition. `SendMessage`
+  vers l'agent en échec n'est permis que sous les trois conditions du canal court
+  (`remediation.md`, Étape 5c) ; hors de ces conditions, il reste interdit et la reprise est à
+  froid. Ce qu'il lance après un `PASS` : la **revue de session** qui manque (Étape 5) — le
+  relecteur écrit son fichier, l'orchestrateur n'en lit que deux lignes.
 - **Ne jamais rendre la main sur un manque d'information.** Un plan ne s'arrête que sur une
   **décision** qui appartient à l'utilisateur, et elle se pose alors en **question à options**
   (`WORKFLOW.md` §9c, Étape 6). Ce qui manque se cherche : c'est le rôle de l'Étape 5d. Rendre la
@@ -181,8 +182,9 @@ sur ce mode d'échec (2026-09-11) : 40 minutes après le `FAIL`, l'agent avait f
 **Un retour marqué `partial` n'est jamais un `PASS`.** Depuis 2.1.246, un sous-agent qui épuise son
 `maxTurns` rend ce qu'il a en le marquant partiel, au lieu d'avoir l'air d'avoir fini — c'est
 exactement le faux vert que le recoupement par les commits existe pour attraper, et il vaut mieux le
-lire directement. Le traiter comme un `FAIL`, motif « tours épuisés », et **ne pas le reprendre par
-`SendMessage`** : continuer l'agent rapatrierait ses fausses pistes, alors que la réparation passe
+lire directement. Le traiter comme un `FAIL`, motif « tours épuisés » : la troisième condition du
+canal court (`WORKFLOW.md` §9c) ne tient pas dans ce cas précis — un agent à bout de tours a
+accumulé des fausses pistes, et continuer par `SendMessage` les rapatrierait. La réparation passe
 par le rapport de passation et un démarrage à froid (`/reprendre-echec`).
 
 **Recoupement obligatoire par les commits avant de conclure `FAIL`** (§4b) —

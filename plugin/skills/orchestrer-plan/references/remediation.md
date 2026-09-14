@@ -14,11 +14,12 @@ suivante. Une session à la fois, dans l'ordre de l'index, **jamais en parallèl
 partagé et la vague est déjà close. Rapport `S<k>.echec.md` absent (session tuée avant de
 l'écrire) : lancer quand même, `/reprendre-echec` couvre ce cas.
 
-**Deux greps, rien d'autre** (`WORKFLOW.md` §9a et §9c, domiciles) :
+**Trois greps, rien d'autre** (`WORKFLOW.md` §9a et §9c, domiciles) :
 
 ```
 grep -m1 '^Nature :'     plans/P<n>/S<k>.echec.md    # absent → exécution
 grep -m1 '^Tentatives :' plans/P<n>/S<k>.echec.md    # absent → reprise=0 enquete=0
+grep -m1 '^Blocage :'    plans/P<n>/S<k>.echec.md    # absent → démarrage à froid
 ```
 
 **Budget** (§9c) : par session **2 reprises et 1 enquête** ; par plan **2 enquêtes** au total,
@@ -67,7 +68,36 @@ rôle… ». Trois issues :
 - **`INDECIDABLE`** → `DECISION`, motif « prémisse invérifiable par lecture : <l'affirmation> » —
   ni enquête ni reprise, c'est exactement ce qu'un humain tranche.
 
-### Lancer la reprise
+### Le test des trois conditions (canal court)
+
+Avant de lancer quoi que ce soit, tester si le canal court s'applique — les trois conditions sont
+un domicile unique, `WORKFLOW.md` §9c, appliquées ici sans être recopiées :
+
+1. **`ListAgents`** — la session en échec y apparaît (reprenable).
+2. **Lancer un `verificateur-n0`**, au premier plan, sur le périmètre de la session — vert.
+3. **Les deux greps déjà faits** : `Tentatives : reprise=0`, et `Blocage :` nomme un geste (pas une
+   hypothèse — une hypothèse va dans « Hypothèse en cours » du rapport et disqualifie le canal
+   court).
+
+Les trois tiennent → **canal court**, bloc `SendMessage` ci-dessous. Une seule manque → **démarrage
+à froid**, bloc `Agent({` plus loin, inchangé.
+
+### Lancer par `SendMessage` (canal court)
+
+```
+SendMessage({
+  to: <l'agent de la session S<k>, depuis ListAgents>,
+  message: "Reprends : <le geste de `Blocage :`, tel quel>. Réponse finale en UNE ligne, exactement :
+VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
+})
+```
+
+Une ligne, adressée à l'agent, qui nomme le geste — la collecte ne change pas (mêmes quatre issues
+que la reprise à froid, ci-dessous). Ce qui borne : `SendMessage` consomme une `reprise` du budget
+comme n'importe quelle reprise ; un `SendMessage` qui échoue **ne se retente pas** — la reprise
+suivante est un démarrage à froid, et plus jamais un `SendMessage` sur cette session.
+
+### Lancer la reprise (démarrage à froid)
 
 ```
 Agent({
@@ -85,8 +115,10 @@ Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|ENQUETE|DECISION �
 })
 ```
 
-`fork` interdit, `SendMessage` vers l'agent en échec interdit — le démarrage à froid est le point
-de la reprise. Ne jamais recopier le contenu du `.echec.md` dans le prompt, ne jamais l'ouvrir ici.
+`fork` reste interdit sans condition. `SendMessage` vers l'agent en échec n'est permis que sous les
+trois conditions ci-dessus (canal court) ; hors de ces conditions, il reste interdit — le démarrage
+à froid est le point de cette reprise. Ne jamais recopier le contenu du `.echec.md` dans le prompt,
+ne jamais l'ouvrir ici.
 
 **Collecte** : mêmes règles que l'Étape 4 — ligne de verdict seule, `partial` = `FAIL`, recoupement
 par les commits avant de conclure `FAIL`. Quatre issues :
