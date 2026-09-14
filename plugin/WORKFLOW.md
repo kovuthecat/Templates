@@ -520,7 +520,8 @@ l'échec, parce que c'est elle — pas le modèle en place — qui décide de ce
 Un échec par **filtre de contenu** (sortie bloquée par la politique du modèle) est une nature à
 part, ni environnement ni exécution : il ne se reprend jamais à mécanique d'écriture identique.
 Table complète : annexe `references/remediation.md` de `/orchestrer-plan` (Étape 5c). **Ce qui suit un `FAIL` — reprise, enquête ou question à
-l'utilisateur — est en §9c** ; la nature ne décide que du premier geste.
+l'utilisateur — est en §9c** ; la nature ne décide pas que du premier geste, elle décide aussi du
+**canal** de la reprise — les trois conditions qui autorisent le canal court sont en §9c, pas ici.
 
 **Deux cas ressemblent à un blocage de périmètre et n'en sont pas.**
 
@@ -621,11 +622,32 @@ une attente pour un geste déterministe. À l'inverse, un orchestrateur qui *dé
 l'utilisateur — étendre un plan, annuler une migration, élargir une permission — dépasse son rôle :
 il lance et collecte, il n'arbitre pas.
 
+**Le canal de reprise, sous trois conditions observables.** Le discriminant n'est pas « l'agent se
+déclare bloqué » — une session remplit ses champs sur ce qu'elle *croit*, c'est pour ça que
+`prémisse` est déjà le seul champ qu'un tiers vérifie. L'orchestrateur reprend par `SendMessage`
+**si et seulement si** les trois conditions suivantes tiennent, **toutes observables de
+l'extérieur, sans ouvrir le contexte de l'agent** :
+
+1. **L'agent est reprenable** — il apparaît dans `ListAgents`. Absent, le reprendre *est* un
+   démarrage à froid, sans le bénéfice.
+2. **N0 est vert sur son périmètre** — constaté par un `verificateur-n0` que l'**orchestrateur**
+   lance lui-même, jamais par la déclaration de la session. C'est la gate qui autorise le canal
+   court.
+3. **Aucune fausse piste accumulée** — `Tentatives : reprise=0`, et `Blocage :` nomme un **geste**
+   (un commit à prendre, un statut à poser, un fichier à écrire), pas une hypothèse à tester.
+
+Une seule condition qui manque → démarrage à froid ; il n'y a pas de cas limite à juger. Ce qui
+reste vrai là où c'était vrai : un agent à bout de tours, une hypothèse fausse, un retour `partial`
+→ démarrage à froid, motif inchangé — continuer l'agent rapatrierait ses fausses pistes.
+
 **Le budget est ce qui rend l'autonomie sûre.** Par session : 2 reprises, 1 enquête. Par plan :
 2 enquêtes. Il vit dans une ligne mécanique du rapport d'échec — `Tentatives : reprise=<n>
 enquete=<n>`, gabarit dans `/reprendre-echec` —, donc il survit à une orchestration interrompue
 puis relancée, ce qu'un compte tenu en contexte ne ferait pas. Budget épuisé → question, sans rien
 relancer. Sans ce plafond, « chercher au lieu de demander » devient l'anti-pattern de §3.
+`SendMessage` consomme une `reprise` du budget comme n'importe quelle reprise ; un `SendMessage`
+qui échoue **ne se retente pas** — la reprise suivante est un démarrage à froid, et plus jamais un
+`SendMessage` sur cette session.
 
 **La forme n'est pas cosmétique.** Un arrêt se pose en **question** : une phrase, 2 à 4 options
 avec leur coût et ce que chacune débloque, une recommandation, et ce qui reste lançable sans
