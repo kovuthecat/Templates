@@ -213,10 +213,11 @@ Un démarrage à froid complet pour P34/S6 : tâche finie, vérifiée verte, un 
 
 ## (c) « Demander quand il y a un choix, agir quand il y a une gate » appliqué aux points d'arrêt
 
-Le workflow compte **60 points d'arrêt**. Relus au critère : 34 sont justes tels quels (arbitrage
-produit, irréversible, changement de périmètre), 12 sont déjà des gates qui n'appellent aucun
-humain, 13 sont à reprendre. Le critère ne produit donc pas une réécriture générale — il produit
-trois gestes précis.
+Le workflow compte **60 points d'arrêt** — table complète, fichier par fichier, en annexe :
+[2026-09-14-inventaire-points-arret.md](2026-09-14-inventaire-points-arret.md). Relus au critère :
+34 sont justes tels quels (arbitrage produit, irréversible, changement de périmètre), 12 sont déjà
+des gates qui n'appellent aucun humain, 13 sont à reprendre. Le critère ne produit donc pas une
+réécriture générale — il produit trois gestes précis.
 
 ### 1. Un mot par chose : `gate`, `question`, `contrainte d'outillage`
 
@@ -319,6 +320,8 @@ Périmètre attendu : `plugin/EXECUTANT.md`, `plugin/WORKFLOW.md` (§9a, §9c, e
 l'invariant de lancement), `plugin/skills/orchestrer-plan/SKILL.md` + `references/remediation.md`
 (3 blocs `prompt:`), `plugin/skills/nouveau-plan/references/squelette-session.md`,
 `plugin/skills/reprendre-echec/SKILL.md` (ligne `Blocage :`), `plugin/bin/publier.mjs` + `tests/`.
+Pour le seul changement de fond de (c) — le STOP générique de l'exécutant — les points d'entrée
+précis sont les lignes #11, #21, #22, #23 de l'annexe des points d'arrêt.
 
 Reste au backlog, hors de ce chantier :
 
