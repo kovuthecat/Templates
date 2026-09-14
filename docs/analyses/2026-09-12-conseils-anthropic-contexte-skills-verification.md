@@ -158,6 +158,12 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
 ### A4 — `references/` pour les quatre skills longues [contexte]
 
 - Classe A · confiance moyenne · coût : une session par skill.
+- Statut : **faite à moitié, v0.35.0** — `orchestrer-plan` (493 → 362, Étapes 5c/5d en annexe, lues
+  seulement sur un `FAIL`) et `nouveau-plan` (341 → 240, les deux squelettes). Restent
+  `migrer-projet` (275) et `reprendre-echec` (262). Ligne de coupe retenue, à reprendre telle
+  quelle : **le corps garde ce qui se décide, l'annexe ne porte que ce qui se tape.**
+  `sync-workflow.mjs` copiait déjà les sous-dossiers — aucune modification nécessaire.
+  **Le risque nommé n'est pas levé** : il se vérifie sur une vraie vague avec un `FAIL`.
 - **Ce que ça change** : troisième niveau de divulgation, absent du plugin. Candidats : bloc
   headless et Étape 5c de `orchestrer-plan` ; squelettes `index.md`/`S<k>.md` de `nouveau-plan` ;
   voies 1 et 2 de `migrer-projet` ; gabarit de rapport de `reprendre-echec`. Le corps garde la
