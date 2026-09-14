@@ -131,6 +131,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   résultat mesuré) ; le juge n'est jamais gelé ; une preuve peut dégeler un « tranché » ; le code
   produit est un candidat → [détail](docs/decisions/2026-09-14-preuve-avant-plan.md)
 
+- 2026-09-14 — **Deux régimes de travail, et une frontière humaine écrite** — régime fixé pour le
+  travail spécifiable, régime ouvert pour la recherche (branche jetable, budget, N0 final, livrable =
+  preuve) ; et « demander quand il y a un choix, agir quand il y a une gate » →
+  [détail](docs/decisions/2026-09-14-deux-regimes-et-frontiere-humaine.md)
+
 ## Archives
 
 > Décisions caduques ou remplacées. Même format, avec ` — remplacée par <date/titre>`.

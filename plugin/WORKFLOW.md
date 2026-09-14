@@ -23,6 +23,39 @@ charge qu'au cadrage. Ce fichier reste lisible d'un bout à l'autre sans coûter
 Une fois le plan écrit, chaque exécutant lit **UNIQUEMENT** les fichiers listés dans sa session
 (`S<k>.md`) et ne reconçoit pas — le design est fixé.
 
+### Deux régimes, tous deux normaux
+
+Le principe ci-dessus vaut pour le travail **spécifiable** — celui dont on peut énoncer le
+résultat attendu avant de l'obtenir. Ce n'est pas tout le travail.
+
+| Régime | Quand | Ce qui borne | Livrable |
+| --- | --- | --- | --- |
+| **fixé** | le résultat s'énonce avant de l'obtenir | le périmètre d'écriture fermé | des commits sous gate N0 |
+| **ouvert** | la réponse n'existe qu'à l'exécution | une branche jetable, un budget, N0 à la fin | une **preuve mesurée** |
+
+Le régime ouvert n'est pas une exception tolérée : c'est le bon régime pour un problème de
+recherche, et l'employer tôt coûte moins que cinq plans fermés qui meurent chacun sur une prémisse
+(décision du 2026-09-14). L'aiguillage se fait au cadrage, jamais en session — `/cadrer` sort par
+un protocole de preuve, `/nouveau-plan` Étape 0 détecte la répétition qui le réclame.
+
+### Quand solliciter un humain
+
+**Demander quand il y a un choix, agir quand il y a une gate.**
+
+On sollicite un humain **uniquement** pour ce qui est irréversible, et pour un jugement esthétique
+ou produit (N2). Tout ce qu'une gate sait juger — N0 au premier chef — se fait **sans demander**,
+et se rapporte après : le geste, pourquoi, et ce qu'il a changé.
+
+Le critère est mécanique. Si l'agent sait nommer le remède, que le remède est réversible et que
+son effet est jugé par une gate, demander n'est pas un contrôle, c'est de la latence — un plan a
+payé trois arrêts et trois arbitrages pour faire valider un remède que la session avait déjà écrit
+(2026-09-13). À l'inverse, un arbitrage entre deux conceptions possibles se demande toujours,
+même s'il retarde.
+
+Ce qui remplace l'autorisation préalable, c'est la **lisibilité après coup** : une décision prise
+seule s'écrit, reste réversible, et se rapporte par ses conséquences — ce qui devient possible, ce
+qui casse, ce qu'il faudra maintenir (décision du 2026-08-30, « écrire pour qui décide »).
+
 ## 2. Choix du modèle
 
 | Nature de la tâche | Modèle | Exemples |
