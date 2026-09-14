@@ -123,14 +123,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   (manque d'information → enquête en lecture seule, Étape 5d) et `DECISION` (choix → question à
   options) ; 7ᵉ agent `verificateur-premisse` ; budget `Tentatives :` — §9c →
   [détail](docs/decisions/2026-09-13-enqueter-avant-de-demander.md)
-
----
-
 - 2026-09-14 — **Preuve avant plan** — un problème dont la réponse n'existe qu'à l'exécution ne
   reçoit plus de plan : 4ᵉ issue de `/cadrer` (protocole de preuve, branche jetable, livrable =
   résultat mesuré) ; le juge n'est jamais gelé ; une preuve peut dégeler un « tranché » ; le code
   produit est un candidat → [détail](docs/decisions/2026-09-14-preuve-avant-plan.md)
-
 - 2026-09-14 — **Deux régimes de travail, et une frontière humaine écrite** — régime fixé pour le
   travail spécifiable, régime ouvert pour la recherche (branche jetable, budget, N0 final, livrable =
   preuve) ; et « demander quand il y a un choix, agir quand il y a une gate » →
@@ -138,18 +134,5 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 ## Archives
 
-> Décisions caduques ou remplacées. Même format, avec ` — remplacée par <date/titre>`.
-> On archive, on ne supprime pas.
-
-- 2026-08-22 — **Enchaînement de sessions** — pastille + orchestrateur headless →
-  [détail](docs/decisions/2026-08-22-agents-mecaniques.md) — remplacée par 2026-09-12 (voie unique)
-- 2026-08-24 — **Hook `SessionStart` de bootstrap** →
-  [détail](docs/decisions/2026-08-24-sessionstart-bootstrap-hook.md) — caduque : workflow vendoré
-- 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** →
-  [détail](docs/decisions/2026-08-24-executer-vague-deux-voies.md) — remplacée par `/orchestrer-plan`
-- 2026-08-24 — **Bootstrap cloud : `--yes` et timeout** →
-  [détail](docs/decisions/2026-08-24-bootstrap-cloud-yes-timeout.md) — caduque : workflow vendoré
-- 2026-08-25 — **Sous-agent par défaut, headless en exception déclarée** →
-  [détail](docs/decisions/2026-08-25-cadrage-voie-unique-orchestration.md) — remplacée par 2026-09-12
-- 2026-08-30 — **Relecture qualité par `/code-review` en arrière-plan** →
-  [détail](docs/decisions/2026-08-30-branchement-code-review.md) — remplacée par 2026-09-07
+> Décisions caduques ou remplacées : sorties du registre pour ne plus peser à chaque cadrage.
+> On archive, on ne supprime pas → [docs/decisions/archives.md](docs/decisions/archives.md)
