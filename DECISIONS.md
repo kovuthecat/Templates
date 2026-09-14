@@ -131,6 +131,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   travail spécifiable, régime ouvert pour la recherche (branche jetable, budget, N0 final, livrable =
   preuve) ; et « demander quand il y a un choix, agir quand il y a une gate » →
   [détail](docs/decisions/2026-09-14-deux-regimes-et-frontiere-humaine.md)
+- 2026-09-14 — **Un domicile par invariant, et des conditions nommées** — un invariant se range par
+  destinataire (`EXECUTANT.md` / `WORKFLOW.md`), un gabarit y renvoie par une ligne fixe vérifiée par
+  `publier.mjs` ; le canal de reprise suit la nature (bloqué → `SendMessage`, trompé → à froid, ligne
+  `Blocage :`) ; un exécutant s'arrête sur un choix, pas sur une casse — `gate` / `question` /
+  `contrainte d'outillage` cessent de s'écrire `STOP` →
+  [détail](docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md)
 
 ## Archives
 
