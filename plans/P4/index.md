@@ -19,8 +19,8 @@ qui porte les 60 points d'arrêt, leur `fichier:ligne` et leur classement.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1-T2 | (a) La chaîne exacte, son domicile, les 5 blocs | Sonnet | **high** | headless | — | `plugin/WORKFLOW.md`, `plugin/EXECUTANT.md`, `plugin/skills/orchestrer-plan/`, `plugin/skills/nouveau-plan/references/squelette-session.md` | [x]! 2026-09-14 |
-| [S2](S2.md) | T3-T4 | (a) Le contrôle de publication | Sonnet | medium | — | S1 | `tests/tester-renvois.mjs` (nouveau), `plugin/bin/publier.mjs` | [ ] |
-| [S3](S3.md) | T5-T7 | (b) Le canal de reprise suit la nature | Sonnet | medium | — | S1 | `plugin/WORKFLOW.md` (§9a, §9c), `plugin/skills/reprendre-echec/`, `plugin/skills/orchestrer-plan/` | [ ] |
+| [S2](S2.md) | T3-T4 | (a) Le contrôle de publication | Sonnet | medium | — | S1 | `tests/tester-renvois.mjs` (nouveau), `plugin/bin/publier.mjs` | [x] 2026-09-14 |
+| [S3](S3.md) | T5-T7 | (b) Le canal de reprise suit la nature | Sonnet | medium | — | S1 | `plugin/WORKFLOW.md` (§9a, §9c), `plugin/skills/reprendre-echec/`, `plugin/skills/orchestrer-plan/` | [x] 2026-09-14 |
 | [S4](S4.md) | T8-T9 | (c) Le STOP générique de l'exécutant | Sonnet | medium | — | S3 | `plugin/EXECUTANT.md`, `plugin/WORKFLOW.md`, `plugin/skills/nouveau-plan/references/squelette-session.md` | [ ] |
 | [S5](S5.md) | T10-T12 | (c) Un mot par chose, dans les skills | Sonnet | medium | — | S2 | `plugin/skills/{fin-de-tache,verif-visuelle,migrer-projet,revue-de-conception,cadrer,nouveau-projet,orchestrer-plan}/SKILL.md`, `plugin/agents/verificateur-n0.md` | [ ] |
 | [S6](S6.md) | T13-T14 | Clôture : version, CHANGELOG, publication | Haiku | low | — | S4, S5 | `plugin/.claude-plugin/plugin.json`, `CHANGELOG.md`, `plans/P4/index.md` | [ ] |
