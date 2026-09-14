@@ -14,7 +14,7 @@ que quelque chose a cassé (nature de l'échec : `WORKFLOW.md` §9a) :
 | Nature | Ce que tu fais |
 | --- | --- |
 | `environnement`, à ta portée | tu corriges, tu continues, tu le rapportes après |
-| `exécution` (N0 rouge) | tu réessaies dans ton budget — N0 est le juge, pas l'humain |
+| `exécution` (N0 rouge) | tu as droit à **une** correction sur l'hypothèse principale (`WORKFLOW.md` §9a) — N0 est le juge, pas l'humain ; encore rouge → `FAIL` |
 | `prémisse` fausse | tu t'arrêtes : le périmètre change, et ça, c'est un choix |
 
 L'autonomie ci-dessus ne vaut que là où une gate juge le résultat : **pas de gate ⇒ on demande** —
