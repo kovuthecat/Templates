@@ -24,7 +24,8 @@ un `S<k>.md` ni dans `TASKS.md`.
    y compris quand la tâche n'a produit aucun fichier durable (session de vérification, de mesure,
    d'audit) : c'est alors le livrable lui-même, la conversation qui l'a produit disparaît. **Écarts
    au plan** : rubrique en plus, **uniquement si le bandeau du `S<k>.md` a déclaré une `Latitude`** —
-   sinon la ligne est absente et tout écart reste un STOP (mesure B3).
+   sinon la ligne est absente et l'écart suit la condition d'arrêt d'`EXECUTANT.md`, section « Une
+   session = un fichier » (mesure B3).
 4. **Commit de la tâche** — sauf si `.claude/wave.lock` est présent (§4b). Staging explicite des
    fichiers de la tâche **et du `S<k>.md`**, message prévu dans le `T<n>`, repère de tâche en
    dernière ligne :
@@ -198,10 +199,12 @@ hors Desktop) :
   « Ouvre plans/P<n>/S<k>.md et exécute-le. » — ou, hors Desktop, afficher la commande de lancement
   du bandeau du `S<k>.md` suivant. Jamais dans la même conversation : démarrage froid systématique
   (§5b).
-- **Avec la pastille, la ligne « À régler AVANT de lancer »** (`WORKFLOW.md` §3, domicile) : modèle
-  et effort de la session suivante, lus dans l'`index.md`. Une pastille démarre sur les réglages
-  courants de l'application — sans ce rappel, une session `Sonnet`/`high` part au hasard de ce qui
-  était réglé la veille, et personne ne s'en aperçoit avant le résultat.
+- **Avec la pastille, la ligne « À régler AVANT de lancer »** (`WORKFLOW.md` §3, domicile) —
+  **contrainte d'outillage** (`WORKFLOW.md` §9c), pas un point d'arrêt de conception : modèle et
+  effort de la session suivante, lus dans l'`index.md`. Ce qui la lèverait : un lancement qui pose
+  l'effort lui-même. Une pastille démarre sur les réglages courants de l'application — sans ce
+  rappel, une session `Sonnet`/`high` part au hasard de ce qui était réglé la veille, et personne ne
+  s'en aperçoit avant le résultat.
 - **Si cette session était la dernière `[ ]` de sa vague**, poser en plus une pastille de collecte —
   titre `P<n> — collecter la vague <w>`, prompt « Déroule /orchestrer-plan sur la vague <w> du plan
   P<n> : collecte et vague suivante. »

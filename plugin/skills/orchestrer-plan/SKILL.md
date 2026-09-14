@@ -160,10 +160,12 @@ se lance par le repli pastille ci-dessous, **même en Desktop** — le cadreur (
 décidé pour un N1 structurant de cette session précise. Le reste de la vague continue en sous-agent ;
 seule cette session-là part en pastille.
 
-**Repli pastille**, hors Claude Code Desktop (aucun navigateur à transmettre, ni pour un sous-agent
-ni pour cette conversation) ou sur une session marquée `pastille` : une pastille `spawn_task` par
-session, « Démarrer localement » — jamais le worktree proposé par défaut — puis rendre la main : la
-vague ne finit plus dans ce tour. C'est un humain qui lance : titrer la pastille
+**Repli pastille** — **contrainte d'outillage** (`WORKFLOW.md` §9c, pas un point d'arrêt de
+conception ; ce qui la lèverait : un harnais qui démarre une session froide hors Desktop), hors
+Claude Code Desktop (aucun navigateur à transmettre, ni pour un sous-agent ni pour cette
+conversation) ou sur une session marquée `pastille` : une pastille `spawn_task` par session,
+« Démarrer localement » — jamais le worktree proposé par défaut — puis rendre la main : la vague ne
+finit plus dans ce tour. C'est un humain qui lance : titrer la pastille
 `P<n> · S<k> — <titre> · <M>/<E>` et sortir la ligne « À régler AVANT de lancer » de chaque session
 (`WORKFLOW.md` §3) — la pastille hérite des réglages courants, elle ne pose ni le modèle ni l'effort
 du plan.
