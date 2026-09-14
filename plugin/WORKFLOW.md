@@ -301,8 +301,9 @@ aucune autre machine : ni le poste voisin, ni une session cloud, ni le mobile.
 seul index git — sous-agents concurrents (§5b) : `git commit` prend l'état du dépôt, pas celui de la
 session, donc chacune emporterait
 le travail en cours de l'autre. Pour ces vagues-là **seulement**, poser `.claude/wave.lock` (à mettre
-en `.gitignore` — marqueur local, pas du contenu de projet) : un hook refuse alors commit et push
-(§7), les sessions laissent leur diff dans l'arbre, et **l'orchestrateur committe pour elles en fin
+en `.gitignore` — marqueur local, pas du contenu de projet) : une **gate** (§9c) refuse alors commit
+et push (§7) — elle ne demande rien, elle se contente de refuser —, les sessions laissent leur diff
+dans l'arbre, et **l'orchestrateur committe pour elles en fin
 de vague**, tâche par tâche, guidé par les colonnes `Zone modifiée`. Une vague dont les sessions se
 suivent, quelle que soit la voie, n'a pas besoin du verrou.
 
@@ -454,7 +455,7 @@ définition. Une instruction ne contraint rien ; un hook si.
 | `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell/EnterWorktree) | Refuse `git add -A`/`.`/`--all` et `git commit -a` ; refuse commit, push et ouverture de worktree tant que `.claude/wave.lock` existe. |
 | `posttooluse-format.mjs` | PostToolUse (Edit/Write) | Formate via prettier si configuré dans le projet, silencieux sinon. |
 | `postmodelswitch-journal.mjs` | PostModelSwitch | Écrit une ligne JSONL par changement de modèle dans `.claude/journal-modeles.jsonl` (date, `de`, `vers`, session). **Ne bloque jamais** : `PreModelSwitch` pourrait refuser un switch, mais mettre de la friction sur une escalade que §2 recommande serait le mauvais arbitrage — on trace, on n'empêche pas. Le journal est le seul retour d'expérience sur la grille §2 : un modèle systématiquement escaladé n'est pas un incident, c'est une ligne de grille fausse (entrée de `/analyser-incidents`). Sous `.claude/`, donc invisible au hook `Stop` — il ne peut ni déclencher un faux « fin de session non consignée », ni en satisfaire un à tort. |
-| `stop-contexte.mjs` | Stop | Refuse de rendre la main si du code a été modifié sans qu'aucun fichier de suivi ne le soit, si une session de plan a commité du code sans laisser trace de sa revue (ni `.revue.md` sur disque, ni repère `Revues:` de tri de clôture — §4b), ou si un plafond est dépassé. Ne bloque qu'une fois par session, et ne rappelle ensuite que si la liste des manquements a changé. **Sous `.claude/wave.lock`, seuls les plafonds sont signalés** : un diff non commité et une revue absente y sont le fonctionnement normal (§4b), pas un manquement — les signaler à chaque tour ne faisait que polluer l'orchestrateur. |
+| `stop-contexte.mjs` | Stop | **Gate** (§9c) : refuse de rendre la main si du code a été modifié sans qu'aucun fichier de suivi ne le soit, si une session de plan a commité du code sans laisser trace de sa revue (ni `.revue.md` sur disque, ni repère `Revues:` de tri de clôture — §4b), ou si un plafond est dépassé — elle refuse, elle ne demande rien. Ne bloque qu'une fois par session, et ne rappelle ensuite que si la liste des manquements a changé. **Sous `.claude/wave.lock`, seuls les plafonds sont signalés** : un diff non commité et une revue absente y sont le fonctionnement normal (§4b), pas un manquement — les signaler à chaque tour ne faisait que polluer l'orchestrateur. |
 
 ### Plafonds de lignes
 
@@ -469,8 +470,9 @@ Source unique : `${CLAUDE_PLUGIN_ROOT}/hooks/plafonds.json`.
 | `PROJECT_MAP.md` | 200 |
 | `CLAUDE.md` | 200 |
 
-Un dépassement n'est pas une suggestion : il déclenche `/purge-contexte` avant de continuer.
-Ces fichiers sont relus à chaque session — leur longueur est un coût récurrent, pas un détail.
+Un dépassement n'est pas une suggestion, c'est une **gate** (§9c) : elle déclenche `/purge-contexte`
+avant de continuer, sans rien demander. Ces fichiers sont relus à chaque session — leur longueur
+est un coût récurrent, pas un détail.
 
 ## 8. Anti-patterns
 
@@ -603,9 +605,28 @@ sa raison d'être.
 *Domicile de cette règle. `/orchestrer-plan` (5c, 5d, Étape 6) et `/reprendre-echec` l'appliquent,
 ne la reformulent pas.*
 
-**Un plan ne s'arrête que sur un choix.** Pas sur un échec, pas sur un manque d'information, pas
-sur une hypothèse qui tombe : sur une question dont la réponse change ce qu'il faut faire, et que
-seul l'utilisateur peut trancher. Tout le reste se cherche — et se cherche automatiquement.
+**On ne s'arrête que sur un choix — un plan comme la session qui l'exécute.** Pas sur un échec, pas
+sur un manque d'information, pas sur une hypothèse qui tombe : sur une question dont la réponse
+change ce qu'il faut faire, et que seul l'utilisateur peut trancher. Tout le reste se cherche — et
+se cherche automatiquement. C'est le domicile du critère ; `EXECUTANT.md` en porte l'**application**
+aux trois natures d'échec d'une session (§9a), sans le reformuler.
+
+**Un mot par chose.** Le workflow a longtemps écrit `STOP` pour trois règles de polarités
+différentes — c'est ce qui laisse croire que s'arrêter est le défaut :
+
+- **Gate** — une condition qu'une machine juge (hook, N0, contrôle de publication). Elle **refuse**,
+  elle ne demande pas ; ce qui la franchit se rapporte après, jamais avant.
+- **Question** — un choix soumis à un humain : options chiffrées, conséquences observables (forme
+  détaillée plus bas).
+- **Contrainte d'outillage** — l'humain n'est sollicité que parce que rien ne peut poser le geste à
+  sa place (régler modèle et effort, lancer une session hors Desktop — §3, §5b). Ce n'est **pas** un
+  point d'arrêt de conception : le nommer ainsi évite de le « corriger » en élargissant l'autonomie,
+  et il disparaît de lui-même si le harnais gagne la capacité.
+
+**Ce que le contrôle de publication ne couvre pas.** `plugin/bin/publier.mjs` (§5b) vérifie qu'un
+bloc de lancement porte le renvoi vers `EXECUTANT.md`, au mot près — il ne sait pas dire qu'un point
+d'arrêt écrit en prose est du bon côté de ce critère. Cette relecture-là reste humaine, faite une
+fois par point (inventaire du 2026-09-14).
 
 | Ce qui arrive | Ce que ça est vraiment | Ce qui suit |
 | --- | --- | --- |
