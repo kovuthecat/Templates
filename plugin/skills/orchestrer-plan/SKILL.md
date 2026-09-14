@@ -65,6 +65,12 @@ Dans cet ordre :
    §5b). Si une session `—` de la vague demande plus que l'effort courant, le dire **avant** de
    lancer, sur la ligne « À régler AVANT de lancer » (§3) appliquée à cette conversation, et
    s'arrêter : c'est un humain qui règle l'effort, jamais la skill.
+4. **Agents du plugin dans ce bac à sable** — l'Étape 5 lance `relecteur-session` depuis cette
+   conversation, 5c `verificateur-premisse`. Si le bac à sable annoncé ne porte que les agents
+   génériques (`claude`, `Explore`, `general-purpose`, `Plan`, `statusline-setup`), le plugin
+   n'est pas chargé ici : le dire **avant** de lancer, sur la ligne « À régler AVANT de lancer », et
+   annoncer les revues comme absentes pour la vague — plutôt que de le découvrir à la clôture, une
+   fois le travail fait et la revue impossible (2026-09-11, deux sessions).
 
 ## Étape 3 — Lancer la vague
 
@@ -120,8 +126,9 @@ Agent({
   prompt: "Lis d'abord .claude/workflow/EXECUTANT.md. Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
 dans l'arbre de travail courant : n'ouvre AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
-Ne lance rien en arrière-plan (ni Agent en run_in_background, ni commande détachée) : ta réponse
-finale est ton seul retour, ce qui finit après elle n'est lu par personne.
+Tout appel Agent que tu fais porte run_in_background: false — verificateur-n0 compris — et aucune
+commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par
+personne, et « j'attends le rapport de l'agent » n'est pas un retour.
 Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se
 corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
 plans/P<n>/S<k>.echec.md, ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis
@@ -310,6 +317,7 @@ comptées dans cette conversation. Épuisé → `DECISION`, sans rien relancer.
 | `prémisse` | **`verificateur-premisse` d'abord** — l'affirmation n'a été vérifiée par personne, et elle arrête un plan entier | Haiku, lecture seule |
 | `environnement` | reprise en sous-agent : c'est l'héritage de l'environnement de cette conversation (permissions, outils) qui débloque | **même modèle** que l'index |
 | `exécution` (ou absente) | reprise | **un cran au-dessus**, plancher Sonnet (Haiku→Sonnet, Sonnet→Opus) ; **session Opus → pas de reprise, l'enquête directement** (Étape 5d) |
+| réponse finale qui **annonce une attente** (« en attente de… », « waiting on… ») sans ligne `VERDICT:`, enfants tous `completed` | reprise en sous-agent | **même modèle** : c'est la frontière de tour qui a coupé, pas le modèle — monter d'un cran paie de l'Opus pour recommiter du travail déjà vert (2026-09-13, deux fois) |
 | session **tuée par le filtre de contenu** (`Output blocked by content filtering`, HTTP 400, visible dans la notification du harnais — la session n'a pas pu écrire de `.echec.md`) | rien | `DECISION`, motif « sortie filtrée : changer la mécanique d'écriture, pas le modèle » |
 
 Monter de modèle sur un échec d'environnement ou de prémisse a coûté plusieurs reprises Opus et

@@ -215,7 +215,14 @@ Trois faits absents de §3b et qui manquent :
   échange de la qualité contre du coût à l'aveugle — ce que l'ordre des leviers d'Anthropic
   interdit explicitement.
 - Fichiers : `plugin/WORKFLOW.md` §3 et §9, `plugin/skills/reprendre-echec/SKILL.md`.
-- Incidents liés :
+- Incidents liés : groupe « verdict perdu / jamais rendu » (2 projets, 4 incidents) — MYO
+  `2026-09-11-verdict-perdu-en-route-s5.md`, `2026-09-13-verdict-perdu-verificateur-n0-en-fond.md`,
+  `2026-09-13-session-rend-la-main-en-attendant-son-n0.md` ; Chords
+  `2026-09-10-session-sans-verdict-sous-agent-interne.md`. Ce groupe confirme par l'incident la
+  moitié « la nature décide du modèle de reprise » de cette mesure, dans le sens inverse de celui
+  qu'elle vise : ici c'est la **montée** d'un cran qui a été payée pour rien (deux reprises Opus sur
+  du travail déjà vert), faute d'une case pour « frontière de tour ». Case ajoutée en v0.34.0 ; la
+  moitié « partir un cran en dessous », elle, attend toujours l'éval B5.
 
 ### K6 — Les prompts datés coûtent 36 % de plus, mesuré [coût] [jugement]
 

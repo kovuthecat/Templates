@@ -222,7 +222,14 @@ L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas
  qu'il faut y regarder. « Fais comme là » remplace six lignes d'étapes (mesure B4).>
 
 ### Lire / Modifier
-<en plus du commun : lectures spécifiques ; fichiers à modifier/créer — liste exhaustive>
+<en plus du commun : lectures spécifiques ; fichiers à modifier/créer — liste exhaustive, **ceinture
+ comprise**. La ceinture, c'est ce qui fige les sorties des fichiers modifiés : fixtures golden,
+ compteurs codés en dur, métadonnées validées au build. Toucher un générateur les casse
+ mécaniquement — ce n'est pas une régression. Les chercher avant de clore (grep des chemins de
+ sortie dans `tests/` et les fixtures) et les inclure avec leur règle de refix. Hors périmètre,
+ elles rendent la gate N0 inatteignable par construction. Ceinture non identifiée → l'écrire tel
+ quel : « l'exécutant l'ajoute au périmètre et le signale, sans s'arrêter » — un élargissement
+ signalé coûte moins qu'un arrêt (2026-09-13 : trois arrêts, trois arbitrages, deux tours perdus).>
 
 ### Étapes
 1. …
