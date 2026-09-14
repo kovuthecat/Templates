@@ -22,6 +22,14 @@
 // du dépôt, jamais vendoré) rejoue les quatre hooks sur des dépôts git jetables. Un hook qui refuse
 // à tort ou laisse passer à tort n'est visible qu'en session, dans un projet aval, longtemps après
 // la publication : le test échoue → publication annulée, rien poussé.
+//
+// CONTRÔLE DES RENVOIS AVANT PUBLICATION (v0.35.0)
+// Au même titre et au même endroit, `tests/tester-renvois.mjs` tourne lui aussi avant toute
+// construction de payload, --dry-run compris : sans lui, un bloc `Agent({` de `plugin/**` peut
+// perdre la ligne de renvoi vers `EXECUTANT.md`, ou une annexe de skill (`references/<x>.md`) peut
+// devenir mal désignée ou orpheline, sans qu'aucun signal ne le dise avant qu'un projet aval le
+// découvre — « sans qu'on puisse l'oublier » n'est pas une discipline de rédaction, c'est un refus
+// mécanique (`docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md`, section (a) règle 3).
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync } from 'node:fs';
@@ -98,6 +106,20 @@ function testerHooks() {
   }
 }
 
+// ── Contrôle des renvois — même moule, appelé juste après ────────────────────
+// Vit hors `plugin/`, comme `tests/tester-hooks.mjs` : jamais vendoré, un projet aval n'a pas à
+// l'embarquer pour un outillage qu'il ne modifie pas.
+function testerRenvois() {
+  const racineDepot = dirname(RACINE_PAYLOAD);
+  const scriptTest = join(racineDepot, 'tests', 'tester-renvois.mjs');
+  try {
+    execFileSync('node', [scriptTest], { cwd: racineDepot, stdio: 'inherit', windowsHide: true });
+  } catch {
+    console.error('publier: contrôle des renvois en échec — publication annulée, rien poussé');
+    process.exit(1);
+  }
+}
+
 // ── Garde-fou de synchronisation du dépôt SOURCE ─────────────────────────────
 // Le 2026-08-28, ce dépôt local était en retard d'un commit sur origin/main : la 0.16.2 avait été
 // poussée depuis un autre poste et jamais rapatriée ici. Le payload est donc parti d'un arbre
@@ -159,6 +181,11 @@ try {
   // Avant tout le reste, --dry-run compris : les hooks doivent tenir avant qu'on publie quoi que
   // ce soit qui les embarque.
   testerHooks();
+
+  // Même condition d'entrée que testerHooks() : le renvoi d'invariant et les annexes de skill
+  // portent sur le contenu de `plugin/**`, comme les hooks — donc avant la synchro, qui porte sur
+  // le dépôt.
+  testerRenvois();
 
   // Avant toute construction : le dépôt qui produit le payload doit être à jour (le push est --force).
   verifierSynchroSource();
