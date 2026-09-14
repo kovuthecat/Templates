@@ -61,7 +61,7 @@ Constater, ne rien corriger encore. Huit points :
 | Import `@…CLAUDE-BASE.md`, `enabledPlugins`, hooks à chemins absolus, skills copiées | **1 — Bascule** | B1 |
 | Du code, mais ni `.claude/settings.json`, ni fichiers de contexte, ni `plans/` | **2 — Adoption** | B2 |
 | Déjà vendoré (`manifest.json` présent) — seulement de la dette de format (point 8) | **3 — Entretien** | `/maj-workflow`, puis B1 point 8 |
-| Repo **vide**, aucun code | *hors périmètre* | STOP → `/nouveau-projet` (interview de cadrage) |
+| Repo **vide**, aucun code | *hors périmètre* | gate (`WORKFLOW.md` §9c) → `/nouveau-projet` (interview de cadrage) |
 
 Les états se mélangent (migration précédente inachevée) : dérouler alors les points concernés des
 deux voies, dans l'ordre de B1 puis B2.

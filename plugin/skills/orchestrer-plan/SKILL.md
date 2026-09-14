@@ -57,7 +57,8 @@ la session d'orchestration — les tours suivants n'y retournent que pour cocher
 Dans cet ordre :
 
 1. **Arbre sale** — demander à `resumeur-git` : un fichier non commité qui intersecte une `Zone
-   modifiée` de la vague → STOP, ne pas écraser du travail non commité. Sinon, référence :
+   modifiée` de la vague → **gate** (`WORKFLOW.md` §9c), rien à demander : ne pas écraser du
+   travail non commité. Sinon, référence :
    `git status --porcelain > .claude/vague/avant-vague.txt`.
 2. **Verrou si la vague est parallèle** — zones disjointes seulement ; au moindre doute, séquentiel.
    Poser `.claude/wave.lock` juste avant le premier lancement (jamais avant : un préflight rouge le
