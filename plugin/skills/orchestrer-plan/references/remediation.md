@@ -14,12 +14,13 @@ suivante. Une session à la fois, dans l'ordre de l'index, **jamais en parallèl
 partagé et la vague est déjà close. Rapport `S<k>.echec.md` absent (session tuée avant de
 l'écrire) : lancer quand même, `/reprendre-echec` couvre ce cas.
 
-**Trois greps, rien d'autre** (`WORKFLOW.md` §9a et §9c, domiciles) :
+**Quatre greps, rien d'autre** (`WORKFLOW.md` §9a et §9c, domiciles) :
 
 ```
 grep -m1 '^Nature :'     plans/P<n>/S<k>.echec.md    # absent → exécution
 grep -m1 '^Tentatives :' plans/P<n>/S<k>.echec.md    # absent → reprise=0 enquete=0
 grep -m1 '^Blocage :'    plans/P<n>/S<k>.echec.md    # absent → démarrage à froid
+grep -m1 '^Mesure :'     plans/P<n>/S<k>.echec.md    # présent → prémisse déjà prouvée, pas de vérification
 ```
 
 **Budget** (§9c) : par session **2 reprises et 1 enquête** ; par plan **2 enquêtes** au total,
@@ -29,7 +30,8 @@ comptées dans cette conversation. Épuisé → `DECISION`, sans rien relancer.
 
 | `Nature :` | Ce que l'orchestrateur lance | Modèle |
 | --- | --- | --- |
-| `prémisse` | **`verificateur-premisse` d'abord** — l'affirmation n'a été vérifiée par personne, et elle arrête un plan entier | Haiku, lecture seule |
+| `prémisse` sans `Mesure :` | **`verificateur-premisse` d'abord** — l'affirmation n'a été vérifiée par personne, et elle arrête un plan entier | Haiku, lecture seule |
+| `prémisse` **avec** `Mesure :` | rien à vérifier : la mesure est la preuve. Vérifier seulement que le commit cité existe (`git cat-file -e <commit>`) ; oui → même suite qu'une prémisse `REFUTEE` ; non → traiter comme sans `Mesure :` | — |
 | `environnement` | reprise en sous-agent : c'est l'héritage de l'environnement de cette conversation (permissions, outils) qui débloque | **même modèle** que l'index |
 | `exécution` (ou absente) | reprise | **un cran au-dessus**, plancher Sonnet (Haiku→Sonnet, Sonnet→Opus) ; **session Opus → pas de reprise, l'enquête directement** (Étape 5d) |
 | réponse finale qui **annonce une attente** (« en attente de… », « waiting on… ») sans ligne `VERDICT:`, enfants tous `completed` | reprise en sous-agent | **même modèle** : c'est la frontière de tour qui a coupé, pas le modèle — monter d'un cran paie de l'Opus pour recommiter du travail déjà vert (2026-09-13, deux fois) |
@@ -67,6 +69,7 @@ rôle… ». Trois issues :
   (Étape 6) déjà connues.
 - **`INDECIDABLE`** → `DECISION`, motif « prémisse invérifiable par lecture : <l'affirmation> » —
   ni enquête ni reprise, c'est exactement ce qu'un humain tranche.
+- **`INDECIDABLE · comportementale`** → question, avec la mention « à sonder » dans les options.
 
 ### Le test des trois conditions (canal court)
 
