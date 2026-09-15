@@ -39,11 +39,13 @@ de passer à la suivante — l'utilisateur doit pouvoir corriger avant que ça s
 6. **Vision & idées futures** — au-delà du MVP, la direction générale si tout se passe bien ; idées
    de v2 notées mais jamais promises.
 7. **Plateformes cibles** — desktop / mobile / PWA (conditionne les contraintes UI).
-8. **Données** — entités principales, volumétrie, besoin multi-appareil ? Oriente le choix de
-   persistance : local-first Dexie vs Supabase, selon les habitudes des projets existants de l'utilisateur.
-9. **Stack** — défaut Vite+React+TS sauf raison contraire ; toute déviation justifiée en 1 ligne.
-   Couvre aussi backend, base de données (cohérente avec Q8), authentification, hébergement.
-10. **Contraintes** — offline, accessibilité, ton visuel, perf.
+8. **Contraintes** — offline, accessibilité, ton visuel, perf.
+9. **Données** — entités principales, volumétrie, besoin multi-appareil ?
+10. **Stack** — candidats **au regard des contraintes de la question 8** ; la stack familière
+    (Vite+React+TS, Dexie ou Supabase selon les projets existants) reste le candidat privilégié pour
+    son coût de maintenance connu, **à condition de satisfaire le besoin** — dire en une ligne ce
+    qu'elle couvre et ce qui manque. Couvre aussi backend, base (cohérente avec la question 9),
+    authentification, hébergement.
 11. **Risques connus** — ce qui pourrait faire échouer ou compliquer le projet (technique, temps,
     dépendance externe), au moins 1.
 12. **Stratégie de test — question OBLIGATOIRE, jamais optionnelle** — quel runner (vitest en
@@ -71,6 +73,10 @@ place d'un humain.
    > Ce fichier câble les 4 hooks en `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`. Il ne porte
    > **ni** `enabledPlugins`, **ni** `extraKnownMarketplaces` : le workflow est dans le repo, il
    > n'y a rien à rapatrier au démarrage. Les deux ensemble le chargeraient deux fois.
+   >
+   > **Adapter `permissions.allow` à la stack retenue** (question 10) : le gabarit est écrit pour
+   > JavaScript (npm, Vitest) ; sur un autre langage, remplacer ces entrées par les commandes
+   > réelles du projet — jamais les laisser telles quelles (incident Chords, 2026-09-09).
 
 3. Copier depuis `.claude/workflow/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
    `DECISIONS.md`, `PROJECT_MAP.md`, `STATUS.md`, `TASKS.md`, `VALIDATION.md`, `CLAUDE.md`
