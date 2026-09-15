@@ -47,6 +47,9 @@ les recouvrements apparaissent.
 Une liste numérotée, un écart par ligne, chacun au format
 `<S<k> · contrôle n°X> — <ce qui est déclaré> — <ce que le dépôt dit>` :
 
+Exemples pris sur un projet TypeScript — les chemins que tu cites viennent **toujours** du plan
+et du dépôt inspectés, jamais de ces exemples.
+
 ```
 1. S2 · 1 — « Modifier : src/lib/parse.ts » — ce fichier n'existe pas et aucune étape ne le crée
 2. S2/S4 · 2 — vague 1 parallèle — les deux modifient `src/store/index.ts`
