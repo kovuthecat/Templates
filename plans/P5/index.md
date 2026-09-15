@@ -16,7 +16,11 @@ annexe, agent et assertion ; les `S<k>.md` y renvoient au lieu de le recopier.
 
 **Risques du plan** (hypothèses comportementales non sondées — décision (d), appliquée à ce plan) :
 - `effort:` en frontmatter d'agent est honoré sur la version installée — *réfuté si* `/tasks`
-  n'affiche pas l'effort sur la ligne de `critique-plan` (S5 le sonde, T14).
+  n'affiche pas l'effort sur la ligne de `critique-plan` (S5 le sonde, T14). **Toujours ouvert après
+  S5** : la sonde demandait une session interactive (`/tasks`), indisponible en sous-agent orchestré
+  (`claude --version` constaté 2.1.270, ≥ 2.1.242 documenté, mais non exploitable sans `/tasks`).
+  `effort: high` conservé sur `critique-plan.md` par prudence. À sonder à la main par le
+  mainteneur avant de s'y fier.
 - Claude Code ≥ 2.1.269 sur le poste au moment de S8 — *réfuté si* `claude --version` dit moins ;
   S8 s'arrête alors sur une contrainte d'outillage, sans rien écrire.
 
@@ -27,8 +31,8 @@ annexe, agent et assertion ; les `S<k>.md` y renvoient au lieu de le recopier.
 | [S1](S1.md) | T1-T3 | (a) Garanties exactes et référence de compatibilité | Sonnet | medium | — | — | `plugin/skills/cadrer/SKILL.md`, `plugin/skills/revue-de-conception/SKILL.md`, `docs/analyses/2026-09-12-conseils-anthropic-contexte-skills-verification.md`, `docs/references/claude-code-capabilities-2026-08.md` | [x] (2026-09-15) |
 | [S2](S2.md) | T4-T6 | (b) Gabarits sans stack, contraintes avant stack | Sonnet | medium | — | — | `plugin/skills/nouveau-plan/references/squelette-index.md`, `plugin/agents/verificateur-plan.md`, `plugin/skills/nouveau-projet/SKILL.md` | [x] (2026-09-15) |
 | [S3](S3.md) | T7-T9 | (g) Gates de publication étendues, agnix en rapport | Sonnet | medium | — | — | `tests/tester-renvois.mjs`, `tests/tester-hooks.mjs`, `docs/analyses/2026-09-<jj>-agnix-rapport.md` (nouveau) | [x] (2026-09-15) |
-| [S4](S4.md) | T10-T13 | (c) Annexes de réflexion, appels dans `/cadrer` et `/nouveau-projet` | Sonnet | **high** | — | S1, S2 | `plugin/skills/cadrer/references/` (nouveau), `plugin/skills/cadrer/SKILL.md`, `plugin/skills/nouveau-projet/SKILL.md` | [ ] |
-| [S5](S5.md) | T14-T16 | (e)(f) Deux agents : `critique-plan` et `analyste-flux` | Sonnet | **high** | — | S1, S3 | `plugin/agents/critique-plan.md` (nouveau), `plugin/agents/analyste-flux.md` (nouveau), `plugin/WORKFLOW.md` §5, `plugin/README.md`, `plugin/skills/revue-de-conception/SKILL.md` | [ ] |
+| [S4](S4.md) | T10-T13 | (c) Annexes de réflexion, appels dans `/cadrer` et `/nouveau-projet` | Sonnet | **high** | — | S1, S2 | `plugin/skills/cadrer/references/` (nouveau), `plugin/skills/cadrer/SKILL.md`, `plugin/skills/nouveau-projet/SKILL.md` | [x] (2026-09-15) |
+| [S5](S5.md) | T14-T16 | (e)(f) Deux agents : `critique-plan` et `analyste-flux` | Sonnet | **high** | — | S1, S3 | `plugin/agents/critique-plan.md` (nouveau), `plugin/agents/analyste-flux.md` (nouveau), `plugin/WORKFLOW.md` §5, `plugin/README.md`, `plugin/skills/revue-de-conception/SKILL.md` | [x] (2026-09-15) |
 | [S6](S6.md) | T17-T21 | (c)(d)(e)(f) `/nouveau-plan` : grille, existant, hypothèses typées, critique, flux | Sonnet | medium | — | S2, S4, S5 | `plugin/skills/nouveau-plan/SKILL.md`, `plugin/skills/nouveau-plan/references/squelette-index.md` | [ ] |
 | [S7](S7.md) | T22-T25 | (d) L'échec côté prémisse comportementale | Sonnet | medium | — | S5 | `plugin/agents/verificateur-premisse.md`, `plugin/skills/reprendre-echec/SKILL.md`, `plugin/skills/orchestrer-plan/references/remediation.md`, `plugin/WORKFLOW.md` §9c | [ ] |
 | [S8](S8.md) | T26-T27 | (g) Trois évals de déclenchement | Sonnet | medium | — | S6, S7 | `plugin/evals/` (nouveau), `docs/analyses/2026-09-<jj>-evals-premiere-passe.md` (nouveau) | [ ] |
