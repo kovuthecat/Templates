@@ -113,6 +113,7 @@ l'utilisateur, une fois — elle vient en fin de fichier, après « Hypothèse e
 Nature : <environnement | exécution | prémisse>
 Tentatives : reprise=0 enquete=0
 Blocage : <le geste précis qui manque, en une ligne>
+Mesure : <commit> · <commande qui la reproduit>
 
 ## Tâche visée
 <la tâche T<n>, en une ligne — pas le S<k>.md recopié>
@@ -159,6 +160,11 @@ Trois lignes **mécaniques**, en tête, exactement ce format — les seules que 
   disqualifie le canal court. **Absente ⇒ démarrage à froid** — c'est le défaut sûr, et c'est l'une
   des trois conditions observables qui autorisent l'orchestrateur à reprendre par `SendMessage`
   plutôt qu'à froid (`WORKFLOW.md` §9c, domicile des trois conditions).
+- `Mesure :` — **optionnelle**, seulement pour une `Nature : prémisse` dont la session a mesuré la
+  fausseté et commité la mesure (script, fixture, résultat) : un commit **présent dans
+  l'historique** et la commande qui rejoue la mesure. Absente → la prémisse est une affirmation,
+  elle sera vérifiée (§9c). Présente → elle est une preuve, la vérification est sautée. Ne jamais
+  l'écrire pour une mesure non commitée : l'orchestrateur ne lira pas la conversation.
 
 **La prémisse est le seul champ qu'un tiers vérifie.** Une session en échec écrit ce qu'elle croit ;
 une prémisse fausse arrête un plan entier. C'est pourquoi l'orchestrateur la fait confronter au
@@ -187,6 +193,7 @@ de soin : c'est le cas où l'état laissé derrière est le moins connu.
   ailleurs que là où la session l'a cherchée. En invocation **manuelle**, à l'inverse, la prémisse
   n'a été vérifiée par personne : la confronter au dépôt (déléguer à `explorateur`) avant de
   conclure quoi que ce soit, et n'aiguiller vers `/nouveau-plan` Étape 0 que si elle tient.
+  `Mesure :` présente → partir de la mesure, pas de l'hypothèse.
 - `environnement` → vérifier que la remédiation nommée est acquise ici (permission héritée, outil
   présent, humain là) **avant** l'Étape 2. Si elle ne l'est pas :
   - **à portée dans l'arbre du projet** — dossier manquant, dépendance non installée, arbre en
