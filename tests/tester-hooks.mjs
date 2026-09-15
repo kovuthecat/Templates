@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { repereSession } from '../plugin/hooks/lib.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -150,6 +151,29 @@ cas('stop-contexte : STATUS.md au-delà du plafond → bloque', () => {
   writeFileSync(join(repo, 'STATUS.md'), lignes);
   const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
   return estBloque(s) ? null : `attendu un blocage (plafond), reçu: ${s || '(vide)'}`;
+});
+
+// Marqueur de session non inscriptible : répertoire à la place du fichier — marche pareil sous
+// Windows et Linux, contrairement à `chmod`, qui n'a pas d'effet fiable sous Windows. Le hook doit
+// rendre un résultat BORNÉ face à cette panne (D6) : bloquer une fois puis rappeler sans bloquer,
+// ou laisser passer avec un message — jamais une exception, jamais un blocage identique répété.
+cas('stop-contexte : marqueur de session non inscriptible → résultat borné', () => {
+  const repo = creerDepot();
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  const sessionId = randomUUID();
+  const { dossier, chemin } = repereSession({ session_id: sessionId }, repo, 'stop');
+  mkdirSync(chemin, { recursive: true }); // le marqueur est un répertoire : jamais lisible ni réinscriptible en fichier
+  try {
+    const s1 = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: sessionId });
+    const s2 = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: sessionId });
+    if (!estBloque(s1)) return `premier appel attendu bloquant, reçu: ${s1 || '(vide)'}`;
+    if (estBloque(s2) && s2 === s1) {
+      return `second appel identique au premier : blocage répété non borné — le marqueur (répertoire) n'est jamais lu comme « déjà signalé »`;
+    }
+    return null;
+  } finally {
+    rmSync(chemin, { recursive: true, force: true });
+  }
 });
 
 // ── sessionstart-contexte.mjs ────────────────────────────────────────────────
