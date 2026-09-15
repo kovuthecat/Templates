@@ -10,6 +10,8 @@ vit ici et nulle part ailleurs (`WORKFLOW.md` §4a).
 <2-3 lignes : le but global du plan, et ce qui sera vrai à la fin qui ne l'est pas aujourd'hui —
  en clair, pas en termes de code>
 
+**Risques du plan** : <hypothèses comportementales non sondées — chacune avec ce qui la réfuterait — ou `—`>
+
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
