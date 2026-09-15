@@ -636,7 +636,8 @@ fois par point (inventaire du 2026-09-14).
 | --- | --- | --- |
 | N0 rouge après une correction | une hypothèse fausse | **enquête** (lecture seule, une passe) |
 | « aucune autre piste en une passe » | un manque d'information | **enquête** |
-| « une hypothèse du plan est fausse » | une **affirmation non vérifiée**, écrite par la session qui vient d'échouer | **vérification** (`verificateur-premisse`) — puis reprise si elle est réfutée, question si elle tient |
+| « une hypothèse du plan est fausse » | une **affirmation non vérifiée**, écrite par la session qui vient d'échouer | **vérification** (`verificateur-premisse`) — puis reprise si elle est réfutée, question si elle tient ; `INDECIDABLE · comportementale` → question, option « sonder » (`/nouveau-plan` Étape 1, point 5) |
+| « une hypothèse du plan est fausse » **et une mesure commitée le prouve** (`Mesure :`) | une **preuve** — de niveau supérieur à la lecture | pas de vérification : **question** ou extension, comme une prémisse réfutée |
 | remédiation d'environnement à portée dans l'arbre | rien du tout | **appliquer et continuer** (§9a) |
 | une migration jouée à annuler, une permission à élargir, une prémisse confirmée, un budget épuisé | un choix | **question** |
 
