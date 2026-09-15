@@ -320,9 +320,10 @@ Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contex
 (chemins, sorties, fausses pistes) qu'on paie ensuite à chaque tour — et c'est justement en cadrage
 Opus, le contexte le plus cher, qu'on en accumule le plus.
 
-Sept agents du plugin, chacun ne rend que sa **conclusion** — jamais les traces brutes :
+Neuf agents du plugin, chacun ne rend que sa **conclusion** — jamais les traces brutes :
 
 - `explorateur` → localiser quelque chose qui touche plus d'1 fichier.
+- `analyste-flux` → lire **comment** un flux fonctionne, quand localiser ne suffit pas.
 - `verificateur-n0` → lancer build/typecheck/tests (jamais ces commandes en direct dans la
   conversation principale).
 - `resumeur-git` → résumer un diff ou un historique.
@@ -333,13 +334,16 @@ Sept agents du plugin, chacun ne rend que sa **conclusion** — jamais les trace
   (`/nouveau-plan` Étape 4b).
 - `verificateur-premisse` → confronter au dépôt l'affirmation par laquelle une session en échec
   déclare le plan faux, **avant** qu'elle n'arrête le plan (`/orchestrer-plan` 5c, §9c).
+- `critique-plan` → confronter un plan à ses risques de conception **avant** son approbation
+  (`/nouveau-plan` Étape 1bis) ; ne juge ni le périmètre produit ni le style.
 
-**Les trois derniers ont la même raison d'être : personne ne relit son propre travail.** Le
-cadreur ne voit pas sa découpe fausse, l'exécutant ne voit pas son PASS vide, la session en échec
-ne voit pas que sa prémisse est fausse — dans les trois cas le contrôle vaut par le fait qu'il
-vient d'ailleurs, pas par sa finesse.
+**Les quatre derniers ont la même raison d'être : personne ne relit son propre travail.** Le
+cadreur ne voit pas sa découpe fausse, ni la faille de conception dans le plan qu'il vient
+d'écrire, l'exécutant ne voit pas son PASS vide, la session en échec ne voit pas que sa prémisse
+est fausse — dans les quatre cas le contrôle vaut par le fait qu'il vient d'ailleurs, pas par sa
+finesse.
 
-Les sept se lancent **au premier plan** — condition posée dans `EXECUTANT.md`, domicile unique de
+Les neuf se lancent **au premier plan** — condition posée dans `EXECUTANT.md`, domicile unique de
 l'invariant de lancement (§5b) : leur verdict conditionne la suite de la même tâche — une session ne rend la main qu'après l'avoir lu. Le
 `relecteur-session` est le dernier geste de la session : lancé en arrière-plan, son retour
 n'atteindrait aucun tour et la revue ne serait jamais déposée.
@@ -350,7 +354,7 @@ résultat revient. Jamais pour une session de plan ni une reprise d'échec (il r
 contexte qu'elles existent pour laisser derrière), ni pour une restitution pure sans appel d'outil
 (écrire soi-même coûte moins). Détail : `docs/decisions/2026-08-30-contexte-des-sous-agents.md`.
 
-**Pas de `memory:` sur les sept agents** : une mémoire d'agent n'est légitime que pour une
+**Pas de `memory:` sur les neuf agents** : une mémoire d'agent n'est légitime que pour une
 information dont aucun fichier du dépôt n'est déjà la source — commandes (`CLAUDE.md`),
 localisation (`PROJECT_MAP.md`) et état git n'en sont pas.
 
@@ -393,7 +397,7 @@ arrière-plan avant de committer se referme, elle aussi, sans rien avoir committ
 **L'effort d'un sous-agent est celui de la conversation qui le lance.** L'outil `Agent` règle le
 modèle, pas l'effort : le sous-agent hérite de l'effort **ambiant** de la session d'orchestration.
 `/tasks` pendant qu'une vague tourne affiche le modèle réel de chaque sous-agent — vérifier plutôt
-que supposer. Les sept agents du workflow portent leur `model:` en frontmatter ; les agents
+que supposer. Les neuf agents du workflow portent leur `model:` en frontmatter ; les agents
 intégrés lancés au fil de l'eau (`Explore`, `general-purpose`, `Plan`), eux, suivent
 `CLAUDE_CODE_SUBAGENT_MODEL` du gabarit de settings, faute de quoi ils hériteraient du modèle de la
 conversation — donc d'Opus dans un cadrage.

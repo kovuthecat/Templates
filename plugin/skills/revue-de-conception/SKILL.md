@@ -74,6 +74,7 @@ Déléguer (`${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §5) : Opus lit des conclusions,
 | Agent | Ce qu'on lui demande |
 | --- | --- |
 | `explorateur` | où vit le périmètre, quels fichiers, quelles dépendances entrantes et sortantes |
+| `analyste-flux` | comment le périmètre fonctionne réellement, quand `explorateur` a dit où |
 | `resumeur-git` | quels fichiers du périmètre ont été le plus retouchés, et par quels types de commits |
 | `verificateur-n0` | l'état de santé (build, typecheck, tests) — **N0 rouge : gate, pas un arrêt de conception** (`WORKFLOW.md` §9c) : ce n'est pas une revue qu'il faut, c'est une réparation — s'arrêter là sans rien demander |
 | `lecteur-doc` | uniquement si le « meilleur moyen » dépend d'une capacité externe à vérifier |
