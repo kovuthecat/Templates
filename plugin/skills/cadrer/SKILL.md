@@ -37,9 +37,15 @@ Deux lignes, en clair, avant toute autre chose :
 - **Question** : ce qui doit être tranché, formulé pour qu'une réponse soit reconnaissable.
 - **Critère de fin** : ce qui, une fois écrit, clôt la session.
 
+Puis remplir la **grille de préparation** (`references/preparation.md`) : cinq lignes, une `OPEN` dit qui la résout.
+
 Une réflexion sans question écrite ne se termine pas : elle s'interrompt quand le contexte est plein.
 
 ## Étape 2 — Déléguer tout ce qui n'est pas un arbitrage
+
+Avant de déléguer, l'aiguillage de `references/protocoles.md` : `NONE` est la réponse normale ; une fiche ouverte rend ses trois lignes dans la décision.
+
+Une option qui suppose un mécanisme neuf passe par `references/rechercher-existant.md`.
 
 Avant d'ouvrir un fichier soi-même, se demander lequel des agents de délégation rend la conclusion voulue.
 Opus lit **les conclusions**, pas les traces. Ce qu'il garde pour lui : le raisonnement, les
@@ -134,7 +140,8 @@ et c'est elle qu'on refera. Le cadrage est une unité de travail : il se clôt p
 seule : quelqu'un qui la lit dans six mois, sans le contexte de la session, doit comprendre ce qui a
 été tranché et ce que ça implique avant d'atteindre la moindre justification technique. Le détail,
 les alternatives et le raisonnement viennent après — c'est ce qui rend le fichier relisable au lieu
-d'être archivé sans être rouvert.
+d'être archivé sans être rouvert. … et se ferme par l'état final de la grille : les `OPEN`
+restantes, typées, avec qui les résout.
 
 ## Interdits
 
