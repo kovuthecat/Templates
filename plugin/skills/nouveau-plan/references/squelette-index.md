@@ -13,8 +13,8 @@ vit ici et nulle part ailleurs (`WORKFLOW.md` §4a).
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1-T3 | … | Haiku | low | — | — | `css/`, `index.html` | [ ] |
-| [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `js/edit/` | [ ] |
+| [S1](S1.md) | T1-T3 | … | Haiku | low | — | — | `<fichiers réellement modifiés>` | [ ] |
+| [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `<répertoire ou fichiers, jamais une généralité>` | [ ] |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 <!-- Vocabulaire complet : WORKFLOW.md §4a — ne pas inventer d'autre marque ici. -->
