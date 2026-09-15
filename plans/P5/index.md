@@ -36,7 +36,7 @@ annexe, agent et assertion ; les `S<k>.md` y renvoient au lieu de le recopier.
 | [S6](S6.md) | T17-T21 | (c)(d)(e)(f) `/nouveau-plan` : grille, existant, hypothèses typées, critique, flux | Sonnet | medium | — | S2, S4, S5 | `plugin/skills/nouveau-plan/SKILL.md`, `plugin/skills/nouveau-plan/references/squelette-index.md` | [x] (2026-09-15) |
 | [S7](S7.md) | T22-T25 | (d) L'échec côté prémisse comportementale | Sonnet | medium | — | S5 | `plugin/agents/verificateur-premisse.md`, `plugin/skills/reprendre-echec/SKILL.md`, `plugin/skills/orchestrer-plan/references/remediation.md`, `plugin/WORKFLOW.md` §9c | [x] (2026-09-15) |
 | [S8](S8.md) | T26-T27 | (g) Trois évals de déclenchement | Sonnet | medium | — | S6, S7 | `plugin/evals/` (nouveau), `docs/analyses/2026-09-<jj>-evals-premiere-passe.md` (nouveau) | [x] (2026-09-15) |
-| [S9](S9.md) | T28-T29 | Clôture : version, CHANGELOG, publication | Haiku | low | — | S8 | `plugin/.claude-plugin/plugin.json`, `CHANGELOG.md`, `plans/P5/index.md` | [ ] |
+| [S9](S9.md) | T28-T29 | Clôture : version, CHANGELOG, publication | Haiku | low | — | S8 | `plugin/.claude-plugin/plugin.json`, `CHANGELOG.md`, `plans/P5/index.md` | [x] (2026-09-15) |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 <!-- Vocabulaire complet : WORKFLOW.md §4a — ne pas inventer d'autre marque ici. -->
