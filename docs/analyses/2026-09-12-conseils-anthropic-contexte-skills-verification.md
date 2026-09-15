@@ -41,6 +41,8 @@ Le workflow applique déjà l'essentiel de ces conseils, souvent avant leur publ
 - pas d'exemples few-shot dans les skills ;
 - `allowed-tools` qui retire `Bash` de `/cadrer` et `/revue-de-conception`, Plan Mode imposé :
   contrainte structurelle plutôt que prose ;
+  > *Rectifié le 2026-09-15 :* `allowed-tools` ne retire rien ; le retrait est `disallowed-tools`,
+  > et il ne tient qu'un tour. Décision `2026-09-15-reflexion-outillee-critique-et-flux.md`, (a).
 - maquette HTML comme référence de câblage (`design/maquettes/`).
 
 ## Ce que chaque session paie avant le premier mot
@@ -77,6 +79,11 @@ architecture. Le défaut est que le premier étage lit les **mêmes** contrainte
 | Garde-fou mécanique | 4 hooks, `allowed-tools`, Plan Mode, formats de verdict | **garder, étendre** (A3) — l'article les recommande sous le nom de design d'interface |
 | Règle issue d'un fait du harnais | relecteur au premier plan (09-04), pas de fork en reprise (08-30), commit par session (08-24) | **garder, reformuler en fait** : « le retour d'un agent d'arrière-plan lancé en dernier geste n'est jamais lu » suffit à un modèle fort ; « JAMAIS run_in_background » s'applique aussi là où c'était pertinent |
 | Règle qui remplace un jugement | « plan court, max 5 lignes », « deux ou trois options, jamais un panorama », « sept questions max », « design fixé, doute → STOP » | **relâcher pour l'étage Opus/Fable**, remplacer le chiffre par l'intention — « assez d'options pour trancher, pas un panorama » |
+
+> *Rectifié le 2026-09-15 :* la ligne « Garde-fou mécanique » ci-dessus sort `allowed-tools` de la
+> liste des garde-fous mécaniques — il pré-autorise, il ne retire rien ; seul `disallowed-tools`
+> retire, et pour un tour. Plan Mode y reste. Décision
+> `2026-09-15-reflexion-outillee-critique-et-flux.md`, (a).
 
 **Ce qui ne se relâche pas.** Les plafonds de sortie des agents mécaniques (ils protègent le
 contexte du parent, pas le jugement de l'agent) ; les règles git ; les formats de verdict ; tout ce
