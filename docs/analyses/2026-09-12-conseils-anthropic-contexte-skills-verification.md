@@ -285,6 +285,7 @@ modéré · C gain marginal. Confiance = à quel point l'effet est mécanique et
   d'éval de plugin (`claude plugin eval`, `/skill-doctor`). Feu rouge avant publication au lieu
   d'un incident après.
 - **Signal d'entrée** : une deuxième publication cassée.
+- Statut : première passe faite 2026-09-15, voir `docs/analyses/2026-09-15-evals-premiere-passe.md`.
 - Incidents liés :
 
 ### B6 — Politique sur la mémoire automatique [contexte]
