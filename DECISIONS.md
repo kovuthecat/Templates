@@ -137,6 +137,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `Blocage :`) ; un exécutant s'arrête sur un choix, pas sur une casse — `gate` / `question` /
   `contrainte d'outillage` cessent de s'écrire `STOP` →
   [détail](docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md)
+- 2026-09-15 — **Réflexion outillée : préparation prouvée, critique avant approbation, flux lu par
+  un agent** — `allowed-tools` corrigé ; gabarits sans stack ; annexes de réflexion dans
+  `cadrer/references/` (grille, six fiches, `NONE`, rechercher l'existant) ; prémisse comportementale
+  sondée avant le plan ; agents `critique-plan` (Opus, plan architectural) et `analyste-flux`
+  (Sonnet) ; gates de publication étendues, évals de déclenchement (≥ 2.1.269) →
+  [détail](docs/decisions/2026-09-15-reflexion-outillee-critique-et-flux.md)
 
 ## Archives
 
