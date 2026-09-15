@@ -45,7 +45,10 @@ de passer à la suivante — l'utilisateur doit pouvoir corriger avant que ça s
     (Vite+React+TS, Dexie ou Supabase selon les projets existants) reste le candidat privilégié pour
     son coût de maintenance connu, **à condition de satisfaire le besoin** — dire en une ligne ce
     qu'elle couvre et ce qui manque. Couvre aussi backend, base (cohérente avec la question 9),
-    authentification, hébergement.
+    authentification, hébergement. Fondations ouvertes (aucune stack imposée) → dérouler
+    `${CLAUDE_PLUGIN_ROOT}/skills/cadrer/references/rechercher-existant.md` sur les briques
+    décisives (persistance, hébergement, base de départ) ; stack imposée par l'utilisateur → la
+    respecter, et chercher les briques utiles **dans ce cadre**.
 11. **Risques connus** — ce qui pourrait faire échouer ou compliquer le projet (technique, temps,
     dépendance externe), au moins 1.
 12. **Stratégie de test — question OBLIGATOIRE, jamais optionnelle** — quel runner (vitest en
@@ -56,6 +59,10 @@ de passer à la suivante — l'utilisateur doit pouvoir corriger avant que ça s
 14. **Nom du projet + emplacement du repo.**
 
 ## Phase B — Restitution (gate)
+
+Remplir d'abord la grille (`${CLAUDE_PLUGIN_ROOT}/skills/cadrer/references/preparation.md`) ; la
+synthèse porte les dimensions `OPEN` avec qui les résout. Une `OPEN` de type `décision` est une
+question de la synthèse, pas une approbation de plus.
 
 Synthèse de l'interview en **≤ 15 lignes**, à faire valider explicitement par l'utilisateur **avant
 d'écrire le moindre fichier**. Pas de « je considère que c'est validé » implicite — attendre le oui.
