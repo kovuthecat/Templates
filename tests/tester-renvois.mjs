@@ -5,13 +5,20 @@
 // POURQUOI CE FICHIER EXISTE
 // C'était le point qui manquait à l'annexe A4 (docs/decisions/2026-09-14-conditions-nommees-domicile-
 // unique.md, section (a) règle 3) : son risque était nommé (« une annexe mal désignée n'est jamais
-// lue ») sans être levé. Un renvoi qu'aucune machine ne vérifie ne vaut rien. Trois assertions, pas
+// lue ») sans être levé. Un renvoi qu'aucune machine ne vérifie ne vaut rien. Six assertions, pas
 // une de plus — le contrôle porte sur la PRÉSENCE du renvoi, jamais sur son sens : il ne saura jamais
 // dire qu'un invariant est faux, seulement qu'il n'est pas atteignable.
 //
 //   1. Tout bloc `Agent({ … })` de `plugin/**` contient la ligne de renvoi, au mot près.
 //   2. Tout `references/<x>.md` cité par une `SKILL.md` existe, relatif au dossier de sa skill.
 //   3. Tout `references/*.md` présent a au moins un appelant dans le dossier de sa skill.
+//   4. Tout agent cité (`subagent_type: "<x>"` ou `` `<x>` → `` de `WORKFLOW.md` §5) existe dans
+//      `plugin/agents/`, sauf les agents natifs du harnais.
+//   5. Chaque frontmatter de `SKILL.md`/agent se parse : `---…---` présent, lignes `clé: valeur`,
+//      `name` en kebab-case, pas de `tools` côté skill ni `allowed-tools` côté agent, aucune valeur
+//      non citée ne contient `: ` ni ` #` (Trail of Bits — sinon le frontmatter tombe en silence).
+//   6. Toute citation `${CLAUDE_PLUGIN_ROOT}/skills/<s>/references/<x>.md` se résout ; aucune annexe
+//      ne cite elle-même une annexe (une annexe ne chaîne pas).
 //
 // Node pur, aucune dépendance : lit les fichiers texte de `plugin/`, aucune écriture.
 //
@@ -210,6 +217,127 @@ cas(`assertion 3 — annexe présente = annexe appelée (${annexesPresentes.leng
     parcourir(dossierSkill);
     if (!appele) {
       return `plugin/skills/${a.skill}/references/${a.nom} : aucun appelant dans plugin/skills/${a.skill}/`;
+    }
+  }
+  return null;
+});
+
+// ── Assertion 4 — agent cité = agent présent (blocs Agent({ et liste WORKFLOW.md §5) ────────
+// Deux sources, un seul contrat : un nom qui n'est ni un agent natif du harnais ni un fichier de
+// `plugin/agents/` est une citation morte. Réutilise `blocsAgent` (assertion 1) plutôt que de
+// rescanner le texte brut : un `subagent_type: "fork"` en PROSE (WORKFLOW.md, décrivant l'interdit)
+// ne doit pas compter comme une invocation, même piège que l'exclusion de assertion 1.
+const NATIFS = new Set(['general-purpose', 'Explore', 'Plan', 'claude-code-guide', 'statusline-setup', 'claude']);
+const agentsDisponibles = new Set(
+  readdirSync(join(PLUGIN, 'agents')).filter((e) => e.endsWith('.md')).map((e) => e.slice(0, -3)),
+);
+const MOTIF_SUBAGENT = /subagent_type:\s*"([\w-]+)"/;
+const MOTIF_LISTE_5 = /^- `([\w-]+)` →/gm;
+
+const workflowTexte = readFileSync(join(PLUGIN, 'WORKFLOW.md'), 'utf8');
+const citationsAgents = [];
+for (const b of blocsAgent) {
+  const m = b.texte.match(MOTIF_SUBAGENT);
+  if (m) citationsAgents.push({ fichier: b.fichier, ligne: b.ligne, x: m[1] });
+}
+for (const m of workflowTexte.matchAll(MOTIF_LISTE_5)) {
+  citationsAgents.push({ fichier: 'plugin/WORKFLOW.md', ligne: ligneDe(workflowTexte, m.index), x: m[1] });
+}
+
+cas(`assertion 4 — agent cité = agent présent (${citationsAgents.length} citation(s) inspectée(s))`, () => {
+  if (citationsAgents.length === 0) return 'aucun subagent_type ni entrée WORKFLOW.md §5 trouvé — motif probablement cassé';
+  for (const c of citationsAgents) {
+    if (!NATIFS.has(c.x) && !agentsDisponibles.has(c.x)) {
+      return `${c.fichier}:${c.ligne} déclare "${c.x}", absent de plugin/agents/`;
+    }
+  }
+  return null;
+});
+
+// ── Assertion 5 — frontmatter sain (skills et agents) ───────────────────────────────────────
+// Parseur maison ligne à ligne, pas de bibliothèque YAML — le contrat à vérifier est justement
+// celui qu'un vrai parseur YAML casse en silence sur une valeur non citée contenant `: ` ou ` #`
+// (Trail of Bits, AGENTS.md).
+function frontmatterDe(texte) {
+  const lignes = texte.split('\n').map((l) => l.replace(/\r$/, ''));
+  if ((lignes[0] || '').trim() !== '---') return { erreur: `bloc frontmatter absent (pas de '---' en tête)` };
+  let fin = -1;
+  for (let i = 1; i < lignes.length; i++) {
+    if (lignes[i].trim() === '---') { fin = i; break; }
+  }
+  if (fin === -1) return { erreur: `bloc frontmatter jamais refermé` };
+  const paires = [];
+  for (let i = 1; i < fin; i++) {
+    const m = lignes[i].match(/^([A-Za-z][\w-]*):\s?(.*)$/);
+    if (!m) return { erreur: `ligne ${i + 1} n'est pas de la forme clé: valeur — ${JSON.stringify(lignes[i])}` };
+    paires.push({ cle: m[1], valeur: m[2], ligne: i + 1 });
+  }
+  return { paires };
+}
+
+function valeurNonCitee(valeur) {
+  const v = valeur.trim();
+  const citee = (v.length >= 2 && v.startsWith('"') && v.endsWith('"')) || (v.length >= 2 && v.startsWith("'") && v.endsWith("'"));
+  return !citee && (valeur.includes(': ') || valeur.includes(' #'));
+}
+
+const agentsMd = readdirSync(join(PLUGIN, 'agents')).filter((e) => e.endsWith('.md')).map((e) => join('plugin', 'agents', e));
+const skillsMd = skills.map((s) => join('plugin', 'skills', s, 'SKILL.md'));
+const frontmatters = [...skillsMd.map((c) => ({ chemin: c, estSkill: true })), ...agentsMd.map((c) => ({ chemin: c, estSkill: false }))];
+
+cas(`assertion 5 — frontmatter sain (${frontmatters.length} frontmatter(s) inspecté(s))`, () => {
+  if (frontmatters.length === 0) return 'aucun frontmatter de skill ni d\'agent trouvé — motif probablement cassé';
+  for (const { chemin, estSkill } of frontmatters) {
+    const texte = readFileSync(join(RACINE, chemin), 'utf8');
+    const r = frontmatterDe(texte);
+    if (r.erreur) return `${chemin} : ${r.erreur}`;
+    const parCle = new Map(r.paires.map((p) => [p.cle, p]));
+    const nom = parCle.get('name');
+    if (!nom) return `${chemin} : clé name absente du frontmatter`;
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(nom.valeur.trim())) {
+      return `${chemin}:${nom.ligne} name "${nom.valeur.trim()}" n'est pas en kebab-case`;
+    }
+    if (estSkill && parCle.has('tools')) {
+      return `${chemin}:${parCle.get('tools').ligne} une skill ne porte pas de clé tools (allowed-tools attendu)`;
+    }
+    if (!estSkill && parCle.has('allowed-tools')) {
+      return `${chemin}:${parCle.get('allowed-tools').ligne} un agent ne porte pas de clé allowed-tools (tools attendu)`;
+    }
+    for (const p of r.paires) {
+      if (valeurNonCitee(p.valeur)) {
+        return `${chemin}:${p.ligne} valeur non citée de "${p.cle}" contient ": " ou " #" — ${JSON.stringify(p.valeur)}`;
+      }
+    }
+  }
+  return null;
+});
+
+// ── Assertion 6 — citation croisée résolue, une annexe ne chaîne pas ────────────────────────
+const MOTIF_CROISEE = /\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([\w.-]+)\/references\/([\w.-]+\.md)/g;
+
+const citationsCroisees = [];
+for (const f of fichiersPlugin) {
+  let texte;
+  try { texte = readFileSync(join(PLUGIN, f), 'utf8'); } catch { continue; }
+  for (const m of texte.matchAll(MOTIF_CROISEE)) {
+    citationsCroisees.push({ fichier: join('plugin', f), skill: m[1], nom: m[2], ligne: ligneDe(texte, m.index) });
+  }
+}
+
+cas(`assertion 6 — citation croisée résolue, annexe sans chaîne (${citationsCroisees.length} citation(s) croisée(s) inspectée(s))`, () => {
+  for (const c of citationsCroisees) {
+    const cheminCible = join(PLUGIN, 'skills', c.skill, 'references', c.nom);
+    if (!statSync(cheminCible, { throwIfNoEntry: false })?.isFile()) {
+      return `${c.fichier}:${c.ligne} cite \${CLAUDE_PLUGIN_ROOT}/skills/${c.skill}/references/${c.nom}, absent de plugin/skills/${c.skill}/references/`;
+    }
+  }
+  for (const a of annexesPresentes) {
+    const cheminAnnexe = join(PLUGIN, 'skills', a.skill, 'references', a.nom);
+    let texte;
+    try { texte = readFileSync(cheminAnnexe, 'utf8'); } catch { continue; }
+    const chaine = citationsDe(texte)[0];
+    if (chaine) {
+      return `plugin/skills/${a.skill}/references/${a.nom}:${chaine.ligne} cite elle-même references/${chaine.nom} — une annexe ne chaîne pas`;
     }
   }
   return null;
