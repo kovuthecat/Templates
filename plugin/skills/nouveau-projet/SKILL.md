@@ -1,6 +1,6 @@
 ---
 name: nouveau-projet
-description: Démarrer un projet : interview de cadrage guidée puis instanciation des fichiers de contexte, settings et git. À dérouler avec Opus dans le futur repo vide, avant toute autre chose.
+description: "Démarrer un projet : interview de cadrage guidée puis instanciation des fichiers de contexte, settings et git. À dérouler avec Opus dans le futur repo vide, avant toute autre chose."
 ---
 
 # Nouveau projet — interview de cadrage
