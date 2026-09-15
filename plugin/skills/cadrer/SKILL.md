@@ -2,6 +2,7 @@
 name: cadrer
 description: Session de réflexion avec Opus en amont d'un plan, jusqu'à un écrit tranchant les options. À dérouler quand le QUOI et le POURQUOI ne sont pas encore tranchés, avant `/nouveau-plan`.
 allowed-tools: Read, Glob, Grep, Agent, WebFetch, WebSearch, Write, Edit
+disallowed-tools: Bash, PowerShell
 ---
 
 # Cadrer un sujet
@@ -12,9 +13,11 @@ implémentation improvisée — et double le contexte le plus cher du workflow.
 
 Ici Opus ne sert qu'à **arbitrer**. Jamais à chercher, lire, lancer ou vérifier (`WORKFLOW.md` §5).
 
-> Le frontmatter retire `Bash` de la session : « lancer » et « vérifier » ne sont plus une promesse
-> mais une impossibilité. Écrire reste possible — la skill doit produire son propre écrit — donc
-> « ne modifie jamais de code » reste une règle tenue à la main, pas un garde-fou.
+> Le frontmatter **pré-autorise** les outils listés (`allowed-tools`) et **retire** `Bash` et
+> `PowerShell` (`disallowed-tools`) — pour le seul tour qui invoque la skill : les deux se
+> réinitialisent au message suivant (doc Claude Code, Skills, vérifiée le 2026-09-15). Sur une
+> session qui dure, le garde-fou est le **Plan Mode** ; « ne rien lancer, ne rien vérifier » reste
+> une règle tenue à la main, pas une impossibilité.
 
 ## Étape 0 — La session est-elle seulement nécessaire ?
 
