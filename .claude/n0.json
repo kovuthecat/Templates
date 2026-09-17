@@ -1,0 +1,8 @@
+{
+  "commandes": [
+    { "nom": "tester-hooks", "cmd": "node tests/tester-hooks.mjs" },
+    { "nom": "tester-scripts", "cmd": "node tests/tester-scripts.mjs" },
+    { "nom": "tester-renvois", "cmd": "node tests/tester-renvois.mjs" },
+    { "nom": "publier-dry-run", "cmd": "node plugin/bin/publier.mjs --dry-run" }
+  ]
+}

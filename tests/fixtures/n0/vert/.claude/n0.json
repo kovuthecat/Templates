@@ -1,0 +1,7 @@
+{
+  "commandes": [
+    { "nom": "build", "cmd": "node build-ok.mjs" },
+    { "nom": "lint", "cmd": "node build-ok.mjs" }
+  ],
+  "testCible": "node test-cible.mjs {fichier}"
+}

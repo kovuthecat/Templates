@@ -1,0 +1,5 @@
+{
+  "commandes": [
+    { "nom": "build", "cmd": "node build-fail.mjs" }
+  ]
+}
