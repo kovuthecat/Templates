@@ -28,7 +28,12 @@
       "Bash(diff:*)",
       "Bash(sort:*)",
       "Bash(mkdir:*)",
-      "Bash(node plugin/bin/publier.mjs:*)"
+      "Bash(node plugin/bin/publier.mjs:*)",
+      "Bash(git push:*)",
+      "Bash(git pull --rebase:*)",
+      "Bash(node tests/*)",
+      "Bash(node plugin/bin/n0.mjs:*)",
+      "Bash(node plugin/bin/prochaine-action.mjs:*)"
     ],
     "deny": [
       "Read(.env*)",

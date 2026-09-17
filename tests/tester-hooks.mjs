@@ -24,7 +24,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { repereSession } from '../plugin/hooks/lib.mjs';
+import { repereSession, revuesManquantes, versionSuperieure, derniereVersionPubliee } from '../plugin/hooks/lib.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -46,6 +46,20 @@ function creerDepot({ synologyDrive = false } = {}) {
   git('add', 'README.md');
   git('commit', '-q', '-m', 'init');
   return racine;
+}
+
+// Dépôt avec un vrai remote (bare local) : nécessaire pour prouver la gate de push (C3) — sans
+// remote, le contrôle passe par l'exemption et ne prouve rien (anti-raccourci de T5).
+function creerDepotAvecRemote() {
+  const repo = creerDepot();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  git('branch', '-M', 'main'); // nom de branche fixe, indépendant de la config `init.defaultBranch`
+  const bare = mkdtempSync(join(tmpdir(), 'workflow-hooks-bare-'));
+  dossiersACommitter.push(bare);
+  execFileSync('git', ['init', '-q', '--bare'], { cwd: bare, stdio: 'pipe' });
+  git('remote', 'add', 'origin', bare);
+  git('push', '-q', '-u', 'origin', 'main');
+  return repo;
 }
 
 function lancerHook(fichier, payload, env = {}) {
@@ -176,6 +190,136 @@ cas('stop-contexte : marqueur de session non inscriptible → résultat borné',
   }
 });
 
+// ── stop-contexte.mjs : gate de push (T5, C3) ────────────────────────────────
+cas('stop-contexte : commit d\'avance sur l\'amont (remote réel) → bloque', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x');
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return estBloque(s) ? null : `attendu un blocage (avance), reçu: ${s || '(vide)'}`;
+});
+
+cas('stop-contexte : à jour avec un remote réel → muet (anti-raccourci)', () => {
+  const repo = creerDepotAvecRemote();
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return s === '' ? null : `attendu vide (à jour), reçu: ${s}`;
+});
+
+cas('stop-contexte : fichier suivi modifié non commité (remote à jour) → bloque', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'STATUS.md'), 'État\n');
+  git('add', 'STATUS.md');
+  git('commit', '-q', '-m', 'status');
+  git('push', '-q');
+  writeFileSync(join(repo, 'STATUS.md'), 'État modifié, non commité\n');
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return estBloque(s) ? null : `attendu un blocage (fichier suivi modifié), reçu: ${s || '(vide)'}`;
+});
+
+cas('stop-contexte : sans remote → muet sur le point de push', () => {
+  const repo = creerDepot(); // pas de remote : exemption C3
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return s === '' ? null : `attendu vide (sans remote), reçu: ${s}`;
+});
+
+cas('stop-contexte : wave.lock avec remote et avance → muet sur le point de push', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x');
+  mkdirSync(join(repo, '.claude'), { recursive: true });
+  writeFileSync(join(repo, '.claude', 'wave.lock'), '');
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return s === '' ? null : `attendu vide (sous verrou, non bloquant), reçu: ${s}`;
+});
+
+cas('stop-contexte : branche sans amont, absente du remote → bloque', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  git('checkout', '-q', '-b', 'wip/test-branche');
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x');
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return estBloque(s) ? null : `attendu un blocage (branche non poussée), reçu: ${s || '(vide)'}`;
+});
+
+cas('stop-contexte : branche sans amont, déjà poussée sur le remote → muet', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  git('checkout', '-q', '-b', 'wip/test-branche');
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x');
+  git('push', '-q', 'origin', 'wip/test-branche'); // poussée, mais sans -u : pas d'amont configuré
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return s === '' ? null : `attendu vide (branche déjà poussée), reçu: ${s}`;
+});
+
+// Régression trouvée en revue (plans/P6/S3.revue.md) : une branche sans amont, poussée UNE fois,
+// puis retravaillée, restait muette pour toujours — seule la présence sur `origin` était vérifiée,
+// jamais l'égalité avec HEAD.
+cas('stop-contexte : branche sans amont, poussée puis retravaillée sans repousser → bloque', () => {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  git('checkout', '-q', '-b', 'wip/test-branche');
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x');
+  git('push', '-q', 'origin', 'wip/test-branche'); // poussée, mais sans -u : pas d'amont configuré
+  writeFileSync(join(repo, 'src2.js'), 'console.log(2);\n');
+  git('add', 'src2.js');
+  git('commit', '-q', '-m', 'feat: y'); // jamais repoussé
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return estBloque(s) ? null : `attendu un blocage (branche en retard sur origin), reçu: ${s || '(vide)'}`;
+});
+
+// ── revuesManquantes (lib.mjs) : revue commitée, plus de repère `Revues:` (T5) ───
+cas('revuesManquantes : .revue.md ajouté puis supprimé (tri de clôture) → satisfait', () => {
+  const repo = creerDepot();
+  const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x\n\nPlan: P1/S1/T1');
+  mkdirSync(join(repo, 'plans', 'P1'), { recursive: true });
+  writeFileSync(join(repo, 'plans', 'P1', 'S1.revue.md'), 'Bloquant : 0\n');
+  git('add', 'plans/P1/S1.revue.md');
+  git('commit', '-q', '-m', 'revue: P1/S1');
+  git('rm', '-q', 'plans/P1/S1.revue.md');
+  git('commit', '-q', '-m', 'tri: clôture P1');
+  const manquantes = revuesManquantes(repo, debut);
+  return manquantes.length === 0 ? null : `attendu satisfait, reçu manquant: ${manquantes.join(', ')}`;
+});
+
+cas('revuesManquantes : jamais commitée → manquante', () => {
+  const repo = creerDepot();
+  const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x\n\nPlan: P1/S1/T1');
+  const manquantes = revuesManquantes(repo, debut);
+  return manquantes.includes('P1/S1') ? null : `attendu P1/S1 manquante, reçu: ${manquantes.join(', ')}`;
+});
+
+cas('revuesManquantes : .echec.md dispense de revue', () => {
+  const repo = creerDepot();
+  const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x\n\nPlan: P1/S1/T1');
+  mkdirSync(join(repo, 'plans', 'P1'), { recursive: true });
+  writeFileSync(join(repo, 'plans', 'P1', 'S1.echec.md'), 'Nature : exécution\n');
+  const manquantes = revuesManquantes(repo, debut);
+  return manquantes.length === 0 ? null : `attendu dispensé, reçu manquant: ${manquantes.join(', ')}`;
+});
+
 // ── sessionstart-contexte.mjs ────────────────────────────────────────────────
 cas('sessionstart-contexte : sort sans erreur sur le dépôt de test', () => {
   const repo = creerDepot();
@@ -273,6 +417,79 @@ cas('sessionstart-contexte : muet sans plan', () => {
   const repo = creerDepot();
   const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
   return /lancée en/.test(s) ? `signal présent sans plan: ${s}` : null;
+});
+
+// ── versionSuperieure (lib.mjs) : comparaison numérique, jamais lexicale (T6) ────
+cas('versionSuperieure : 0.38.1 > 0.9.0 (numérique, pas lexicale)', () => {
+  if (!versionSuperieure('0.38.1', '0.9.0')) return 'attendu vrai (0.38.1 > 0.9.0 numériquement)';
+  if (versionSuperieure('0.9.0', '0.38.1')) return 'attendu faux (0.9.0 < 0.38.1 numériquement)';
+  return null;
+});
+
+cas('versionSuperieure : versions égales → faux', () => {
+  return versionSuperieure('0.38.1', '0.38.1') ? 'attendu faux (égalité)' : null;
+});
+
+// ── derniereVersionPubliee (lib.mjs) : cache 24h, sans réseau (T6) ───────────────
+function poserManifeste(repo, contenu) {
+  mkdirSync(join(repo, '.claude', 'workflow'), { recursive: true });
+  writeFileSync(join(repo, '.claude', 'workflow', 'manifest.json'), JSON.stringify(contenu));
+}
+
+function poserCacheVersion(repo, contenu) {
+  mkdirSync(join(repo, '.git'), { recursive: true });
+  writeFileSync(join(repo, '.git', 'workflow-version.json'), JSON.stringify(contenu));
+}
+
+cas('derniereVersionPubliee : cache frais lu sans réseau', () => {
+  const repo = creerDepot();
+  // `source` volontairement inexistant : si le cache n'était pas lu, le `git ls-remote` réseau qui
+  // suivrait échouerait (dépôt introuvable) et rendrait `null`, pas '9.9.9'.
+  poserManifeste(repo, { version: '0.1.0', source: 'inexistant-xyz/inexistant' });
+  poserCacheVersion(repo, { version: '9.9.9', lu: Date.now() });
+  const v = derniereVersionPubliee(repo);
+  return v === '9.9.9' ? null : `attendu '9.9.9' (cache), reçu: ${v}`;
+});
+
+cas('derniereVersionPubliee : sans manifeste → null, jamais de réseau', () => {
+  const repo = creerDepot();
+  const v = derniereVersionPubliee(repo);
+  return v === null ? null : `attendu null (pas de manifeste), reçu: ${v}`;
+});
+
+// ── sessionstart-contexte.mjs : version du workflow vendoré (T6, C4) ─────────────
+cas('sessionstart-contexte : version en retard (cache) → ligne', () => {
+  const repo = creerDepot();
+  poserManifeste(repo, { version: '0.9.0', source: 'kovuthecat/claude-workflow' });
+  poserCacheVersion(repo, { version: '0.38.1', lu: Date.now() });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Workflow vendoré v0\.9\.0, source v0\.38\.1/.test(s)
+    ? null : `signal de retard absent, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : version à jour (cache) → muet', () => {
+  const repo = creerDepot();
+  poserManifeste(repo, { version: '0.38.1', source: 'kovuthecat/claude-workflow' });
+  poserCacheVersion(repo, { version: '0.38.1', lu: Date.now() });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Workflow vendoré/.test(s) ? `signal présent à tort (à jour): ${s}` : null;
+});
+
+cas('sessionstart-contexte : dépôt non vendoré (pas de manifeste) → muet', () => {
+  const repo = creerDepot();
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Workflow vendoré/.test(s) ? `signal présent à tort (non vendoré): ${s}` : null;
+});
+
+cas('sessionstart-contexte : correctifCritiqueDepuis applicable → « avant la prochaine vague »', () => {
+  const repo = creerDepot();
+  poserManifeste(repo, {
+    version: '0.9.0', source: 'kovuthecat/claude-workflow', correctifCritiqueDepuis: '0.20.0',
+  });
+  poserCacheVersion(repo, { version: '0.38.1', lu: Date.now() });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /avant la prochaine vague/.test(s)
+    ? null : `mention d'urgence absente, reçu: ${s || '(vide)'}`;
 });
 
 // ── postmodelswitch-journal.mjs ──────────────────────────────────────────────
