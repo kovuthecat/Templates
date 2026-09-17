@@ -3,6 +3,7 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-17` — **Autonomie par défaut, état scripté, push par session** (plugin `workflow` 0.39.0). Relecture critique globale du workflow, 36 recommandations approuvées en bloc. Six changements de fond : (1) L'autonomie devient le défaut, l'arrêt l'exception nommée — une session s'arrête sur l'irréversible, un contrat public/schéma/dépendance à changer, un objectif qui bouge, un jugement N2. (2) Ce qui est déterministe sort des modèles — N0 passe par `plugin/bin/n0.mjs`, l'état d'orchestration par `plugin/bin/prochaine-action.mjs`, l'agent `verificateur-n0` retiré. (3) Toute fin de tour qui rend la main ou demande une session neuve laisse un arbre propre et poussé. (4) L'exploration ouverte est orchestrable et arrive plus tôt. (5) Le workflow vendoré vérifie sa version au `SessionStart` (détection une fois par 24 h, mise à jour aux frontières de plan seulement). (6) Les textes chargés portent la norme, pas l'historique : `WORKFLOW.md` sous 300 lignes, `/fin-de-tache` scindée. Migration : `plugin/MIGRATION.md`.
 - `2026-07-03` — Refonte quota : `plans/P<n>/` (index + `S<k>.md`), skill `/fin-de-tache`, Codex = audits Playwright uniquement.
 - `2026-07-07` — Pipeline création : ARCHITECTURE.md → maquette Claude Design (`design/maquettes/`) → câblage.
 - `2026-07-07` — Centralisation : générique référencé (CLAUDE-BASE importé, WORKFLOW/CONVENTIONS/AGENTS pointés), skill au niveau utilisateur, MIGRATION.md.
