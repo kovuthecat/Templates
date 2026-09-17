@@ -41,3 +41,11 @@ il pointe vers le reste, sans le recopier. Plafond : **200 lignes** — au-delà
 ## Règles spécifiques au projet
 
 > À remplir à l'instanciation.
+
+- **Ce dépôt est la source du workflow, il n'est pas vendoré** : il charge son propre `plugin/`,
+  par une installation **locale au poste** (`.claude/settings.local.json`, jamais commité — le
+  chemin de la marketplace y est absolu). Sur un poste neuf, depuis la racine :
+  `claude plugin marketplace add ./plugin --scope local` puis
+  `claude plugin install workflow@templates --scope local`. Après un bump de version :
+  `claude plugin update workflow@templates`. Jamais de marketplace de **compte** (claude.ai) : elle
+  s'applique à tous les projets et y double le workflow vendoré (constat du 2026-09-17).
