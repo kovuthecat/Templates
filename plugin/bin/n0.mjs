@@ -3,10 +3,11 @@
 // (docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md).
 //
 // POURQUOI CE FICHIER EXISTE
-// `verificateur-n0` (sous-agent) fait un travail entièrement déterministe : lancer des commandes
-// documentées, filtrer leur sortie à quelques lignes. Un sous-agent y ajoute un démarrage à froid et
-// une frontière de tour où un verdict peut se perdre — la classe d'incidents que ce script retire.
-// Il ne devine jamais une commande : sans `.claude/n0.json`, il s'arrête et dit quoi écrire.
+// Un sous-agent chargé de N0 ferait un travail entièrement déterministe : lancer des commandes
+// documentées, filtrer leur sortie à quelques lignes. Il y ajouterait un démarrage à froid et une
+// frontière de tour où un verdict peut se perdre — la classe d'incidents que ce script retire (plus
+// aucun agent dédié à N0 depuis ce contrat). Il ne devine jamais une commande : sans
+// `.claude/n0.json`, il s'arrête et dit quoi écrire.
 //
 // USAGE
 //   node .claude/workflow/bin/n0.mjs [--seulement <nom>] [--cible <fichier>]   (projet vendoré)
