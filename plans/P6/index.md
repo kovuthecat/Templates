@@ -37,7 +37,7 @@ les `S<k>.md` y renvoient au lieu de les recopier.
 | [S6](S6.md) | T12-T14 | `/fin-de-tache` scindée, `/reprendre-echec`, revue par vague, retrait de `verificateur-n0` | Sonnet | medium | — | S4 | `plugin/skills/fin-de-tache/`, `plugin/skills/reprendre-echec/SKILL.md`, `plugin/agents/relecteur-session.md`, `plugin/agents/verificateur-n0.md` (supprimé), `plugin/skills/verif-visuelle/SKILL.md` | [ ] |
 | [S7](S7.md) | T15-T17 | Cadrage : `/nouveau-plan`, `/cadrer`, `/maj-workflow`, `verificateur-plan` | Sonnet | medium | — | S4 | `plugin/skills/nouveau-plan/`, `plugin/skills/cadrer/SKILL.md`, `plugin/skills/maj-workflow/SKILL.md`, `plugin/agents/verificateur-plan.md` | [ ] |
 | [S8](S8.md) | T18-T20 | Périphérie : gabarits, migration, README, évals | Sonnet | medium | — | S5, S6, S7 | `plugin/templates/`, `plugin/skills/nouveau-projet/SKILL.md`, `plugin/skills/migrer-projet/SKILL.md`, `plugin/MIGRATION.md`, `plugin/README.md`, `plugin/evals/`, `docs/analyses/2026-09-<jj>-evals-p6.md` (nouveau) | [ ] |
-| [S10](S10.md) | T23 | Le moteur d'actions de `prochaine-action.mjs` | Sonnet | **high** | — | S2 | `plugin/bin/prochaine-action.mjs`, `tests/tester-scripts.mjs`, `tests/fixtures/plans/` | [ ] |
+| [S10](S10.md) | T23 | Le moteur d'actions de `prochaine-action.mjs` | Sonnet | **high** | — | S2 | `plugin/bin/prochaine-action.mjs`, `tests/tester-scripts.mjs`, `tests/fixtures/plans/` | [x] (2026-09-17) |
 | [S9](S9.md) | T21-T22 | Clôture : version, CHANGELOG, publication taguée | Haiku | low | — | S8 | `plugin/.claude-plugin/plugin.json`, `CHANGELOG.md`, `plans/P6/index.md` | [ ] |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
