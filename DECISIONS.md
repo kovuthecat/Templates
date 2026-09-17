@@ -136,6 +136,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-09-17 — **Arrêts sans jugement retirés, correctif localisé** — `gate` retiré (seul
   `validation-humaine` arrête un `PASS`), défaut mesuré et petit corrigé dans la session, bloc de
   relance obligatoire → [détail](docs/decisions/2026-09-17-gates-sans-arret-et-correctif-localise.md)
+- 2026-09-17 — **Autonomie par défaut, état scripté, push par session** — arrêt sur quatre critères
+  nommés seulement (latitude par défaut, lecture ouverte, budget en hypothèses, amendement de
+  session) ; N0 et état d'orchestration par scripts (`n0.mjs`, `prochaine-action.mjs`),
+  `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
+  orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
+  partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
 
 ## Archives
 
