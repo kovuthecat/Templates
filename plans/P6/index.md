@@ -30,7 +30,7 @@ les `S<k>.md` y renvoient au lieu de les recopier.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1-T2 | Sondes A-D et cache plugin du poste | Sonnet | medium | — | — | `docs/analyses/2026-09-17-sondes-p6.md` (nouveau) | [x]! (2026-09-17) |
-| [S2](S2.md) | T3-T4 | `n0.mjs`, et le parseur de `prochaine-action.mjs` | Sonnet | **high** | — | S1 | `plugin/bin/n0.mjs` (nouveau), `plugin/bin/prochaine-action.mjs` (nouveau), `.claude/n0.json` (nouveau), `tests/tester-scripts.mjs` (nouveau), `tests/fixtures/` (nouveau) | [ ] |
+| [S2](S2.md) | T3-T4 | `n0.mjs`, et le parseur de `prochaine-action.mjs` | Sonnet | **high** | — | S1 | `plugin/bin/n0.mjs` (nouveau), `plugin/bin/prochaine-action.mjs` (nouveau), `.claude/n0.json` (nouveau), `tests/tester-scripts.mjs` (nouveau), `tests/fixtures/` (nouveau) | [x] (2026-09-17) |
 | [S3](S3.md) | T5-T7 | Hooks : gate de push, version vendorée ; tag de publication | Sonnet | medium | — | S1 | `plugin/hooks/stop-contexte.mjs`, `plugin/hooks/sessionstart-contexte.mjs`, `plugin/hooks/lib.mjs`, `plugin/bin/publier.mjs`, `tests/tester-hooks.mjs`, `.claude/settings.json` | [ ] |
 | [S4](S4.md) | T8-T9 | La norme : `WORKFLOW.md` réécrit, `EXECUTANT.md`, `CLAUDE-BASE.md` | Sonnet | **high** | — | S3, S10 | `plugin/WORKFLOW.md`, `plugin/EXECUTANT.md`, `plugin/CLAUDE-BASE.md`, `plugin/hooks/plafonds.json` | [ ] |
 | [S5](S5.md) | T10-T11 | `/orchestrer-plan` autour du script d'état | Sonnet | **high** | — | S1, S10, S4 | `plugin/skills/orchestrer-plan/`, `plugin/agents/session-*.md` (nouveaux, si sonde A confirmée) | [ ] |
