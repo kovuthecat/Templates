@@ -1,2 +1,5 @@
 # Journal complet de n0.mjs (plugin/bin/n0.mjs) — jamais du contenu de projet (contrat C1).
 .claude/n0/
+
+# Rapports HTML générés par `claude plugin eval` (plugin/evals/) — jamais du contenu de projet.
+plugin/evals/results/
