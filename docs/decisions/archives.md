@@ -6,6 +6,15 @@
 
 - 2026-08-22 — **Enchaînement de sessions** — pastille + orchestrateur headless →
   [détail](2026-08-22-agents-mecaniques.md) — remplacée par 2026-09-12 (voie unique)
+- 2026-08-22 — **Plugin sans déplacement de fichier** — le repo devient la marketplace `templates`
+  exposant le plugin `workflow` sur les emplacements existants →
+  [détail](2026-08-22-plugin-workflow.md) — caduque : workflow vendoré
+- 2026-08-22 — **CLAUDE-BASE injecté par hook** — l'import `@...CLAUDE-BASE.md` remplacé par une
+  injection via le hook `SessionStart` du plugin →
+  [détail](2026-08-22-plugin-workflow.md) — caduque : workflow vendoré
+- 2026-08-22 — **Settings projet réduits** — `.claude/settings.json` limité à `enabledPlugins` +
+  `permissions` + `effortLevel`, hooks dans le plugin →
+  [détail](2026-08-22-plugin-workflow.md) — caduque : workflow vendoré
 - 2026-08-24 — **Hook `SessionStart` de bootstrap** →
   [détail](2026-08-24-sessionstart-bootstrap-hook.md) — caduque : workflow vendoré
 - 2026-08-24 — **`/executer-vague` : deux voies, trois verdicts** →
