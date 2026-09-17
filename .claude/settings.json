@@ -40,5 +40,17 @@
       "$defaults",
       "Bash(node plugin/bin/publier.mjs:*)"
     ]
+  },
+  "_comment_plugin": "Dépôt source, non vendoré : il charge SON PROPRE plugin/ (source vivante), au niveau projet seulement — jamais une marketplace de compte, qui s'applique à tous les projets et y double le workflow vendoré (constat du 2026-09-17 : un instantané 0.1.0 du 22/08 injecté partout par Desktop). À ne recopier dans aucun projet vendoré (cf. /migrer-projet, double chargement).",
+  "extraKnownMarketplaces": {
+    "templates": {
+      "source": {
+        "source": "directory",
+        "path": "./plugin"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@templates": true
   }
 }
