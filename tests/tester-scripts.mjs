@@ -195,11 +195,16 @@ cas('prochaine-action : fixture copiée de plans/P5/index.md → 9 sessions, 5 v
 });
 
 cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, aucun état deviné', () => {
+  // Anti-raccourci (S7/T15) : cette fixture est une COPIE du squelette-index.md modifié (ligne
+  // `Workflow : v<x>` + colonne « Message de commit » ajoutée après Statut, C4/C7) — les assertions
+  // ci-dessous sur `workflow` et sur les sessions/vagues prouvent que le parseur lit le NOUVEAU
+  // format, pas seulement qu'il continue de lire l'ancien.
   const cwd = dossierJetable('workflow-pa-squelette-');
   cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
   const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   const json = JSON.parse(sortie);
+  if (json.workflow !== '<x>') return `Workflow attendu "<x>" (ligne ajoutée au squelette, C4), reçu ${JSON.stringify(json.workflow)}`;
   if (json.sessions.length !== 2) return `2 sessions attendues (S1, S2), reçu ${json.sessions.length}`;
   if (json.vagues.length !== 3) return `3 vagues attendues, reçu ${json.vagues.length}`;
   if (!json.vagues[0].parallelisable) return 'vague 1 attendue parallélisable';
@@ -207,6 +212,10 @@ cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, a
   if (json.sessions.some((s) => s.etat !== 'a-lancer')) {
     return `toutes les sessions du squelette sont à faire, reçu: ${JSON.stringify(json.sessions.map((s) => s.etat))}`;
   }
+  // La colonne « Message de commit », ajoutée après Statut (C7), ne doit pas décaler la lecture du
+  // Statut lui-même (position fixe, cellules[8]) : S1 et S2 restent lues « à faire ».
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  if (!s1 || s1.statutBrut !== '[ ]') return `S1.statutBrut attendu "[ ]" (colonne Statut non décalée par l'ajout), reçu ${JSON.stringify(s1?.statutBrut)}`;
   return null;
 });
 
