@@ -30,6 +30,14 @@
 // devenir mal désignée ou orpheline, sans qu'aucun signal ne le dise avant qu'un projet aval le
 // découvre — « sans qu'on puisse l'oublier » n'est pas une discipline de rédaction, c'est un refus
 // mécanique (`docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md`, section (a) règle 3).
+//
+// TAG DE VERSION (C4, plan P6/S3/T7)
+// Chaque publication pose et pousse le tag `v<version>` (lu dans `.claude-plugin/plugin.json`) sur
+// le commit publié. Sans lui, le hook SessionStart d'un projet vendoré (`derniereVersionPubliee`,
+// `plugin/hooks/lib.mjs`) n'a rien à lire : `git ls-remote --tags` sur un dépôt qui n'en a jamais
+// posé rend une liste vide, et la détection de version en retard reste sans objet. Le dépôt
+// temporaire étant neuf à chaque publication, le tag posé ici pointe toujours le commit unique
+// qu'on vient de créer.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync } from 'node:fs';
@@ -207,10 +215,13 @@ try {
 
   console.log(`publier: payload propre — ${fichiers.length} fichiers, version ${version}`);
 
+  const tag = `v${version}`;
+
   if (dryRun) {
     console.log(`publier: --dry-run — payload construit dans ${tmp}`);
     console.log(`publier: aurait poussé vers ${DEPOT_PUBLIC} (HEAD:main, --force) avec le message :`);
     console.log(`  Plugin workflow — marketplace templates (v${version})`);
+    console.log(`publier: aurait posé et poussé le tag ${tag} (--force) sur le commit publié`);
     process.exit(0);
   }
 
@@ -224,8 +235,16 @@ try {
   );
   const sha = git(['rev-parse', 'HEAD'], { cwd: tmp }).toString().trim();
 
+  // ── Tag de version — condition d'entrée de T6 (SessionStart lit `git ls-remote --tags`) ────
+  // Le dépôt temporaire est neuf à chaque publication (git init ci-dessus) : le tag posé ici pointe
+  // toujours le commit unique qu'on vient de créer, jamais un ancien. `--force` au push du tag,
+  // comme pour la branche : une republication de la même version doit pouvoir redéplacer le tag sur
+  // un nouveau commit (contenu identique, arbre source qui a bougé depuis).
+  git(['tag', tag], { cwd: tmp });
+
   // ── Publication ────────────────────────────────────────────────────────────
   execFileSync('git', ['push', '--force', DEPOT_PUBLIC, 'HEAD:main'], { cwd: tmp, windowsHide: true, stdio: 'inherit' });
+  execFileSync('git', ['push', '--force', DEPOT_PUBLIC, tag], { cwd: tmp, windowsHide: true, stdio: 'inherit' });
 
   // ── Vérification post-push ──────────────────────────────────────────────────
   const distant = git(['ls-remote', DEPOT_PUBLIC, 'main']).toString().trim();
@@ -236,7 +255,13 @@ try {
     process.exit(1);
   }
 
-  console.log(`publier: OK — v${version} · ${fichiers.length} fichiers · ${sha} confirmé sur ${DEPOT_PUBLIC}`);
+  const tagsDistants = git(['ls-remote', '--tags', DEPOT_PUBLIC]).toString();
+  if (!tagsDistants.includes(`refs/tags/${tag}`)) {
+    console.error(`publier: tag ${tag} absent de ${DEPOT_PUBLIC} après push — vérifier manuellement`);
+    process.exit(1);
+  }
+
+  console.log(`publier: OK — v${version} · ${fichiers.length} fichiers · ${sha} confirmé sur ${DEPOT_PUBLIC} · tag ${tag} posé`);
 } finally {
   // Nettoyage systématique, y compris en cas d'échec du push ou du garde-fou.
   if (tmp) rmSync(tmp, { recursive: true, force: true });
