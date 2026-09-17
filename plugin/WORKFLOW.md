@@ -550,6 +550,26 @@ intouchable : une session qui montre qu'il compte faux rend ce constat **avec sa
 pas échoué. Cinq plans ont optimisé contre un juge qui sous-comptait sans que personne ait le droit
 d'aller le vérifier (décision du 2026-09-14).
 
+**Le correctif localisé se pose dans la session qui le trouve.** Une session qui a mesuré la cause
+de ce qui la bloque et sait le remède le pose elle-même — **y compris hors de son périmètre
+d'écriture, et y compris si son `S<k>.md` dit « ne corrige pas ici »** — si les quatre conditions
+tiennent :
+
+1. **cause mesurée** — une sortie, une trace, un relevé la montrent ; une hypothèse ne suffit pas ;
+2. **remède petit** — un ou deux fichiers, une trentaine de lignes de code hors tests ;
+3. **réversible** — ni migration, ni données écrites, ni dépendance, ni contrat public modifié ;
+4. **jugé** — la gate de la session et N0 le tranchent, avec un test du défaut quand il est testable.
+
+Commit séparé, repère `Plan:` habituel et une ligne `Correctif localisé : <fichiers>` dans le
+message ; signalé en tête du bilan. La revue de session est le garde-fou. Une condition manque → la
+table ci-dessus s'applique. Ce n'est pas une prémisse fausse : l'objectif du plan ne change pas, un
+défaut l'empêchait d'être atteint. Seul le bandeau du `S<k>.md` peut l'éteindre, raison écrite
+(`Correctif localisé : interdit — <raison>`, zone sensible ou état coûteux à annuler) — un « Hors
+périmètre » générique ne suffit pas. *Pourquoi* : Interface-OE P10/S6 (2026-09-16), cause mesurée
+deux fois, remède de quelques lignes puis d'une ligne ; il a coûté trois exécutions Opus, deux
+enquêtes, deux extensions de plan, deux sessions et deux questions dont la réponse était la
+recommandation (`docs/decisions/2026-09-17-gates-sans-arret-et-correctif-localise.md`).
+
 Le plafond d'une correction n'est pas négociable : au-delà, c'est l'anti-pattern de §3 (tourner en
 rond sur la même erreur), et c'est précisément ce qu'un modèle au-dessus règle mieux qu'une
 troisième tentative. Le rapport `plans/P<n>/S<k>.echec.md` porte la nature en ligne mécanique
@@ -639,6 +659,9 @@ fois par point (inventaire du 2026-09-14).
 | « une hypothèse du plan est fausse » | une **affirmation non vérifiée**, écrite par la session qui vient d'échouer | **vérification** (`verificateur-premisse`) — puis reprise si elle est réfutée, question si elle tient ; `INDECIDABLE · comportementale` → question, option « sonder » (`/nouveau-plan` Étape 1, point 5) |
 | « une hypothèse du plan est fausse » **et une mesure commitée le prouve** (`Mesure :`) | une **preuve** — de niveau supérieur à la lecture | pas de vérification : **question** ou extension, comme une prémisse réfutée |
 | remédiation d'environnement à portée dans l'arbre | rien du tout | **appliquer et continuer** (§9a) |
+| cause mesurée, remède petit et réversible, hors périmètre | rien du tout | **correctif localisé** (§9a), rapporté après |
+| enquête `OPTIONS` dont l'option recommandée est `Auto : oui` | un remède connu, pas un choix | **reprise** qui l'applique (`/orchestrer-plan` 5d) |
+| vague collectée, tout `PASS` | rien du tout | **vague suivante** — seule `validation-humaine` arrête (critère N2) |
 | une migration jouée à annuler, une permission à élargir, une prémisse confirmée, un budget épuisé | un choix | **question** |
 
 *Pourquoi.* La latence humaine est le coût dominant d'une orchestration ; et un humain qui reçoit
@@ -654,8 +677,10 @@ déclare bloqué » — une session remplit ses champs sur ce qu'elle *croit*, c
 **si et seulement si** les trois conditions suivantes tiennent, **toutes observables de
 l'extérieur, sans ouvrir le contexte de l'agent** :
 
-1. **L'agent est reprenable** — il apparaît dans `ListAgents`. Absent, le reprendre *est* un
-   démarrage à froid, sans le bénéfice.
+1. **L'agent est reprenable** — l'orchestrateur détient l'identifiant rendu par l'appel `Agent` qui
+   l'a lancé. Pas `ListAgents` : un sous-agent qui a rendu sa réponse n'y figure plus (incident
+   Interface-OE du 2026-09-16), la condition y était toujours fausse. Le `SendMessage` qui échoue
+   est le test : démarrage à froid, sans retenter.
 2. **N0 est vert sur son périmètre** — constaté par un `verificateur-n0` que l'**orchestrateur**
    lance lui-même, jamais par la déclaration de la session. C'est la gate qui autorise le canal
    court.

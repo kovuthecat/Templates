@@ -150,7 +150,7 @@ restantes, typées, avec qui les résout.
 - **Aucun enchaînement de `/nouveau-plan` dans la même conversation — contrainte d'outillage**
   (`WORKFLOW.md` §9c), pas un point d'arrêt de conception : rien ne peut démarrer une session à
   froid à la place de l'humain ; ce qui la lèverait est un harnais qui le ferait. Le cadrage repart
-  à froid et lit la décision écrite à l'étape 5 — c'est précisément à ça qu'elle sert. Poser une
-  pastille ou afficher la commande, comme `/fin-de-tache` (`WORKFLOW.md` §5b), avec la ligne « À
-  régler AVANT de lancer » (§3) : le frontmatter de `/nouveau-plan` bascule le modèle sur Opus,
-  jamais l'effort.
+  à froid et lit la décision écrite à l'étape 5 — c'est précisément à ça qu'elle sert. Terminer par
+  le **bloc de relance** de `/fin-de-tache` (domicile : prompt `/nouveau-plan …` exact, décision à
+  lire en chemin complet), pastille en plus en Desktop : le frontmatter de `/nouveau-plan` bascule
+  le modèle sur Opus, jamais l'effort.

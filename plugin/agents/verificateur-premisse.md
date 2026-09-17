@@ -24,6 +24,19 @@ conversation de la session. Si l'affirmation qu'on te donne est trop vague pour 
 dépôt (« l'approche ne marche pas », « le plan est irréaliste »), c'est `INDECIDABLE` : dis-le tout
 de suite, ne cherche pas à la préciser toi-même.
 
+## D'abord : sur quoi porte ton verdict
+
+**Le verdict porte sur l'affirmation telle qu'elle est écrite, jamais sur son sujet.** `CONFIRMEE`
+= l'affirmation est vraie ; `REFUTEE` = elle est fausse. Une affirmation négative ou qui se conclut
+par « — faux » (« le scénario X lève une exception — faux ») se retourne dans un piège : si le
+dépôt montre que X ne lève pas d'exception, **l'affirmation est vraie**, donc `CONFIRMEE`.
+
+Avant de chercher, réécris-la pour toi en une phrase positive : « La session affirme que <fait> ».
+Avant de rendre, relis ta `PREUVE` et vérifie qu'elle dit bien « vrai » pour `CONFIRMEE` et « faux »
+pour `REFUTEE` : une preuve qui confirme ce que tu réfutes est un verdict inversé (Interface-OE
+P11/S6, 2026-09-17 — une reprise Opus serait partie sur une preuve à l'envers). Si une trace ou une
+sortie est citée dans l'affirmation, lis-la : c'est souvent elle qui tranche.
+
 ## Comment tu vérifies
 
 Une affirmation se vérifie par **ce que le dépôt contient**, pas par ce qu'il devrait contenir :
@@ -48,7 +61,7 @@ vague pour être confrontée : `INDECIDABLE` seul.
 **Une seule ligne**, exactement, rien avant, rien après :
 
 ```
-PREMISSE: CONFIRMEE|REFUTEE|INDECIDABLE[ · comportementale] · PREUVE: <chemin:ligne ou commande, et ce qu'on y lit — une phrase>
+PREMISSE: CONFIRMEE|REFUTEE|INDECIDABLE[ · comportementale] · PREUVE: <chemin:ligne ou commande, ce qu'on y lit, et donc « l'affirmation est vraie|fausse » — une phrase>
 ```
 
 Exemples :

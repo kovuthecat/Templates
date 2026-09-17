@@ -100,9 +100,11 @@ place d'un humain.
    du bruit payé à chaque lecture — ne pas la laisser vide, la retirer).
 7. `git init` (s'il n'a pas eu lieu avant l'amorçage). **Dépôt sous un dossier synchronisé ?**
    (`SynologyDrive`, `OneDrive`, `Dropbox`, `iCloud` dans le chemin) : demander à l'utilisateur
-   d'exclure le dossier `.git` dans son client — une action hors du dépôt, qu'aucune gate ne peut
-   poser à sa place (`WORKFLOW.md` §9c) : attendre le oui —, puis
-   `touch .git/info/synchro-exclue`. Puis premier commit, staging explicite,
+   de **déplacer le dépôt hors de l'arborescence du client** — une exclusion de synchro ne suffit
+   pas, le client filtre aussi le contenu exclu (`.git` corrompu, Vite qui ne démarre jamais :
+   torrent-uploader, 2026-09-11 et 09-16). Action hors du dépôt, qu'aucune gate ne peut poser à sa
+   place (`WORKFLOW.md` §9c) : attendre le oui, reprendre au nouvel emplacement. S'il choisit de
+   rester : `touch .git/info/synchro-exclue`. Puis premier commit, staging explicite,
    message exact : `chore: instanciation projet depuis Templates`. Le commit inclut `.claude/` —
    c'est ce qui rend le workflow disponible à quiconque clone, dans tous les environnements.
 

@@ -240,5 +240,5 @@ prochaine revue retrouvera exactement la même chose.
 - **Aucune exploration en direct** dès que ça dépasse un fichier : c'est le travail d'`explorateur`.
 - **Aucun écart sans coût observable** — sinon c'est du goût, et le goût ne se met pas au backlog.
 - **Aucun enchaînement de `/cadrer` ou `/nouveau-plan` dans la même conversation** : la suite repart
-  à froid depuis le rapport, c'est à ça qu'il sert. Poser une pastille ou afficher la commande,
-  précédée de la ligne « À régler AVANT de lancer » (`${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §3).
+  à froid depuis le rapport, c'est à ça qu'il sert. Terminer par le **bloc de relance** de
+  `/fin-de-tache` (domicile : prompt exact, fichiers à lire), pastille en plus en Desktop.

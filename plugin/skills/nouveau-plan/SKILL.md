@@ -144,7 +144,7 @@ même session fait re-payer le contexte accumulé à chaque tour. Le découpage 
 - le lot reste raisonnable (~3-5 tâches courtes, ou 2 moyennes liées).
 
 **Séparer** dès qu'un critère tombe, et notamment : toute tâche `high`/`xhigh` est **seule dans sa
-session** · changement de modèle ou d'effort · gate humaine entre deux tâches · la séparation
+session** · changement de modèle ou d'effort · validation humaine (N2) entre deux tâches · la séparation
 **débloque une parallélisation**.
 
 Deux sessions sont **parallélisables** ssi aucune dépendance **et** zones modifiées disjointes
@@ -178,16 +178,25 @@ Même exigence pour le *Pourquoi maintenant* d'une vague : il justifie l'**ordre
 « sans ça, S4 travaillerait sur une structure de données qui va changer » plutôt que « prérequis ».
 
 **Trois mots-clés déclarent une exception à l'exécution normale**, deux sur la ligne d'une **vague**,
-un sur la ligne « en clair » d'une **session** : `gate` (la vague arrête l'orchestrateur une fois
-collectée, même si tout est `PASS`) et `reprise-manuelle` (un `FAIL` de cette vague n'a droit ni à
-la reprise ni à l'enquête automatiques) portent sur la vague entière ; **`pastille`**, lui, porte sur une session
+un sur la ligne « en clair » d'une **session** : `validation-humaine` (la vague arrête
+l'orchestrateur une fois collectée, même si tout est `PASS`) et `reprise-manuelle` (un `FAIL` de cette
+vague n'a droit ni à la reprise ni à l'enquête automatiques) portent sur la vague entière ; **`pastille`**, lui, porte sur une session
 précise — elle se lance par le repli pastille (premier plan, navigateur complet), **même en
 Desktop** : c'est le cadreur qui le décide ici, au cadrage, quand le N1 de cette session est
 structurant (nouvel écran, refonte de mise en page) et mérite un déroulé surveillé plutôt qu'un
 sous-agent (`/orchestrer-plan` Étape 3, `/verif-visuelle`).
 
+**`validation-humaine` a un seul critère : le `PASS` lui-même demande ton jugement** — une ligne
+`N2 humain` non vide dans une session de la vague, dont la réponse décide s'il faut lancer la
+suivante. Ce ne sont **pas** des raisons : une mesure au critère mécanique (son `FAIL` arrête déjà
+le plan), une vague « qui protège la suivante » (idem), une ressource rare déjà budgétée au plan, un
+geste humain préalable (il se vérifie en premier geste de la session, `references/squelette-session.md`
+« Si bloqué »). Un arrêt sur `PASS` sans jugement à rendre ne t'apporte rien que la relance ; il coûte
+une interruption (décision du 2026-09-17). L'ancien mot `gate` sur une ligne de vague ne s'écrit
+plus : `/orchestrer-plan` l'ignore.
+
 **Vagues orchestrées (optionnel)** — toute vague s'exécute via `/orchestrer-plan`, qui déroule les
-sessions les unes après les autres jusqu'à épuisement, une gate, ou une **question** à l'utilisateur.
+sessions les unes après les autres jusqu'à épuisement, une `validation-humaine`, ou une **question** à l'utilisateur.
 Un `FAIL` déclenche par défaut le cycle de remédiation à froid (`/orchestrer-plan` 5c et 5d,
 budget : 2 reprises et 1 enquête par session, `WORKFLOW.md` §9c) ; le mot **`reprise-manuelle`** sur
 la ligne d'ordonnancement d'une vague le désactive — à déclarer au cadrage quand un échec dans

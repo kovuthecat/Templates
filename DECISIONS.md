@@ -25,16 +25,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 ## Décisions
 
-- 2026-08-22 — **Plugin sans déplacement de fichier** — Le repo devient la marketplace Claude Code
-  `templates` exposant le plugin `workflow` (skills, hooks, agents) sur les emplacements existants,
-  sans rien déplacer ; les projets non migrés continuent de fonctionner tels quels →
-  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
-- 2026-08-22 — **CLAUDE-BASE injecté par hook** — L'import `@...CLAUDE-BASE.md` du `CLAUDE.md`
-  projet est remplacé par une injection du contenu via le hook `SessionStart` du plugin →
-  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
-- 2026-08-22 — **Settings projet réduits** — `.claude/settings.json` d'un projet se limite à
-  `enabledPlugins` + `permissions` + `effortLevel` ; les hooks voyagent désormais dans le plugin →
-  [détail](docs/decisions/2026-08-22-plugin-workflow.md)
 - 2026-08-22 — **Agents mécaniques Haiku** — Quatre agents (`explorateur`, `verificateur-n0`,
   `resumeur-git`, `lecteur-doc`) à délégation proactive remplacent l'exécution directe des tâches
   mécaniques dans la conversation principale →
@@ -143,6 +133,9 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   sondée avant le plan ; agents `critique-plan` (Opus, plan architectural) et `analyste-flux`
   (Sonnet) ; gates de publication étendues, évals de déclenchement (≥ 2.1.269) →
   [détail](docs/decisions/2026-09-15-reflexion-outillee-critique-et-flux.md)
+- 2026-09-17 — **Arrêts sans jugement retirés, correctif localisé** — `gate` retiré (seul
+  `validation-humaine` arrête un `PASS`), défaut mesuré et petit corrigé dans la session, bloc de
+  relance obligatoire → [détail](docs/decisions/2026-09-17-gates-sans-arret-et-correctif-localise.md)
 
 ## Archives
 
