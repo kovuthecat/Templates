@@ -37,9 +37,10 @@ que tout environnement Claude Code possède déjà. Le clone temporaire peut êt
 | Emplacement | Contenu |
 | --- | --- |
 | `.claude/skills/` | les skills du workflow (découverte native par Claude Code) |
-| `.claude/agents/` | 9 agents de délégation : exploration, lecture de flux, build/tests, git, doc externe, relecture de session, vérification de plan, vérification de prémisse, critique de plan |
+| `.claude/agents/` | 8 agents de délégation : exploration, lecture de flux, git, doc externe, relecture de session, vérification de plan, vérification de prémisse, critique de plan — build/tests n'en est plus un (N0 est un script, voir `bin/`) |
 | `.claude/workflow/EXECUTANT.md` | ce que lit une session d'exécution de plan (table de délégation, interdits) |
 | `.claude/workflow/hooks/` | garde-fous git, dérive du contexte, formatage |
+| `.claude/workflow/bin/` | scripts déterministes : `n0.mjs` (build/typecheck/tests, lit `.claude/n0.json`) et `prochaine-action.mjs` (état d'une orchestration, lecture seule) |
 | `.claude/workflow/` | `WORKFLOW.md`, `CONVENTIONS.md`, `CLAUDE-BASE.md`, squelettes |
 | `.claude/workflow/manifest.json` | un hash par fichier géré — c'est lui qui rend la mise à jour possible |
 
@@ -60,6 +61,11 @@ node .claude/workflow/bin/sync-workflow.mjs --source <clone-de-ce-dépôt> --pro
 
 Sort en `1` si une action est due, `0` si tout est aligné. Sans `--check`, synchronise. La skill
 `/maj-workflow` déroule la procédure complète, arbitrage des dérives compris.
+
+Chaque publication pose et pousse un tag `v<version>` sur ce dépôt : c'est ce qui permet à un projet
+vendoré de détecter, sans rien interroger d'autre, qu'il a du retard (`git ls-remote --tags`, vérifié
+au démarrage d'une session, en cache 24 h). Un projet vendoré en ≤ 0.38.1 n'a pas ce contrôle : sa
+première mise à jour reste manuelle (voir `MIGRATION.md` § Vers 0.39.0).
 
 ## Installation en plugin (optionnelle)
 
