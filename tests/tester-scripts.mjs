@@ -28,6 +28,7 @@ const RACINE = dirname(ICI);
 const BIN = join(RACINE, 'plugin', 'bin');
 const FIXTURES = join(RACINE, 'tests', 'fixtures');
 const N0 = join(BIN, 'n0.mjs');
+const PROCHAINE_ACTION = join(BIN, 'prochaine-action.mjs');
 
 const dossiersTemporaires = [];
 let echecs = 0;
@@ -74,6 +75,16 @@ function lancer(script, args, cwd) {
   } catch (e) {
     return { code: e.status ?? 1, sortie: (e.stdout ?? '') + (e.stderr ?? '') };
   }
+}
+
+function git(cwd, ...args) {
+  execFileSync('git', args, { cwd, stdio: 'pipe' });
+}
+
+function initDepot(cwd) {
+  git(cwd, 'init', '-q');
+  git(cwd, 'config', 'user.email', 'test@local');
+  git(cwd, 'config', 'user.name', 'Test');
 }
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -145,6 +156,152 @@ cas('n0 : --cible substitue {fichier} dans testCible', () => {
   if (!/testCible → PASS/.test(sortie)) return `ligne "testCible → PASS" absente: ${sortie}`;
   const log = readFileSync(join(cwd, '.claude', 'n0', 'dernier.log'), 'utf8');
   if (!log.includes('cible: src/x.test.js')) return `{fichier} non substitué dans la commande: ${log}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — moitié « lecture » du contrat C2
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+cas('prochaine-action : sans --etat → « moteur non implémenté (S10) », code 2', () => {
+  // N'importe quel cwd valide : le flag --etat est vérifié avant toute lecture de l'index.
+  const cwd = dossierJetable('workflow-pa-sansetat-');
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P5'], cwd);
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!sortie.includes('moteur non implémenté (S10)')) return `message inattendu: ${sortie}`;
+  return null;
+});
+
+cas('prochaine-action : plan absent → erreur nommée « index illisible », jamais un état supposé', () => {
+  const cwd = dossierJetable('workflow-pa-absent-');
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd);
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!sortie.includes('index illisible')) return `message inattendu (pas d'erreur nommée): ${sortie}`;
+  return null;
+});
+
+cas('prochaine-action : fixture copiée de plans/P5/index.md → 9 sessions, 5 vagues, toutes faite', () => {
+  // Anti-raccourci : cette fixture est une COPIE de l'index réel (tests/fixtures/plans/P5-copie/),
+  // pas une table réécrite d'après le parseur — elle seule révèle les variantes d'un index réel
+  // (dates sur `[x]`, libellés de vague variés).
+  const cwd = dossierJetable('workflow-pa-p5-');
+  cpSync(join(FIXTURES, 'plans', 'P5-copie'), join(cwd, 'plans', 'P5'), { recursive: true });
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P5', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  let json;
+  try {
+    json = JSON.parse(sortie);
+  } catch (e) {
+    return `JSON invalide (${e.message}): ${sortie}`;
+  }
+  if (json.sessions.length !== 9) return `9 sessions attendues, reçu ${json.sessions.length}`;
+  // Le fichier réel porte 5 vagues (« Vague 1 » à « Vague 5 »), pas 6 — vérifié par grep sur
+  // plans/P5/index.md avant d'écrire ce test (S2/T4, écart de comptage dans S2.md signalé au bilan).
+  if (json.vagues.length !== 5) return `5 vagues attendues, reçu ${json.vagues.length}`;
+  const nonFaites = json.sessions.filter((s) => s.etat !== 'faite');
+  if (nonFaites.length > 0) return `sessions non « faite »: ${nonFaites.map((s) => s.session).join(', ')}`;
+  return null;
+});
+
+cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, aucun état deviné', () => {
+  const cwd = dossierJetable('workflow-pa-squelette-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  if (json.sessions.length !== 2) return `2 sessions attendues (S1, S2), reçu ${json.sessions.length}`;
+  if (json.vagues.length !== 3) return `3 vagues attendues, reçu ${json.vagues.length}`;
+  if (!json.vagues[0].parallelisable) return 'vague 1 attendue parallélisable';
+  if (!json.vagues[2].cloture) return 'vague 3 attendue clôture';
+  if (json.sessions.some((s) => s.etat !== 'a-lancer')) {
+    return `toutes les sessions du squelette sont à faire, reçu: ${JSON.stringify(json.sessions.map((s) => s.etat))}`;
+  }
+  return null;
+});
+
+cas('prochaine-action : .echec.md complet → état "echec", cinq lignes mécaniques lues telles quelles', () => {
+  const cwd = dossierJetable('workflow-pa-echec-complet-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P0', 'S1.echec.md'),
+    [
+      '# S1 — échec du 2026-09-17',
+      '',
+      'Nature : exécution',
+      'Tentatives : reprise=1 enquete=0',
+      'Blocage : relancer le build après correction du type',
+      'Mesure : abc1234 · node tests/tester-scripts.mjs',
+      'Auto : non',
+      '',
+    ].join('\n'),
+  );
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  if (!s1) return 'session S1 absente';
+  if (s1.etat !== 'echec') return `état attendu "echec", reçu ${s1.etat}`;
+  if (s1.echec.nature !== 'exécution') return `nature inattendue: ${s1.echec.nature}`;
+  if (s1.echec.tentatives.reprise !== 1 || s1.echec.tentatives.enquete !== 0) {
+    return `tentatives inattendues: ${JSON.stringify(s1.echec.tentatives)}`;
+  }
+  if (s1.echec.blocage !== 'relancer le build après correction du type') return `blocage inattendu: ${s1.echec.blocage}`;
+  if (s1.echec.demarrageAFroid) return 'demarrageAFroid attendu faux (Blocage présent)';
+  if (s1.echec.mesure !== 'abc1234 · node tests/tester-scripts.mjs') return `mesure inattendue: ${s1.echec.mesure}`;
+  if (s1.echec.auto !== 'non') return `auto inattendu: ${s1.echec.auto}`;
+  return null;
+});
+
+cas('prochaine-action : .echec.md sans Tentatives ni Blocage → défauts du gabarit appliqués', () => {
+  const cwd = dossierJetable('workflow-pa-echec-partiel-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P0', 'S1.echec.md'),
+    ['# S1 — échec du 2026-09-17', '', 'Nature : environnement', '', '## Tâche visée', '<t>', ''].join('\n'),
+  );
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  if (s1.echec.tentatives.reprise !== 0 || s1.echec.tentatives.enquete !== 0) {
+    return `« Tentatives » absente : défaut reprise=0 enquete=0 attendu, reçu ${JSON.stringify(s1.echec.tentatives)}`;
+  }
+  if (s1.echec.blocage !== null) return `« Blocage » absente : null attendu, reçu ${s1.echec.blocage}`;
+  if (!s1.echec.demarrageAFroid) return 'demarrageAFroid attendu vrai (Blocage absente ⇒ démarrage à froid)';
+  if (s1.echec.nature !== 'environnement') return `nature (présente) mal lue: ${s1.echec.nature}`;
+  return null;
+});
+
+cas('prochaine-action : session non cochée mais toutes ses tâches commitées → « faite »', () => {
+  const cwd = dossierJetable('workflow-pa-commits-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'a.txt'), 'x\n');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1 : T1-T3 faites\n\nPlan: P0/S1/T1\nPlan: P0/S1/T2\nPlan: P0/S1/T3');
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  const s2 = json.sessions.find((s) => s.session === 'S2');
+  if (s1.etat !== 'faite') return `S1 (T1-T3, toutes commitées) attendue "faite", reçu ${s1.etat}`;
+  if (s2.etat !== 'a-lancer') return `S2 (T5, aucun commit) attendue "a-lancer", reçu ${s2.etat}`;
+  return null;
+});
+
+cas('prochaine-action : .claude/wave.lock présent → dépôt.waveLock vrai', () => {
+  const cwd = dossierJetable('workflow-pa-wavelock-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', 'wave.lock'), '');
+  initDepot(cwd); // pour que `git rev-parse --git-common-dir` résolve la racine du dépôt
+  writeFileSync(join(cwd, 'a.txt'), 'x\n');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  if (json.depot.waveLock !== true) return `waveLock attendu vrai, reçu ${JSON.stringify(json.depot)}`;
   return null;
 });
 
