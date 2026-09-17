@@ -64,6 +64,7 @@ ils viennent avec `/fin-de-tache`, `/nouveau-plan` et `/orchestrer-plan`.
 
 Un commit par tâche, staging explicite, repère `Plan: P<n>/S<k>/T<m>` — commite aussi ta propre
 `.revue.md` une fois déposée (`WORKFLOW.md` §4b). **Push en fin de session** — arbre propre et
-poussé avant de rendre la main (`WORKFLOW.md` §4b, C3) — sauf sous `.claude/wave.lock` (l'orchestrateur
-committe et pousse en fin de vague) ou en sous-agent orchestré (l'orchestrateur pousse après collecte).
-Dérouler `/fin-de-tache` en fin de session.
+poussé avant de rendre la main, **y compris lancée en sous-agent par l'orchestrateur** (la voie
+normale, `WORKFLOW.md` §5b : ton verdict, ce sont tes commits) — sauf sous `.claude/wave.lock`, seule
+exemption qui diffère le push à l'orchestrateur, en fin de vague (`WORKFLOW.md` §4b, C3). Dérouler
+`/fin-de-tache` en fin de session.
