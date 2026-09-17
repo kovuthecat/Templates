@@ -27,11 +27,18 @@
       "Bash(find:*)",
       "Bash(diff:*)",
       "Bash(sort:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(node plugin/bin/publier.mjs:*)"
     ],
     "deny": [
       "Read(.env*)",
       "Read(**/*.pem)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(node plugin/bin/publier.mjs:*)"
     ]
   }
 }
