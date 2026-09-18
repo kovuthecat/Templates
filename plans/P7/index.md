@@ -29,7 +29,7 @@ vague en le disant, au lieu de se dégrader en silence.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1 | Les quatre agents de session | Haiku | low | — | — | `plugin/agents/` (4 fichiers créés) | [x] | `feat(agents): quatre agents de session porteurs d'effort` |
-| [S2](S2.md) | T2-T4 | Le moteur : effort normalisé, validé, transmis | Sonnet | high | — | S1 | `plugin/bin/prochaine-action.mjs` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [ ] | — |
+| [S2](S2.md) | T2-T4 | Le moteur : effort normalisé, validé, transmis | Sonnet | high | — | S1 | `plugin/bin/prochaine-action.mjs` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [x] (2026-09-18) | — |
 | [S3](S3.md) | T5-T7 | Le lancement compose le `subagent_type` | Sonnet | medium | — | S2 | `plugin/skills/orchestrer-plan/SKILL.md` · `plugin/skills/orchestrer-plan/references/remediation.md` | [ ] | — |
 | [S4](S4.md) | T8-T10 | Les textes disent ce que le code fait | Sonnet | medium | — | S1 | `plugin/WORKFLOW.md` · `plugin/skills/nouveau-plan/SKILL.md` · `plugin/templates/project-settings.json` · `plugin/README.md` | [ ] | — |
 | [S5](S5.md) | T11 | Version, CHANGELOG, publication | Haiku | low | — | S2, S3, S4 | `plugin/.claude-plugin/plugin.json` · `CHANGELOG.md` · `plugin/MIGRATION.md` | [ ] | — |
