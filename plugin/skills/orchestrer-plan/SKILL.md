@@ -59,7 +59,9 @@ annoncer sans elle, le signaler une fois, ne jamais l'inventer ni ouvrir le `S<k
 (2) **verrou si `parallele`** — zones disjointes seulement, au moindre doute séquentiel ; poser
 `.claude/wave.lock` juste avant le premier lancement, jamais avant. (3) **agents du plugin absents du
 bac à sable** — seuls les agents génériques listés : le dire sur « À régler AVANT de lancer », revues
-annoncées absentes pour la vague.
+annoncées absentes pour la vague, **et** pour chaque effort effectivement demandé par la vague à
+lancer, vérifier que `session-<effort>` (ou `workflow:session-<effort>`) résout ; sinon annoncer déjà
+là le repli en `claude` (cran 3, Étape 1) plutôt que de le découvrir au premier lancement.
 
 **Annoncer, puis lancer** — jamais l'inverse, jamais en ouvrant un `S<k>.md` :
 
@@ -95,7 +97,7 @@ premier `FAIL`. `isolation: "worktree"` et `subagent_type: "fork"` interdits ; n
 ```
 Agent({
   description: "P<n>/S<k>",
-  subagent_type: "claude",
+  subagent_type: "session-<effort lu dans l'index>",
   model: <modèle lu dans l'index>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
@@ -112,6 +114,10 @@ renvoie son chemin.
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
 ```
+
+`Agent type 'session-<effort>' not found` : repli `subagent_type: "workflow:session-<effort>"` (plugin installé en marketplace) ; encore introuvable → repli
+`subagent_type: "claude"` **et l'annoncer**, une ligne au bandeau de vague et dans le rapport final : « Vague <w> à l'effort ambiant de la conversation, pas
+celui de l'index — `session-<effort>` introuvable ». Trois crans, jamais un blocage.
 
 **Collecter** : lire `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre, en gardant l'identifiant d'agent (canal court, `references/remediation.md`). Sans
 `VERDICT:` ni commit : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend
