@@ -121,7 +121,7 @@ Plan: P<n>/S<k>/T<m>
 
 ## 5. Déléguer au lieu de faire
 
-Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contexte de traces payées à chaque tour. Huit agents, chacun ne rend que sa **conclusion** :
+Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contexte de traces payées à chaque tour. Huit agents **de délégation**, chacun ne rend que sa **conclusion** :
 
 - `explorateur` → localiser (>1 fichier). `analyste-flux` → lire **comment** un flux fonctionne. `resumeur-git` → résumer diff/historique. `lecteur-doc` → lire une doc externe.
 - `relecteur-session` → relire une session close — ou une **vague entière**, `low` exemptées (C7) — **déposer et committer** `.revue.md` (`/fin-de-tache`).
@@ -129,9 +129,13 @@ Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contex
 - `verificateur-premisse` → confronter au dépôt l'affirmation d'une session en échec, **avant** qu'elle n'arrête le plan (`/orchestrer-plan` 5c, §9c).
 - `critique-plan` → confronter un plan à ses risques **avant** approbation (`/nouveau-plan` 1bis) ; ne juge ni périmètre produit ni style.
 
+Une seconde famille cohabite dans `plugin/agents/` sans en faire partie : les quatre agents
+`session-<effort>` ne rendent aucune conclusion à un parent, ils *sont* la session — rôle et
+mécanisme en §3, pas ici.
+
 **N0 n'est plus un agent, c'est un script (C1)** : `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` dans ce dépôt) — **au premier plan, comme toute commande**, sans sous-agent ni frontière de tour.
 
-**Les quatre derniers** : personne ne relit son propre travail (découpe fausse, faille de plan, PASS vide, prémisse fausse). Les huit se lancent **au premier plan** (invariant : `EXECUTANT.md`, domicile §5b) — leur verdict conditionne la suite. `relecteur-session` : dernier geste, jamais en arrière-plan (la revue ne serait jamais déposée).
+**Les quatre derniers** : personne ne relit son propre travail (découpe fausse, faille de plan, PASS vide, prémisse fausse). Les huit agents de délégation se lancent **au premier plan** (invariant : `EXECUTANT.md`, domicile §5b) — leur verdict conditionne la suite. `relecteur-session` : dernier geste, jamais en arrière-plan (la revue ne serait jamais déposée).
 
 **`fork`** : contexte courant nécessaire **et** bruit à retenir dehors — jamais pour une session de plan ni une reprise (`docs/decisions/2026-08-30-contexte-des-sous-agents.md`). Pas de `memory:` sur les huit : légitime seulement sans source de dépôt déjà existante.
 
