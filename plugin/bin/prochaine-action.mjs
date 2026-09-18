@@ -107,7 +107,7 @@ function lireIndex(dossierPlan) {
       taches: cellules[1],
       titre: cellules[2],
       modele: cellules[3],
-      effort: cellules[4],
+      effort: cellules[4].replace(/[`*]/g, '').trim().toLowerCase(),
       env: cellules[5],
       dependDe: cellules[6],
       zone: cellules[7],
@@ -226,12 +226,35 @@ function lireRevue(chemin) {
 
 const UN_CRAN_AU_DESSUS = { Haiku: 'Sonnet', Sonnet: 'Opus' };
 
+// Effort lançable depuis un index (T2, P7/S2) — `max` en est exclu à dessein : WORKFLOW.md §3 le
+// réserve à `/effort max` en session, jamais à une colonne d'index (décision 2026-09-18).
+const EFFORTS_LANCABLES = ['low', 'medium', 'high', 'xhigh'];
+
 function questionBudget(session, nature = 'reprise') {
   const mot = nature === 'enquete' ? "d'enquête" : 'de reprises';
   return {
     action: 'question',
     motif: `budget ${mot} épuisé sur ${session.session}`,
     options: { source: 'budget-epuise', session: session.session },
+  };
+}
+
+/** Une session à lancer porte un effort non lançable — refuser en nommant §3 plutôt que propager
+ * un `subagent_type` inexistant (T2, P7/S2). */
+function questionEffortInvalide(session) {
+  if (session.effort === 'max') {
+    return {
+      action: 'question',
+      motif:
+        `${session.session} porte l'effort "max" : non réglable depuis un index ` +
+        `(WORKFLOW.md §3, \`/effort max\` en session seulement)`,
+      options: { source: 'effort-invalide', session: session.session, effort: session.effort },
+    };
+  }
+  return {
+    action: 'question',
+    motif: `${session.session} porte un effort inconnu ("${session.effort}") — valeurs acceptées : ${EFFORTS_LANCABLES.join(', ')}`,
+    options: { source: 'effort-invalide', session: session.session, effort: session.effort },
   };
 }
 
@@ -326,10 +349,15 @@ function prochaineAction(sortie) {
     const toutesFaites = membres.every((s) => s.etat === 'faite'); // vrai par défaut si vague sans membre (clôture)
     if (!toutesFaites) {
       if (refsPlan.length === 0) return { action: 'regler-effort', plan: sortie.plan };
-      const aLancer = membres
-        .filter((s) => s.etat === 'a-lancer')
-        .map((s) => ({ session: s.session, modele: s.modele, effort: s.effort }));
-      return { action: 'lancer', vague: vague.numero, parallele: vague.parallelisable, sessions: aLancer };
+      const aLancer = membres.filter((s) => s.etat === 'a-lancer');
+      const effortInvalide = aLancer.find((s) => !EFFORTS_LANCABLES.includes(s.effort));
+      if (effortInvalide) return questionEffortInvalide(effortInvalide);
+      return {
+        action: 'lancer',
+        vague: vague.numero,
+        parallele: vague.parallelisable,
+        sessions: aLancer.map((s) => ({ session: s.session, modele: s.modele, effort: s.effort })),
+      };
     }
 
     // Vague entièrement faite : revue (plans stampés `Workflow :` seulement — un plan antérieur à

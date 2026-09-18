@@ -392,6 +392,49 @@ cas('moteur : vague close, revue faite, ordonnancement validation-humaine, vague
   return null;
 });
 
+cas('moteur : effort en emphase markdown (**high**) → lancer avec effort normalisé "high"', () => {
+  const cwd = dossierJetable('workflow-pa-effort-emphase-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-effort'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'Plan: P9/S9/T99'); // ref qui ne concerne pas S1
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+  const s1 = action.sessions.find((s) => s.session === 'S1');
+  if (!s1 || s1.effort !== 'high') return `effort attendu "high" (emphase retirée), reçu: ${JSON.stringify(s1)}`;
+  return null;
+});
+
+cas('moteur : effort "max" en index → question, motif citant §3', () => {
+  const cwd = dossierJetable('workflow-pa-effort-max-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-effort'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('**high**', 'max'));
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'Plan: P9/S9/T99');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question", reçu: ${sortie}`;
+  if (!/§3/.test(action.motif)) return `motif attendu citant §3, reçu: ${action.motif}`;
+  return null;
+});
+
+cas('moteur : effort inconnu ("turbo") en index → question, valeurs acceptées citées', () => {
+  const cwd = dossierJetable('workflow-pa-effort-inconnu-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-effort'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('**high**', 'turbo'));
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'Plan: P9/S9/T99');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question", reçu: ${sortie}`;
+  if (!/low, medium, high, xhigh/.test(action.motif)) {
+    return `motif attendu citant les valeurs acceptées, reçu: ${action.motif}`;
+  }
+  return null;
+});
+
 cas('moteur : échec exécution, modèle Sonnet → reprendre Opus (un cran au-dessus)', () => {
   const cwd = dossierJetable('workflow-pa-reprendre-exec-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
