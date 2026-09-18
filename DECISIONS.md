@@ -147,6 +147,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   fichier donc sans frontmatter. §3/§5b corrigés ; agents `session-<effort>` et orchestrateur en
   `low` ouverts, non tranchés — l'éval qui les garde est bloquée
   → [détail](docs/decisions/2026-09-18-effort-par-sous-agent.md)
+- 2026-09-18 — **L'effort d'une session vient de son agent** — cadrage : cinq agents
+  `session-<effort>` portant `effort:` en frontmatter, lancés par `subagent_type` composé depuis
+  l'index ; l'action `regler-effort` se retire. Neutre sur les outils (filtres identiques pour agent
+  nommé et générique) et hors garde de K5 — applique l'effort déjà décidé, n'en décide aucun. Reste
+  ouvert : effort de l'orchestrateur, `Agent` en sous-agent d'arrière-plan
+  → [détail](docs/decisions/2026-09-18-effort-porte-par-l-agent-de-session.md)
 
 ## Archives
 

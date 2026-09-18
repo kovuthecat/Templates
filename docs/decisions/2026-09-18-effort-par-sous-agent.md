@@ -65,6 +65,13 @@ sont triviaux. Mais ça déplace la voie de lancement unique de §5b : trois age
 figé remplacent un paramètre lu dans l'index, et l'index cesse d'être le seul porteur du couple
 modèle/effort (§4a). C'est un changement de conception, pas un correctif localisé.
 
+> **Corrigé le 2026-09-18 même jour, par le cadrage qui a suivi**
+> (`2026-09-18-effort-porte-par-l-agent-de-session.md`) : la seconde moitié de cet argument est
+> fausse. §4a ne porte que les **statuts** — aucune règle du dépôt ne fait de l'index le seul porteur
+> du couple modèle/effort, que le bandeau de chaque `S<k>.md` duplique déjà (`WORKFLOW.md:43`,
+> `squelette-session.md:9`). Reste vrai : c'est un changement de conception, à cadrer — ce qui a été
+> fait. Verdict du cadrage : cinq agents `session-<effort>`, recommandés.
+
 **Passer l'orchestrateur à `low` maintenant.** C'est la question qui a ouvert ce dossier, et la
 réponse est non — pas encore. Tant que les sessions héritent, l'effort de l'orchestrateur **est**
 celui de toute la vague : le mettre à `low` ferait tourner chaque session du plan en `low`, en
