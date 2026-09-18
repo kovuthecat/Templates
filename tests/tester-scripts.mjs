@@ -375,7 +375,21 @@ cas('moteur : vague close sans revue → relire', () => {
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'relire') return `action attendue "relire", reçu: ${sortie}`;
-  if (action.vague !== 1 || !action.sessions.includes('S1')) return `vague/sessions inattendus: ${sortie}`;
+  if (action.vague !== 1 || !action.sessions.some((s) => s.session === 'S1')) {
+    return `vague/sessions inattendus: ${sortie}`;
+  }
+  return null;
+});
+
+cas('moteur : session low avec zone réelle sans revue → la vague avance (pas de relire)', () => {
+  const cwd = dossierJetable('workflow-pa-low-sans-revue-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-low'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'relire') return `relire n'aurait pas dû être rendu pour une session low: ${sortie}`;
+  if (!action || action.action !== 'fini') return `action attendue "fini" (vague avancée sans revue), reçu: ${sortie}`;
   return null;
 });
 

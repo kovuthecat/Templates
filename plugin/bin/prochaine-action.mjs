@@ -364,11 +364,22 @@ function prochaineAction(sortie) {
     // C4/C3 n'a jamais produit de .revue.md, lui en exiger un serait un état deviné), puis
     // validation-humaine.
     if (sortie.workflow) {
+      // Une session `low` n'est jamais relue (C7, relecteur-session.md « Sessions à sauter ») —
+      // exclue ici, au seul endroit qui décide quoi relire (T3, P7/S2), plutôt que de compter sur
+      // la prose du relecteur pour l'appliquer.
       const sansRevue = membres.filter(
-        (s) => s.zone && s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune' && !s.revue,
+        (s) =>
+          s.effort !== 'low' &&
+          s.zone &&
+          s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune' &&
+          !s.revue,
       );
       if (sansRevue.length > 0) {
-        return { action: 'relire', vague: vague.numero, sessions: sansRevue.map((s) => s.session) };
+        return {
+          action: 'relire',
+          vague: vague.numero,
+          sessions: sansRevue.map((s) => ({ session: s.session, effort: s.effort })),
+        };
       }
     }
 
@@ -436,7 +447,7 @@ function formaterTexte(action) {
       ligne = `enqueter — ${action.session} (${action.modele})`;
       break;
     case 'relire':
-      ligne = `relire — vague ${action.vague} : ${action.sessions.join(', ')}`;
+      ligne = `relire — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ')}`;
       break;
     case 'pousser':
       ligne = 'pousser';
