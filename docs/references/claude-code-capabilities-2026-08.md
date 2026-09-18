@@ -536,6 +536,7 @@ Custom subagents can define their own:
 - description;
 - instructions;
 - model;
+- effort level (`low` … `max`; default: inherits from the launching session) — see Appendix F;
 - tools;
 - permissions;
 - hooks;
@@ -3105,3 +3106,17 @@ garanties dont une règle du workflow dépendait. Une entrée = capacité · fai
 | `effort` (frontmatter d'agent) | Documenté, valeurs `low…max`, défaut « inherits from session » ; affiché par `/tasks` à partir de la version ≥ 2.1.242 ; Claude Code local en `2.1.270` (constaté P5/S5, `claude --version`), mais P5/S5 a tourné en sous-agent orchestré, sans session interactive pour lire `/tasks` — **non sondé, à faire par le mainteneur : lancer l'agent `critique-plan`, lire `/tasks`.** | Subagents — <https://code.claude.com/docs/en/sub-agents> | `WORKFLOW.md` §3 (« l'outil `Agent` pose le modèle, jamais l'effort »), agent `critique-plan` | contrainte d'outillage — `effort: high` conservé, risque ouvert dans l'index (P5) |
 | `claude plugin eval` | Requiert Claude Code ≥ 2.1.269 ; format `evals/<cas>/prompt.md` + `graders/` ; grader `tool_used` applicable sur `Skill` — vérifié le 2026-09-15. | Plugin evals — <https://code.claude.com/docs/en/plugin-evals> | S8 (plan P5) | conserver, sous prérequis de version |
 | `/skill-doctor` | Requiert Claude Code ≥ 2.1.252 ; utilisable en sessions interactives et en `-p` seulement — fait repris de la décision `2026-09-15-reflexion-outillee-critique-et-flux.md` (a), page dédiée non recoupée indépendamment dans cette session du 2026-09-15. | Commands — <https://code.claude.com/docs/en/commands> (page spécifique non identifiée ce jour) | mesure B5 (`docs/analyses/2026-09-12-conseils-anthropic-contexte-skills-verification.md`) | conserver, sous prérequis de version — à recouper avant usage bloquant |
+
+## Mise à jour du 2026-09-18 — ligne `effort` (frontmatter d'agent), close
+
+La réserve de la ligne `effort` portait sur son **affichage**, jamais sur son existence ; elle est
+levée par la documentation elle-même, sans avoir besoin de lire `/tasks`.
+`model-config` § *Set the effort level* range désormais le frontmatter parmi les sept leviers d'effort :
+« set `effort` in a skill or subagent markdown file to override the effort level when that skill or
+subagent runs », avec sa règle de précédence — « overriding the session level but not the environment
+variable », borné par `maxEffortLevel` et le plafond d'organisation.
+
+Conséquence sur la règle locale citée en colonne 4 : la formule « l'outil `Agent` pose le modèle,
+jamais l'effort » reste vraie **de l'outil**, et fausse comme énoncé général — un agent nommé porte
+son effort en frontmatter. `WORKFLOW.md` §3 et §5b corrigés en ce sens
+(`docs/decisions/2026-09-18-effort-par-sous-agent.md`).

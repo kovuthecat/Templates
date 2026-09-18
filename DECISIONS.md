@@ -142,6 +142,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
   orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
   partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
+- 2026-09-18 — **Effort par sous-agent** — `effort` en frontmatter d'agent nommé est documenté et
+  honoré (`critique-plan` s'en sert) ; le couplage restant vient de `subagent_type: "claude"`, sans
+  fichier donc sans frontmatter. §3/§5b corrigés ; agents `session-<effort>` et orchestrateur en
+  `low` ouverts, non tranchés — l'éval qui les garde est bloquée
+  → [détail](docs/decisions/2026-09-18-effort-par-sous-agent.md)
 
 ## Archives
 

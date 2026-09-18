@@ -5,7 +5,8 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 
 # Orchestrer un plan
 
-Sonnet, jamais Haiku (`WORKFLOW.md` §3 — sonde A non concluante : pas d'agents `session-<effort>`).
+Sonnet, jamais Haiku (`WORKFLOW.md` §3). Pas d'agents `session-<effort>` : une session lancée en
+`subagent_type: "claude"` n'a pas de frontmatter et hérite de l'effort de cette conversation.
 Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
 script (C2, `prochaine-action.mjs`) depuis les fichiers commités — budget, nature → modèle,
 dépendances, recoupement par les commits en sortent : l'action rendue s'exécute, ne se recalcule pas.
@@ -33,7 +34,7 @@ vendorée (C4), le régler avant de lancer.
 
 | Action rendue | Geste |
 | --- | --- |
-| `regler-effort` | une fois, avant la première vague : « Sonde A non concluante — pas d'agents `session-<effort>` ; règle l'effort de cette conversation avant que je lance (`WORKFLOW.md` §3) », puis rappeler le script. |
+| `regler-effort` | une fois, avant la première vague : « Pas d'agents `session-<effort>` — chaque session héritera de l'effort de cette conversation ; règle-le avant que je lance (`WORKFLOW.md` §3) », puis rappeler le script. |
 | `lancer` | Étape 1. |
 | `verifier-premisse` | `references/remediation.md` — bloc `verificateur-premisse` ; affirmation prise dans `<chemin>`, section « Ce qu'il faudrait pour que ça passe », jamais le rapport entier. |
 | `reprendre` | `references/remediation.md` — canal court si ses trois conditions tiennent, sinon reprise à froid ; `modele`/`option` déjà décidés par le script. |
