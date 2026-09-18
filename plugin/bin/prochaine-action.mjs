@@ -319,7 +319,6 @@ function prochaineAction(sortie) {
     return { action: 'pousser' };
   }
 
-  const refsPlan = [...refsCommitees()].filter((r) => r.startsWith(`${sortie.plan}/`));
   const enqueteTotalPlan = sortie.sessions
     .filter((s) => s.etat === 'echec')
     .reduce((acc, s) => acc + (s.echec?.tentatives.enquete ?? 0), 0);
@@ -348,7 +347,6 @@ function prochaineAction(sortie) {
 
     const toutesFaites = membres.every((s) => s.etat === 'faite'); // vrai par défaut si vague sans membre (clôture)
     if (!toutesFaites) {
-      if (refsPlan.length === 0) return { action: 'regler-effort', plan: sortie.plan };
       const aLancer = membres.filter((s) => s.etat === 'a-lancer');
       const effortInvalide = aLancer.find((s) => !EFFORTS_LANCABLES.includes(s.effort));
       if (effortInvalide) return questionEffortInvalide(effortInvalide);
@@ -429,9 +427,6 @@ function formaterTexte(action) {
     .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(valeur) : valeur}`);
   let ligne;
   switch (action.action) {
-    case 'regler-effort':
-      ligne = `regler-effort — ${action.plan}`;
-      break;
     case 'lancer':
       ligne = `lancer — vague ${action.vague} (${action.parallele ? 'parallèle' : 'séquentiel'}) : ${
         action.sessions.map((s) => s.session).join(', ') || '—'

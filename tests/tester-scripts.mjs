@@ -320,27 +320,43 @@ function lancerJson(args, cwd) {
   return { code, sortie, action };
 }
 
-cas('moteur : plan neuf, aucun commit Plan: → regler-effort', () => {
-  const cwd = dossierJetable('workflow-pa-neuf-');
-  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
-  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
-  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
-  if (!action || action.action !== 'regler-effort') return `action attendue "regler-effort", reçu: ${sortie}`;
-  if (action.plan !== 'P9') return `plan attendu P9, reçu ${action.plan}`;
-  return null;
-});
-
-cas('moteur : un commit Plan: existe déjà (session non concernée) → lancer vague 1', () => {
+cas('moteur : plan neuf, aucun commit Plan: → lancer vague 1, chaque session porte modèle et effort', () => {
+  // Ex-« regler-effort » (retiré, T4/P7/S2) : depuis que l'effort d'une session vient de son agent
+  // et non de la conversation qui orchestre, aucun commit Plan: n'est requis pour lancer une vague —
+  // c'est ce test qui couvre désormais la charge utile de `lancer`, cœur du plan.
   const cwd = dossierJetable('workflow-pa-lancer-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
-  initDepot(cwd);
-  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'Plan: P9/S9/T99'); // ref qui ne concerne ni S1 ni S2
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
   if (action.vague !== 1) return `vague attendue 1, reçu ${action.vague}`;
-  if (!action.sessions.some((s) => s.session === 'S1' && s.modele === 'Sonnet')) {
-    return `S1/Sonnet absent de sessions: ${JSON.stringify(action.sessions)}`;
+  const s1 = action.sessions.find((s) => s.session === 'S1');
+  if (!s1 || s1.modele !== 'Sonnet' || s1.effort !== 'medium') {
+    return `S1 attendue {modele: "Sonnet", effort: "medium"}, reçu: ${JSON.stringify(s1)}`;
+  }
+  return null;
+});
+
+cas('moteur : vague à efforts mêlés → lancer rend à chacune le sien', () => {
+  const cwd = dossierJetable('workflow-pa-efforts-melanges-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-efforts-melanges'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+  const s1 = action.sessions.find((s) => s.session === 'S1');
+  const s2 = action.sessions.find((s) => s.session === 'S2');
+  if (!s1 || s1.effort !== 'low') return `S1 attendu effort "low", reçu: ${JSON.stringify(s1)}`;
+  if (!s2 || s2.effort !== 'medium') return `S2 attendu effort "medium", reçu: ${JSON.stringify(s2)}`;
+  return null;
+});
+
+cas('moteur : cohérence — chaque effort lançable a son agent plugin/agents/session-<effort>.md', () => {
+  // Efforts lançables (T2, P7/S2, prochaine-action.mjs `EFFORTS_LANCABLES`) : sans ce test, plus
+  // rien ne relie la validation de l'index aux fichiers d'agent créés en S1.
+  const efforts = ['low', 'medium', 'high', 'xhigh'];
+  for (const e of efforts) {
+    const chemin = join(RACINE, 'plugin', 'agents', `session-${e}.md`);
+    if (!existsSync(chemin)) return `agent manquant pour l'effort "${e}": ${chemin}`;
   }
   return null;
 });
