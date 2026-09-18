@@ -141,7 +141,7 @@ aucune fiche n'améliorerait l'arbitrage.
 | --- | --- | --- | --- |
 | problème concret | READY | l'effort est lu (`prochaine-action.mjs:110`) et jamais transmis (`orchestrer-plan/SKILL.md:96-113`) | — |
 | résultat visé | READY | « chaque session tourne à l'effort de sa ligne d'index, sans geste humain » — demande explicite du mainteneur | — |
-| vérification | **OPEN** | aucun test ne porte sur l'effort *effectif* ; `/tasks` l'affiche (≥ 2.1.242) mais aucune session interactive ne le lit pendant une vague ; l'éval qui mesurerait le gain est bloquée | **expérience** — sonde bornée en première tâche du plan : lancer un `session-low`, lire `/tasks`, comparer au modèle affiché. Geste humain hors dépôt (Desktop). |
+| vérification | **READY** | N2 de P7/S1, 2026-09-18 : `session-low` lancé depuis une conversation à `high` ; `/tasks` n'affiche toujours rien (même lacune que sonde A) mais la transcription du sous-agent sur disque (`~/.claude/projects/<projet>/<conversation>/subagents/agent-<id>.jsonl`) porte `"effort":"low"` sur ses tours, contre `"high"` sur ceux de la conversation parente — le frontmatter prévaut, mesuré hors UI | — |
 | périmètre | READY | sept zones nommées ci-dessus, toutes avec chemin:ligne | — |
 | cohérence | READY | tranché ici : les `session-<effort>` restent hors de la table de délégation §5 et hors du décompte | — |
 
