@@ -5,8 +5,9 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 
 # Orchestrer un plan
 
-Sonnet, jamais Haiku (`WORKFLOW.md` §3). Pas d'agents `session-<effort>` : une session lancée en
-`subagent_type: "claude"` n'a pas de frontmatter et hérite de l'effort de cette conversation.
+Sonnet, jamais Haiku (`WORKFLOW.md` §3) pour l'orchestrateur lui-même — contrainte inchangée. Chaque
+session tourne, elle, à l'effort de sa ligne d'index : `subagent_type: "session-<effort>"` le porte en
+frontmatter (Étape 1), sans geste humain à régler avant de lancer.
 Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
 script (C2, `prochaine-action.mjs`) depuis les fichiers commités — budget, nature → modèle,
 dépendances, recoupement par les commits en sortent : l'action rendue s'exécute, ne se recalcule pas.
@@ -34,7 +35,6 @@ vendorée (C4), le régler avant de lancer.
 
 | Action rendue | Geste |
 | --- | --- |
-| `regler-effort` | une fois, avant la première vague : « Pas d'agents `session-<effort>` — chaque session héritera de l'effort de cette conversation ; règle-le avant que je lance (`WORKFLOW.md` §3) », puis rappeler le script. |
 | `lancer` | Étape 1. |
 | `verifier-premisse` | `references/remediation.md` — bloc `verificateur-premisse` ; affirmation prise dans `<chemin>`, section « Ce qu'il faudrait pour que ça passe », jamais le rapport entier. |
 | `reprendre` | `references/remediation.md` — canal court si ses trois conditions tiennent, sinon reprise à froid ; `modele`/`option` déjà décidés par le script. |
@@ -140,7 +140,8 @@ Agent({
   subagent_type: "relecteur-session",
   run_in_background: false,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
-Relis la session S<k> du plan P<n>, mode orchestré, commits présents (git log --grep
+Relis la session S<k> du plan P<n>, effort <effort de S<k>, tel que rendu par `relire`>, mode
+orchestré, commits présents (git log --grep
 \"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, puis rends tes deux lignes."
 })
 ```
