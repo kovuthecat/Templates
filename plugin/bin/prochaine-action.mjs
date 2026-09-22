@@ -30,6 +30,11 @@
 // jamais une valeur que le modèle transforme lui-même (D2,
 // docs/decisions/2026-09-22-flous-du-workflow.md). Modèle hors Sonnet|Opus|Haiku : pas de champ
 // `agent`, un `avertissement` nommant la valeur.
+//
+// Avant un `lancer` : l'arbre non commité est croisé avec la zone de chaque session de la vague (D1,
+// même décision). Recoupement, zone illisible ou `git status` en échec → `question` source
+// `arbre-sale`, motifs : fichiers touchés dans une zone, « zone illisible : <segment> », « arbre
+// invérifiable ».
 
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -259,6 +264,93 @@ function champAgent(modele, effort) {
   };
 }
 
+// ── D1 : arrêt sur arbre sale dans la zone d'une vague — croisement mécanique fait par le script,
+// jamais délégué (docs/decisions/2026-09-22-…). ──────────────────────────────────────────────────
+/** Chemins d'une zone = seuls les segments entre backticks de la cellule « Zone modifiée » ; le texte
+ * hors backticks ( `(§9a, §9c)`, `(4 fichiers créés)`, `(nouveau)` ) est ignoré. Accolades développées
+ * avant comparaison. Segment avec `*`/`**` ou accolades non appariées → zone illisible. */
+function cheminsDeZone(cellule) {
+  const segments = [...String(cellule || '').matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const chemins = [];
+  for (const seg of segments) {
+    const ouvrantes = (seg.match(/\{/g) || []).length;
+    const fermantes = (seg.match(/\}/g) || []).length;
+    if (seg.includes('*') || ouvrantes !== fermantes) {
+      return { chemins: [], illisible: seg };
+    }
+    if (ouvrantes === 0) {
+      chemins.push(seg);
+      continue;
+    }
+    const m = /^(.*)\{([^{}]*)\}(.*)$/.exec(seg);
+    if (!m) return { chemins: [], illisible: seg };
+    const [, prefixe, options, suffixe] = m;
+    for (const option of options.split(',')) chemins.push(`${prefixe}${option.trim()}${suffixe}`);
+  }
+  return { chemins, illisible: null };
+}
+
+/** Chemins bruts depuis `git status --porcelain -z --untracked-files=all` : pas de guillemets, pas de
+ * repli `?? dossier/` (chaque fichier d'un dossier non suivi compte individuellement, D1). `null` si
+ * `git` échoue — jamais un arbre deviné. Renommage/copie (code X ou Y = R/C) : le chemin d'origine
+ * (champ `-z` suivant) compte aussi. */
+function fichiersSales() {
+  const sortie = git('status', '--porcelain', '-z', '--untracked-files=all');
+  if (sortie === null) return null;
+  const bruts = sortie.split('\0').filter((s) => s.length > 0);
+  const fichiers = [];
+  for (let i = 0; i < bruts.length; i++) {
+    const entree = bruts[i];
+    fichiers.push(entree.slice(3));
+    if (entree[0] === 'R' || entree[0] === 'C') {
+      i++;
+      if (i < bruts.length) fichiers.push(bruts[i]);
+    }
+  }
+  return fichiers;
+}
+
+/** Segment terminé par `/` = dossier → préfixe ; sinon égalité de chemin (D1). */
+function cheminToucheZone(chemin, zoneChemin) {
+  return zoneChemin.endsWith('/') ? chemin.startsWith(zoneChemin) : chemin === zoneChemin;
+}
+
+/** Avant un `lancer` : croise l'arbre non commité avec la zone de chaque session à lancer. `null` si
+ * rien à signaler (l'appelant rend `lancer`) ; sinon la `question` à rendre à sa place. */
+function arreteSurArbreSale(aLancer, plan) {
+  const sales = fichiersSales();
+  if (sales === null) {
+    return {
+      action: 'question',
+      motif: 'arbre invérifiable : `git status` a échoué',
+      options: { source: 'arbre-sale', motif: 'arbre-inverifiable' },
+    };
+  }
+  const prefixePlan = `plans/${plan}/`;
+  for (const s of aLancer) {
+    const { chemins, illisible } = cheminsDeZone(s.zone);
+    if (illisible) {
+      return {
+        action: 'question',
+        motif: `zone illisible : ${illisible} (${s.session})`,
+        options: { source: 'arbre-sale', session: s.session, segment: illisible },
+      };
+    }
+    if (chemins.length === 0) continue; // zone `aucune` (ou vide) : aucun contrôle pour elle
+    // Fichiers du plan en cours ignorés, sauf s'ils sont nommés par cette zone (D1).
+    const candidats = sales.filter((f) => !f.startsWith(prefixePlan) || chemins.includes(f));
+    const touches = candidats.filter((f) => chemins.some((c) => cheminToucheZone(f, c)));
+    if (touches.length > 0) {
+      return {
+        action: 'question',
+        motif: `arbre sale dans la zone de ${s.session} : ${touches.join(', ')}`,
+        options: { source: 'arbre-sale', session: s.session, fichiers: touches },
+      };
+    }
+  }
+  return null;
+}
+
 function questionBudget(session, nature = 'reprise') {
   const mot = nature === 'enquete' ? "d'enquête" : 'de reprises';
   return {
@@ -382,6 +474,8 @@ function prochaineAction(sortie) {
       const aLancer = membres.filter((s) => s.etat === 'a-lancer');
       const effortInvalide = aLancer.find((s) => !EFFORTS_LANCABLES.includes(s.effort));
       if (effortInvalide) return questionEffortInvalide(effortInvalide);
+      const questionArbre = arreteSurArbreSale(aLancer, sortie.plan);
+      if (questionArbre) return questionArbre;
       return {
         action: 'lancer',
         vague: vague.numero,

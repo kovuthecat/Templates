@@ -334,6 +334,9 @@ cas('moteur : plan neuf, aucun commit Plan: → lancer vague 1, chaque session p
   // c'est ce test qui couvre désormais la charge utile de `lancer`, cœur du plan.
   const cwd = dossierJetable('workflow-pa-lancer-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  // Arbre commité (arbre propre) : requis depuis T2/P8/S1 (D1) pour que le contrôle d'arbre sale
+  // laisse passer un `lancer` — sans lien avec les commits `Plan:` que ce test dit justement inutiles.
+  initEtCommitTout(cwd);
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
@@ -348,6 +351,7 @@ cas('moteur : plan neuf, aucun commit Plan: → lancer vague 1, chaque session p
 cas('moteur : vague à efforts mêlés → lancer rend à chacune le sien', () => {
   const cwd = dossierJetable('workflow-pa-efforts-melanges-');
   cpSync(join(FIXTURES, 'plans', 'moteur-efforts-melanges'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd); // arbre propre requis par le contrôle d'arbre sale (T2/P8/S1, D1)
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
@@ -653,6 +657,153 @@ cas('moteur : modèle hors Sonnet|Opus|Haiku → pas de champ agent, avertisseme
   if (!s1.avertissement || !s1.avertissement.includes('Codex')) {
     return `S1.avertissement attendu nommant "Codex", reçu: ${JSON.stringify(s1.avertissement)}`;
   }
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — D1 : arrêt sur arbre sale dans la zone d'une vague (T2, P8/S1)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Remplace la zone `` `src/a.mjs` `` de la fixture `moteur-arbre-sale` par `nouvelleZone` (même
+ * technique que `moteur-effort` : patcher l'index copié, pas la fixture). */
+function remplacerZoneArbreSale(cwd, nouvelleZone) {
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('`src/a.mjs`', nouvelleZone));
+}
+
+cas('arbre-sale : arbre propre → lancer', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-propre-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+  return null;
+});
+
+cas('arbre-sale : fichier modifié dans la zone → question arbre-sale le nommant', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-dans-zone-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 1;\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question", reçu: ${sortie}`;
+  if (action.options?.source !== 'arbre-sale') return `source attendue "arbre-sale", reçu: ${JSON.stringify(action.options)}`;
+  if (!action.options.fichiers?.includes('src/a.mjs')) {
+    return `fichiers attendu incluant "src/a.mjs", reçu: ${JSON.stringify(action.options)}`;
+  }
+  return null;
+});
+
+cas('arbre-sale : fichier modifié hors zone → lancer (pas de question)', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-hors-zone-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'z.mjs'), 'export const z = 1;\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer" (fichier hors zone), reçu: ${sortie}`;
+  return null;
+});
+
+cas('arbre-sale : dossier entier non suivi contenant un fichier d\'une zone-dossier → question', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-dossier-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  remplacerZoneArbreSale(cwd, '`src/`');
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'nouveau.mjs'), 'export const n = 1;\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') {
+    return `action attendue "question" (dossier non suivi dans la zone), reçu: ${sortie}`;
+  }
+  if (!action.options.fichiers?.includes('src/nouveau.mjs')) {
+    return `fichiers attendu incluant "src/nouveau.mjs", reçu: ${JSON.stringify(action.options)}`;
+  }
+  return null;
+});
+
+cas('arbre-sale : chemin accentué dans la zone → question', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-accent-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  remplacerZoneArbreSale(cwd, '`src/café.mjs`');
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'café.mjs'), 'export const c = 1;\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (chemin accentué sale), reçu: ${sortie}`;
+  return null;
+});
+
+cas(
+  "arbre-sale : cellule recopiée de plans/P4/index.md:25 (accolades) avec un fichier sale d'une branche → question",
+  () => {
+    const cwd = dossierJetable('workflow-pa-arbre-accolades-');
+    cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+    remplacerZoneArbreSale(
+      cwd,
+      '`plugin/skills/{fin-de-tache,verif-visuelle,migrer-projet,revue-de-conception,cadrer,nouveau-projet,orchestrer-plan}/SKILL.md`, `plugin/agents/verificateur-n0.md`',
+    );
+    initEtCommitTout(cwd);
+    mkdirSync(join(cwd, 'plugin', 'skills', 'cadrer'), { recursive: true });
+    writeFileSync(join(cwd, 'plugin', 'skills', 'cadrer', 'SKILL.md'), '# cadrer\n');
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!action || action.action !== 'question') return `action attendue "question" (accolades développées), reçu: ${sortie}`;
+    if (!action.options.fichiers?.includes('plugin/skills/cadrer/SKILL.md')) {
+      return `fichiers attendu incluant la branche développée, reçu: ${JSON.stringify(action.options)}`;
+    }
+    return null;
+  },
+);
+
+cas(
+  "arbre-sale : cellules de plans/P4/index.md:23 et plans/P7/index.md:31 (texte hors backticks), arbre propre → lancer",
+  () => {
+    for (const zone of [
+      '`plugin/WORKFLOW.md` (§9a, §9c), `plugin/skills/reprendre-echec/`, `plugin/skills/orchestrer-plan/`',
+      '`plugin/agents/` (4 fichiers créés)',
+    ]) {
+      const cwd = dossierJetable('workflow-pa-arbre-texte-');
+      cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+      remplacerZoneArbreSale(cwd, zone);
+      initEtCommitTout(cwd);
+      const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+      if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+      if (!action || action.action !== 'lancer') {
+        return `zone "${zone}" : action attendue "lancer" (texte hors backticks ignoré), reçu: ${sortie}`;
+      }
+    }
+    return null;
+  },
+);
+
+cas('arbre-sale : zone `src/**` → question, motif « zone illisible »', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-illisible-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  remplacerZoneArbreSale(cwd, '`src/**`');
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (zone illisible), reçu: ${sortie}`;
+  if (!/zone illisible/.test(action.motif)) return `motif attendu citant "zone illisible", reçu: ${action.motif}`;
+  return null;
+});
+
+cas('arbre-sale : `git status` en échec (pas de dépôt git) → question, motif « arbre invérifiable »', () => {
+  const cwd = dossierJetable('workflow-pa-arbre-invérifiable-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-arbre-sale'), join(cwd, 'plans', 'P9'), { recursive: true });
+  // Volontairement PAS de dépôt git ici : `git status` échoue, jamais un `lancer` sur un état non
+  // vérifié (C2). Anti-raccourci : ne pas simuler l'échec, le provoquer réellement (pas de `git init`).
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (arbre invérifiable), reçu: ${sortie}`;
+  if (!/invérifiable/.test(action.motif)) return `motif attendu citant "invérifiable", reçu: ${action.motif}`;
   return null;
 });
 
