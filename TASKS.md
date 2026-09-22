@@ -43,3 +43,11 @@ Suivi d'avancement dans `plans/P8/index.md`, jamais ici.
 - T11 — Harnais portable, et rejeu des trois cas en Sonnet `low` · → plans/P8/S5.md
 - T12 — Analyse écrite · → plans/P8/S5.md
 - T13 — Version 0.41.0 et publication (si 9/9) · → plans/P8/S5.md
+
+## Backlog
+
+- **Doc du plugin** — `plugin/skills/fin-de-tache/references/fin-de-plan.md` (8b) écrit
+  `claude plugin update workflow@templates` sans `--scope local` : au scope par défaut (`user`), la
+  commande répond « Plugin "workflow" is not installed at scope user » dans ce dépôt source.
+  `CLAUDE.md` est corrigé (2026-09-22) ; le texte du plugin ne l'est pas, pour ne pas faire dériver
+  `plugin/` de la version publiée 0.41.0 — à prendre avec le prochain bump.

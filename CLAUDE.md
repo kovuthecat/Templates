@@ -47,5 +47,7 @@ il pointe vers le reste, sans le recopier. Plafond : **200 lignes** — au-delà
   chemin de la marketplace y est absolu). Sur un poste neuf, depuis la racine :
   `claude plugin marketplace add ./plugin --scope local` puis
   `claude plugin install workflow@templates --scope local`. Après un bump de version :
-  `claude plugin update workflow@templates`. Jamais de marketplace de **compte** (claude.ai) : elle
+  `claude plugin update workflow@templates --scope local` (sans `--scope local`, la commande cherche
+  au scope `user` et répond « Plugin "workflow" is not installed at scope user » — constaté le
+  2026-09-22, à la publication de 0.41.0). Jamais de marketplace de **compte** (claude.ai) : elle
   s'applique à tous les projets et y double le workflow vendoré (constat du 2026-09-17).
