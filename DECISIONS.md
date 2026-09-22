@@ -25,10 +25,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 ## Décisions
 
-- 2026-08-22 — **Agents mécaniques Haiku** — Quatre agents (`explorateur`, `verificateur-n0`,
-  `resumeur-git`, `lecteur-doc`) à délégation proactive remplacent l'exécution directe des tâches
-  mécaniques dans la conversation principale →
-  [détail](docs/decisions/2026-08-22-agents-mecaniques.md)
 - 2026-08-22 — **`VALIDATION.md` = N2 en attente uniquement** — Item tranché = ligne supprimée
   (git reste l'archive), plafond abaissé de 120 à 60 lignes →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
@@ -46,10 +42,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   plus reporté en fin de plan, chaque session prend le sien avant de rendre la main (repère
   `Plan: P<n>/S<k>/T<m>`) ; `index.md` garde un rédacteur unique, push toujours groupé →
   [détail](docs/decisions/2026-08-24-commit-par-session.md)
-- 2026-08-24 — **Orchestration par sous-agents : une vague sans intervention** — la voie Desktop passe
-  de la pastille `spawn_task` (un clic par session) à l'outil `Agent` en arrière-plan, qui hérite des
-  outils navigateur là où `claude -p` n'en a aucun ; la pastille devient un repli hors Desktop →
-  [détail](docs/decisions/2026-08-24-orchestration-par-sous-agents.md)
 - 2026-08-30 — **Un échec de prémisse étend le plan, il ne crée pas le plan suivant** — `/nouveau-plan`
   gagne une Étape 0 (plan neuf vs extension de `P<n>`) ; plafond à deux vagues de remédiation, la
   troisième passe par `/cadrer` → [détail](docs/decisions/2026-08-30-extension-de-plan.md)
@@ -57,9 +49,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   tâche a besoin du contexte courant, interdit pour une session de plan, une reprise d'échec ou une
   restitution pure ; aucune mémoire sur les quatre agents mécaniques →
   [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
-- 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`, une reprise à
-  froid automatique (sous-agent frais, un cran au-dessus) ; 2e échec consécutif ou gate `ARBITRAGE` →
-  arbitrage humain → [détail](docs/decisions/2026-08-30-reprise-automatique-echec.md)
 - 2026-08-30 — **Écrire pour qui décide** — registre d'écriture opposable dans `CLAUDE-BASE.md` : ce
   qu'un humain lit dit d'abord ce que ça change et à quoi il le verra ; appliqué par `/nouveau-plan`
   (index et `S<k>.md`), `/orchestrer-plan` et `/cadrer` →
@@ -77,10 +66,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `/revue-de-conception` : constat écrit/code, **interview de recalage** avec gate explicite, puis
   7 écarts max pondérés par la phase ; sortie `docs/revues/` + `PROJECT_BRIEF.md` recalé →
   [détail](docs/decisions/2026-09-05-revue-de-conception.md)
-- 2026-09-07 — **La revue de session dépose son fichier elle-même, au premier plan** — agent
-  `relecteur-session` au lieu de `/code-review` en arrière-plan : il écrit `S<k>.revue.md` lui-même
-  et **toujours** (`Bloquant : 0` inclus), donc un fichier absent ne peut plus vouloir dire que
-  « la revue n'a rien trouvé » → [détail](docs/decisions/2026-09-07-revue-orpheline.md)
 - 2026-09-09 — **La nature de l'échec décide de la reprise ; les incidents remontent par fichier** —
   une session nomme `Nature : environnement | exécution | prémisse` avant de conclure et corrige
   elle-même ce qui est à sa portée ; la reprise suit la nature ; hook `Stop` muet sous verrou ; un
@@ -142,11 +127,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
   orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
   partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
-- 2026-09-18 — **Effort par sous-agent** — `effort` en frontmatter d'agent nommé est documenté et
-  honoré (`critique-plan` s'en sert) ; le couplage restant vient de `subagent_type: "claude"`, sans
-  fichier donc sans frontmatter. §3/§5b corrigés ; agents `session-<effort>` et orchestrateur en
-  `low` ouverts, non tranchés — l'éval qui les garde est bloquée
-  → [détail](docs/decisions/2026-09-18-effort-par-sous-agent.md)
 - 2026-09-18 — **L'effort d'une session vient de son agent** — cadrage : cinq agents
   `session-<effort>` portant `effort:` en frontmatter, lancés par `subagent_type` composé depuis
   l'index ; l'action `regler-effort` se retire. Neutre sur les outils (filtres identiques pour agent

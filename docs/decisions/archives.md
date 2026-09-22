@@ -25,3 +25,23 @@
   [détail](2026-08-25-cadrage-voie-unique-orchestration.md) — remplacée par 2026-09-12
 - 2026-08-30 — **Relecture qualité par `/code-review` en arrière-plan** →
   [détail](2026-08-30-branchement-code-review.md) — remplacée par 2026-09-07
+- 2026-08-22 — **Agents mécaniques Haiku** — Quatre agents (`explorateur`, `verificateur-n0`,
+  `resumeur-git`, `lecteur-doc`) à délégation proactive remplacent l'exécution directe des tâches
+  mécaniques dans la conversation principale →
+  [détail](2026-08-22-agents-mecaniques.md) — remplacée par 2026-09-17 (`verificateur-n0` retiré), 2026-09-04 (premier plan) et 2026-09-15 (`analyste-flux`)
+- 2026-08-24 — **Orchestration par sous-agents : une vague sans intervention** — la voie Desktop passe
+  de la pastille `spawn_task` (un clic par session) à l'outil `Agent` en arrière-plan, qui hérite des
+  outils navigateur là où `claude -p` n'en a aucun ; la pastille devient un repli hors Desktop →
+  [détail](2026-08-24-orchestration-par-sous-agents.md) — remplacée par 2026-09-12 (une seule voie : sous-agent)
+- 2026-08-30 — **Reprise automatique d'un échec dans l'orchestration** — après un `FAIL`, une reprise à
+  froid automatique (sous-agent frais, un cran au-dessus) ; 2e échec consécutif ou gate `ARBITRAGE` →
+  arbitrage humain → [détail](2026-08-30-reprise-automatique-echec.md) — remplacée par 2026-09-09 (la nature décide) puis 2026-09-17 (état scripté)
+- 2026-09-07 — **La revue de session dépose son fichier elle-même, au premier plan** — agent
+  `relecteur-session` au lieu de `/code-review` en arrière-plan : il écrit `S<k>.revue.md` lui-même
+  et **toujours** (`Bloquant : 0` inclus), donc un fichier absent ne peut plus vouloir dire que
+  « la revue n'a rien trouvé » → [détail](2026-09-07-revue-orpheline.md) — remplacée par 2026-09-12 (la revue dépose son fichier d'abord)
+- 2026-09-18 — **Effort par sous-agent** — `effort` en frontmatter d'agent nommé est documenté et
+  honoré (`critique-plan` s'en sert) ; le couplage restant vient de `subagent_type: "claude"`, sans
+  fichier donc sans frontmatter. §3/§5b corrigés ; agents `session-<effort>` et orchestrateur en
+  `low` ouverts, non tranchés — l'éval qui les garde est bloquée
+  → [détail](2026-09-18-effort-par-sous-agent.md) — remplacée par 2026-09-18 (l'effort d'une session vient de son agent)
