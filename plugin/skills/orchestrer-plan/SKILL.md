@@ -25,7 +25,8 @@ vendorée (C4), le régler avant de lancer.
 
 - **Ne jamais ouvrir un `S<k>.md`**, sans exception — un message de commit sous verrou vient
   d'`index.md` (Étape 1). L'`index.md` et `git log` suffisent.
-- **Ne jamais lire un diff ni une sortie de build.** Déléguer à `resumeur-git` / `verificateur-n0`.
+- **Ne jamais lire un diff ni une sortie de build.** Déléguer à `resumeur-git` ; un code de sortie
+  n'est pas une sortie.
 - **Ne jamais corriger soi-même, ni reprendre une session en échec.** `fork` vers l'agent en échec
   interdit sans condition ; `SendMessage` seulement sous les trois conditions du canal court
   (`references/remediation.md`), sinon à froid.
@@ -108,9 +109,9 @@ Agent({
 Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
 dans l'arbre de travail courant : n'ouvre AUCUN worktree. Déroule /fin-de-tache en fin de session. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
-Tout appel Agent que tu fais porte run_in_background: false — verificateur-n0 compris — et aucune
-commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par
-personne, et « j'attends le rapport de l'agent » n'est pas un retour.
+Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier
+plan — et aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle
+n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.
 Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se
 corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
 plans/P<n>/S<k>.echec.md, ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis
@@ -150,9 +151,10 @@ orchestré, commits présents (git log --grep
 })
 ```
 
-`Agent type 'relecteur-session' not found` : repli `subagent_type: "general-purpose"`, `model: "sonnet"`, prompt « Lis `.claude/agents/relecteur-session.md`
-et tiens ce rôle pour S<k> de P<n> … ». Repli en échec aussi → `Revue S<k> : absente` au rapport, non
-bloquante, + incident (§9b).
+`Agent type 'relecteur-session' not found` : repli `subagent_type: "workflow:relecteur-session"` ;
+encore introuvable → `subagent_type: "general-purpose"`, `model: "sonnet"`, prompt « Lis
+`.claude/agents/relecteur-session.md` et tiens ce rôle pour S<k> de P<n> … ». Repli en échec aussi →
+`Revue S<k> : absente` au rapport, non bloquante, + incident (§9b).
 
 Lire seulement les deux lignes rendues, jamais les trouvailles. `Bloquant : <n>` avec n > 0 : une
 ligne au rapport (`Revue S<k> : <n> bloquant(s) → plans/P<n>/S<k>.revue.md`), et le statut de S<k>

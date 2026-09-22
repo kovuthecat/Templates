@@ -21,7 +21,8 @@ Réponse finale en UNE ligne, exactement : PREMISSE: CONFIRMEE|REFUTEE|INDECIDAB
 })
 ```
 
-Agent introuvable : repli `subagent_type: "general-purpose"`, `model: "haiku"`, prompt « Lis `.claude/agents/verificateur-premisse.md` et tiens ce rôle… ». Quatre issues :
+Agent introuvable : repli `subagent_type: "workflow:verificateur-premisse"` ; encore introuvable →
+`subagent_type: "general-purpose"`, `model: "haiku"`, prompt « Lis `.claude/agents/verificateur-premisse.md` et tiens ce rôle… ». Quatre issues :
 
 - **`REFUTEE`** → rappeler le script (traite la session comme `exécution`) + incident (§9b, nature `prémisse`).
 - **`CONFIRMEE`** → `question` (Étape 3 de `SKILL.md`), motif `etape6`.
@@ -31,9 +32,11 @@ Agent introuvable : repli `subagent_type: "general-purpose"`, `model: "haiku"`, 
 
 ## `reprendre` — canal court d'abord
 
-Trois conditions, domicile unique (`WORKFLOW.md` §9c) : (1) identifiant d'agent de la session, gardé à la collecte, jamais `ListAgents` ; (2) `verificateur-n0`
-lancé par l'orchestrateur lui-même, vert ; (3) aucune fausse piste (`Blocage :` du rapport nomme un
-geste, pas une hypothèse). Les trois tiennent → canal court ci-dessous ; une manque → à froid.
+Trois conditions, domicile unique (`WORKFLOW.md` §9c) : (1) identifiant d'agent de la session, gardé à la collecte, jamais `ListAgents` ; (2) N0 vert —
+`node plugin/bin/n0.mjs` (source) / `node .claude/workflow/bin/n0.mjs` (vendoré), lancé par
+l'orchestrateur au premier plan, code de sortie seul (0 = vert), sortie jamais lue ; (3) aucune
+fausse piste (`Blocage :` du rapport nomme un geste, pas une hypothèse). Les trois tiennent → canal
+court ci-dessous ; une manque → à froid.
 
 ```
 SendMessage({
@@ -63,9 +66,9 @@ Traite la session comme une nature exécution et cherche la cause ailleurs. »>
 <si `option` : « Applique l'option <option> de la section ## Issues du rapport, puis rejoue la tâche. »>
 <si bloquant de revue corrigeable (C5, quatre conditions du correctif localisé) : « Ce bloquant de revue (§9a) tient les quatre conditions : <bloquant, tel
 quel, depuis plans/P<n>/S<k>.revue.md>. Applique le correctif, commit séparé, rejoue la gate. »>
-Tout appel Agent que tu fais porte run_in_background: false — verificateur-n0 compris — et aucune
-commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par
-personne, et « j'attends une tâche de fond » n'est pas un retour.
+Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier
+plan — et aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle
+n'est lu par personne, et « j'attends une tâche de fond » n'est pas un retour.
 Incrémente la ligne `Tentatives :` du rapport avant de rendre la main, sauf si tu le supprimes.
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
