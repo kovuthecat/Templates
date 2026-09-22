@@ -6,11 +6,13 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 # Orchestrer un plan
 
 Sonnet, jamais Haiku (`WORKFLOW.md` §3) pour l'orchestrateur lui-même — contrainte inchangée. Chaque
-session tourne, elle, à l'effort de sa ligne d'index : `subagent_type: "session-<effort>"` le porte en
-frontmatter (Étape 1), sans geste humain à régler avant de lancer.
+session tourne, elle, à l'effort de sa ligne d'index : le champ `agent` rendu par le script
+(`subagent_type`, `model`) le porte en frontmatter (Étape 1), recopié tel quel, sans geste humain à
+régler avant de lancer.
 Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
 script (C2, `prochaine-action.mjs`) depuis les fichiers commités — budget, nature → modèle,
-dépendances, recoupement par les commits en sortent : l'action rendue s'exécute, ne se recalcule pas.
+dépendances, recoupement par les commits, appel d'agent prêt à recopier, arbre sale avant une vague
+en sortent : l'action rendue s'exécute, ne se recalcule pas.
 
 ## La boucle
 
@@ -55,13 +57,15 @@ effort, env, dépendances, zone) et, sous « ## Ordonnancement », le *Pourquoi 
 et la ligne « en clair » de chaque session — jamais un `S<k>.md`. Index sans ligne « en clair » :
 annoncer sans elle, le signaler une fois, ne jamais l'inventer ni ouvrir le `S<k>.md`.
 
-**Préflight** : (1) **arbre sale** — `resumeur-git` ; un fichier non commité qui intersecte une `Zone modifiée` de la vague → **gate** (`WORKFLOW.md` §9c).
-(2) **verrou si `parallele`** — zones disjointes seulement, au moindre doute séquentiel ; poser
-`.claude/wave.lock` juste avant le premier lancement, jamais avant. (3) **agents du plugin absents du
-bac à sable** — seuls les agents génériques listés : le dire sur « À régler AVANT de lancer », revues
-annoncées absentes pour la vague, **et** pour chaque effort effectivement demandé par la vague à
-lancer, vérifier que `session-<effort>` (ou `workflow:session-<effort>`) résout ; sinon annoncer déjà
-là le repli en `claude` (cran 3, Étape 1) plutôt que de le découvrir au premier lancement.
+**Préflight** : (1) **arbre sale** — déjà fait par le script avant de rendre `lancer` : un fichier non
+commité qui intersecte une `Zone modifiée` de la vague fait rendre `question` (source `arbre-sale`)
+à la place, jamais un préflight délégué. (2) **verrou si `parallele`** — zones disjointes seulement,
+au moindre doute séquentiel ; poser `.claude/wave.lock` juste avant le premier lancement, jamais
+avant. (3) **agents du plugin absents du bac à sable** — seuls les agents génériques listés : le dire
+sur « À régler AVANT de lancer », revues annoncées absentes pour la vague, **et** pour chaque effort
+effectivement demandé par la vague à lancer, vérifier que `session-<effort>` (ou
+`workflow:session-<effort>`) résout ; sinon annoncer déjà là le repli en `claude` (cran 3, Étape 1)
+plutôt que de le découvrir au premier lancement.
 
 **Annoncer, puis lancer** — jamais l'inverse, jamais en ouvrant un `S<k>.md` :
 
@@ -89,16 +93,16 @@ session marquée `pastille` dans sa ligne « en clair ») : une pastille `spawn_
 « Démarrer localement », jamais le worktree par défaut, puis rendre la main ; titrer `P<n> · S<k> —
 <titre> · <M>/<E>` et sortir « À régler AVANT de lancer » (`WORKFLOW.md` §3).
 
-**Sous-agent, la seule voie** (`WORKFLOW.md` §5b) sinon — un agent par session, dans l'ordre de l'index ; parallèle → tous en arrière-plan, le premier
-seul puis les autres une fois qu'il produit (cache, §3b) ; séquentiel → un seul à la fois, arrêt au
-premier `FAIL`. `isolation: "worktree"` et `subagent_type: "fork"` interdits ; ne jamais recopier le
+**Sous-agent, la seule voie** (`WORKFLOW.md` §5b) sinon — un agent par session, dans l'ordre de l'index ; parallèle → tous en arrière-plan, la première
+session seule dans un message, les autres dans le message suivant, sans attendre sa notification
+(D4, gain de cache mesuré en §3b) ; séquentiel → un seul à la fois, arrêt au premier `FAIL`. `isolation: "worktree"` et `subagent_type: "fork"` interdits ; ne jamais recopier le
 `S<k>.md` dans le prompt.
 
 ```
 Agent({
   description: "P<n>/S<k>",
-  subagent_type: "session-<effort lu dans l'index>",
-  model: <modèle lu dans l'index>,
+  subagent_type: <agent.subagent_type de la session>,
+  model: <agent.model de la session>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
@@ -183,5 +187,10 @@ geste, plan fini ou arrêté — jamais depuis une session, jamais sur une vague
    Rapport : plans/P<n>/S<k>.echec.md · reste lançable sans décider : <S<j>, S<l> | rien>
 ```
 
-Options jamais inventées ici : `motifs.source` de l'action (`etape6`, `budget-epuise`, `reprise-manuelle`, `wave-lock`) et la section `## Issues` d'un rapport
-d'enquête (mot pour mot, `references/remediation.md`) les fournissent. Une seule question par arrêt.
+Options jamais inventées ici : `motifs.source` de l'action (`etape6`, `budget-epuise`, `reprise-manuelle`, `wave-lock`, `arbre-sale`) et la section `## Issues` d'un rapport
+d'enquête (recopiées telles quelles, `references/remediation.md`) les fournissent. Source `arbre-sale`,
+options fixes : `1. Committer ces fichiers toi-même, puis relancer — débloque la vague · 2. Les mettre
+de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables ·
+3. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Motif « arbre
+invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Une seule question par
+arrêt.

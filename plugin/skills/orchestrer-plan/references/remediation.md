@@ -2,17 +2,8 @@
 
 Annexe de `/orchestrer-plan` — un bloc par geste que le modèle doit écrire, pour les actions `verifier-premisse`, `reprendre`, `enqueter` de la table des
 actions (`SKILL.md`). Budget, table nature → modèle, dépendances, vérification du commit d'une
-mesure : rendus par `prochaine-action.mjs` (C2), rien de tout ça ne se recalcule ici.
-
-**Modèle → effort**, pour composer `subagent_type: "session-<effort>"` d'une reprise ou d'une
-enquête à partir du seul `modele` que l'action rend (`WORKFLOW.md` §3) — une seule copie, les deux
-blocs y renvoient plutôt que de la recopier :
-
-| Modèle de l'action | Effort de session |
-| --- | --- |
-| Opus | `high` |
-| Sonnet | `medium` |
-| Haiku | `low` |
+mesure, appel d'agent prêt à recopier (`subagent_type`, `model`) : rendus par `prochaine-action.mjs`
+(C2), rien de tout ça ne se recalcule ici.
 
 ## `verifier-premisse`
 
@@ -56,13 +47,13 @@ Consomme une reprise du budget comme à froid ; en échec, **ne se retente pas**
 
 ## `reprendre` — à froid
 
-`modele`/`option` déjà décidés par l'action rendue :
+`agent`/`option` déjà décidés par l'action rendue :
 
 ```
 Agent({
   description: "P<n>/S<k> reprise",
-  subagent_type: "session-<effort du modèle de l'action, table en tête d’annexe>",
-  model: <modele de l'action>,
+  subagent_type: <agent.subagent_type de l'action>,
+  model: <agent.model de l'action>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
@@ -89,13 +80,13 @@ l'Étape 1 de `SKILL.md` (T5) : `session-<effort>` → `workflow:session-<effort
 
 ## `enqueter`
 
-Lecture seule (ne corrige rien, ne committe rien, ne lance pas N0), `modele` déjà décidé :
+Lecture seule (ne corrige rien, ne committe rien, ne lance pas N0), `agent` déjà décidé :
 
 ```
 Agent({
   description: "P<n>/S<k> enquête",
-  subagent_type: "session-<effort du modèle de l'action, table en tête d’annexe>",
-  model: <modele de l'action>,
+  subagent_type: <agent.subagent_type de l'action>,
+  model: <agent.model de l'action>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
