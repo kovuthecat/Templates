@@ -189,6 +189,12 @@ geste, plan fini ou arrêté — jamais depuis une session, jamais sur une vague
    Rapport : plans/P<n>/S<k>.echec.md · reste lançable sans décider : <S<j>, S<l> | rien>
 ```
 
+**Calcul de « reste lançable »** : parcourir `index.md`, garder seulement les sessions non `[x]`
+dont la colonne « Dépend de » est vide, **ou** ne nomme que des sessions déjà `[x]` — jamais une
+session dont une dépendance (directe ou transitive) est celle qui bloque, même non encore passée à
+`[x]` par un mécanisme différent. Une session qui dépend de S<k> (la session bloquée) n'est jamais
+« encore lançable » : elle hérite du même blocage. Aucune dépendance ⇒ `rien`.
+
 Options jamais inventées ici : `motifs.source` de l'action (`etape6`, `budget-epuise`, `reprise-manuelle`, `wave-lock`, `arbre-sale`) et la section `## Issues` d'un rapport
 d'enquête (`references/remediation.md`) les fournissent. Les lignes de `## Issues` **sont** les
 options : recopiées sans rien changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme
