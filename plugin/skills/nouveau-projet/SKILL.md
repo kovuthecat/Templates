@@ -77,7 +77,7 @@ place d'un humain.
 
 2. Copier `.claude/workflow/templates/project-settings.json` → `.claude/settings.json`.
 
-   > Ce fichier câble les 4 hooks en `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`. Il ne porte
+   > Ce fichier câble les 5 hooks en `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`. Il ne porte
    > **ni** `enabledPlugins`, **ni** `extraKnownMarketplaces` : le workflow est dans le repo, il
    > n'y a rien à rapatrier au démarrage. Les deux ensemble le chargeraient deux fois.
    >

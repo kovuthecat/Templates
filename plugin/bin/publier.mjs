@@ -19,7 +19,7 @@
 //
 // TEST DES HOOKS AVANT PUBLICATION (v0.30.0)
 // Avant toute construction de payload — y compris en --dry-run —, `tests/tester-hooks.mjs` (racine
-// du dépôt, jamais vendoré) rejoue les quatre hooks sur des dépôts git jetables. Un hook qui refuse
+// du dépôt, jamais vendoré) rejoue les cinq hooks sur des dépôts git jetables. Un hook qui refuse
 // à tort ou laisse passer à tort n'est visible qu'en session, dans un projet aval, longtemps après
 // la publication : le test échoue → publication annulée, rien poussé.
 //
