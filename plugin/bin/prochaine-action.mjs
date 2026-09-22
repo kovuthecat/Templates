@@ -24,6 +24,12 @@
 // SORTIE : sans --json, une ligne lisible puis les champs de l'action ; avec --json, l'objet. Code 0
 // si l'index a pu être lu (quel que soit l'état des sessions qu'il décrit), 2 si l'index est
 // illisible ou si le plan est absent.
+//
+// Actions `lancer`, `reprendre`, `enqueter` : chaque session/appel porte `agent: { subagent_type:
+// "session-<effort>", model: "<sonnet|opus|haiku>" }`, prêt à recopier dans un appel `Agent(...)` —
+// jamais une valeur que le modèle transforme lui-même (D2,
+// docs/decisions/2026-09-22-flous-du-workflow.md). Modèle hors Sonnet|Opus|Haiku : pas de champ
+// `agent`, un `avertissement` nommant la valeur.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -230,6 +236,29 @@ const UN_CRAN_AU_DESSUS = { Haiku: 'Sonnet', Sonnet: 'Opus' };
 // réserve à `/effort max` en session, jamais à une colonne d'index (décision 2026-09-18).
 const EFFORTS_LANCABLES = ['low', 'medium', 'high', 'xhigh'];
 
+// ── D2 : appel d'agent prêt à recopier — le script rend `subagent_type` et `model` (minuscules),
+// jamais une valeur que l'orchestrateur transforme à la main (docs/decisions/2026-09-22-…, table
+// modèle → effort reprise de `references/remediation.md` l. 11-15, désormais portée ici). ──────────
+const MODELES_VALIDES = ['Sonnet', 'Opus', 'Haiku'];
+const EFFORT_DU_MODELE = { Opus: 'high', Sonnet: 'medium', Haiku: 'low' };
+
+/** `{ subagent_type, model }` prêt à recopier dans un appel `Agent(...)`, ou `null` si le modèle est
+ * hors Sonnet|Opus|Haiku — jamais un `subagent_type` inventé. */
+function appelAgent(modele, effort) {
+  if (!MODELES_VALIDES.includes(modele)) return null;
+  return { subagent_type: `session-${effort}`, model: modele.toLowerCase() };
+}
+
+/** `{ agent }` à étaler sur une session/action, ou `{ avertissement }` nommant la valeur si le
+ * modèle est inconnu — jamais les deux, jamais un `agent` deviné. */
+function champAgent(modele, effort) {
+  const agent = appelAgent(modele, effort);
+  if (agent) return { agent };
+  return {
+    avertissement: `modèle inconnu ("${modele}") : pas d'appel d'agent composé (Sonnet, Opus ou Haiku attendus)`,
+  };
+}
+
 function questionBudget(session, nature = 'reprise') {
   const mot = nature === 'enquete' ? "d'enquête" : 'de reprises';
   return {
@@ -342,6 +371,9 @@ function prochaineAction(sortie) {
       if (decision.action === 'verifier-premisse') {
         decision.chemin = `plans/${sortie.plan}/${enEchec.session}.echec.md`;
       }
+      if (decision.action === 'reprendre' || decision.action === 'enqueter') {
+        Object.assign(decision, champAgent(decision.modele, EFFORT_DU_MODELE[decision.modele]));
+      }
       return decision;
     }
 
@@ -354,7 +386,12 @@ function prochaineAction(sortie) {
         action: 'lancer',
         vague: vague.numero,
         parallele: vague.parallelisable,
-        sessions: aLancer.map((s) => ({ session: s.session, modele: s.modele, effort: s.effort })),
+        sessions: aLancer.map((s) => ({
+          session: s.session,
+          modele: s.modele,
+          effort: s.effort,
+          ...champAgent(s.modele, s.effort),
+        })),
       };
     }
 
@@ -459,7 +496,20 @@ function formaterTexte(action) {
     default:
       ligne = action.action;
   }
-  return [ligne, ...champs].join('\n');
+  return [ligne, ...champs, ...lignesAppelAgent(action)].join('\n');
+}
+
+/** Une ligne lisible par appel d'agent prêt à recopier (D2) — `S1 → subagent_type: session-low ·
+ * model: sonnet` — pour la sortie sans `--json` de `lancer`, `reprendre`, `enqueter`. */
+function lignesAppelAgent(action) {
+  const ligne = (session, agent) => `${session} → subagent_type: ${agent.subagent_type} · model: ${agent.model}`;
+  if (action.action === 'lancer') {
+    return action.sessions.filter((s) => s.agent).map((s) => ligne(s.session, s.agent));
+  }
+  if ((action.action === 'reprendre' || action.action === 'enqueter') && action.agent) {
+    return [ligne(action.session, action.agent)];
+  }
+  return [];
 }
 
 // ── Assemblage ─────────────────────────────────────────────────────────────────────────────────────
@@ -510,7 +560,10 @@ if (etat) {
 
 const action = prochaineAction(sortie);
 const avertissement = avertissementVersion(sortie);
-if (avertissement) action.avertissement = avertissement;
+if (avertissement) {
+  // Ne pas écraser un avertissement déjà posé (modèle inconnu, D2) : les deux comptent.
+  action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
+}
 
 process.stdout.write((json ? JSON.stringify(action, null, 2) : formaterTexte(action)) + '\n');
 process.exit(0);

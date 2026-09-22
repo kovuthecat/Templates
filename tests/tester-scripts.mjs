@@ -87,6 +87,14 @@ function initDepot(cwd) {
   git(cwd, 'config', 'user.name', 'Test');
 }
 
+/** Dépôt jetable, tout commité (arbre propre) — pour les cas qui doivent passer le contrôle
+ * d'arbre sale (T2, P8/S1, D1) sans que ça teste autre chose que cet arrêt-là. */
+function initEtCommitTout(cwd, message = 'init') {
+  initDepot(cwd);
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', message);
+}
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // n0.mjs — contrat C1
 // ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -568,6 +576,83 @@ cas('moteur : tout coché, revues faites, rien à pousser → fini', () => {
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'fini') return `action attendue "fini", reçu: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — D2 : appel d'agent prêt à recopier (T1, P8/S1)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+cas('moteur : lancer à efforts mêlés → S1 {session-low, haiku}, S2 {session-medium, sonnet}', () => {
+  // Anti-raccourci (S1.md) : la fixture écrit Haiku/Sonnet capitalisés — un test qui passerait sur
+  // un index déjà en minuscules ne prouverait rien sur `appelAgent`.
+  const cwd = dossierJetable('workflow-pa-agent-lancer-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-efforts-melanges'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+  const s1 = action.sessions.find((s) => s.session === 'S1'); // Haiku, low
+  const s2 = action.sessions.find((s) => s.session === 'S2'); // Sonnet, medium
+  if (!s1?.agent || s1.agent.subagent_type !== 'session-low' || s1.agent.model !== 'haiku') {
+    return `S1.agent attendu {subagent_type: "session-low", model: "haiku"}, reçu: ${JSON.stringify(s1?.agent)}`;
+  }
+  if (!s2?.agent || s2.agent.subagent_type !== 'session-medium' || s2.agent.model !== 'sonnet') {
+    return `S2.agent attendu {subagent_type: "session-medium", model: "sonnet"}, reçu: ${JSON.stringify(s2?.agent)}`;
+  }
+  return null;
+});
+
+cas('moteur : reprendre — échec exécution Sonnet → agent {session-high, opus} (un cran au-dessus)', () => {
+  const cwd = dossierJetable('workflow-pa-agent-reprendre-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre' || action.modele !== 'Opus') {
+    return `reprendre en Opus attendu, reçu: ${sortie}`;
+  }
+  if (!action.agent || action.agent.subagent_type !== 'session-high' || action.agent.model !== 'opus') {
+    return `agent attendu {subagent_type: "session-high", model: "opus"}, reçu: ${JSON.stringify(action.agent)}`;
+  }
+  return null;
+});
+
+cas('moteur : enqueter — modèle et effort cohérents (Opus ⇒ session-high, opus)', () => {
+  const cwd = dossierJetable('workflow-pa-agent-enqueter-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Sonnet | medium', 'Opus | high'));
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', ''].join('\n'),
+  ); // pas de Blocage : démarrage à froid ⇒ enqueter (modèle Opus)
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'enqueter') return `action attendue "enqueter", reçu: ${sortie}`;
+  if (!action.agent || action.agent.subagent_type !== 'session-high' || action.agent.model !== 'opus') {
+    return `agent attendu {subagent_type: "session-high", model: "opus"}, reçu: ${JSON.stringify(action.agent)}`;
+  }
+  return null;
+});
+
+cas('moteur : modèle hors Sonnet|Opus|Haiku → pas de champ agent, avertissement nommant la valeur', () => {
+  const cwd = dossierJetable('workflow-pa-agent-inconnu-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Sonnet | medium', 'Codex | medium'));
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+  const s1 = action.sessions.find((s) => s.session === 'S1');
+  if (s1.agent) return `S1 ne doit porter aucun champ "agent" (modèle inconnu), reçu: ${JSON.stringify(s1)}`;
+  if (!s1.avertissement || !s1.avertissement.includes('Codex')) {
+    return `S1.avertissement attendu nommant "Codex", reçu: ${JSON.stringify(s1.avertissement)}`;
+  }
   return null;
 });
 
