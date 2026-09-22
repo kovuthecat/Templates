@@ -14,11 +14,12 @@ comportement mesuré : c'est le texte des skills et du script qui produisait la 
 budget de raisonnement du modèle. `low` coûte ~30 % de moins et va deux fois plus vite, sans perte
 mesurée de qualité sur les trois gestes testés.
 
-**Le rejeu de T11, après les corrections D1-D6, ne referme pas complètement le dossier : 7/9, pas
-9/9.** Les deux échecs restent dans un seul cas (C, « reste lançable sans décider »), et pointent un
-flou que les corrections D1-D6 ne couvraient pas — voir « Rejeu après P8 ». C'est un résultat de
-mesure, pas un défaut de cette session : la décision d'entrée avait explicitement posé l'attendu (9/9)
-comme condition de validation du chantier, et le rejeu la met à l'épreuve pour de vrai.
+**Le premier rejeu de T11, après les corrections D1-D6, ne refermait pas le dossier : 7/9, pas
+9/9** — les deux échecs tombaient dans un seul cas (C, « reste lançable sans décider »), sur un flou
+que D1-D6 ne couvrait pas. Un cycle de remédiation (deux reprises, Sonnet puis Opus) a ensuite porté
+le résultat à **9/9** : un correctif de skill pour le flou réel du cas C, puis un correctif localisé
+de l'instrument de mesure lui-même pour deux faux-négatifs qu'il produisait sur A et B — voir « Le
+cycle de remédiation (T11) » pour le détail des trois rejeux.
 
 ## Méthode et commandes
 
@@ -76,7 +77,9 @@ l'effort** — c'est l'origine de la décision `docs/decisions/2026-09-22-flous-
 également valides d'un texte qui autorisait deux gestes au même endroit (flou de casse `model:`,
 `verificateur-n0` prescrit après retrait, forme libre des options d'une question).
 
-## Rejeu après P8 (T11, Sonnet low, 3 essais par cas)
+## Le cycle de remédiation (T11) — trois rejeux, Sonnet low, 3 essais par cas
+
+### Rejeu 1 — 7/9
 
 | Cas | PASS | Coût moyen | Durée moyenne | Tours moyens |
 | --- | --- | --- | --- | --- |
@@ -84,13 +87,10 @@ l'effort** — c'est l'origine de la décision `docs/decisions/2026-09-22-flous-
 | B | 3/3 | 0,134 $ | 21 s | 6,0 |
 | C | 1/3 | 0,117 $ | 12 s | 6,0 |
 
-**Total : 7/9.** A et B sont désormais stables (les corrections D1-D6 — appel prêt à recopier,
-`verificateur-n0` retiré, options d'une question au format de la source — tiennent sur ces deux
-gestes, à 3/3 chacun). C reste partiellement flou : sur les trois essais, deux ont répondu
-« reste lançable sans décider : **S2** » au lieu de « **rien** » — c'est-à-dire que l'orchestrateur a
-jugé la session S2 lançable alors qu'elle **dépend de S1** (`Vague 2 : S2 (après S1)` dans la
-fixture), la session justement bloquée par le budget de reprises épuisé. Un seul essai (C-3) a
-correctement répondu « rien ».
+A et B sont stables (les corrections D1-D6 tiennent, 3/3 chacun). C est en échec sur deux essais sur
+trois : l'orchestrateur répond « reste lançable sans décider : **S2** » au lieu de « **rien** » —
+S2 **dépend de S1** (`Vague 2 : S2 (après S1)` dans la fixture), la session justement bloquée par le
+budget de reprises épuisé.
 
 Extrait de C-sonnet-low-1 (échec) :
 
@@ -106,17 +106,49 @@ Ma recommandation : 1, parce que ça règle le problème sans changer le contrat
 Rapport : plans/P9/S1.echec.md · reste lançable sans décider : rien
 ```
 
-**Ce que ça signale** : la décision D1-D6 n'a pas couvert le calcul de « ce qui reste lançable »
-d'une question `C` — rien dans les corrections sans choix de la décision d'entrée ne porte sur cette
-étape précise (elle traite le format des options, pas la vérification de dépendance des sessions
-restantes). C'est un flou qui n'avait pas été mesuré avant ce rejeu, distinct de ceux que D1-D6
-corrigeaient. Toutes les autres colonnes de la table de notation de C (format `❓ P9/S1`, les trois
-lignes `## Issues` recopiées à l'identique par égalité de ligne stricte, présence de
-« Ma recommandation ») passent 3/3 — l'écart est ponctuel, pas une régression générale du cas C.
+**Ce que ça signale** : la décision D1-D6 n'avait pas couvert le calcul de « ce qui reste lançable »
+d'une question `C` — les corrections traitaient le format des options, pas la vérification de
+dépendance des sessions restantes. Un flou distinct de ceux que D1-D6 corrigeait, non mesuré avant
+ce rejeu. Toutes les autres colonnes de la notation de C (format `❓ P9/S1`, les trois lignes
+`## Issues` recopiées à l'identique par égalité de ligne stricte, présence de « Ma recommandation »)
+passent 3/3 — l'écart était ponctuel, pas une régression générale du cas C.
 
-Ce résultat ne referme pas le chantier à 9/9 comme la décision d'entrée le posait en condition de
-validation (§ « Ce que ça oblige ») ; voir `plans/P8/S5.echec.md` pour la suite proposée à
-l'utilisateur.
+### Correctif 1, puis rejeu 2 — 6/9
+
+Correctif de skill (`plugin/skills/orchestrer-plan/SKILL.md`, commit `30b2d44`) : le calcul de
+« reste lançable » croise désormais la colonne « Dépend de » de l'index — une session dont une
+dépendance, directe ou transitive, est la session bloquée n'est jamais « encore lançable ».
+
+Rejeu complet : **A 1/3, B 2/3, C 3/3 — 6/9.** Le cas C est confirmé corrigé (3/3, hypothèse
+validée). A et B semblent régresser, mais pour des causes **distinctes du correctif** et **étrangères
+au comportement mesuré** :
+- **B** : deux essais tentaient quand même l'appel `Agent` malgré son absence du bac à sable ; le
+  `tool_use` était refusé par le sandbox (« No such tool available: Agent ») et restait invisible au
+  grader, qui notait l'essai raté alors que le geste écrit était correct.
+- **A** : privé de l'outil `Agent`, l'orchestrateur ne pouvait pas vérifier lui-même que
+  `session-low`/`session-high` étaient chargés, et appliquait de bonne foi le repli « agents du
+  plugin absents du bac à sable » (cran 3, `claude`) — artefact du bac à sable de mesure, pas un flou
+  de la skill.
+
+### Correctif 2 (instrument de mesure), puis renotation — 9/9
+
+Correctif localisé sur `tests/evals-orchestrateur/` (commit `c190928`), pas sur le skill ni le
+script — l'instrument de mesure, pas la cible, conformément au principe qui protège la cible d'un
+juge biaisé (`docs/decisions/2026-09-14-preuve-avant-plan.md`) :
+1. `noter.mjs` reconnaît désormais un appel `Agent` refusé par le bac à sable dans la forme de son
+   `tool_use`, au lieu de le compter comme absent.
+2. Le prompt du harnais énonce explicitement que les agents `session-<effort>` du plugin sont bien
+   chargés depuis `plugin/agents/` — seul l'outil `Agent` manque au bac à sable — pour ne plus
+   déclencher le repli cran 3 par excès de prudence.
+
+La **renotation du rejeu 2** (mêmes essais, mêmes réponses du modèle, seul le grader change) donne
+**9/9** : A 3/3, B 3/3, C 3/3 — sans relancer d'essai, donc sans coût API supplémentaire pour ce
+passage. Les deux « régressions » du rejeu 2 étaient bien des faux-négatifs de mesure, pas un défaut
+de comportement réintroduit par le correctif 1.
+
+**Résultat final : 9/9**, sur le rejeu 2 renoté avec l'instrument corrigé. Le chantier D1-D6, complété
+par le correctif du calcul « reste lançable », satisfait la condition de validation posée par la
+décision d'entrée (§ « Ce que ça oblige »).
 
 ## Limites
 
@@ -135,5 +167,8 @@ l'utilisateur.
 
 ## Coût total
 
-Campagnes de cadrage (Haiku/Sonnet + Sonnet low/medium/high, comparaison manuelle) : ~16,7 $. Rejeu
-de T11 (9 essais Sonnet low) : ~1,07 $ (somme des coûts mesurés ci-dessus). **Total : ~17,8 $.**
+Campagnes de cadrage (Haiku/Sonnet + Sonnet low/medium/high, comparaison manuelle) : ~16,7 $. Rejeu 1
+de T11 (9 essais Sonnet low) : ~1,07 $. Rejeu 2 (9 essais, après le correctif de skill) : ~1,07 $ —
+la renotation qui l'a porté à 9/9 n'a relancé aucun essai. **Total mesure : ~18,9 $**, hors coût des
+deux sessions de reprise elles-mêmes (diagnostic, correctifs), déjà compté dans les
+`subagent_tokens` du rapport d'orchestration de P8.
