@@ -25,3 +25,21 @@ Suivi d'avancement dans `plans/P7/index.md`, jamais ici.
 - T9 — Rendre juste le décompte des agents · → plans/P7/S4.md
 - T10 — Retirer les contournements devenus faux · → plans/P7/S4.md
 - T11 — Numéroter, consigner, publier · → plans/P7/S5.md
+
+## Tâches — plan P8 (un geste par instruction)
+
+Suivi d'avancement dans `plans/P8/index.md`, jamais ici.
+
+- T1 — Appel d'agent prêt à recopier · → plans/P8/S1.md
+- T2 — Arrêt sur arbre sale dans la zone de la vague · → plans/P8/S1.md
+- T3 — Le lancement et la remédiation recopient `agent` · → plans/P8/S2.md
+- T4 — Canal court, `verificateur-n0`, replis d'agent · → plans/P8/S2.md
+- T5 — Options d'enquête au format de la question ; `Auto : oui` · → plans/P8/S2.md
+- T6 — `/nouveau-plan` : sonde, replis, dépôt source, messages de vague · → plans/P8/S3.md
+- T7 — `/fin-de-tache` : bilan unique, N1 hors navigateur · → plans/P8/S3.md
+- T8 — `/reprendre` : un diff non commité renvoie à la session · → plans/P8/S3.md
+- T9 — Cinq hooks, et plus d'agent retiré dans les gabarits · → plans/P8/S4.md
+- T10 — `/nouveau-projet` : manifeste existant, routage des réponses · → plans/P8/S4.md
+- T11 — Harnais portable, et rejeu des trois cas en Sonnet `low` · → plans/P8/S5.md
+- T12 — Analyse écrite · → plans/P8/S5.md
+- T13 — Version 0.41.0 et publication (si 9/9) · → plans/P8/S5.md
