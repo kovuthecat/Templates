@@ -3,3 +3,7 @@
 
 # Rapports HTML générés par `claude plugin eval` (plugin/evals/) — jamais du contenu de projet.
 plugin/evals/results/
+
+# Pointeur vers la base temporaire du dernier rejeu (tests/evals-orchestrateur/) — jamais commité,
+# la base elle-même vit hors du dépôt (poser-cas.sh).
+tests/evals-orchestrateur/.dernier-lancement
