@@ -153,6 +153,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   nommé et générique) et hors garde de K5 — applique l'effort déjà décidé, n'en décide aucun. Reste
   ouvert : effort de l'orchestrateur, `Agent` en sous-agent d'arrière-plan
   → [détail](docs/decisions/2026-09-18-effort-porte-par-l-agent-de-session.md)
+- 2026-09-22 — **Un geste par instruction** — mesure : Sonnet reste l'orchestrateur, l'effort ne
+  change rien, le texte si. Le script rend l'appel d'agent prêt (casse `model`) et le contrôle
+  d'arbre sale ; règles contradictoires fusionnées, `verificateur-n0` purgé, `hooks: 5`, replis
+  d'agent partout → [détail](docs/decisions/2026-09-22-flous-du-workflow.md)
 
 ## Archives
 
