@@ -117,4 +117,6 @@ ci-dessus (lui-même celui de l'Étape 1 de `SKILL.md`, T5) : `session-<effort>`
 sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md
 ```
 
-Relayée **mot pour mot** à l'Étape 3 de `SKILL.md`, jamais résumée ni réordonnée ; absente ou vide → relayer le motif seul et le dire.
+Les lignes de `## Issues` **sont** les options de l'Étape 3 de `SKILL.md` : recopiées sans rien
+changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme se recopie tel quel aussi.
+Absente ou vide → relayer le motif seul et le dire.

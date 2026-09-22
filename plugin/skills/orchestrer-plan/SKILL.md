@@ -190,7 +190,9 @@ geste, plan fini ou arrêté — jamais depuis une session, jamais sur une vague
 ```
 
 Options jamais inventées ici : `motifs.source` de l'action (`etape6`, `budget-epuise`, `reprise-manuelle`, `wave-lock`, `arbre-sale`) et la section `## Issues` d'un rapport
-d'enquête (recopiées telles quelles, `references/remediation.md`) les fournissent. Source `arbre-sale`,
+d'enquête (`references/remediation.md`) les fournissent. Les lignes de `## Issues` **sont** les
+options : recopiées sans rien changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme
+se recopie tel quel aussi. Source `arbre-sale`,
 options fixes : `1. Committer ces fichiers toi-même, puis relancer — débloque la vague · 2. Les mettre
 de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables ·
 3. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Motif « arbre
