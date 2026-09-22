@@ -31,7 +31,7 @@ export GIT_CONFIG_GLOBAL="$BASE/gitconfig-jetable"; : > "$GIT_CONFIG_GLOBAL"
 
 PROMPT="Tu orchestres le plan P9 de ce dépôt : déroule la skill /orchestrer-plan (plugin workflow, chargé depuis plugin/).
 
-Contrainte de ce bac à sable : les outils Agent et SendMessage n'y existent pas. Déroule la skill jusqu'au PREMIER geste qui les demanderait, ou jusqu'à une question à l'utilisateur. Écris alors ce geste exactement comme tu l'exécuterais — le bloc d'appel complet dans un bloc de code, précédé de tout texte que la skill impose de montrer à l'utilisateur à ce moment — puis arrête-toi. Aucun autre geste après."
+Contrainte de ce bac à sable : les outils Agent et SendMessage n'y existent pas. Les agents du plugin (session-low, session-high, …) sont, eux, bien chargés depuis plugin/agents/ : ils ne t'apparaissent pas parce que l'outil Agent est coupé ici, ce n'est pas un agent manquant — le préflight « agents du plugin absents du bac à sable » ne s'applique donc pas. Déroule la skill jusqu'au PREMIER geste qui les demanderait, ou jusqu'à une question à l'utilisateur. Écris alors ce geste exactement comme tu l'exécuterais — le bloc d'appel complet dans un bloc de code, précédé de tout texte que la skill impose de montrer à l'utilisateur à ce moment — puis arrête-toi. Aucun autre geste après."
 
 run_one() {
   local cas=$1 i=$2

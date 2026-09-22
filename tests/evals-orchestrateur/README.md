@@ -59,6 +59,15 @@ Les trois index de `plans/P9/` sont écrits par `poser-cas.sh` (A) ou dérivés 
   la mesure), jamais le plugin installé depuis `plugins/cache/`. `noter.mjs` alerte si l'événement
   `init` d'un essai ne semble pas pointer vers le clone — un 9/9 obtenu avec le plugin du cache ne
   mesure rien de ce chantier.
+- **Le geste compte, pas le canal** : privé de l'outil `Agent`, un essai écrit le bloc en clair
+  (ce que le prompt demande) — mais il peut aussi *tenter* l'appel et se faire refuser
+  (« No such tool available: Agent »). `noter.mjs` rend alors ce tool_use dans la forme du bloc et
+  le note comme le reste : sans ça, un geste juste est noté raté (mesuré sur l'essai B-3 du
+  2026-09-22). Les attendus, eux, ne bougent pas.
+- **Dire que les agents du plugin sont là** : l'outil `Agent` coupé, le modèle ne voit aucun
+  `session-<effort>` et applique de bonne foi le préflight « agents du plugin absents du bac à sable »
+  (repli `claude`, cran 3) — un artefact du bac à sable, pas un flou de la skill. Le prompt énonce
+  donc que les agents *sont* chargés depuis `plugin/agents/` et que seul l'outil manque.
 - Anti-raccourci du cas C : comparer les lignes de `## Issues` par **égalité stricte**, jamais après
   avoir normalisé les backticks ou les espaces — un check qui normalise avant de comparer reproduit
   exactement le flou que D3 (`docs/decisions/2026-09-22-flous-du-workflow.md`) supprime.

@@ -57,6 +57,17 @@ function lignes(t) {
   return t.split('\n').map((l) => l.trim());
 }
 
+// Un geste peut arriver par deux canaux : écrit en clair (le bac à sable n'a pas l'outil, ce que le
+// prompt demande) ou **tenté** comme appel d'outil, refusé par `--tools` avec
+// « No such tool available: Agent ». Mesuré le 2026-09-22 : l'essai B-3 portait le bon
+// `subagent_type`/`model` dans l'input d'un tool_use `Agent`, invisible au grader, noté raté alors
+// que le geste était juste. On rend l'appel refusé dans la forme que le prompt réclame, pour que les
+// critères mesurent le geste et non le canal — les attendus, eux, ne changent pas.
+function renduAppel(nom, input) {
+  const corps = Object.entries(input ?? {}).map(([k, v]) => `  ${k}: ${JSON.stringify(v)},`).join('\n');
+  return `${nom}({\n${corps}\n})`;
+}
+
 const rows = [];
 const agg = {};
 const alertesPlugin = [];
@@ -75,7 +86,10 @@ for (const f of fichiers) {
   for (const e of ev) {
     if (e.type === 'system' && e.subtype === 'init') init = e;
     if (e.type === 'assistant') for (const c of e.message?.content ?? []) {
-      if (c.type === 'tool_use') tools.push(`${c.name}: ${JSON.stringify(c.input)}`);
+      if (c.type === 'tool_use') {
+        tools.push(`${c.name}: ${JSON.stringify(c.input)}`);
+        if (c.name === 'Agent' || c.name === 'SendMessage') texts.push(renduAppel(c.name, c.input));
+      }
       if (c.type === 'text') texts.push(c.text);
     }
     if (e.type === 'result') res = e;
