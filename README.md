@@ -93,6 +93,7 @@ projet qui a du code mais n'a jamais été outillé). (`plugin/MIGRATION.md` n'e
 | `/revue-de-conception` | Les correctifs et ajouts se sont empilés → constat de l'écart écrit/code, **interview de recalage de l'objectif**, puis écarts classés A/B/C/D ; sortie = un rapport et l'écrit remis à jour, jamais une correction de code |
 | `/nouveau-plan` | Opus découpe un plan → crée `plans/P<n>/` (contient les squelettes et la règle de découpage) |
 | `/verif-visuelle` | Après une tâche qui touche l'UI → N1 au navigateur in-app, ou checklist si VSCode |
+| `/revue-d-usage` | Revue d'ensemble d'une app à un jalon, par parcours joués (fonctionnel, ergonomie, accessibilité, esthétique sur demande) → une liste de constats classés, jamais une correction de code |
 | `/orchestrer-plan` | `plans/P<n>/index.md` prêt → déroule le plan entier, vague après vague, sans rendre la main, jusqu'à épuisement, un échec ou une gate humaine |
 | `/fin-de-tache` | Tâche/session terminée → statuts, contexte, rapport, commit en fin de plan |
 | `/purge-contexte` | Un hook signale un plafond dépassé → archivage sans perte |

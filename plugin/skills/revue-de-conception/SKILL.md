@@ -27,6 +27,7 @@ La revue **constate, demande, écrit**. Elle ne corrige pas de code, ne découpe
 | Une question déjà posée, il faut trancher | `/cadrer` |
 | Du travail déjà identifié à découper | `/nouveau-plan` |
 | Un doute sur un mécanisme Claude Code ou la config `.claude/` | `/choisir-mecanisme` |
+| L'app telle qu'un utilisateur la vit (parcours, ergonomie, accessibilité) | `/revue-d-usage` |
 | « Où j'en étais ? » sur un projet dormant | `/reprendre` |
 | Un fichier de contexte au-dessus de son plafond | `/purge-contexte` |
 
@@ -187,7 +188,9 @@ jour dans la foulée : les sections **Objectif** et **Hors périmètre** de `PRO
 une ligne au registre `DECISIONS.md` et un `docs/decisions/<date>-<slug>.md` si le déplacement
 contraint le code. C'est la **seule** écriture que la skill s'autorise hors du rapport, et elle est
 le point : un étalon périmé est la cause racine de la dérive, le laisser périmé garantit que la
-prochaine revue retrouvera exactement la même chose.
+prochaine revue retrouvera exactement la même chose. Ce `docs/decisions/` porte la ligne `Brief :`
+(gabarit `DECISIONS.md`, obligatoire même `inchangé`) et y nomme les sections réécrites (Objectif,
+Hors périmètre), dans le même commit.
 
 | Issue | Quand | Suite |
 | --- | --- | --- |
