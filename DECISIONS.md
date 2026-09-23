@@ -137,6 +137,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   change rien, le texte si. Le script rend l'appel d'agent prêt (casse `model`) et le contrôle
   d'arbre sale ; règles contradictoires fusionnées, `verificateur-n0` purgé, `hooks: 5`, replis
   d'agent partout → [détail](docs/decisions/2026-09-22-flous-du-workflow.md)
+- 2026-09-23 — **Revue d'usage par le navigateur in-app, cadrée par interview** — skill
+  `/revue-d-usage` : interview de périmètre, puis parcours en trois passes (fonctionnel, Nielsen,
+  WCAG AA) classés → `TASKS.md` ; passe esthétique **opt-in** → propositions dans `VALIDATION.md` ;
+  étape de revue nommée, sans rang (pas de N3), N2 humain par défaut →
+  [détail](docs/decisions/2026-09-23-revue-d-usage.md)
 
 ## Archives
 
