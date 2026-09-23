@@ -136,6 +136,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   WCAG AA) classés → `TASKS.md` ; passe esthétique **opt-in** → propositions dans `VALIDATION.md` ;
   étape de revue nommée, sans rang (pas de N3), N2 humain par défaut →
   [détail](docs/decisions/2026-09-23-revue-d-usage.md)
+- 2026-09-23 — **Le brief est tenu par les décisions, la roadmap par la clôture de plan** — chaque
+  décision porte `Brief : inchangé | <section> : <changement>`, appliqué au brief dans son commit par
+  `/cadrer` ; `verificateur-plan` vérifie la propagation par dates ; la fin de plan coche la roadmap ;
+  `/revue-de-conception` reste le rattrapage →
+  [détail](docs/decisions/2026-09-23-brief-tenu-par-les-decisions.md)
 
 ## Archives
 
