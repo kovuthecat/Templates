@@ -29,6 +29,7 @@ const BIN = join(RACINE, 'plugin', 'bin');
 const FIXTURES = join(RACINE, 'tests', 'fixtures');
 const N0 = join(BIN, 'n0.mjs');
 const PROCHAINE_ACTION = join(BIN, 'prochaine-action.mjs');
+const BRIEF_A_JOUR = join(BIN, 'brief-a-jour.mjs');
 
 const dossiersTemporaires = [];
 let echecs = 0;
@@ -804,6 +805,173 @@ cas('arbre-sale : `git status` en échec (pas de dépôt git) → question, moti
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'question') return `action attendue "question" (arbre invérifiable), reçu: ${sortie}`;
   if (!/invérifiable/.test(action.motif)) return `motif attendu citant "invérifiable", reçu: ${action.motif}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// brief-a-jour.mjs — contrôle mécanique décision → brief (T4, P9/S2)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Comme `git`, mais avec des dates de commit imposées (GIT_AUTHOR_DATE / GIT_COMMITTER_DATE) —
+ * pour les cas où l'ordre chronologique entre deux commits doit être garanti, pas seulement probable. */
+function commiterDate(cwd, message, dateIso) {
+  execFileSync('git', ['add', '-A'], { cwd, stdio: 'pipe' });
+  execFileSync('git', ['commit', '-q', '-m', message], {
+    cwd,
+    stdio: 'pipe',
+    env: { ...process.env, GIT_AUTHOR_DATE: dateIso, GIT_COMMITTER_DATE: dateIso },
+  });
+}
+
+cas('brief-a-jour : pas de PROJECT_BRIEF.md → SANS OBJET, code 0', () => {
+  const cwd = dossierJetable('workflow-brief-sans-objet-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'lisez-moi.md'), 'rien à voir\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!sortie.includes('SANS OBJET — pas de PROJECT_BRIEF.md')) return `sortie inattendue: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : décision `Brief : inchangé` → RAS', () => {
+  const cwd = dossierJetable('workflow-brief-inchange-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'docs', 'decisions', '2026-01-01-d1.md'),
+    '# Décision\n\n## Conséquences\n...\n\nBrief : inchangé (sans effet)\n',
+  );
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init + décision inchangée');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : `Brief : Roadmap : …` commitée avec le brief → RAS', () => {
+  const cwd = dossierJetable('workflow-brief-avec-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'lisez-moi.md'), 'init\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [ ] item\n');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'docs', 'decisions', '2026-01-02-d2.md'),
+    '# Décision\n\n## Conséquences\n...\n\nBrief : Roadmap : ajout d\'un item\n',
+  );
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision + brief ensemble');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : même décision commitée SANS le brief → ÉCART, code 1', () => {
+  const cwd = dossierJetable('workflow-brief-sans-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [ ] item\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init brief');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'docs', 'decisions', '2026-01-03-d3.md'),
+    '# Décision\n\n## Conséquences\n...\n\nBrief : Roadmap : ajout d\'un item\n',
+  );
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision seule');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/^ÉCART docs\/decisions\/2026-01-03-d3\.md — Brief : Roadmap annoncé, PROJECT_BRIEF\.md absent du commit .+ et aucun Brief-applique$/m.test(sortie)) {
+    return `ligne ÉCART attendue absente ou mal formée: ${sortie}`;
+  }
+  return null;
+});
+
+cas('brief-a-jour : cas précédent + commit ultérieur avec `Brief-applique:` → RAS', () => {
+  const cwd = dossierJetable('workflow-brief-applique-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [ ] item\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init brief');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'docs', 'decisions', '2026-01-04-d4.md'),
+    '# Décision\n\n## Conséquences\n...\n\nBrief : Roadmap : ajout d\'un item\n',
+  );
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision seule');
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [x] item\n');
+  git(cwd, 'add', '-A');
+  execFileSync('git', [
+    'commit', '-q', '-m',
+    'docs(brief): applique la décision\n\nBrief-applique: docs/decisions/2026-01-04-d4.md',
+  ], { cwd, stdio: 'pipe' });
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas(
+  'brief-a-jour : cas précédent + commit ultérieur du brief SANS `Brief-applique:` (clôture qui coche la roadmap) → toujours ÉCART',
+  () => {
+    const cwd = dossierJetable('workflow-brief-faille-dates-');
+    initDepot(cwd);
+    writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [ ] item\n');
+    git(cwd, 'add', '-A');
+    git(cwd, 'commit', '-q', '-m', 'init brief');
+    mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+    writeFileSync(
+      join(cwd, 'docs', 'decisions', '2026-01-05-d5.md'),
+      '# Décision\n\n## Conséquences\n...\n\nBrief : Roadmap : ajout d\'un item\n',
+    );
+    git(cwd, 'add', '-A');
+    git(cwd, 'commit', '-q', '-m', 'décision seule');
+    // Clôture de plan : coche la roadmap, sans jamais dire quelle décision elle applique — c'est la
+    // faille qu'une comparaison de dates manquerait (le brief redevient "récent").
+    writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n\n### MVP\n- [x] item\n');
+    git(cwd, 'add', '-A');
+    git(cwd, 'commit', '-q', '-m', 'fin de plan : roadmap cochée');
+    const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+    if (code !== 1) return `code ${code} attendu 1 (la faille des dates ne doit pas passer), sortie: ${sortie}`;
+    if (!/^ÉCART docs\/decisions\/2026-01-05-d5\.md —/m.test(sortie)) return `ligne ÉCART attendue absente: ${sortie}`;
+    return null;
+  },
+);
+
+cas('brief-a-jour : décision sans ligne `Brief :`, plus récente que le brief → ÉCART', () => {
+  const cwd = dossierJetable('workflow-brief-sans-ligne-recente-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n');
+  commiterDate(cwd, 'init brief', '2020-01-01T10:00:00+00:00');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(join(cwd, 'docs', 'decisions', '2020-06-01-d6.md'), '# Décision\n\n## Conséquences\n...\n');
+  commiterDate(cwd, 'décision sans ligne Brief', '2020-06-01T10:00:00+00:00');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/^ÉCART docs\/decisions\/2020-06-01-d6\.md — pas de ligne Brief :, décision postérieure au dernier commit du brief \(2020-01-01\)$/m.test(sortie)) {
+    return `ligne ÉCART attendue absente ou mal formée: ${sortie}`;
+  }
+  return null;
+});
+
+cas('brief-a-jour : décision sans ligne `Brief :`, plus ancienne que le brief → RAS', () => {
+  const cwd = dossierJetable('workflow-brief-sans-ligne-ancienne-');
+  initDepot(cwd);
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(join(cwd, 'docs', 'decisions', '2019-01-01-d7.md'), '# Décision\n\n## Conséquences\n...\n');
+  commiterDate(cwd, 'décision sans ligne Brief, ancienne', '2019-01-01T10:00:00+00:00');
+  writeFileSync(join(cwd, 'PROJECT_BRIEF.md'), '# Brief\n');
+  commiterDate(cwd, 'brief plus récent', '2020-01-01T10:00:00+00:00');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
   return null;
 });
 
