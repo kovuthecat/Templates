@@ -102,6 +102,10 @@ froid, pas celui d'un sous-agent.
 | **Rien à faire** | la question tombe, ou le sujet attend | une ligne dans le registre, et on s'arrête |
 | **Preuve à faire** | la question ne se tranche pas en lecture : la réponse n'existe qu'à l'exécution | un **protocole de preuve** (ci-dessous) + une ligne dans le registre — pas de décision, pas de plan |
 
+Toute issue qui écrit un `docs/decisions/` y met la ligne `Brief :` ; si elle n'est pas `inchangé`,
+la section nommée de `PROJECT_BRIEF.md` est réécrite **dans le même commit** — c'est
+`brief-a-jour.mjs`, lancé par `/nouveau-plan`, qui vérifiera que la propagation a bien eu lieu.
+
 Une session de réflexion qui ne produit aucun écrit n'a pas eu lieu : elle sera refaite.
 
 ### Le protocole de preuve — quand la réponse n'existe qu'à l'exécution
@@ -139,7 +143,8 @@ lui-même : c'est `/nouveau-plan` qui écrit la session `exploration`, pas une s
 improvise.
 
 **Committer et pousser l'écrit avant de rendre la main** — staging explicite du `docs/decisions/` et
-de la ligne de registre, puis `git push` sur `main` (`WORKFLOW.md` §4b), session cloud comprise. Une
+de la ligne de registre, plus `PROJECT_BRIEF.md` quand la ligne `Brief :` l'a touché, puis `git push`
+sur `main` (`WORKFLOW.md` §4b), session cloud comprise. Une
 décision qui n'existe que sur ce poste ne sera pas lue par la session de plan qui devait s'en servir,
 et c'est elle qu'on refera. Le cadrage est une unité de travail : il se clôt poussé.
 
