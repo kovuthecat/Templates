@@ -45,3 +45,9 @@
   fichier donc sans frontmatter. §3/§5b corrigés ; agents `session-<effort>` et orchestrateur en
   `low` ouverts, non tranchés — l'éval qui les garde est bloquée
   → [détail](2026-09-18-effort-par-sous-agent.md) — remplacée par 2026-09-18 (l'effort d'une session vient de son agent)
+- 2026-08-22 — **Rapport capacités archivé et distillé** — Le rapport de capacités Claude Code est
+  archivé daté dans `docs/references/` et distillé en skill `/choisir-mecanisme` →
+  [détail](2026-08-22-design-spec-validation.md) — accomplie : skill `/choisir-mecanisme` en place
+- 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
+  `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
+  [détail](2026-08-24-migrer-projet-jamais-outille.md) — accomplie : skill en place, diagnostic à 4 états documenté dans la skill

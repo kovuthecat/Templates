@@ -32,12 +32,6 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   Claude Design et l'état Design Sync vivent dans `DESIGN_SPEC.md` ; `ARCHITECTURE.md` redevient un
   document technique (découpage, état/persistance, entités) →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
-- 2026-08-22 — **Rapport capacités archivé et distillé** — Le rapport de capacités Claude Code est
-  archivé daté dans `docs/references/` et distillé en skill `/choisir-mecanisme` →
-  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
-- 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
-  `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
-  [détail](docs/decisions/2026-08-24-migrer-projet-jamais-outille.md)
 - 2026-08-24 — **Chaque session committe son propre travail** — renversement de §4b : le commit n'est
   plus reporté en fin de plan, chaque session prend le sien avant de rendre la main (repère
   `Plan: P<n>/S<k>/T<m>`) ; `index.md` garde un rédacteur unique, push toujours groupé →
