@@ -4,7 +4,9 @@
 //   2. commit et push interdits tant qu'une vague parallèle est en cours (.claude/wave.lock) ;
 //   3. worktree interdit pendant une vague — une vague partage UN seul arbre de travail.
 
-import { lireEntree, repertoireProjet, vagueParallele, repondre, riendafaire } from './lib.mjs';
+import {
+  lireEntree, repertoireProjet, vagueParallele, racineIntrouvable, repondre, riendafaire,
+} from './lib.mjs';
 
 const entree = await lireEntree();
 const commande = entree?.tool_input?.command;
@@ -39,24 +41,36 @@ if (/\bgit\s+commit\b/.test(commande) && /\s-(?:a|[a-zA-Z]*a[a-zA-Z]*)\b|--all\b
   );
 }
 
+// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé, plugin/hooks/lib.mjs
+// `racineDepot`) : `vagueParallele` rend `true` par refus par défaut, mais le motif n'est pas une
+// vague — le dire, plutôt que laisser croire à un `.claude/wave.lock` qui n'existe peut-être pas.
+const introuvable = racineIntrouvable(cwd);
+const MOTIF_RACINE_INTROUVABLE =
+  "Racine du dépôt introuvable (worktree lié d'un dépôt à `.git` déplacé) : committe depuis " +
+  "l'arbre principal.";
+
 // Une vague suppose un arbre de travail unique : c'est là que l'orchestrateur (`/orchestrer-plan`)
 // a pris sa référence et là que la consolidation committera tâche par tâche. Un diff resté
 // dans un worktree n'est vu ni par l'orchestrateur ni par la consolidation — et le verrou interdit
 // justement le commit qui permettrait de le rapatrier. Le refus tombe donc à la création.
 if (vagueParallele(cwd) && (outilWorktree || (commande ?? '').includes('worktree add'))) {
   refuser(
-    "Vague parallèle en cours (`.claude/wave.lock` présent) : les sessions d'une vague partagent " +
-    "un seul arbre de travail. Un diff produit dans un worktree n'est vu ni par l'orchestrateur " +
-    "(`/orchestrer-plan`) ni par la consolidation de fin de plan, et le verrou interdit le " +
-    "commit qui permettrait de le rapatrier. Travaille dans l'arbre courant."
+    introuvable
+      ? MOTIF_RACINE_INTROUVABLE
+      : "Vague parallèle en cours (`.claude/wave.lock` présent) : les sessions d'une vague partagent " +
+        "un seul arbre de travail. Un diff produit dans un worktree n'est vu ni par l'orchestrateur " +
+        "(`/orchestrer-plan`) ni par la consolidation de fin de plan, et le verrou interdit le " +
+        "commit qui permettrait de le rapatrier. Travaille dans l'arbre courant."
   );
 }
 
 if (vagueParallele(cwd) && /\bgit\s+(commit|push)\b/.test(commande)) {
   refuser(
-    'Vague parallèle en cours (`.claude/wave.lock` présent) : ni commit ni push tant que toutes les ' +
-    'sessions du plan ne sont pas exécutées (WORKFLOW.md §4b). La consolidation se fait en fin de plan, ' +
-    'tâche par tâche. Supprime `.claude/wave.lock` pour clore la vague.'
+    introuvable
+      ? MOTIF_RACINE_INTROUVABLE
+      : 'Vague parallèle en cours (`.claude/wave.lock` présent) : ni commit ni push tant que toutes les ' +
+        'sessions du plan ne sont pas exécutées (WORKFLOW.md §4b). La consolidation se fait en fin de plan, ' +
+        'tâche par tâche. Supprime `.claude/wave.lock` pour clore la vague.'
   );
 }
 

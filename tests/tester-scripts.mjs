@@ -564,6 +564,37 @@ cas('moteur : .claude/wave.lock présent → question, vague interrompue', () =>
   return null;
 });
 
+// Reproduit I2 (docs/incidents/2026-09-24-synthese.md) : sur un dépôt à `.git` déplacé,
+// `prochaine-action` rendait `pousser` sous verrou — l'ancien `racineDepot` (`dirname(--git-common-dir)`)
+// résolvait hors de l'arbre et n'y voyait jamais `.claude/wave.lock` (T1, P10/S1).
+cas('moteur (gitfile) : wave.lock présent, un commit d\'avance sur origin → jamais "pousser"', () => {
+  const gitdir = dossierJetable('workflow-pa-gitfile-gd-');
+  const cwd = dossierJetable('workflow-pa-gitfile-arbre-');
+  execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, cwd], { stdio: 'pipe' });
+  git(cwd, 'config', 'user.email', 'test@local');
+  git(cwd, 'config', 'user.name', 'Test');
+  git(cwd, 'branch', '-M', 'main');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const bare = dossierJetable('workflow-pa-gitfile-bare-');
+  execFileSync('git', ['init', '--bare', '-q'], { cwd: bare, stdio: 'pipe' });
+  git(cwd, 'remote', 'add', 'origin', bare);
+  git(cwd, 'push', '-q', '-u', 'origin', 'main');
+  writeFileSync(join(cwd, 'scratch.txt'), 'x\n');
+  git(cwd, 'add', 'scratch.txt');
+  git(cwd, 'commit', '-q', '-m', 'travail local non poussé'); // avance > 0 sur origin/main
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', 'wave.lock'), '');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'pousser') return `action ne doit jamais être "pousser" sous wave.lock (gitfile) : ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (wave.lock détecté), reçu: ${sortie}`;
+  if (!/verrou/.test(action.motif)) return `motif attendu à propos du verrou, reçu: ${action.motif}`;
+  return null;
+});
+
 cas('moteur : tout coché, revues faites, rien à pousser → fini', () => {
   const cwd = dossierJetable('workflow-pa-fini-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });

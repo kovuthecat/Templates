@@ -5,7 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 
@@ -170,13 +170,6 @@ export function estFichierDeSuivi(chemin, fichiersDeSuivi) {
   return fichiersDeSuivi.includes(base) || chemin.startsWith('plans/');
 }
 
-/** Racine du dépôt principal, même appelé depuis un worktree lié : `--git-common-dir` pointe
- *  toujours le `.git` d'origine, là où vivent `.claude/wave.lock` et `.claude/vague/`. */
-export function racineDepot(cwd) {
-  const commun = git(cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir');
-  return commun ? dirname(commun) : cwd;
-}
-
 /** Vrai si le cwd est un worktree LIÉ, et non l'arbre principal du dépôt. */
 export function worktreeLie(cwd) {
   const propre = git(cwd, 'rev-parse', '--path-format=absolute', '--git-dir');
@@ -184,8 +177,48 @@ export function worktreeLie(cwd) {
   return Boolean(propre && commun && resolve(propre) !== resolve(commun));
 }
 
+/** Racine de l'arbre de travail principal du dépôt — même appelé depuis un worktree lié, même
+ *  quand `.git` y est un FICHIER (gitdir déplacé, cas de ~20 projets depuis le 2026-09-15,
+ *  `docs/decisions/2026-09-24-revue-finale-et-regime-pro.md` point 1). `null` si elle ne peut pas
+ *  être établie avec certitude — jamais une racine devinée : c'est `vagueParallele` qui traduit
+ *  ce `null` en refus par défaut, pas cette fonction.
+ *
+ *  - Hors worktree lié (arbre principal, `.git` dossier OU fichier) : `--show-toplevel` suffit,
+ *    et résout correctement le cas du gitdir déplacé (contrairement à `dirname(--git-common-dir)`,
+ *    qui rendait `C:/Users/Kovu/.gitdirs` — la cause des 6 incidents « commit sous verrou »).
+ *  - Worktree lié d'un dépôt classique (`--git-common-dir` se termine par `.git`, un dossier) :
+ *    `dirname(commun)` reste juste, inchangé.
+ *  - Worktree lié d'un dépôt à `.git` déplacé : sondé le 2026-09-24 (plans/P10/S1.md) — les
+ *    gitdirs n'ont pas de `core.worktree`, et `git worktree list --porcelain` y rend en première
+ *    entrée le gitdir lui-même, jamais l'arbre principal. Aucune détection fiable : `null`.
+ *  - Pas un dépôt du tout : comportement historique inchangé (rend `cwd`) — un `cwd` qui n'est pas
+ *    sous git n'est pas le cas ambigu que cette fonction refuse par défaut, seul un dépôt existant
+ *    dont la racine ne peut pas être établie l'est. */
+export function racineDepot(cwd) {
+  if (!estUnDepot(cwd)) return cwd;
+  if (!worktreeLie(cwd)) {
+    return git(cwd, 'rev-parse', '--path-format=absolute', '--show-toplevel');
+  }
+  const commun = git(cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir');
+  if (!commun) return null;
+  if (basename(commun) === '.git') return dirname(commun);
+  return null;
+}
+
+/** Vrai si `racineDepot` ne peut pas établir la racine (worktree lié d'un dépôt à `.git`
+ *  déplacé) — utilisé par `pretooluse-git.mjs` pour distinguer ce cas, dans son message de refus,
+ *  d'une vague parallèle ordinaire. */
+export function racineIntrouvable(cwd) {
+  return racineDepot(cwd) === null;
+}
+
+/** `true` aussi bien sous `.claude/wave.lock` que lorsque la racine du dépôt est introuvable : une
+ *  racine inconnue ne peut pas être vérifiée pour un verrou, donc refus par défaut — comme si le
+ *  verrou était posé (décision du 2026-09-24, point 1). */
 export function vagueParallele(cwd) {
-  return existsSync(join(racineDepot(cwd), '.claude', 'wave.lock'));
+  const racine = racineDepot(cwd);
+  if (racine === null) return true;
+  return existsSync(join(racine, '.claude', 'wave.lock'));
 }
 
 /** Marqueur temporaire propre à une session (garde anti-boucle du Stop, repère HEAD du
@@ -228,6 +261,12 @@ export function revuesManquantes(cwd, depuis) {
   const code = changes.filter((f) => !estFichierDeSuivi(f, fichiersDeSuivi) && !f.startsWith('.claude/'));
   if (code.length === 0) return [];
 
+  // Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : rien à signaler, jamais une
+  // exception — ce contrôle appartient à l'arbre principal, pas à un worktree qui ne devrait de
+  // toute façon pas exister sous une vague (`racineIntrouvable` fait déjà refuser commit/push).
+  const racine = racineDepot(cwd);
+  if (racine === null) return [];
+
   const messages = git(cwd, 'log', '--format=%B', `${depuis}..HEAD`) || '';
   const refs = new Set();
   for (const m of messages.matchAll(/Plan:\s*(P\d+)\/(S[A-Za-z0-9_-]+)\//g)) refs.add(`${m[1]}/${m[2]}`);
@@ -235,7 +274,7 @@ export function revuesManquantes(cwd, depuis) {
   const manquantes = [];
   for (const ref of refs) {
     const [plan, session] = ref.split('/');
-    const dossier = join(racineDepot(cwd), 'plans', plan);
+    const dossier = join(racine, 'plans', plan);
     // Un `.echec.md` dispense de revue : la session n'a pas livré, elle a passé la main.
     if (existsSync(join(dossier, `${session}.echec.md`))) continue;
     const cheminRevue = `plans/${plan}/${session}.revue.md`;
@@ -265,7 +304,9 @@ export function familleModele(valeur) {
  *  Tolérant de bout en bout : dossier absent, table mal formée, fichier illisible → tableau vide.
  *  Ce qui s'appuie dessus signale un écart, il n'invente jamais une session. */
 export function sessionsOuvertes(cwd) {
-  const dossierPlans = join(racineDepot(cwd), 'plans');
+  const racine = racineDepot(cwd);
+  if (racine === null) return []; // racine introuvable : rien à signaler, jamais une exception
+  const dossierPlans = join(racine, 'plans');
   if (!existsSync(dossierPlans)) return [];
   let entrees;
   try {
@@ -337,6 +378,7 @@ export function versionSuperieure(a, b) {
  *  réseau revient. */
 export function derniereVersionPubliee(cwd) {
   const racine = racineDepot(cwd);
+  if (racine === null) return null; // racine introuvable : jamais de réseau, jamais une exception
   const cheminCache = join(racine, '.git', 'workflow-version.json');
   const maintenant = Date.now();
   const TTL_MS = 24 * 60 * 60 * 1000;

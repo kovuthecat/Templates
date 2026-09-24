@@ -38,7 +38,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RACINE = process.cwd();
@@ -68,9 +68,28 @@ function git(...a) {
   }
 }
 
-function racineDepot() {
+// Copie de `plugin/hooks/lib.mjs` `racineDepot`/`worktreeLie` (bin/ est vendoré sans hooks/, donc
+// dupliquée, pas importée — les deux logiques doivent être tenues synchronisées à la main). `null`
+// si la racine ne peut pas être établie avec certitude (worktree lié d'un dépôt à `.git` déplacé,
+// sonde du 2026-09-24, plans/P10/S1.md) — jamais une racine devinée.
+function worktreeLie() {
+  const propre = git('rev-parse', '--path-format=absolute', '--git-dir');
   const commun = git('rev-parse', '--path-format=absolute', '--git-common-dir');
-  return commun ? dirname(commun) : RACINE;
+  return Boolean(propre && commun && resolve(propre) !== resolve(commun));
+}
+
+function racineDepot() {
+  // Pas un dépôt du tout : comportement historique inchangé (rend RACINE) — le cas ambigu que
+  // cette fonction refuse par défaut est un dépôt existant dont la racine ne peut pas être établie,
+  // jamais l'absence de dépôt.
+  if (git('rev-parse', '--is-inside-work-tree') !== 'true') return RACINE;
+  if (!worktreeLie()) {
+    return git('rev-parse', '--path-format=absolute', '--show-toplevel');
+  }
+  const commun = git('rev-parse', '--path-format=absolute', '--git-common-dir');
+  if (!commun) return null;
+  if (basename(commun) === '.git') return dirname(commun);
+  return null; // worktree lié d'un dépôt à `.git` déplacé : `git worktree list` n'y est pas fiable
 }
 
 function etatAmont() {
@@ -536,11 +555,12 @@ function avertissementVersion(sortie) {
   try {
     const binDir = dirname(fileURLToPath(import.meta.url));
     const manifestSource = join(binDir, '..', '.claude-plugin', 'plugin.json');
-    const manifestVendore = join(racineDepot(), '.claude', 'workflow', 'manifest.json');
+    const racine = racineDepot();
+    const manifestVendore = racine ? join(racine, '.claude', 'workflow', 'manifest.json') : null;
     let versionCourante = null;
     if (existsSync(manifestSource)) {
       versionCourante = JSON.parse(readFileSync(manifestSource, 'utf8')).version;
-    } else if (existsSync(manifestVendore)) {
+    } else if (manifestVendore && existsSync(manifestVendore)) {
       versionCourante = JSON.parse(readFileSync(manifestVendore, 'utf8')).version;
     }
     if (versionCourante && sortie.workflow.replace(/^v/, '') !== String(versionCourante).replace(/^v/, '')) {
@@ -636,11 +656,14 @@ for (const s of index.sessions) {
   s.revue = existsSync(cheminRevue) ? lireRevue(cheminRevue) : null;
 }
 
+// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : `waveLock` vrai par défaut,
+// même refus que sous un vrai `.claude/wave.lock` (plugin/hooks/lib.mjs `vagueParallele`).
+const racineActuelle = racineDepot();
 const sortie = {
   plan,
   workflow: index.workflow,
   depot: {
-    waveLock: existsSync(join(racineDepot(), '.claude', 'wave.lock')),
+    waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
     amont: etatAmont(),
   },
   vagues: index.vagues,

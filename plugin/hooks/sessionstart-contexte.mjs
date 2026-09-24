@@ -165,8 +165,11 @@ for (const d of depassements(cwd)) {
 // manifeste, comme CE dépôt source) → muet ; le réseau et le cache 24 h sont entièrement portés
 // par `derniereVersionPubliee`, qui rend `null` sans jamais bloquer sur un échec.
 try {
-  const cheminManifeste = join(racineDepot(cwd), '.claude', 'workflow', 'manifest.json');
-  if (existsSync(cheminManifeste)) {
+  const racineManifeste = racineDepot(cwd);
+  const cheminManifeste = racineManifeste
+    ? join(racineManifeste, '.claude', 'workflow', 'manifest.json')
+    : null;
+  if (cheminManifeste && existsSync(cheminManifeste)) {
     const manifeste = JSON.parse(readFileSync(cheminManifeste, 'utf8'));
     const versionVendoree = manifeste.version;
     const versionPubliee = derniereVersionPubliee(cwd);
@@ -189,7 +192,7 @@ try {
 // le témoin dit qu'on a choisi de rester en connaissance de cause. Sans lui, rappel à chaque session.
 try {
   const racine = racineDepot(cwd);
-  if (/SynologyDrive|OneDrive|Dropbox|iCloud/i.test(racine)) {
+  if (racine && /SynologyDrive|OneDrive|Dropbox|iCloud/i.test(racine)) {
     const cheminGit = join(racine, '.git');
     const gitEstUnDossier = existsSync(cheminGit) && statSync(cheminGit).isDirectory();
     if (gitEstUnDossier && !existsSync(join(cheminGit, 'info', 'synchro-exclue'))) {

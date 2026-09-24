@@ -21,10 +21,12 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
-import { repereSession, revuesManquantes, versionSuperieure, derniereVersionPubliee } from '../plugin/hooks/lib.mjs';
+import {
+  repereSession, revuesManquantes, versionSuperieure, derniereVersionPubliee, racineDepot,
+} from '../plugin/hooks/lib.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -60,6 +62,23 @@ function creerDepotAvecRemote() {
   git('remote', 'add', 'origin', bare);
   git('push', '-q', '-u', 'origin', 'main');
   return repo;
+}
+
+// Dépôt à `.git` DÉPLACÉ (gitdir séparé) : reproduit le cas de ~20 projets de l'utilisateur depuis
+// le 2026-09-15 (docs/decisions/2026-09-24-revue-finale-et-regime-pro.md point 1) — `.git`, dans
+// l'arbre de travail, est un FICHIER `gitdir: <chemin>`, jamais un dossier.
+function creerDepotGitfile() {
+  const gitdir = mkdtempSync(join(tmpdir(), 'workflow-hooks-gitdir-'));
+  const arbre = mkdtempSync(join(tmpdir(), 'workflow-hooks-arbre-'));
+  dossiersACommitter.push(gitdir, arbre);
+  execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, arbre], { stdio: 'pipe' });
+  const git = (...args) => execFileSync('git', args, { cwd: arbre, stdio: 'pipe' });
+  git('config', 'user.email', 'test@local');
+  git('config', 'user.name', 'Test');
+  writeFileSync(join(arbre, 'README.md'), 'test\n');
+  git('add', 'README.md');
+  git('commit', '-q', '-m', 'init');
+  return { arbre, gitdir };
 }
 
 function lancerHook(fichier, payload, env = {}) {
@@ -130,6 +149,59 @@ function estBloque(sortie) {
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 }
+
+// ── pretooluse-git.mjs : racine juste sur un dépôt à `.git` déplacé (T1, P10/S1) ─────
+// Anti-raccourci : le verrou du test doit être à `<arbre>/.claude/wave.lock` — pas à côté du
+// gitdir — et le cas (b) prouve que le refus du cas (a) vient bien de LUI, pas d'un autre défaut.
+{
+  const { arbre, gitdir } = creerDepotGitfile();
+
+  cas('pretooluse-git (gitfile) : sans wave.lock → commit accepté', () => {
+    const s = lancerHook('pretooluse-git.mjs', { cwd: arbre, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+    return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
+  });
+
+  mkdirSync(join(arbre, '.claude'), { recursive: true });
+  writeFileSync(join(arbre, '.claude', 'wave.lock'), '');
+
+  cas('pretooluse-git (gitfile) : wave.lock dans l\'arbre → commit refusé', () => {
+    const s = lancerHook('pretooluse-git.mjs', { cwd: arbre, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+    return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+  });
+
+  cas('racineDepot (gitfile) : rend l\'arbre, jamais dirname(gitdir)', () => {
+    const r = racineDepot(arbre);
+    return r && resolve(r) === resolve(arbre) ? null : `racine attendue ${arbre}, reçu ${r}`;
+  });
+
+  const lie = join(dirname(arbre), 'workflow-hooks-lie-' + randomUUID());
+  execFileSync('git', ['-C', arbre, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
+  dossiersACommitter.push(lie);
+
+  cas('pretooluse-git (gitfile) : worktree lié, wave.lock dans l\'arbre principal → commit refusé', () => {
+    const s = lancerHook('pretooluse-git.mjs', { cwd: lie, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+    return estRefus(s) ? null : `attendu un refus (racine introuvable ⇒ refus par défaut), reçu: ${s || '(vide)'}`;
+  });
+}
+
+// ── postmodelswitch-journal.mjs : racine juste sur un dépôt à `.git` déplacé (T1, P10/S1) ───
+cas('postmodelswitch-journal (gitfile) : journal écrit sous <arbre>/.claude/, jamais à côté du gitdir', () => {
+  const { arbre, gitdir } = creerDepotGitfile();
+  const s = lancerHook('postmodelswitch-journal.mjs', {
+    cwd: arbre,
+    session_id: 'test-' + randomUUID(),
+    from_model: 'claude-sonnet-5',
+    to_model: 'claude-opus-5',
+  });
+  if (s !== '') return `attendu vide (jamais bloquant), reçu: ${s}`;
+  const journal = join(arbre, '.claude', 'journal-modeles.jsonl');
+  if (!existsSync(journal)) return `journal non écrit sous l'arbre (${journal})`;
+  // Le gitdir déplacé n'a jamais de sous-dossier `.claude` : l'ancien bug (`dirname(--git-common-dir)`)
+  // aurait écrit à côté de LUI, pas de l'arbre — ici le gitdir est un dossier jetable dédié, jamais
+  // celui de l'arbre, donc jamais de `.claude` en son sein si la racine résolue est juste.
+  if (existsSync(join(gitdir, '.claude'))) return 'journal écrit à côté du gitdir (dans le gitdir lui-même), pas sous l\'arbre';
+  return null;
+});
 
 // ── stop-contexte.mjs ────────────────────────────────────────────────────────
 // `session_id` doit être unique par cas et par exécution : le hook mémorise son marqueur anti-boucle
