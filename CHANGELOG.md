@@ -3,6 +3,7 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-24` — **À jour avec main, dès le démarrage** (plugin `workflow` 0.43.0). Le `SessionStart` compare désormais HEAD à `origin/<branche d'intégration>`, plus seulement à son propre amont : une branche de worktree Desktop ou d'exploration, qui suit `origin/<elle-même>` ou rien, se disait à jour pendant que `main` avançait sans elle. Ligne « En retard de N commit(s) sur `origin/main` » ; muette quand l'amont est déjà la branche d'intégration (le retard y est déjà dit). Deux cas ajoutés à `tests/tester-hooks.mjs`.
 - `2026-09-23` — **Revue d'usage, brief tenu par les décisions** (plugin `workflow` 0.42.0).
   `/revue-d-usage` : interview puis parcours au navigateur in-app, trois domiciles de sortie,
   esthétique à la demande — aiguillée séparément de `/verif-visuelle` (jalon vs écran après tâche).

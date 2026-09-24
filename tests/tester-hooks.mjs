@@ -327,6 +327,35 @@ cas('sessionstart-contexte : sort sans erreur sur le dépôt de test', () => {
   return null; // execFileSync aurait levé sur un exit non nul
 });
 
+// Branche de travail (worktree, exploration) partie de main, pendant que main avance sur origin :
+// son propre amont ne dit rien, seule la comparaison à origin/main voit le retard.
+function brancheDepasseeParMain() {
+  const repo = creerDepotAvecRemote();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  git('checkout', '-q', '-b', 'wip/travail');
+  git('checkout', '-q', 'main');
+  writeFileSync(join(repo, 'avance.md'), 'x\n');
+  git('add', 'avance.md');
+  git('commit', '-q', '-m', 'main avance');
+  git('push', '-q', 'origin', 'main');
+  git('checkout', '-q', 'wip/travail');
+  return repo;
+}
+
+cas('sessionstart-contexte : branche en retard sur origin/main → ligne', () => {
+  const repo = brancheDepasseeParMain();
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /En retard de 1 commit\(s\) sur `origin\/main`/.test(s)
+    ? null : `signal de retard sur main absent, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : branche à jour de origin/main → muet sur ce point', () => {
+  const repo = brancheDepasseeParMain();
+  execFileSync('git', ['merge', '-q', '--no-edit', 'origin/main'], { cwd: repo, stdio: 'pipe' });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /sur `origin\/main`/.test(s) ? `retard signalé à tort: ${s}` : null;
+});
+
 cas('sessionstart-contexte : signale STATUS.md en retard (≥3 commits)', () => {
   const repo = creerDepot();
   const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
