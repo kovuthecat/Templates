@@ -256,8 +256,10 @@ Trois éditions ponctuelles, rien de plus :
 1. **Table des sessions** : ajouter les lignes en continuant la numérotation du plan. Jamais de
    `S5bis` — le repère `Plan: P<n>/S<k>/T<m>` des commits doit rester unique et triable.
 2. **Ordonnancement** : insérer la vague **avant** celles qu'elle débloque, avec sa cause dans le
-   titre — `**Vague <w> — remédiation de S<j>** (ajoutée le YYYY-MM-DD) : S8 · S9.` Sans cette
-   trace, un plan relu dans un mois ne distingue plus le prévu du réparé. La vague ajoutée porte
+   titre — `- **Vague <w> — remédiation de S<j> (ajoutée le YYYY-MM-DD)** : S8 · S9.` (tiret
+   initial, date dans le gras — la forme lue sans tolérance par `prochaine-action.mjs`, T4/P10/S2 :
+   sans le tiret ni la date à l'intérieur des `**`, la vague entière était ignorée, incident MYO du
+   2026-09-22). Sans cette trace, un plan relu dans un mois ne distingue plus le prévu du réparé. La vague ajoutée porte
    son *Pourquoi maintenant* et ses lignes « en clair » comme les autres — c'est même là qu'elles
    comptent le plus : une vague de remédiation est ce que l'utilisateur n'avait pas prévu de lire.
 3. **Statuts en aval** : une session déjà `[x]` dont le résultat repose sur l'hypothèse invalidée

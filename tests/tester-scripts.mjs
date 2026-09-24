@@ -840,6 +840,159 @@ cas('arbre-sale : `git status` en échec (pas de dépôt git) → question, moti
 });
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — T4/P10/S2 : lecture tolérante, squelettes et gabarit testés tels qu'écrits.
+// Anti-raccourci : (a) et (b) LISENT les fichiers de skill à l'exécution (extraireBlocMd,
+// extraireLigneExtension, extraireGabaritEchec) plutôt qu'une fixture figée — sinon la prochaine
+// retouche du squelette ne serait plus testée.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Premier bloc fenced ```md ... ``` d'un fichier de skill — fins de ligne normalisées (les fichiers
+ * du dépôt sont en CRLF sous Windows, `readFileSync` ne les convertit pas). */
+function extraireBlocMd(cheminAbsolu) {
+  const texte = readFileSync(cheminAbsolu, 'utf8').replace(/\r\n/g, '\n');
+  const m = /```md\n([\s\S]*?)```/.exec(texte);
+  if (!m) throw new Error(`aucun bloc \`\`\`md trouvé dans ${cheminAbsolu}`);
+  return m[1];
+}
+
+/** La ligne d'exemple (entre backticks) du format d'extension d'ordonnancement, telle qu'écrite
+ * dans `nouveau-plan/SKILL.md` — jamais recopiée à la main dans le test (T4, P10/S2). */
+function extraireLigneExtension() {
+  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'SKILL.md'), 'utf8');
+  const m = /`([^`]*remédiation de S[^`]*)`/.exec(texte);
+  if (!m) throw new Error("ligne d'extension introuvable dans nouveau-plan/SKILL.md");
+  return m[1];
+}
+
+/** Le bloc gabarit du rapport de passation (section « Gabarit ») de `reprendre-echec/SKILL.md`. */
+function extraireGabaritEchec() {
+  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'reprendre-echec', 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+  const apresGabarit = texte.slice(texte.indexOf('## Gabarit'));
+  const m = /```md\n([\s\S]*?)```/.exec(apresGabarit);
+  if (!m) throw new Error('gabarit reprendre-echec introuvable après « ## Gabarit »');
+  return m[1];
+}
+
+cas('T4 (a) : squelette-index.md extrait à l\'exécution → chaque session de la table appartient à une vague', () => {
+  const cwd = dossierJetable('workflow-pa-vrai-squelette-index-');
+  const bloc = extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-index.md'));
+  mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P1', 'index.md'), bloc);
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P1', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const idsDansVagues = new Set(json.vagues.flatMap((v) => v.sessions));
+  const orphelines = json.sessions.filter((s) => !idsDansVagues.has(s.session));
+  if (orphelines.length > 0) {
+    return `session(s) de la table absente(s) de toute vague : ${orphelines.map((s) => s.session).join(', ')} (${sortie})`;
+  }
+  return null;
+});
+
+cas(
+  "T4 (b) : ligne d'extension telle qu'extraite de nouveau-plan/SKILL.md + session S8 dans la table → S8 dans une vague",
+  () => {
+    const cwd = dossierJetable('workflow-pa-extension-');
+    const blocIndex = extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-index.md'));
+    const ligneExtension = extraireLigneExtension().replace('<w>', '4').replace('<j>', '2');
+    const ligneS8 = '| [S8](S8.md) | T20 | … | Haiku | low | — | S2 | `aucune` | [ ] | — |';
+    let contenu = blocIndex.replace(/(\| \[S2\]\(S2\.md\)[^\n]*\n)/, `$1${ligneS8}\n`);
+    if (contenu === blocIndex) throw new Error('ligne S2 introuvable dans le squelette : insertion de S8 impossible');
+    contenu = contenu.replace(/(## Ordonnancement\n)/, `$1${ligneExtension}\n`);
+    if (!contenu.includes(ligneExtension)) throw new Error('insertion de la ligne d\'extension impossible (## Ordonnancement introuvable)');
+    mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+    writeFileSync(join(cwd, 'plans', 'P1', 'index.md'), contenu);
+    const { code, sortie } = lancer(PROCHAINE_ACTION, ['P1', '--etat'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    const json = JSON.parse(sortie);
+    const s8 = json.sessions.find((s) => s.session === 'S8');
+    if (!s8) return `session S8 non reconnue dans la table : ${sortie}`;
+    const dansUneVague = json.vagues.some((v) => v.sessions.includes('S8'));
+    if (!dansUneVague) return `S8 absente de toute vague (ligne d'extension mal lue) : ${JSON.stringify(json.vagues)}`;
+    return null;
+  },
+);
+
+cas("T4 (c) : gabarit reprendre-echec/SKILL.md rempli de valeurs réelles → nature, tentatives et Auto bien lus", () => {
+  const cwd = dossierJetable('workflow-pa-gabarit-echec-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  const gabarit = extraireGabaritEchec()
+    .replace(/^Nature\s*:.*$/m, 'Nature : exécution')
+    .replace(/^Tentatives\s*:.*$/m, 'Tentatives : reprise=1 enquete=0')
+    .replace(/^Blocage\s*:.*$/m, 'Blocage : relancer le build après correction du type')
+    .replace(/^Mesure\s*:.*$/m, 'Mesure : abc1234 · node tests/tester-scripts.mjs')
+    .replace(/^Auto\s*:.*$/m, 'Auto : oui · option 2');
+  writeFileSync(join(cwd, 'plans', 'P0', 'S1.echec.md'), gabarit);
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  if (!s1 || s1.etat !== 'echec') return `S1 attendue en échec : ${sortie}`;
+  if (s1.echec.nature !== 'exécution') return `nature attendue "exécution", reçu ${s1.echec.nature}`;
+  if (s1.echec.tentatives.reprise !== 1 || s1.echec.tentatives.enquete !== 0) {
+    return `tentatives inattendues : ${JSON.stringify(s1.echec.tentatives)}`;
+  }
+  if (s1.echec.auto !== 'oui · option 2') return `auto attendu "oui · option 2", reçu ${JSON.stringify(s1.echec.auto)}`;
+  return null;
+});
+
+cas('T4 (d) : Nature : `prémisse` (entre backticks) → verifier-premisse', () => {
+  const cwd = dossierJetable('workflow-pa-nature-backticks-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : `prémisse`', 'Tentatives : reprise=0 enquete=0', ''].join('\n'),
+  );
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const action = JSON.parse(sortie);
+  if (action.action !== 'verifier-premisse') return `action attendue "verifier-premisse" (nature entre backticks), reçu: ${sortie}`;
+  return null;
+});
+
+cas("T4 (e) : Tentatives : reprise=1 · enquete=0 (séparateur ·) → budget 1 reprise déjà consommée", () => {
+  const cwd = dossierJetable('workflow-pa-tentatives-separateur-');
+  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P0', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=1 · enquete=0', 'Blocage : relancer', ''].join('\n'),
+  );
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const s1 = json.sessions.find((s) => s.session === 'S1');
+  if (!s1 || s1.echec.tentatives.reprise !== 1 || s1.echec.tentatives.enquete !== 0) {
+    return `tentatives attendues {reprise:1, enquete:0} malgré le séparateur « · », reçu ${JSON.stringify(s1?.echec?.tentatives)}`;
+  }
+  return null;
+});
+
+cas('T4 (f) : session hors de toute vague de l\'Ordonnancement → question', () => {
+  const cwd = dossierJetable('workflow-pa-session-hors-vague-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  const texte = readFileSync(chemin, 'utf8');
+  // Une session S3 ajoutée à la table mais jamais citée dans l'Ordonnancement.
+  const avecS3 = texte.replace(
+    /(\| \[S2\]\(S2\.md\)[^\n]*\n)/,
+    '$1| [S3](S3.md) | T4 | Troisième tâche | Sonnet | medium | — | S2 | `src/c.mjs` | [ ] |\n',
+  );
+  if (avecS3 === texte) throw new Error('ligne S2 introuvable : insertion de S3 impossible');
+  writeFileSync(chemin, avecS3);
+  // S1 et S2 faites et relues, pour que la boucle des vagues déjà écrites (S1, S2) se termine sans
+  // rien rendre avant d'atteindre le contrôle de fin — S3 (hors vague) reste seule en cause.
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'S1 et S2\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2\nPlan: P9/S2/T3');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S2.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (S3 hors vague), reçu: ${sortie}`;
+  if (!/S3/.test(action.motif)) return `motif attendu citant S3, reçu: ${action.motif}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
 // brief-a-jour.mjs — contrôle mécanique décision → brief (T4, P9/S2)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 

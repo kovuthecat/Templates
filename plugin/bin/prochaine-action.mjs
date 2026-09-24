@@ -107,6 +107,18 @@ function erreur(motif) {
   return { erreur: `index illisible : ${motif}` };
 }
 
+/** Minuscules, accents retirés (NFD), backticks/`*` retirés, espaces de bord retirés — la forme sur
+ * laquelle on compare une valeur écrite à la main (nature entre backticks, séparateur inhabituel) à
+ * un mot attendu, sans exiger l'orthographe exacte (T4, P10/S2). */
+function normaliserSimple(s) {
+  return String(s || '')
+    .replace(/[`*]/g, '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
 function lireIndex(dossierPlan) {
   const chemin = join(dossierPlan, 'index.md');
   if (!existsSync(chemin)) return erreur(`${chemin} absent`);
@@ -164,11 +176,16 @@ function lireIndex(dossierPlan) {
     }
     if (!dansOrdonnancement) continue;
 
-    const enteteVague = /^-\s*\*\*Vague\s+(\d+)(?:\s*—\s*([^*]+?))?\*\*\s*:\s*(.+)$/.exec(l);
+    // Tiret initial facultatif, parenthèse facultative entre `**` et `:` (ancien format de la ligne
+    // d'extension — incident MYO du 2026-09-22 : une vague jamais lancée faute de tiret ou de
+    // ponctuation au bon endroit, T4/P10/S2).
+    const enteteVague = /^(?:-\s*)?\*\*Vague\s+(\d+)(?:\s*—\s*([^*]+?))?\*\*\s*(?:\([^)]*\)\s*)?:\s*(.+)$/.exec(l);
     if (enteteVague) {
       const labelBrut = enteteVague[2] ? enteteVague[2].trim() : null;
       const labelNormalise = (labelBrut || '').toLowerCase();
-      const membres = enteteVague[3].split('(')[0];
+      // Toutes les parenthèses retirées avant de chercher les membres `S\d+` — sinon un membre après
+      // la première parenthèse (date d'ajout, commentaire) est perdu (constat 2026-09-24).
+      const membres = enteteVague[3].replace(/\([^)]*\)/g, '');
       vagues.push({
         numero: Number(enteteVague[1]),
         label: labelBrut,
@@ -216,8 +233,29 @@ function refsCommitees() {
   return refs;
 }
 
-// ── `.echec.md` : les cinq lignes mécaniques, défauts du gabarit quand une ligne manque ─────────────
-// (plugin/skills/reprendre-echec/SKILL.md, section « Gabarit »).
+// ── `.echec.md` : les lignes mécaniques, défauts du gabarit quand une ligne manque ───────────────────
+// (plugin/skills/reprendre-echec/SKILL.md, section « Gabarit »). Cinq mots de nature reconnus (T4,
+// P10/S2) : `environnement`, `exécution`, `prémisse`, `filtre`, `interruption` — les deux derniers
+// n'ont pas encore de traitement particulier ici (T5), mais une valeur non reconnue est déjà
+// signalée plutôt que silencieusement absorbée.
+const NATURES_VALIDES = ['environnement', 'exécution', 'prémisse', 'filtre', 'interruption'];
+const NATURES_PAR_FORME_SIMPLE = Object.fromEntries(NATURES_VALIDES.map((n) => [normaliserSimple(n), n]));
+// « premisse » et « execution » (sans accent) sont les fautes de frappe attendues.
+NATURES_PAR_FORME_SIMPLE.premisse = 'prémisse';
+NATURES_PAR_FORME_SIMPLE.execution = 'exécution';
+
+/** `{ nature, inconnue }` — `nature` retombe sur `exécution` (défaut documenté) que la valeur brute
+ * soit absente ou non reconnue ; `inconnue` porte la valeur brute **seulement** quand elle était
+ * présente et non reconnue (jamais sur une ligne absente) — c'est ce qui distingue un défaut
+ * silencieux d'une valeur à questionner (T4, P10/S2). */
+function normaliserNature(brut) {
+  if (!brut) return { nature: 'exécution', inconnue: null };
+  const simple = normaliserSimple(brut);
+  const trouvee = NATURES_PAR_FORME_SIMPLE[simple];
+  if (trouvee) return { nature: trouvee, inconnue: null };
+  return { nature: 'exécution', inconnue: brut };
+}
+
 function lireEchec(chemin) {
   const texte = readFileSync(chemin, 'utf8');
   const valeur = (nom) => {
@@ -225,21 +263,50 @@ function lireEchec(chemin) {
     return m ? m[1].trim() : null;
   };
 
-  const nature = valeur('Nature') || 'exécution'; // absente ⇒ l'orchestrateur suppose « exécution »
+  const { nature, inconnue: natureInconnue } = normaliserNature(valeur('Nature'));
 
+  // Reprises et enquêtes lues séparément : un séparateur inhabituel entre les deux (« · » au lieu
+  // d'un espace, constat 2026-09-24 : « reprise=1 · enquete=0 » lu 0/0) ne doit plus faire perdre
+  // l'un ou l'autre compte.
   const tentativesBrut = valeur('Tentatives');
-  const tm = tentativesBrut && /reprise\s*=\s*(\d+)\s*enquete\s*=\s*(\d+)/i.exec(tentativesBrut);
-  const tentatives = tm
-    ? { reprise: Number(tm[1]), enquete: Number(tm[2]) }
-    : { reprise: 0, enquete: 0 }; // absente ⇒ budget non consommé
+  const repriseM = tentativesBrut && /reprise\s*=\s*(\d+)/i.exec(tentativesBrut);
+  const enqueteM = tentativesBrut && /enqu[eê]te\s*=\s*(\d+)/i.exec(tentativesBrut);
+  const tentatives = {
+    reprise: repriseM ? Number(repriseM[1]) : 0,
+    enquete: enqueteM ? Number(enqueteM[1]) : 0,
+  };
 
   const blocage = valeur('Blocage'); // absente ⇒ démarrage à froid (pas de canal court)
   const mesure = valeur('Mesure'); // optionnelle : seulement une prémisse mesurée et commitée
 
+  // Auto : oui, suivi d'un séparateur quelconque (·, -, ,, espace) puis `option <m>`. Un « oui » sans
+  // numéro d'option vaut « non », avec un avertissement (T4, P10/S2) — jamais un `reprendre` sur une
+  // option qui n'existe pas.
   const autoBrut = valeur('Auto');
-  const auto = autoBrut && /^oui/i.test(autoBrut) ? autoBrut : 'non'; // absente ⇒ non
+  let auto = 'non';
+  let avertissementAuto = null;
+  if (autoBrut) {
+    const simple = autoBrut.replace(/[`*]/g, '').trim();
+    if (/^oui/i.test(simple)) {
+      const m = /^oui[\s·\-,]*option\s*(\d+)/i.exec(simple);
+      if (m) {
+        auto = `oui · option ${m[1]}`;
+      } else {
+        avertissementAuto = 'Auto : oui sans option — ignoré';
+      }
+    }
+  }
 
-  return { nature, tentatives, blocage, mesure, auto, demarrageAFroid: !blocage };
+  return {
+    nature,
+    natureInconnue,
+    tentatives,
+    blocage,
+    mesure,
+    auto,
+    avertissementAuto,
+    demarrageAFroid: !blocage,
+  };
 }
 
 function lireRevue(chemin) {
@@ -398,10 +465,21 @@ function questionEffortInvalide(session) {
   };
 }
 
+function questionNatureInconnue(session, valeur) {
+  return {
+    action: 'question',
+    motif: `${session.session} : \`Nature :\` non reconnue ("${valeur}") — environnement, exécution, prémisse, filtre ou interruption attendus`,
+    options: { source: 'nature-inconnue', session: session.session, valeur },
+  };
+}
+
 /** Décision pour UNE session en échec (table « la nature décide », remediation.md). */
 function remedier(session, enqueteTotalPlan) {
   const e = session.echec;
   const modeleIndex = session.modele;
+
+  // Valeur de `Nature :` présente mais non reconnue → question avant tout diagnostic (T4, P10/S2).
+  if (e.natureInconnue) return questionNatureInconnue(session, e.natureInconnue);
 
   // `Auto : oui · option <m>` — remède déjà connu, prioritaire sur la nature (C5, WORKFLOW.md §9c).
   const auto = e.auto && /^oui\s*·\s*option\s*(\d+)/i.exec(e.auto);
@@ -485,6 +563,11 @@ function prochaineAction(sortie) {
       if (decision.action === 'reprendre' || decision.action === 'enqueter') {
         Object.assign(decision, champAgent(decision.modele, EFFORT_DU_MODELE[decision.modele]));
       }
+      if (enEchec.echec.avertissementAuto) {
+        decision.avertissement = decision.avertissement
+          ? `${decision.avertissement} · ${enEchec.echec.avertissementAuto}`
+          : enEchec.echec.avertissementAuto;
+      }
       return decision;
     }
 
@@ -544,6 +627,19 @@ function prochaineAction(sortie) {
       }
     }
     // Sinon : vague déjà validée (implicitement, par le démarrage de la suivante) — continuer.
+  }
+
+  // Une session `a-lancer` qui n'appartient à aucune vague ne sera jamais lancée par la boucle
+  // ci-dessus : le dire plutôt que rendre `fini` sur un plan qui a encore du travail non ordonnancé
+  // (T4, P10/S2).
+  const idsDansVagues = new Set(vagues.flatMap((v) => v.sessions));
+  const horsVague = sortie.sessions.filter((s) => s.etat === 'a-lancer' && !idsDansVagues.has(s.session));
+  if (horsVague.length > 0) {
+    return {
+      action: 'question',
+      motif: `session(s) absente(s) de toute vague de l'Ordonnancement : ${horsVague.map((s) => s.session).join(', ')}`,
+      options: { source: 'session-hors-vague', sessions: horsVague.map((s) => s.session) },
+    };
   }
 
   return { action: 'fini' };

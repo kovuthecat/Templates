@@ -127,11 +127,11 @@ Une fois écrit, le fichier est **commité et poussé** comme le reste du travai
 ```md
 # S<k> — échec du YYYY-MM-DD
 
-Nature : <environnement | exécution | prémisse>
-Tentatives : reprise=0 enquete=0
+Nature : <environnement | exécution | prémisse | filtre | interruption>
+Tentatives : reprise=<n> enquete=<n>
 Blocage : <le geste précis qui manque, en une ligne>
 Mesure : <commit> · <commande qui la reproduit>
-Auto : <oui | non — écrite par l'enquête `OPTIONS`, ou par la session en échec elle-même (mêmes critères, C5)>
+Auto : <oui · option <m> | non — écrite par l'enquête `OPTIONS`, ou par la session en échec elle-même (mêmes critères, C5)>
 
 ## Tâche visée
 <la tâche T<n>, en une ligne — pas le S<k>.md recopié>
@@ -165,10 +165,14 @@ Auto : <oui | non — écrite par l'enquête `OPTIONS`, ou par la session en éc
 La section **Déjà écarté** est la raison d'être du rapport. Un verdict d'une ligne fait recommencer
 l'enquête à zéro ; ces lignes-là sont ce qu'on a payé pour apprendre.
 
-Trois lignes **mécaniques**, en tête, exactement ce format — les seules que l'orchestrateur lit
+Les lignes **mécaniques**, en tête, exactement ce format — les seules que l'orchestrateur lit
 (`grep -m1`), comme il ne lit que `Bloquant :` d'une revue :
 
-- `Nature :` — l'un des trois mots ; absente, l'orchestrateur suppose `exécution`.
+- `Nature :` — l'un de cinq mots : `environnement`, `exécution`, `prémisse` (les trois de
+  `WORKFLOW.md` §9a), `filtre` (filtre de contenu — jamais repris à l'identique, toujours une
+  question) et `interruption` (coupure par quota, écrite par l'orchestrateur à la collecte — ne
+  consomme aucune reprise du budget, T5). Absente, l'orchestrateur suppose `exécution` ; présente
+  mais hors de ces cinq mots, il pose une question plutôt que de deviner (T4, P10/S2).
 - `Tentatives : reprise=<n> enquete=<n>` — le **budget déjà consommé** sur cette session
   (`WORKFLOW.md` §9c). La session en échec l'écrit à zéro ; ensuite, c'est la reprise ou l'enquête
   qui l'incrémente avant de rendre la main. Absente : l'orchestrateur suppose `reprise=0 enquete=0`.
