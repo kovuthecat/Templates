@@ -9,7 +9,11 @@
 // une de plus — le contrôle porte sur la PRÉSENCE du renvoi, jamais sur son sens : il ne saura jamais
 // dire qu'un invariant est faux, seulement qu'il n'est pas atteignable.
 //
-//   1. Tout bloc `Agent({ … })` de `plugin/**` contient la ligne de renvoi, au mot près.
+//   1. Tout bloc `Agent({ … })` de `plugin/**` qui lance une session, une reprise ou une enquête
+//      (`subagent_type` commençant par `session-`, ou prompt contenant `/reprendre-echec`) contient
+//      la ligne de renvoi, au mot près. Ailleurs (relecteur, vérificateurs, `critique-plan`,
+//      `parcoureur-usage`), la ligne est permise, pas exigée (décision 2026-09-24, point 9 :
+//      `EXECUTANT.md` n'est lu que par les agents qui exécutent).
 //   2. Tout `references/<x>.md` cité par une `SKILL.md` existe, relatif au dossier de sa skill.
 //   3. Tout `references/*.md` présent a au moins un appelant dans le dossier de sa skill.
 //   4. Tout agent cité (`subagent_type: "<x>"` ou `` `<x>` → `` de `WORKFLOW.md` §5) existe dans
@@ -44,6 +48,16 @@ const PLUGIN = join(RACINE, 'plugin');
 // `sync-workflow.mjs:73`, qui concatène la chaîne pour un fichier qui se vendore lui-même, un
 // littéral simple suffit ici.
 const RENVOI = 'Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.';
+
+// Un bloc `Agent({` lance une session, une reprise ou une enquête (donc doit porter le renvoi) si
+// son `subagent_type` commence par `session-`, ou si son prompt cite `/reprendre-echec`. Déclaré
+// ici (pas près de l'assertion 4, qui le réutilise) car l'assertion 1 en a besoin la première.
+const MOTIF_SUBAGENT = /subagent_type:\s*"([\w-]+)"/;
+function estBlocSessionOuReprise(texte) {
+  const m = texte.match(MOTIF_SUBAGENT);
+  if (m && m[1].startsWith('session-')) return true;
+  return texte.includes('/reprendre-echec');
+}
 
 const BINAIRES = /\.(png|jpg|jpeg|gif|ico|woff2?|zip)$/i;
 
@@ -142,7 +156,7 @@ function skillsAvecSkillMd() {
   );
 }
 
-// ── Assertion 1 — renvoi présent dans chaque bloc Agent({ de plugin/** ──────────────────────
+// ── Assertion 1 — renvoi présent dans chaque bloc Agent({ qui lance une session/reprise/enquête ──
 const fichiersPlugin = fichiersTexteDe(PLUGIN);
 const blocsAgent = [];
 for (const f of fichiersPlugin) {
@@ -150,12 +164,34 @@ for (const f of fichiersPlugin) {
   try { texte = readFileSync(join(PLUGIN, f), 'utf8'); } catch { continue; } // illisible en utf8 → pas du texte
   for (const b of blocsAgentDe(texte)) blocsAgent.push({ fichier: join('plugin', f), ...b });
 }
+const blocsSessionOuReprise = blocsAgent.filter((b) => estBlocSessionOuReprise(b.texte));
 
-cas(`assertion 1 — renvoi présent dans chaque bloc Agent({ (${blocsAgent.length} bloc(s) inspecté(s))`, () => {
+cas(`assertion 1 — renvoi présent dans chaque bloc Agent({ de session/reprise/enquête (${blocsSessionOuReprise.length} bloc(s) inspecté(s) sur ${blocsAgent.length} au total)`, () => {
   if (blocsAgent.length === 0) return 'aucun bloc Agent({ trouvé sous plugin/** — motif probablement cassé';
-  for (const b of blocsAgent) {
+  if (blocsSessionOuReprise.length === 0) return 'aucun bloc Agent({ de session/reprise/enquête trouvé sous plugin/** — motif probablement cassé';
+  for (const b of blocsSessionOuReprise) {
     if (!b.texte.includes(RENVOI)) return `${b.fichier}:${b.ligne} ne contient pas la ligne de renvoi`;
   }
+  return null;
+});
+
+// ── Assertion 1bis — fixtures en mémoire : classification session/reprise vs le reste ───────
+// `prochaine-action.mjs` et les squelettes changent souvent ; ce cas fige le CONTRAT de
+// classification sur deux fixtures minimales, indépendamment des fichiers réels du dépôt.
+cas('assertion 1bis — fixture subagent_type "session-*" classée requise (sans renvoi → détectable)', () => {
+  const fixture = 'Agent({\n  subagent_type: "session-medium",\n  prompt: "Ouvre plans/P1/S1.md et exécute-le."\n})';
+  const blocs = blocsAgentDe(fixture);
+  if (blocs.length !== 1) return `fixture mal formée : ${blocs.length} bloc(s) trouvé(s), 1 attendu`;
+  if (!estBlocSessionOuReprise(blocs[0].texte)) return 'un bloc subagent_type: "session-medium" doit être classé session/reprise (donc FAIL si le renvoi manque)';
+  if (blocs[0].texte.includes(RENVOI)) return 'fixture invalide : ne doit pas contenir le renvoi';
+  return null;
+});
+
+cas('assertion 1bis — fixture subagent_type "relecteur-session" classée non requise (sans renvoi → OK)', () => {
+  const fixture = 'Agent({\n  subagent_type: "relecteur-session",\n  prompt: "Relis S1 de P1."\n})';
+  const blocs = blocsAgentDe(fixture);
+  if (blocs.length !== 1) return `fixture mal formée : ${blocs.length} bloc(s) trouvé(s), 1 attendu`;
+  if (estBlocSessionOuReprise(blocs[0].texte)) return 'un bloc subagent_type: "relecteur-session" ne doit pas être classé session/reprise (renvoi permis, pas exigé)';
   return null;
 });
 
@@ -231,7 +267,7 @@ const NATIFS = new Set(['general-purpose', 'Explore', 'Plan', 'claude-code-guide
 const agentsDisponibles = new Set(
   readdirSync(join(PLUGIN, 'agents')).filter((e) => e.endsWith('.md')).map((e) => e.slice(0, -3)),
 );
-const MOTIF_SUBAGENT = /subagent_type:\s*"([\w-]+)"/;
+// MOTIF_SUBAGENT est déclaré plus haut, avant l'assertion 1, qui le réutilise aussi.
 const MOTIF_LISTE_5 = /^- `([\w-]+)` →/gm;
 
 const workflowTexte = readFileSync(join(PLUGIN, 'WORKFLOW.md'), 'utf8');

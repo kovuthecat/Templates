@@ -25,9 +25,11 @@
 //
 // CONTRÔLE DES RENVOIS AVANT PUBLICATION (v0.35.0)
 // Au même titre et au même endroit, `tests/tester-renvois.mjs` tourne lui aussi avant toute
-// construction de payload, --dry-run compris : sans lui, un bloc `Agent({` de `plugin/**` peut
-// perdre la ligne de renvoi vers `EXECUTANT.md`, ou une annexe de skill (`references/<x>.md`) peut
-// devenir mal désignée ou orpheline, sans qu'aucun signal ne le dise avant qu'un projet aval le
+// construction de payload, --dry-run compris : sans lui, un bloc `Agent({` de `plugin/**` qui lance
+// une session, une reprise ou une enquête peut perdre la ligne de renvoi vers `EXECUTANT.md`
+// (ailleurs — relecteur, vérificateurs, `critique-plan`, `parcoureur-usage` — cette ligne est
+// permise, pas exigée : décision 2026-09-24, point 9), ou une annexe de skill (`references/<x>.md`)
+// peut devenir mal désignée ou orpheline, sans qu'aucun signal ne le dise avant qu'un projet aval le
 // découvre — « sans qu'on puisse l'oublier » n'est pas une discipline de rédaction, c'est un refus
 // mécanique (`docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md`, section (a) règle 3).
 //

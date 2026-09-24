@@ -31,6 +31,12 @@ Sans cette règle, chaque projet dériverait dans son coin et la « source uniqu
 Le manifeste la rend vérifiable mécaniquement : il porte un hash par fichier géré, donc une
 modification locale se voit, au lieu d'être écrasée en silence à la synchronisation suivante.
 
+## Étape 0 — Vérifier qu'aucune vague n'est en cours
+
+`.claude/wave.lock` présent → **STOP** : une vague est en cours, synchroniser plus tard. Une
+synchronisation lancée sous verrou peut écraser les commits d'une session en cours (incident
+ebm-msp, 2026-09-24).
+
 ## Étape 1 — Constater avant d'écrire
 
 ```bash
