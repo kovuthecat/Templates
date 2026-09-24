@@ -16,6 +16,13 @@ chargement des skills que la bascule vendorée a précisément éliminés. Il a 
 Les trois skills sont vendorées dans `.claude/skills/` : elles fonctionnent depuis un simple clone,
 sans rien installer.
 
+## Vers 0.45.0
+
+Rien à faire côté projet hors `/maj-workflow` : les changements sont l'orchestrateur, `WORKFLOW.md`
+et le hook de racine, qui arrivent par la synchronisation. Un point à savoir : un **plan en cours**
+dont l'index n'a pas de ligne `Clos :` recevra l'action `cloturer` (déroulement de `fin-de-plan.md`
+par l'orchestrateur) à sa toute prochaine fin de plan — jamais retranché, jamais réécrit avant.
+
 ## Vers 0.41.0
 
 Rien à faire côté projet hors `/maj-workflow` : les changements sont des textes de skills et deux
