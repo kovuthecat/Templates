@@ -650,6 +650,45 @@ cas('sessionstart-contexte : correctifCritiqueDepuis applicable → « avant la 
     ? null : `mention d'urgence absente, reçu: ${s || '(vide)'}`;
 });
 
+// ── sessionstart-contexte.mjs : plugin CHARGÉ contre la copie de travail, dépôt source (T3, P10/S1) ──
+// Incidents du 2026-09-22/23/24 (Templates, DrumsTraining) : le plugin local installé au cache
+// n'était pas rechargé après une publication, sans que rien ne le signale.
+function versionPluginCharge() {
+  return JSON.parse(readFileSync(join(HOOKS, '..', '.claude-plugin', 'plugin.json'), 'utf8')).version;
+}
+
+cas('sessionstart-contexte : dépôt source, plugin chargé périmé vs copie de travail → ligne', () => {
+  const repo = creerDepot();
+  mkdirSync(join(repo, 'plugin', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(repo, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '99.0.0' }));
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Plugin chargé v[\d.]+, source v99\.0\.0/.test(s)
+    ? null : `signal absent, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : dépôt source, plugin chargé = copie de travail → muet', () => {
+  const repo = creerDepot();
+  mkdirSync(join(repo, 'plugin', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(repo, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify({ version: versionPluginCharge() }));
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Plugin chargé/.test(s) ? `signal présent à tort (à jour): ${s}` : null;
+});
+
+cas('sessionstart-contexte : dépôt VENDORÉ (manifest.json présent) → muet même si versions diffèrent', () => {
+  const repo = creerDepot();
+  mkdirSync(join(repo, 'plugin', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(repo, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '99.0.0' }));
+  poserManifeste(repo, { version: '0.1.0' }); // présence seule suffit à dire « vendoré », peu importe le contenu
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Plugin chargé/.test(s) ? `signal présent à tort (dépôt vendoré, pas la source): ${s}` : null;
+});
+
+cas('sessionstart-contexte : ni source ni vendoré (pas de plugin/.claude-plugin/) → muet', () => {
+  const repo = creerDepot();
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo });
+  return /Plugin chargé/.test(s) ? `signal présent à tort: ${s}` : null;
+});
+
 // ── postmodelswitch-journal.mjs ──────────────────────────────────────────────
 cas('postmodelswitch-journal : écrit une ligne JSONL et reste silencieux', () => {
   const repo = creerDepot();

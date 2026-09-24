@@ -273,7 +273,7 @@ export function repereSession(entree, cwd, suffixe) {
  *  (`docs/decisions/2026-09-07-revue-orpheline.md`), sans que rien ne le rende visible.
  *
  *  Mais le fichier est transitoire : le tri de clôture le verse dans `TASKS.md` puis le supprime
- *  (`/fin-de-tache` point 16). Une session qui clôt un plan voyait donc ses propres revues — faites,
+ *  (`/fin-de-tache`, Relecture). Une session qui clôt un plan voyait donc ses propres revues — faites,
  *  puis rangées dans les règles — signalées comme manquantes : sur disque, « consommée au tri » et
  *  « jamais lancée » sont le même vide. Désormais `.revue.md` est COMMITÉ (C3) : la preuve qu'une
  *  revue a existé n'est plus un repère `Revues:` déclaré à la main au tri, mais git lui-même —

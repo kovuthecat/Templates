@@ -1006,6 +1006,75 @@ cas('brief-a-jour : décision sans ligne `Brief :`, plus ancienne que le brief �
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// collecter-incidents.mjs — champs regroupés sur une puce, séparés par `·` (T3, P10/S1)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const COLLECTER_INCIDENTS = join(BIN, 'collecter-incidents.mjs');
+
+cas('collecter-incidents : champs groupés sur une puce (Champ · Champ · Champ) tous lus → pas de ⚠', () => {
+  // Le gabarit §9b met trois champs par puce, séparés par `·` — le collecteur ne lisait jusqu'ici
+  // qu'un seul champ par ligne (celui qui ouvre la puce), 9 incidents sur 11 en portaient un faux
+  // positif « ⚠ en-tête incomplet » (docs/incidents/2026-09-24-synthese.md).
+  const projets = dossierJetable('workflow-ci-projets-');
+  const projet = join(projets, 'monprojet');
+  const dossierIncidents = join(projet, 'docs', 'workflow', 'incidents');
+  mkdirSync(dossierIncidents, { recursive: true });
+  mkdirSync(join(projet, '.git'), { recursive: true }); // le collecteur ne scrute que les dossiers avec .git
+  writeFileSync(
+    join(dossierIncidents, '2026-09-20-test.md'),
+    [
+      '# Incident workflow — 2026-09-20 — test',
+      '',
+      '- Projet : monprojet · Workflow : v0.40.0 · Plan : P1/S1',
+      '- Environnement : Desktop · sous-agent',
+      '- Étape : test · Nature : environnement',
+      '',
+      '## Symptôme',
+      'x',
+    ].join('\n'),
+  );
+  const { code, sortie } = lancer(COLLECTER_INCIDENTS, ['--projets', projets, '--json'], projets);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  if (json.incidents.length !== 1) return `1 incident attendu, reçu ${json.incidents.length}: ${sortie}`;
+  const inc = json.incidents[0];
+  if (!inc.conforme) return `en-tête attendu conforme (champs groupés lus), reçu: ${JSON.stringify(inc)}`;
+  if (inc.workflow !== 'v0.40.0' || inc.plan !== 'P1/S1') {
+    return `Workflow/Plan (groupés sur la puce Projet) mal lus: ${JSON.stringify(inc)}`;
+  }
+  if (inc.etape !== 'test' || inc.nature !== 'environnement') {
+    return `Étape/Nature (groupés sur la 3e puce) mal lus: ${JSON.stringify(inc)}`;
+  }
+  return null;
+});
+
+cas('collecter-incidents : en-tête vraiment incomplet (champ manquant) → toujours ⚠', () => {
+  // Anti-raccourci (T3) : ne pas régler les faux positifs en tolérant un champ absent — un en-tête
+  // réellement incomplet doit rester signalé.
+  const projets = dossierJetable('workflow-ci-projets-incomplet-');
+  const projet = join(projets, 'monprojet');
+  const dossierIncidents = join(projet, 'docs', 'workflow', 'incidents');
+  mkdirSync(dossierIncidents, { recursive: true });
+  mkdirSync(join(projet, '.git'), { recursive: true });
+  writeFileSync(
+    join(dossierIncidents, '2026-09-20-test.md'),
+    [
+      '# Incident workflow — 2026-09-20 — test',
+      '',
+      '- Projet : monprojet · Workflow : v0.40.0',
+      '- Environnement : Desktop',
+      '- Nature : environnement',
+      '',
+    ].join('\n'),
+  );
+  const { code, sortie } = lancer(COLLECTER_INCIDENTS, ['--projets', projets, '--json'], projets);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const json = JSON.parse(sortie);
+  const inc = json.incidents[0];
+  if (inc.conforme) return `en-tête attendu non conforme (Plan et Étape absents), reçu: ${JSON.stringify(inc)}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {

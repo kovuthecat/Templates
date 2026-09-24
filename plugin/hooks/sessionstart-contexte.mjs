@@ -184,6 +184,40 @@ try {
   }
 } catch { /* manifeste illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
 
+// Plugin CHARGÉ contre la copie de travail, dans le DÉPÔT SOURCE seulement (pas de manifeste vendoré,
+// et `plugin/.claude-plugin/plugin.json` présent — CE dépôt). Un incident du 2026-09-22 (rejoué le
+// 2026-09-23 sur Templates, le 2026-09-24 sur DrumsTraining) : le plugin local installé au cache
+// n'était pas rechargé après une publication, sans que rien ne le signale — un poste continuait de
+// dérouler une version périmée en pensant éditer la dernière. `ICI` est TOUJOURS la racine du plugin
+// réellement chargé pour cette session (chemin relatif au fichier du hook, comme CLAUDE-BASE.md
+// ci-dessus) — jamais `process.env.CLAUDE_PLUGIN_ROOT`, qui n'est qu'un jeton de substitution du
+// `command` de `hooks.json`, pas une variable d'environnement du process node.
+try {
+  const racineSource = racineDepot(cwd);
+  const cheminManifesteVendore = racineSource
+    ? join(racineSource, '.claude', 'workflow', 'manifest.json')
+    : null;
+  const cheminPluginSource = racineSource
+    ? join(racineSource, 'plugin', '.claude-plugin', 'plugin.json')
+    : null;
+  const estDepotSource = racineSource
+    && !(cheminManifesteVendore && existsSync(cheminManifesteVendore))
+    && cheminPluginSource && existsSync(cheminPluginSource);
+  if (estDepotSource) {
+    const cheminPluginCharge = join(ICI, '..', '.claude-plugin', 'plugin.json');
+    if (existsSync(cheminPluginCharge)) {
+      const versionChargee = JSON.parse(readFileSync(cheminPluginCharge, 'utf8')).version;
+      const versionSource = JSON.parse(readFileSync(cheminPluginSource, 'utf8')).version;
+      if (versionChargee && versionSource && versionChargee !== versionSource) {
+        lignes.push(
+          `**Plugin chargé v${versionChargee}, source v${versionSource}** : ` +
+          '`claude plugin update workflow@templates --scope local`.'
+        );
+      }
+    }
+  }
+} catch { /* plugin.json illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
+
 // Dépôt sous un dossier synchronisé (Synology Drive, OneDrive, Dropbox, iCloud) : le client ne
 // synchronise qu'au fichier près, jamais `.git` en bloc — une reprise en cours d'écriture git
 // corrompt l'objet (torrent-uploader, 2026-09-11). Et une exclusion ne suffit pas : Synology Drive

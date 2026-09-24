@@ -56,11 +56,22 @@ function lireIncident(chemin, projet) {
   const txt = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
   const lignes = txt.split('\n');
   const titre = (lignes.find((l) => l.startsWith('# ')) ?? '').replace(/^#\s*/, '');
+  // Le gabarit §9b met plusieurs champs sur UNE puce, séparés par `·` (ex. « - Projet : x ·
+  // Workflow : v… · Plan : … »). Une puce = un ou plusieurs segments `Champ : valeur` ; chaque
+  // segment est testé contre CHAMPS, premier match gagne (une seconde occurrence du même nom,
+  // dans le corps de l'incident, n'écrase jamais le premier). Compatible avec l'ancien gabarit
+  // (un champ par puce) : une puce sans `·` n'a qu'un seul segment.
   const champs = {};
-  for (const c of CHAMPS) {
-    const l = lignes.find((x) => new RegExp(`^-\\s*${c}\\s*:`).test(x));
-    champs[c] = l ? l.replace(/^-\s*[^:]+:\s*/, '').trim() : '';
+  for (const ligne of lignes) {
+    if (!/^-\s/.test(ligne)) continue;
+    for (const segment of ligne.replace(/^-\s*/, '').split('·')) {
+      const m = /^\s*([^:]+?)\s*:\s*(.*)$/.exec(segment);
+      if (!m) continue;
+      const nomChamp = m[1].trim();
+      if (CHAMPS.includes(nomChamp) && champs[nomChamp] === undefined) champs[nomChamp] = m[2].trim();
+    }
   }
+  for (const c of CHAMPS) if (champs[c] === undefined) champs[c] = '';
   const section = (nom) => {
     const i = lignes.findIndex((l) => l.trim() === `## ${nom}`);
     if (i < 0) return '';
