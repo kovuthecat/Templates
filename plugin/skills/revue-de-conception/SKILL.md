@@ -25,6 +25,7 @@ La revue **constate, demande, écrit**. Elle ne corrige pas de code, ne découpe
 | --- | --- |
 | Un défaut dans le code qui vient d'être écrit | `/code-review` (branché dans `/fin-de-tache`) |
 | Une question déjà posée, il faut trancher | `/cadrer` |
+| Une idée neuve à évaluer avant de l'intégrer | `/cadrer`, qui la déplie en question |
 | Du travail déjà identifié à découper | `/nouveau-plan` |
 | Un doute sur un mécanisme Claude Code ou la config `.claude/` | `/choisir-mecanisme` |
 | L'app telle qu'un utilisateur la vit (parcours, ergonomie, accessibilité) | `/revue-d-usage` |

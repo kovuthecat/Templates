@@ -67,7 +67,7 @@ Seuls outils et modèle forcent une reconstruction complète (aucune échappatoi
 
 ## 4. Plans
 
-Backlog : `TASKS.md`. Un plan est précédé d'une **décision écrite** : QUOI/POURQUOI pas tranché → `/cadrer`, sortie dans `docs/decisions/`. Question non identifiée → `/revue-de-conception` (interview, rapport dans `docs/revues/`). Puis Opus déroule `/nouveau-plan`, qui crée `plans/P<n>/` :
+Backlog : `TASKS.md`. Un plan est précédé d'une **décision écrite** : QUOI/POURQUOI pas tranché, idée neuve comprise → `/cadrer`, sortie dans `docs/decisions/`. Question non identifiée sur un existant qui a dérivé → `/revue-de-conception` (interview, rapport dans `docs/revues/`). Puis Opus déroule `/nouveau-plan`, qui crée `plans/P<n>/` :
 
 - **`index.md`** — objectif, table des sessions, vagues. **Seul endroit où vit le statut.**
 - **`S<k>.md` par session** — un lancement (modèle/effort/contexte), décision finale + chemins + étapes, jamais les alternatives (`docs/decisions/`).

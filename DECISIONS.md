@@ -141,6 +141,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `/cadrer` ; `verificateur-plan` vérifie la propagation par dates ; la fin de plan coche la roadmap ;
   `/revue-de-conception` reste le rattrapage →
   [détail](docs/decisions/2026-09-23-brief-tenu-par-les-decisions.md)
+- 2026-09-24 — **Une idée neuve entre par `/cadrer`** — dépliée en question par une annexe d'interview ;
+  issue « Idée reportée » vers le brief ; `model: opus` ; pas de skill dédiée → [détail](docs/decisions/2026-09-24-idee-neuve-par-cadrer.md)
 
 ## Archives
 
