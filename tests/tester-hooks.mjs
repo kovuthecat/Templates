@@ -148,6 +148,18 @@ function estBloque(sortie) {
     const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git push' } });
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
+
+  // Options globales AVANT la sous-commande (T2, P10/S1) : sans le préfixe dans la regex, ces deux
+  // variantes contournaient le refus sous wave.lock.
+  cas('pretooluse-git : git -C . commit refusé sous wave.lock', () => {
+    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git -C . commit -m "x"' } });
+    return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+  });
+
+  cas('pretooluse-git : git -c user.name=x commit refusé sous wave.lock', () => {
+    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git -c user.name=x commit -m "x"' } });
+    return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+  });
 }
 
 // ── pretooluse-git.mjs : racine juste sur un dépôt à `.git` déplacé (T1, P10/S1) ─────
@@ -237,6 +249,18 @@ cas('stop-contexte : STATUS.md au-delà du plafond → bloque', () => {
   writeFileSync(join(repo, 'STATUS.md'), lignes);
   const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
   return estBloque(s) ? null : `attendu un blocage (plafond), reçu: ${s || '(vide)'}`;
+});
+
+// Le motif `plans/P<n>/S<k>.echec.md` de plafonds.json ne matchait jamais rien : `depassements()`
+// faisait `join(cwd, fichier)` sur le motif LITTÉRAL (`plafonds.json` `_comment_echec`, T2/P10/S1).
+cas('stop-contexte : .echec.md au-delà du plafond (motif <n>/<k>) → bloque', () => {
+  const repo = creerDepot();
+  mkdirSync(join(repo, 'plans', 'P3'), { recursive: true });
+  const lignes = Array.from({ length: 41 }, (_, i) => `ligne ${i}`).join('\n') + '\n';
+  writeFileSync(join(repo, 'plans', 'P3', 'S2.echec.md'), lignes);
+  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+  return estBloque(s) && /S2\.echec\.md/.test(s)
+    ? null : `attendu un blocage nommant S2.echec.md (plafond), reçu: ${s || '(vide)'}`;
 });
 
 // Marqueur de session non inscriptible : répertoire à la place du fichier — marche pareil sous
@@ -390,6 +414,23 @@ cas('revuesManquantes : .echec.md dispense de revue', () => {
   writeFileSync(join(repo, 'plans', 'P1', 'S1.echec.md'), 'Nature : exécution\n');
   const manquantes = revuesManquantes(repo, debut);
   return manquantes.length === 0 ? null : `attendu dispensé, reçu manquant: ${manquantes.join(', ')}`;
+});
+
+// Une session `low` n'est jamais relue (C7) — exemptée ici même, pas seulement côté moteur
+// `prochaine-action.mjs` (T2, P10/S1) : sinon `stop-contexte` réclame une revue que personne ne
+// relira jamais.
+cas('revuesManquantes : session low qui committe du code → jamais réclamée', () => {
+  const repo = creerDepot();
+  const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
+  poserPlan(repo, ['| [S1](S1.md) | T1 | … | Haiku | low | — | — | `src/` | [ ] |']);
+  git('add', '.');
+  git('commit', '-q', '-m', 'plan: P1');
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  git('add', 'src.js');
+  git('commit', '-q', '-m', 'feat: x\n\nPlan: P1/S1/T1');
+  const manquantes = revuesManquantes(repo, debut);
+  return manquantes.length === 0 ? null : `attendu exemptée (effort low), reçu manquant: ${manquantes.join(', ')}`;
 });
 
 // ── sessionstart-contexte.mjs ────────────────────────────────────────────────
@@ -550,6 +591,22 @@ cas('derniereVersionPubliee : cache frais lu sans réseau', () => {
   poserCacheVersion(repo, { version: '9.9.9', lu: Date.now() });
   const v = derniereVersionPubliee(repo);
   return v === '9.9.9' ? null : `attendu '9.9.9' (cache), reçu: ${v}`;
+});
+
+// Cache C4 sous le VRAI gitdir (T2, P10/S1) : `join(racine, '.git', …)` échoue silencieusement
+// quand `.git` est un FICHIER (gitdir déplacé) — ce chemin littéral n'existe pas, le cache ne
+// s'écrit ni ne se relit jamais, et le hook relance `git ls-remote` à chaque SessionStart.
+cas('derniereVersionPubliee (gitfile) : cache écrit sous le vrai gitdir, relu sans réseau', () => {
+  const { arbre } = creerDepotGitfile();
+  poserManifeste(arbre, { version: '0.1.0', source: 'inexistant-xyz/inexistant' });
+  const cheminCache = execFileSync(
+    'git', ['rev-parse', '--path-format=absolute', '--git-path', 'workflow-version.json'],
+    { cwd: arbre, encoding: 'utf8' },
+  ).trim();
+  mkdirSync(dirname(cheminCache), { recursive: true });
+  writeFileSync(cheminCache, JSON.stringify({ version: '9.9.9', lu: Date.now() }));
+  const v = derniereVersionPubliee(arbre);
+  return v === '9.9.9' ? null : `attendu '9.9.9' (cache sous le vrai gitdir), reçu: ${v}`;
 });
 
 cas('derniereVersionPubliee : sans manifeste → null, jamais de réseau', () => {

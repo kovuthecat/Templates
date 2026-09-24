@@ -3,6 +3,10 @@
 //   1. staging global interdit (git add -A / . / --all, git commit -a) ;
 //   2. commit et push interdits tant qu'une vague parallèle est en cours (.claude/wave.lock) ;
 //   3. worktree interdit pendant une vague — une vague partage UN seul arbre de travail.
+//
+// Les trois règles tolèrent des OPTIONS GLOBALES avant la sous-commande (`git -C <dir> commit`,
+// `git -c user.name=x commit`) : sans ce préfixe dans le motif, ces variantes passaient sous la
+// regex (T2, P10/S1) — un simple `-C .` suffisait à contourner le refus sous verrou.
 
 import {
   lireEntree, repertoireProjet, vagueParallele, racineIntrouvable, repondre, riendafaire,
@@ -27,14 +31,23 @@ function refuser(raison) {
   });
 }
 
-if (/\bgit\s+add\s+(-A\b|--all\b|\.(?:\s|$))/.test(commande)) {
+// `git -C <dir>` / `git -c <clé>=<valeur>` : options globales, valides avant n'importe quelle
+// sous-commande, répétables (`git -c a=1 -c b=2 commit`). Acceptées ici pour que les trois refus
+// ci-dessous voient la sous-commande RÉELLE, quelle que soit l'option globale qui la précède.
+const OPTIONS_GLOBALES = String.raw`(?:\s+-(?:C|c)\s+\S+)*`;
+
+if (new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+add\s+(-A\b|--all\b|\.(?:\s|$))`).test(commande)) {
   refuser(
     "WORKFLOW.md §4b : staging global interdit. Stage explicitement les fichiers de la tâche " +
     '(`git add <fichier> <fichier>`) — jamais `git add -A`, `--all` ni `.`.'
   );
 }
 
-if (/\bgit\s+commit\b/.test(commande) && /\s-(?:a|[a-zA-Z]*a[a-zA-Z]*)\b|--all\b/.test(commande) && !/--amend/.test(commande)) {
+if (
+  new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+commit\b`).test(commande) &&
+  /\s-(?:a|[a-zA-Z]*a[a-zA-Z]*)\b|--all\b/.test(commande) &&
+  !/--amend/.test(commande)
+) {
   refuser(
     "WORKFLOW.md §4b : `git commit -a` interdit. Stage explicitement les fichiers de la tâche, " +
     'puis `git commit -m "…"`.'
@@ -64,7 +77,7 @@ if (vagueParallele(cwd) && (outilWorktree || (commande ?? '').includes('worktree
   );
 }
 
-if (vagueParallele(cwd) && /\bgit\s+(commit|push)\b/.test(commande)) {
+if (vagueParallele(cwd) && new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+(commit|push)\b`).test(commande)) {
   refuser(
     introuvable
       ? MOTIF_RACINE_INTROUVABLE

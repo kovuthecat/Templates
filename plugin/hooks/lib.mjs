@@ -153,13 +153,49 @@ export function nbLignes(chemin) {
   return lignes.length;
 }
 
+/** Résout un motif de plafond à segments `<…>` (ex. `plans/P<n>/S<k>.echec.md`, un `<…>` par
+ *  segment de chemin, jamais de `/` à l'intérieur) contre les fichiers RÉELS sous `cwd`. Jusqu'ici
+ *  la seule clé motif de `plafonds.json` ne matchait jamais rien : `depassements()` faisait
+ *  `join(cwd, fichier)` sur le motif LITTÉRAL (`_comment_echec` de `plafonds.json`, T2/P10/S1).
+ *  Dossier absent ou illisible à un niveau → cette branche rend simplement aucun chemin, jamais une
+ *  exception (même tolérance que le reste de ce fichier). */
+function resoudreMotif(cwd, motif) {
+  let chemins = [''];
+  for (const segment of motif.split('/')) {
+    const suivants = [];
+    if (segment.includes('<')) {
+      const regex = new RegExp(
+        '^' + segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/<[^>]+>/g, '[^/]+') + '$'
+      );
+      for (const base of chemins) {
+        let entrees;
+        try {
+          entrees = readdirSync(join(cwd, base));
+        } catch {
+          continue;
+        }
+        for (const entree of entrees) {
+          if (regex.test(entree)) suivants.push(base ? `${base}/${entree}` : entree);
+        }
+      }
+    } else {
+      for (const base of chemins) suivants.push(base ? `${base}/${segment}` : segment);
+    }
+    chemins = suivants;
+  }
+  return chemins;
+}
+
 /** Fichiers de contexte dépassant leur plafond. Renvoie [{fichier, lignes, plafond}]. */
 export function depassements(cwd) {
   const { plafonds } = lirePlafonds();
   const resultats = [];
-  for (const [fichier, plafond] of Object.entries(plafonds)) {
-    const n = nbLignes(join(cwd, fichier));
-    if (n !== null && n > plafond) resultats.push({ fichier, lignes: n, plafond });
+  for (const [motif, plafond] of Object.entries(plafonds)) {
+    const chemins = motif.includes('<') ? resoudreMotif(cwd, motif) : [motif];
+    for (const chemin of chemins) {
+      const n = nbLignes(join(cwd, chemin));
+      if (n !== null && n > plafond) resultats.push({ fichier: chemin, lignes: n, plafond });
+    }
   }
   return resultats;
 }
@@ -271,12 +307,18 @@ export function revuesManquantes(cwd, depuis) {
   const refs = new Set();
   for (const m of messages.matchAll(/Plan:\s*(P\d+)\/(S[A-Za-z0-9_-]+)\//g)) refs.add(`${m[1]}/${m[2]}`);
 
+  const toutes = toutesLesSessions(cwd);
   const manquantes = [];
   for (const ref of refs) {
     const [plan, session] = ref.split('/');
     const dossier = join(racine, 'plans', plan);
     // Un `.echec.md` dispense de revue : la session n'a pas livré, elle a passé la main.
     if (existsSync(join(dossier, `${session}.echec.md`))) continue;
+    // Une session `low` n'est jamais relue (C7, relecteur-session.md « Sessions à sauter ») —
+    // exemptée ici, au seul endroit qui décide quoi relire pour ce hook (T2, P10/S1), plutôt que
+    // de réclamer une revue que personne ne relira.
+    const entree = toutes.find((s) => s.plan === plan && s.session === session);
+    if (entree && entree.effort === 'low') continue;
     const cheminRevue = `plans/${plan}/${session}.revue.md`;
     const ajoutee = git(cwd, 'log', '--diff-filter=A', '--format=%H', '--', cheminRevue);
     if (ajoutee) continue;
@@ -295,15 +337,21 @@ export function familleModele(valeur) {
   return ['opus', 'sonnet', 'haiku', 'fable'].find((f) => s.includes(f)) ?? null;
 }
 
-/** Sessions restant à faire dans les plans ouverts : `[{plan, session, modele, effort}]`.
+/** Table BRUTE de toutes les sessions déclarées dans `plans/P<n>/index.md`, cochées ou non :
+ *  `[{plan, session, modele, effort, statutBrut}]`. Partagée par `sessionsOuvertes` (qui filtre
+ *  sur `[ ]`) et `revuesManquantes` (qui a besoin de l'Effort d'une session quel que soit son
+ *  statut — une session `low` reste exemptée de revue même une fois cochée, T2/P10/S1) : une seule
+ *  lecture de la table, jamais deux parseurs à tenir synchronisés.
  *
- *  Lues dans `plans/P<n>/index.md`, **seul porteur des statuts** (§4a) — jamais dans les `S<k>.md`,
- *  qui les dupliqueraient. Colonnes attendues : Session, Tâches, Titre, Modèle, Effort, Env.,
- *  Dépend de, Zone, Statut ; une ligne qui n'a pas cette forme est ignorée.
+ *  Colonnes attendues : Session, Tâches, Titre, Modèle, Effort, Env., Dépend de, Zone, Statut ;
+ *  une ligne qui n'a pas cette forme est ignorée. `effort` normalisé comme dans
+ *  `plugin/bin/prochaine-action.mjs` (emphase markdown retirée, minuscules) — les deux scripts
+ *  doivent lire le même effort pour la même cellule.
  *
- *  Tolérant de bout en bout : dossier absent, table mal formée, fichier illisible → tableau vide.
- *  Ce qui s'appuie dessus signale un écart, il n'invente jamais une session. */
-export function sessionsOuvertes(cwd) {
+ *  Tolérant de bout en bout : racine introuvable, dossier absent, table mal formée, fichier
+ *  illisible → tableau vide. Ce qui s'appuie dessus signale un écart, il n'invente jamais une
+ *  session. */
+function toutesLesSessions(cwd) {
   const racine = racineDepot(cwd);
   if (racine === null) return []; // racine introuvable : rien à signaler, jamais une exception
   const dossierPlans = join(racine, 'plans');
@@ -331,13 +379,31 @@ export function sessionsOuvertes(cwd) {
       if (cellules.length < 9) continue;
       const session = /\b(S\d+)\b/.exec(cellules[0]);
       if (!session) continue;
-      // `[ ]` = reste à faire. `[x]`, `[x]!` (revue à bloquant, §4a), `[~]`, l'en-tête et le
-      // séparateur sont hors sujet.
-      if (!/\[\s\]/.test(cellules[8])) continue;
-      out.push({ plan, session: session[1], modele: cellules[3], effort: cellules[4] });
+      out.push({
+        plan,
+        session: session[1],
+        modele: cellules[3],
+        effort: cellules[4].replace(/[`*]/g, '').trim().toLowerCase(),
+        statutBrut: cellules[8],
+      });
     }
   }
   return out;
+}
+
+/** Sessions restant à faire dans les plans ouverts : `[{plan, session, modele, effort}]`.
+ *
+ *  Lues dans `plans/P<n>/index.md`, **seul porteur des statuts** (§4a) — jamais dans les `S<k>.md`,
+ *  qui les dupliqueraient.
+ *
+ *  Tolérant de bout en bout : dossier absent, table mal formée, fichier illisible → tableau vide.
+ *  Ce qui s'appuie dessus signale un écart, il n'invente jamais une session. */
+export function sessionsOuvertes(cwd) {
+  return toutesLesSessions(cwd)
+    // `[ ]` = reste à faire. `[x]`, `[x]!` (revue à bloquant, §4a), `[~]`, l'en-tête et le
+    // séparateur sont hors sujet.
+    .filter((s) => /\[\s\]/.test(s.statutBrut))
+    .map(({ plan, session, modele, effort }) => ({ plan, session, modele, effort }));
 }
 
 export function repondre(objet) {
@@ -370,8 +436,11 @@ export function versionSuperieure(a, b) {
  *  vendoré du projet (`.claude/workflow/manifest.json`, champ `source` : un slug
  *  `propriétaire/dépôt`, l'URL interrogée étant `https://github.com/<slug>`).
  *
- *  Cache 24 h dans `.git/workflow-version.json` (`{ version, lu }`) : un `git ls-remote` sur un
- *  dépôt public coûte un aller-retour réseau à CHAQUE SessionStart sans lui. Plafond de 3 s sur
+ *  Cache 24 h sous le VRAI gitdir (`{ version, lu }`, via `--git-path`, jamais
+ *  `join(racine, '.git', …)` : quand `.git` est un FICHIER — gitdir déplacé, ~20 projets depuis le
+ *  2026-09-15 — ce chemin littéral n'existe pas, le cache ne s'écrivait ni ne se relisait jamais, et
+ *  `git ls-remote` retentait le réseau à CHAQUE SessionStart, T2/P10/S1) : un `git ls-remote` sur un
+ *  dépôt public coûte un aller-retour réseau à chaque fois sans ce cache. Plafond de 3 s sur
  *  l'appel réseau — un réseau lent ou injoignable ne doit jamais coûter le hook au-delà de ce délai.
  *  Échec (hors ligne, dépôt introuvable, délai dépassé, pas de manifeste) → `null`, cache JAMAIS
  *  écrit : un état transitoire ne doit pas geler `null` pendant 24 h la prochaine fois que le
@@ -379,7 +448,8 @@ export function versionSuperieure(a, b) {
 export function derniereVersionPubliee(cwd) {
   const racine = racineDepot(cwd);
   if (racine === null) return null; // racine introuvable : jamais de réseau, jamais une exception
-  const cheminCache = join(racine, '.git', 'workflow-version.json');
+  const cheminCache = git(racine, 'rev-parse', '--path-format=absolute', '--git-path', 'workflow-version.json');
+  if (!cheminCache) return null; // `git` en échec (pas un dépôt) : jamais de cache, jamais une exception
   const maintenant = Date.now();
   const TTL_MS = 24 * 60 * 60 * 1000;
 
