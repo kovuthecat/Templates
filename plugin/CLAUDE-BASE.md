@@ -40,11 +40,9 @@ Jamais de dépendance ajoutée seul : à trancher dans le plan (« Modifier »),
 Jamais de Playwright, de script de capture ni d'automatisation de navigateur hors outils in-app :
 aucune régression visuelle scriptée dans ce workflow (`WORKFLOW.md` §6).
 
-**La grille s'arrête à trois.** La relecture de fin de session (`/fin-de-tache`, agent
-`relecteur-session`) est automatique, non bloquante, et **n'est pas un niveau** — dépôt et tri :
-`docs/decisions/2026-09-07-revue-orpheline.md`.
-
-En mode autonome : enchaîner les tâches (gate = N0), accumuler les points N2, rendre la main en fin de lot.
+**La grille s'arrête à trois.** La relecture de fin de session (agent `relecteur-session`) est
+automatique, non bloquante, et **n'est pas un niveau** — dépôt et tri : `/fin-de-tache`, section
+Relecture (contexte : `docs/decisions/2026-09-07-revue-orpheline.md`).
 
 ## Avant de coder
 
