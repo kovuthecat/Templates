@@ -132,6 +132,7 @@ Tentatives : reprise=<n> enquete=<n>
 Blocage : <le geste précis qui manque, en une ligne>
 Mesure : <commit> · <commande qui la reproduit>
 Auto : <oui · option <m> | non — écrite par l'enquête `OPTIONS`, ou par la session en échec elle-même (mêmes critères, C5)>
+Premisse : <refutee · <preuve> — écrite par l'orchestrateur seulement, après `verificateur-premisse` (§9c) ; absente sinon>
 
 ## Tâche visée
 <la tâche T<n>, en une ligne — pas le S<k>.md recopié>
@@ -191,6 +192,11 @@ Les lignes **mécaniques**, en tête, exactement ce format — les seules que l'
 - `Auto :` — écrite par l'enquête `OPTIONS` (Mode enquête, critère), **ou par la session en échec
   elle-même**, mêmes critères (C5) : `oui` fait appliquer l'option recommandée (ou le correctif
   qu'elle nomme) par une reprise, sans question ; absente vaut `non`.
+- `Premisse : refutee · <preuve>` — écrite **seulement par l'orchestrateur**, après que
+  `verificateur-premisse` a rendu `REFUTEE` (`/orchestrer-plan` 5c, `orchestrer-plan/references/remediation.md`),
+  jamais par la session en échec elle-même. Sa présence fait suivre la session la branche
+  `exécution` plutôt que `verifier-premisse`, même si `Nature : prémisse` reste écrite telle quelle
+  (T5, P10/S2) : la vraie cause est ailleurs que là où la session l'a cherchée.
 
 **La prémisse est le seul champ qu'un tiers vérifie.** Une session en échec écrit ce qu'elle croit ;
 une prémisse fausse arrête un plan entier. C'est pourquoi l'orchestrateur la fait confronter au

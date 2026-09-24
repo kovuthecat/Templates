@@ -92,6 +92,25 @@ function racineDepot() {
   return null; // worktree lié d'un dépôt à `.git` déplacé : `git worktree list` n'y est pas fiable
 }
 
+/** Rebase en cours (fusion ou apply) : jamais résolu depuis un script, toujours une `question`
+ * (T5, P10/S2). `--path-format=absolute` : même convention que `racineDepot`, insensible au cwd. */
+function rebaseEnCours() {
+  for (const nom of ['rebase-merge', 'rebase-apply']) {
+    const chemin = git('rev-parse', '--path-format=absolute', '--git-path', nom);
+    if (chemin && existsSync(chemin)) return true;
+  }
+  return false;
+}
+
+/** Fichiers **suivis** modifiés, jamais les non suivis (`--untracked-files=no`) : un arbre sale au
+ * sens de `pousser` (T5, P10/S2, incident ebm-msp) — distinct de `fichiersSales()` ci-dessous, qui
+ * inclut les non-suivis pour le contrôle de zone avant `lancer` (D1). `null` (git en échec) compte
+ * comme sale : jamais un arbre invérifiable traité comme propre. */
+function arbreTrackedSale() {
+  const sortie = git('status', '--porcelain', '--untracked-files=no');
+  return sortie === null || sortie.length > 0;
+}
+
 function etatAmont() {
   const amont = git('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}');
   if (!amont) return null;
@@ -193,6 +212,8 @@ function lireIndex(dossierPlan) {
         validationHumaine: labelNormalise.includes('validation-humaine'),
         repriseManuelle: labelNormalise.includes('reprise-manuelle'),
         cloture: labelNormalise.includes('clôture'),
+        // « validée » (accents/casse libres) acquitte explicitement une validation-humaine (T5, P10/S2).
+        validee: normaliserSimple(labelBrut || '').includes('validee'),
         gateLegacy: labelNormalise.includes('gate'), // ancien mot : signalé, jamais interprété
         sessions: [...membres.matchAll(/S\d+/g)].map((m) => m[0]),
       });
@@ -297,6 +318,11 @@ function lireEchec(chemin) {
     }
   }
 
+  // Une prémisse réfutée par `verificateur-premisse` (§9c) : l'orchestrateur ajoute cette ligne au
+  // rapport avant de rappeler le script (T5, P10/S2) — casse et accents libres.
+  const premisseBrut = valeur('Premisse');
+  const premisseRefutee = premisseBrut ? normaliserSimple(premisseBrut).startsWith('refutee') : false;
+
   return {
     nature,
     natureInconnue,
@@ -305,6 +331,7 @@ function lireEchec(chemin) {
     mesure,
     auto,
     avertissementAuto,
+    premisseRefutee,
     demarrageAFroid: !blocage,
   };
 }
@@ -481,6 +508,16 @@ function remedier(session, enqueteTotalPlan) {
   // Valeur de `Nature :` présente mais non reconnue → question avant tout diagnostic (T4, P10/S2).
   if (e.natureInconnue) return questionNatureInconnue(session, e.natureInconnue);
 
+  // Filtre de contenu : nature à part, jamais reprise à l'identique (§9a) — toujours une question,
+  // même devant un `Auto : oui · option <m>` déjà posé (T5, P10/S2).
+  if (e.nature === 'filtre') {
+    return {
+      action: 'question',
+      motif: `filtre de contenu sur ${session.session} : jamais repris à l'identique`,
+      options: { source: 'filtre', session: session.session },
+    };
+  }
+
   // `Auto : oui · option <m>` — remède déjà connu, prioritaire sur la nature (C5, WORKFLOW.md §9c).
   const auto = e.auto && /^oui\s*·\s*option\s*(\d+)/i.exec(e.auto);
   if (auto) {
@@ -488,7 +525,12 @@ function remedier(session, enqueteTotalPlan) {
     return { action: 'reprendre', session: session.session, modele: modeleIndex, option: Number(auto[1]) };
   }
 
-  if (e.nature === 'prémisse') {
+  // Une prémisse réfutée par `verificateur-premisse` (l'orchestrateur a ajouté `Premisse : refutee`
+  // au rapport avant de rappeler le script, T5/P10/S2) suit désormais la branche `exécution` : la
+  // vraie cause est ailleurs que là où la session l'a cherchée.
+  const nature = e.nature === 'prémisse' && e.premisseRefutee ? 'exécution' : e.nature;
+
+  if (nature === 'prémisse') {
     if (e.mesure) {
       const commit = /^(\S+)/.exec(e.mesure)?.[1];
       const existe = commit ? git('cat-file', '-e', commit) !== null : false;
@@ -505,12 +547,13 @@ function remedier(session, enqueteTotalPlan) {
     return { action: 'verifier-premisse', session: session.session };
   }
 
-  if (e.nature === 'environnement') {
+  if (nature === 'environnement') {
     if (e.tentatives.reprise >= 2) return questionBudget(session);
     return { action: 'reprendre', session: session.session, modele: modeleIndex };
   }
 
-  // `exécution`, ou nature absente (défaut du parseur d'échec — reprendre-echec/SKILL.md « Gabarit »).
+  // `exécution`, prémisse réfutée, ou nature absente (défaut du parseur d'échec — reprendre-echec/
+  // SKILL.md « Gabarit »).
   if (modeleIndex === 'Opus') {
     if (e.blocage) {
       if (e.tentatives.reprise >= 2) return questionBudget(session);
@@ -523,8 +566,18 @@ function remedier(session, enqueteTotalPlan) {
   return { action: 'reprendre', session: session.session, modele: UN_CRAN_AU_DESSUS[modeleIndex] ?? 'Sonnet' };
 }
 
-/** Une action parmi celles de C2, dérivée de l'état déjà assemblé (`sortie`). */
+/** Une action parmi celles de C2, dérivée de l'état déjà assemblé (`sortie`). Ordre des tests (T5,
+ * P10/S2, incident ebm-msp 2026-09-24) : rebase, verrou, interruption, `pousser` (arbre propre
+ * seulement), le reste inchangé. */
 function prochaineAction(sortie) {
+  if (sortie.depot.rebase) {
+    return {
+      action: 'question',
+      motif: 'rebase en cours : le résoudre avant de reprendre le plan',
+      options: { source: 'rebase' },
+    };
+  }
+
   if (sortie.depot.waveLock) {
     return {
       action: 'question',
@@ -533,7 +586,31 @@ function prochaineAction(sortie) {
     };
   }
 
+  const vagues = [...sortie.vagues].sort((a, b) => a.numero - b.numero);
+
+  // Une session interrompue par quota (nature `interruption`) se relance avant tout `pousser`, et
+  // ne consomme aucune reprise du budget (décision 2026-09-24, point 7).
+  for (const vague of vagues) {
+    const membres = vague.sessions.map((id) => sortie.sessions.find((s) => s.session === id)).filter(Boolean);
+    const interrompue = membres.find((s) => s.etat === 'echec' && s.echec?.nature === 'interruption');
+    if (interrompue) {
+      return {
+        action: 'relancer-interrompue',
+        session: interrompue.session,
+        modele: interrompue.modele,
+        ...champAgent(interrompue.modele, EFFORT_DU_MODELE[interrompue.modele] ?? interrompue.effort),
+      };
+    }
+  }
+
   if (sortie.depot.amont && sortie.depot.amont.avance > 0) {
+    if (sortie.depot.arbreSale) {
+      return {
+        action: 'question',
+        motif: 'arbre non commité : impossible de pousser sans perdre ou masquer ce diff',
+        options: { source: 'arbre-sale' },
+      };
+    }
     return { action: 'pousser' };
   }
 
@@ -541,7 +618,6 @@ function prochaineAction(sortie) {
     .filter((s) => s.etat === 'echec')
     .reduce((acc, s) => acc + (s.echec?.tentatives.enquete ?? 0), 0);
 
-  const vagues = [...sortie.vagues].sort((a, b) => a.numero - b.numero);
   for (const vague of vagues) {
     const membres = vague.sessions
       .map((id) => sortie.sessions.find((s) => s.session === id))
@@ -614,7 +690,9 @@ function prochaineAction(sortie) {
       }
     }
 
-    if (vague.validationHumaine) {
+    // « validée » (accents/casse libres) dans le libellé de la vague l'acquitte explicitement
+    // (T5, P10/S2) — l'acquittement implicite par le démarrage de la vague suivante reste valable.
+    if (vague.validationHumaine && !vague.validee) {
       const suivante = vagues.find((v) => v.numero === vague.numero + 1);
       const suivanteDemarree = suivante
         ? suivante.sessions.some((id) => {
@@ -626,7 +704,8 @@ function prochaineAction(sortie) {
         return { action: 'validation-humaine', vague: vague.numero };
       }
     }
-    // Sinon : vague déjà validée (implicitement, par le démarrage de la suivante) — continuer.
+    // Sinon : vague déjà validée (explicitement, ou implicitement par le démarrage de la suivante) —
+    // continuer.
   }
 
   // Une session `a-lancer` qui n'appartient à aucune vague ne sera jamais lancée par la boucle
@@ -688,6 +767,9 @@ function formaterTexte(action) {
     case 'enqueter':
       ligne = `enqueter — ${action.session} (${action.modele})`;
       break;
+    case 'relancer-interrompue':
+      ligne = `relancer-interrompue — ${action.session} (${action.modele})`;
+      break;
     case 'relire':
       ligne = `relire — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ')}`;
       break;
@@ -716,7 +798,10 @@ function lignesAppelAgent(action) {
   if (action.action === 'lancer') {
     return action.sessions.filter((s) => s.agent).map((s) => ligne(s.session, s.agent));
   }
-  if ((action.action === 'reprendre' || action.action === 'enqueter') && action.agent) {
+  if (
+    (action.action === 'reprendre' || action.action === 'enqueter' || action.action === 'relancer-interrompue') &&
+    action.agent
+  ) {
     return [ligne(action.session, action.agent)];
   }
   return [];
@@ -761,6 +846,8 @@ const sortie = {
   depot: {
     waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
     amont: etatAmont(),
+    rebase: rebaseEnCours(),
+    arbreSale: arbreTrackedSale(),
   },
   vagues: index.vagues,
   sessions: index.sessions,

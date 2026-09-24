@@ -993,6 +993,139 @@ cas('T4 (f) : session hors de toute vague de l\'Ordonnancement → question', ()
 });
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — T5/P10/S2 : filtre, interruption, prémisse réfutée, rebase, arbre sale,
+// validation acquittée. Décision 2026-09-24 (points 7-8), incident ebm-msp.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+cas('T5 : rebase en cours → question', () => {
+  const cwd = dossierJetable('workflow-pa-rebase-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, '.git', 'rebase-merge'), { recursive: true });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (rebase en cours), reçu: ${sortie}`;
+  if (!/rebase/.test(action.motif)) return `motif attendu citant "rebase", reçu: ${action.motif}`;
+  return null;
+});
+
+// Anti-raccourci (S2.md) : un test d'interruption dont l'arbre est propre ne prouverait pas la
+// priorité sur `pousser` — celui-ci porte un commit d'avance ET un fichier suivi modifié non commité.
+cas("T5 : interruption + arbre sale, un commit d'avance → relancer-interrompue (jamais pousser)", () => {
+  const cwd = dossierJetable('workflow-pa-interruption-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd, stdio: 'pipe' });
+  git(cwd, 'config', 'user.email', 'test@local');
+  git(cwd, 'config', 'user.name', 'Test');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const bare = dossierJetable('workflow-pa-interruption-bare-');
+  execFileSync('git', ['init', '--bare', '-q'], { cwd: bare, stdio: 'pipe' });
+  git(cwd, 'remote', 'add', 'origin', bare);
+  git(cwd, 'push', '-q', '-u', 'origin', 'main');
+  writeFileSync(join(cwd, 'scratch.txt'), 'x\n');
+  git(cwd, 'add', 'scratch.txt');
+  git(cwd, 'commit', '-q', '-m', 'travail local non poussé'); // avance > 0 sur origin/main
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S2.echec.md'),
+    ['Nature : interruption', 'Tentatives : reprise=0 enquete=0', ''].join('\n'),
+  );
+  git(cwd, 'add', 'plans/P9/S2.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S2 interrompue par quota');
+  writeFileSync(join(cwd, 'scratch.txt'), 'y\n'); // fichier suivi modifié, non commité : arbre sale
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'pousser') return `jamais "pousser" quand une session est interrompue : ${sortie}`;
+  if (!action || action.action !== 'relancer-interrompue') return `action attendue "relancer-interrompue", reçu: ${sortie}`;
+  if (action.session !== 'S2') return `session attendue S2, reçu ${action.session}`;
+  return null;
+});
+
+cas("T5 : arbre sale (fichier suivi modifié), un commit d'avance, aucun échec → question arbre-sale (jamais pousser)", () => {
+  const cwd = dossierJetable('workflow-pa-arbre-sale-pousser-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd, stdio: 'pipe' });
+  git(cwd, 'config', 'user.email', 'test@local');
+  git(cwd, 'config', 'user.name', 'Test');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const bare = dossierJetable('workflow-pa-arbre-sale-pousser-bare-');
+  execFileSync('git', ['init', '--bare', '-q'], { cwd: bare, stdio: 'pipe' });
+  git(cwd, 'remote', 'add', 'origin', bare);
+  git(cwd, 'push', '-q', '-u', 'origin', 'main');
+  writeFileSync(join(cwd, 'scratch.txt'), 'x\n');
+  git(cwd, 'add', 'scratch.txt');
+  git(cwd, 'commit', '-q', '-m', 'travail local non poussé'); // avance > 0
+  writeFileSync(join(cwd, 'scratch.txt'), 'y\n'); // modifié, non commité : arbre sale
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'pousser') return `jamais "pousser" sur un arbre sale : ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (arbre sale), reçu: ${sortie}`;
+  if (!/arbre/.test(action.motif)) return `motif attendu citant l'arbre, reçu: ${action.motif}`;
+  return null;
+});
+
+cas("T5 : Nature : filtre → question, jamais reprise à l'identique (même avec Auto : oui)", () => {
+  const cwd = dossierJetable('workflow-pa-filtre-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : filtre', 'Tentatives : reprise=0 enquete=0', 'Auto : oui · option 1', ''].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (filtre), reçu: ${sortie}`;
+  if (!/filtre/.test(action.motif)) return `motif attendu citant "filtre", reçu: ${action.motif}`;
+  return null;
+});
+
+cas('T5 : Premisse : refutee → suit la branche exécution, jamais verifier-premisse', () => {
+  const cwd = dossierJetable('workflow-pa-premisse-refutee-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    [
+      'Nature : prémisse',
+      'Tentatives : reprise=0 enquete=0',
+      'Premisse : refutee · la fonction ne renvoie jamais null (verificateur-premisse)',
+      '',
+    ].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'verifier-premisse') {
+    return `verifier-premisse n'aurait pas dû être rendu (prémisse déjà réfutée) : ${sortie}`;
+  }
+  if (!action || action.action !== 'reprendre') return `action attendue "reprendre" (branche exécution), reçu: ${sortie}`;
+  return null;
+});
+
+cas('T5 : vague validation-humaine dont le libellé contient « validée » → acquittée, la suivante avance', () => {
+  const cwd = dossierJetable('workflow-pa-validee-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-validation-humaine'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(
+    chemin,
+    readFileSync(chemin, 'utf8').replace(
+      '- **Vague 1 — validation-humaine** : S1.',
+      '- **Vague 1 — validation-humaine, validée le 2026-09-24** : S1.',
+    ),
+  );
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  initDepot(cwd);
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'validation-humaine') {
+    return `validation-humaine n'aurait pas dû être rendu (vague déjà validée) : ${sortie}`;
+  }
+  if (!action || action.action !== 'lancer') return `action attendue "lancer" (vague 2, S2), reçu: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
 // brief-a-jour.mjs — contrôle mécanique décision → brief (T4, P9/S2)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 

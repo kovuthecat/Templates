@@ -5,6 +5,20 @@ actions (`SKILL.md`). Budget, table nature → modèle, dépendances, vérificat
 mesure, appel d'agent prêt à recopier (`subagent_type`, `model`) : rendus par `prochaine-action.mjs`
 (C2), rien de tout ça ne se recalcule ici.
 
+## Table des natures
+
+Cinq natures possibles sur `Nature :` (`WORKFLOW.md` §9a pour les trois premières) ; ce que
+`prochaine-action.mjs` en fait quand la session est en échec — aucun budget de reprise consommé n'y
+est recalculé, ce tableau ne fait que nommer l'action rendue (T5, P10/S2) :
+
+| Nature | Action rendue |
+| --- | --- |
+| `environnement` | `reprendre`, même modèle |
+| `exécution` | `reprendre` (escalade : voir la table d'escalade ci-dessous) ou `enqueter` |
+| `prémisse` | `verifier-premisse` (ou `question` si une mesure commitée la prouve déjà) |
+| `filtre` | `question` — jamais repris à l'identique |
+| `interruption` | `relancer-interrompue` — hors budget, avant tout `pousser` |
+
 ## `verifier-premisse`
 
 Affirmation reprise depuis la section « Ce qu'il faudrait pour que ça passe » du rapport, **elle
@@ -24,7 +38,9 @@ Réponse finale en UNE ligne, exactement : PREMISSE: CONFIRMEE|REFUTEE|INDECIDAB
 Agent introuvable : repli `subagent_type: "workflow:verificateur-premisse"` ; encore introuvable →
 `subagent_type: "general-purpose"`, `model: "haiku"`, prompt « Lis `.claude/agents/verificateur-premisse.md` et tiens ce rôle… ». Quatre issues :
 
-- **`REFUTEE`** → rappeler le script (traite la session comme `exécution`) + incident (§9b, nature `prémisse`).
+- **`REFUTEE`** → ajouter au `.echec.md` la ligne `Premisse : refutee · <preuve>` (la preuve rendue
+  par `verificateur-premisse`, telle quelle), committer, puis rappeler le script — qui traite
+  désormais la session comme `exécution` (T5, P10/S2) — + incident (§9b, nature `prémisse`).
 - **`CONFIRMEE`** → `question` (Étape 3 de `SKILL.md`), motif `etape6`.
 - **`INDECIDABLE`** → `question`, motif « prémisse invérifiable par lecture : <l'affirmation> ».
 - **`INDECIDABLE · comportementale`** → `question`, « à sonder » + option **exploration ouverte**
