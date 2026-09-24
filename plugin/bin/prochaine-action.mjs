@@ -153,6 +153,16 @@ function lireIndex(dossierPlan) {
   const ligneWorkflow = lignes.find((l) => /^Workflow\s*:/.test(l.trim()));
   const workflow = ligneWorkflow ? (/Workflow\s*:\s*v?(\S+)/.exec(ligneWorkflow)?.[1] ?? null) : null;
 
+  // Deux lignes facultatives, hors table (T6, P10/S2) : `Remédiation Opus :`, écrite par
+  // l'orchestrateur — survit à la suppression des `.echec.md` au PASS, contrairement à un total
+  // recalculé sur les rapports présents ; `Clos :`, posée par `fin-de-plan.md`.
+  const ligneRemediationOpus = lignes.find((l) => /^Rem[ée]diation\s+Opus\s*:/i.test(l.trim()));
+  const remediationOpus = ligneRemediationOpus
+    ? Number(/:\s*(\d+)/.exec(ligneRemediationOpus)?.[1] ?? 0)
+    : 0;
+  const ligneClos = lignes.find((l) => /^Clos\s*:/.test(l.trim()));
+  const clos = ligneClos ? (/:\s*(\S+)/.exec(ligneClos)?.[1] ?? null) : null;
+
   // Table des sessions : colonnes fixées par le squelette (nouveau-plan/references/squelette-index.md).
   const sessions = [];
   for (const ligneBrute of lignes) {
@@ -229,7 +239,7 @@ function lireIndex(dossierPlan) {
   }
   if (vagues.length === 0) return erreur(`aucune vague reconnue sous « ## Ordonnancement » (${chemin})`);
 
-  return { workflow, sessions, vagues };
+  return { workflow, sessions, vagues, remediationOpus, clos };
 }
 
 // ── Tâches d'une session, commitées ou non ────────────────────────────────────────────────────────
@@ -252,6 +262,15 @@ function refsCommitees() {
     refs.add(`${m[1]}/${m[2]}/${m[3]}`);
   }
   return refs;
+}
+
+/** Un fichier **ajouté** par un commit, même s'il a été supprimé depuis (T6, P10/S2) — évite qu'une
+ * revue déposée puis rangée au tri de clôture ne relance `relire` (constat 2026-09-24, même technique
+ * que `plugin/hooks/lib.mjs` `revuesManquantes` : `git log --diff-filter=A`). `chemin` relatif à la
+ * racine du dépôt (git tourne avec `cwd: RACINE`). */
+function ajouteParUnCommit(chemin) {
+  const sortie = git('log', '--diff-filter=A', '--format=%H', '--', chemin);
+  return Boolean(sortie);
 }
 
 // ── `.echec.md` : les lignes mécaniques, défauts du gabarit quand une ligne manque ───────────────────
@@ -500,8 +519,18 @@ function questionNatureInconnue(session, valeur) {
   };
 }
 
-/** Décision pour UNE session en échec (table « la nature décide », remediation.md). */
-function remedier(session, enqueteTotalPlan) {
+function questionBudgetOpus(session) {
+  return {
+    action: 'question',
+    motif: `remédiation Opus déjà consommée sur ce plan : budget épuisé pour ${session.session}`,
+    options: { source: 'budget-opus', session: session.session },
+  };
+}
+
+/** Décision pour UNE session en échec (table « la nature décide », remediation.md).
+ * `remediationOpusDeja` : la ligne `Remédiation Opus :` de l'index (T6, P10/S2) — au plus une passe
+ * Opus (reprise ou enquête, session Opus comprise) par plan. */
+function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
   const e = session.echec;
   const modeleIndex = session.modele;
 
@@ -553,17 +582,29 @@ function remedier(session, enqueteTotalPlan) {
   }
 
   // `exécution`, prémisse réfutée, ou nature absente (défaut du parseur d'échec — reprendre-echec/
-  // SKILL.md « Gabarit »).
+  // SKILL.md « Gabarit »). Décision du 2026-09-24, points 4 et 6 : la 1re reprise tourne sur le
+  // modèle de l'index, la 2e un cran au-dessus ; au plus une passe Opus de remédiation par plan
+  // (T6, P10/S2).
+  let modeleCible;
+  let typeAction;
   if (modeleIndex === 'Opus') {
     if (e.blocage) {
       if (e.tentatives.reprise >= 2) return questionBudget(session);
-      return { action: 'reprendre', session: session.session, modele: 'Opus' };
+      modeleCible = 'Opus';
+      typeAction = 'reprendre';
+    } else {
+      if (e.tentatives.enquete >= 1 || enqueteTotalPlan >= 2) return questionBudget(session, 'enquete');
+      modeleCible = 'Opus';
+      typeAction = 'enqueter';
     }
-    if (e.tentatives.enquete >= 1 || enqueteTotalPlan >= 2) return questionBudget(session, 'enquete');
-    return { action: 'enqueter', session: session.session, modele: 'Opus' };
+  } else {
+    if (e.tentatives.reprise >= 2) return questionBudget(session);
+    modeleCible = e.tentatives.reprise >= 1 ? (UN_CRAN_AU_DESSUS[modeleIndex] ?? 'Sonnet') : modeleIndex;
+    typeAction = 'reprendre';
   }
-  if (e.tentatives.reprise >= 2) return questionBudget(session);
-  return { action: 'reprendre', session: session.session, modele: UN_CRAN_AU_DESSUS[modeleIndex] ?? 'Sonnet' };
+
+  if (modeleCible === 'Opus' && remediationOpusDeja >= 1) return questionBudgetOpus(session);
+  return { action: typeAction, session: session.session, modele: modeleCible };
 }
 
 /** Une action parmi celles de C2, dérivée de l'état déjà assemblé (`sortie`). Ordre des tests (T5,
@@ -632,7 +673,7 @@ function prochaineAction(sortie) {
           options: { source: 'reprise-manuelle', session: enEchec.session },
         };
       }
-      const decision = remedier(enEchec, enqueteTotalPlan);
+      const decision = remedier(enEchec, enqueteTotalPlan, sortie.remediationOpus ?? 0);
       if (decision.action === 'verifier-premisse') {
         decision.chemin = `plans/${sortie.plan}/${enEchec.session}.echec.md`;
       }
@@ -721,6 +762,12 @@ function prochaineAction(sortie) {
     };
   }
 
+  // Clôture (T6, P10/S2, décision 2026-09-24 point 4) : un plan stampé `Workflow :` sans `Clos :`
+  // dans l'index revient à l'orchestrateur pour `fin-de-plan.md`, qui pose le marqueur — un plan déjà
+  // clos, ou antérieur à C4 (jamais stampé), rend directement `fini`.
+  if (sortie.workflow && !sortie.clos) {
+    return { action: 'cloturer' };
+  }
   return { action: 'fini' };
 }
 
@@ -785,6 +832,9 @@ function formaterTexte(action) {
     case 'fini':
       ligne = 'fini';
       break;
+    case 'cloturer':
+      ligne = 'cloturer';
+      break;
     default:
       ligne = action.action;
   }
@@ -834,7 +884,16 @@ for (const s of index.sessions) {
   }
 
   s.echec = s.etat === 'echec' ? lireEchec(cheminEchec) : null;
-  s.revue = existsSync(cheminRevue) ? lireRevue(cheminRevue) : null;
+  // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
+  // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
+  // fichier n'existe plus (T6, P10/S2).
+  if (existsSync(cheminRevue)) {
+    s.revue = lireRevue(cheminRevue);
+  } else if (ajouteParUnCommit(`plans/${plan}/${s.session}.revue.md`)) {
+    s.revue = { bloquant: null };
+  } else {
+    s.revue = null;
+  }
 }
 
 // Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : `waveLock` vrai par défaut,
@@ -843,6 +902,8 @@ const racineActuelle = racineDepot();
 const sortie = {
   plan,
   workflow: index.workflow,
+  clos: index.clos,
+  remediationOpus: index.remediationOpus,
   depot: {
     waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
     amont: etatAmont(),

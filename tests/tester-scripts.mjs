@@ -418,7 +418,9 @@ cas('moteur : session low avec zone réelle sans revue → la vague avance (pas 
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (action && action.action === 'relire') return `relire n'aurait pas dû être rendu pour une session low: ${sortie}`;
-  if (!action || action.action !== 'fini') return `action attendue "fini" (vague avancée sans revue), reçu: ${sortie}`;
+  // Plan stampé `Workflow :` sans `Clos :` : la vague avancée mène à `cloturer`, pas `fini` (T6,
+  // P10/S2) — c'est justement l'absence de `relire` ci-dessus qui prouve l'exemption `low`.
+  if (!action || action.action !== 'cloturer') return `action attendue "cloturer" (vague avancée sans revue), reçu: ${sortie}`;
   return null;
 });
 
@@ -478,8 +480,8 @@ cas('moteur : effort inconnu ("turbo") en index → question, valeurs acceptées
   return null;
 });
 
-cas('moteur : échec exécution, modèle Sonnet → reprendre Opus (un cran au-dessus)', () => {
-  const cwd = dossierJetable('workflow-pa-reprendre-exec-');
+cas('moteur : échec exécution, modèle Sonnet, reprise=0 → reprendre même modèle (T6, escalade économe)', () => {
+  const cwd = dossierJetable('workflow-pa-reprendre-exec-meme-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   writeFileSync(
     join(cwd, 'plans', 'P9', 'S1.echec.md'),
@@ -489,7 +491,22 @@ cas('moteur : échec exécution, modèle Sonnet → reprendre Opus (un cran au-d
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'reprendre') return `action attendue "reprendre", reçu: ${sortie}`;
   if (action.session !== 'S1') return `session attendue S1, reçu ${action.session}`;
-  if (action.modele !== 'Opus') return `modèle attendu "Opus" (un cran au-dessus de Sonnet), reçu ${action.modele}`;
+  if (action.modele !== 'Sonnet') return `modèle attendu "Sonnet" (1re reprise, même modèle que l'index), reçu ${action.modele}`;
+  return null;
+});
+
+cas('moteur : échec exécution, modèle Sonnet, reprise=1 → reprendre Opus (un cran au-dessus)', () => {
+  const cwd = dossierJetable('workflow-pa-reprendre-exec-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `action attendue "reprendre", reçu: ${sortie}`;
+  if (action.session !== 'S1') return `session attendue S1, reçu ${action.session}`;
+  if (action.modele !== 'Opus') return `modèle attendu "Opus" (2e reprise, un cran au-dessus de Sonnet), reçu ${action.modele}`;
   return null;
 });
 
@@ -595,8 +612,8 @@ cas('moteur (gitfile) : wave.lock présent, un commit d\'avance sur origin → j
   return null;
 });
 
-cas('moteur : tout coché, revues faites, rien à pousser → fini', () => {
-  const cwd = dossierJetable('workflow-pa-fini-');
+cas('moteur : tout coché, revues faites, rien à pousser, pas de Clos : → cloturer (T6)', () => {
+  const cwd = dossierJetable('workflow-pa-cloturer-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   initDepot(cwd);
   git(
@@ -611,7 +628,29 @@ cas('moteur : tout coché, revues faites, rien à pousser → fini', () => {
   writeFileSync(join(cwd, 'plans', 'P9', 'S2.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
-  if (!action || action.action !== 'fini') return `action attendue "fini", reçu: ${sortie}`;
+  if (!action || action.action !== 'cloturer') return `action attendue "cloturer" (Workflow stampé, pas de Clos :), reçu: ${sortie}`;
+  return null;
+});
+
+cas('moteur : même plan, index avec `Clos : 2026-09-24` → fini (T6)', () => {
+  const cwd = dossierJetable('workflow-pa-fini-clos-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Workflow : v0.39.0', 'Workflow : v0.39.0\nClos : 2026-09-24'));
+  initDepot(cwd);
+  git(
+    cwd,
+    'commit',
+    '--allow-empty',
+    '-q',
+    '-m',
+    'S1 et S2\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2\nPlan: P9/S2/T3',
+  );
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S2.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'fini') return `action attendue "fini" (Clos : présent), reçu: ${sortie}`;
   return null;
 });
 
@@ -639,12 +678,12 @@ cas('moteur : lancer à efforts mêlés → S1 {session-low, haiku}, S2 {session
   return null;
 });
 
-cas('moteur : reprendre — échec exécution Sonnet → agent {session-high, opus} (un cran au-dessus)', () => {
+cas('moteur : reprendre — échec exécution Sonnet reprise=1 → agent {session-high, opus} (un cran au-dessus)', () => {
   const cwd = dossierJetable('workflow-pa-agent-reprendre-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   writeFileSync(
     join(cwd, 'plans', 'P9', 'S1.echec.md'),
-    ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
+    ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
   );
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
@@ -1122,6 +1161,62 @@ cas('T5 : vague validation-humaine dont le libellé contient « validée » → 
     return `validation-humaine n'aurait pas dû être rendu (vague déjà validée) : ${sortie}`;
   }
   if (!action || action.action !== 'lancer') return `action attendue "lancer" (vague 2, S2), reçu: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — T6/P10/S2 : action cloturer, une passe Opus de remédiation par plan.
+// Décision 2026-09-24 (points 4 et 6).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+// Anti-raccourci (S2.md) : le `.echec.md` de S1 est bien SUPPRIMÉ PAR UN COMMIT, comme au PASS réel
+// (reprendre-echec/SKILL.md Étape 5) — un fichier qui n'a jamais existé ne prouverait pas que le
+// décompte `Remédiation Opus :` survit à sa suppression.
+cas("T6 : Remédiation Opus : 1 déjà consommée sur le plan → question budget-opus sur la session suivante qui la redemande", () => {
+  const cwd = dossierJetable('workflow-pa-budget-opus-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Workflow : v0.39.0', 'Workflow : v0.39.0\nRemédiation Opus : 1'));
+  initDepot(cwd);
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', ''].join('\n'),
+  );
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', "S1 en échec, remédiée en Opus (compté dans l'index)");
+  // PASS réel : le rapport disparaît, la session reste faite (Plan: déjà commité plus haut).
+  git(cwd, 'rm', '-q', 'plans/P9/S1.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S1 résolue');
+  // S2 échoue à son tour, en exécution, déjà à sa 2e reprise (donc un cran au-dessus de son modèle
+  // Sonnet, c'est-à-dire Opus) : le budget d'une seule passe Opus par plan est déjà consommé.
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S2.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (budget Opus épuisé), reçu: ${sortie}`;
+  if (!/opus/i.test(action.motif)) return `motif attendu citant Opus, reçu: ${action.motif}`;
+  return null;
+});
+
+cas("T6 : revue ajoutée puis supprimée par un commit (tri de clôture) → pas de relire", () => {
+  const cwd = dossierJetable('workflow-pa-revue-ajoutee-supprimee-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  initDepot(cwd);
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  git(cwd, 'add', '.');
+  git(cwd, 'commit', '-q', '-m', 'revue de S1 déposée');
+  git(cwd, 'rm', '-q', 'plans/P9/S1.revue.md');
+  git(cwd, 'commit', '-q', '-m', 'tri de clôture : revue rangée');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action && action.action === 'relire') return `relire n'aurait pas dû être rendu (revue ajoutée par un commit) : ${sortie}`;
   return null;
 });
 

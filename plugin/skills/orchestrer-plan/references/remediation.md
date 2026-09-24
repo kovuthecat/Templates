@@ -19,6 +19,19 @@ est recalculé, ce tableau ne fait que nommer l'action rendue (T5, P10/S2) :
 | `filtre` | `question` — jamais repris à l'identique |
 | `interruption` | `relancer-interrompue` — hors budget, avant tout `pousser` |
 
+## Table d'escalade (nature `exécution`)
+
+Décision du 2026-09-24, points 4 et 6 — Opus économe en permanence (T6, P10/S2) :
+
+| Tentative | Modèle |
+| --- | --- |
+| 1re reprise | le modèle de l'index, inchangé |
+| 2e reprise | un cran au-dessus (Haiku→Sonnet, Sonnet→Opus) |
+| Passe Opus (reprise ou enquête, session Opus comprise) | **une seule par plan** — au-delà : `question`, source `budget-opus` |
+
+Le décompte vit dans la ligne `Remédiation Opus :` de l'index (`squelette-index.md`), incrémentée
+par l'orchestrateur, jamais recalculée sur les `.echec.md` présents (ils disparaissent au PASS).
+
 ## `verifier-premisse`
 
 Affirmation reprise depuis la section « Ce qu'il faudrait pour que ça passe » du rapport, **elle
