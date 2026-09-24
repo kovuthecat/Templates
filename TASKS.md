@@ -10,21 +10,17 @@
 
 - **P6/S7** — `plugin/skills/nouveau-plan/references/squelette-session.md:12`, `plugin/skills/nouveau-plan/SKILL.md:181`, `plugin/agents/verificateur-plan.md:49` : trois disent session `exploration` n'a besoin que branche jetable **nommée**, citant C6. Mais C6 exige branche jetable **poussée** — et même session l'a écrit correctement dans `plugin/skills/cadrer/SKILL.md:136` (« branche jetable poussée »). Cadreur qui suit squelette nomme branche locale sans la pousser ; `verificateur-plan` (contrôle 10) dont c'est rôle rattraper écart, rend RAS car vérifie que présence de nom, pas push. Session `exploration` tourne en sous-agent sur branche invisible d'autre machine/`orchestrer-plan` — défaut exact que C6 voulait fermer.
 
-## Tâches — plan P7 (l'effort d'une session vient de son agent)
+## Tâches — plan P10 (fins de session à propriétaire unique, verrou réparé, régime Pro)
 
-Suivi d'avancement dans `plans/P7/index.md`, jamais ici.
+Suivi d'avancement dans `plans/P10/index.md`, jamais ici.
 
-- T1 — Créer les quatre agents porteurs d'effort · → plans/P7/S1.md
-- T2 — Normaliser et valider la colonne Effort · → plans/P7/S2.md
-- T3 — Porter l'exemption `low` dans le moteur, et faire porter l'effort à `relire` · → plans/P7/S2.md
-- T4 — Retirer l'action `regler-effort`, sans perdre la couverture de `lancer` · → plans/P7/S2.md
-- T5 — Composer le `subagent_type` de session, avec repli annoncé · → plans/P7/S3.md
-- T6 — Transmettre l'effort au relecteur, et retirer les traces de `regler-effort` · → plans/P7/S3.md
-- T7 — Remédiation : reprise et enquête à l'effort de leur modèle · → plans/P7/S3.md
-- T8 — Réécrire §3 « Effort d'orchestration » et §5b · → plans/P7/S4.md
-- T9 — Rendre juste le décompte des agents · → plans/P7/S4.md
-- T10 — Retirer les contournements devenus faux · → plans/P7/S4.md
-- T11 — Numéroter, consigner, publier · → plans/P7/S5.md
+- T1-T3 — Racine du dépôt juste, garde du verrou, collecteur, version chargée · → plans/P10/S1.md
+- T4-T6 — Script d'orchestration : lecture tolérante, nouveaux états, clôture, budget Opus · → plans/P10/S2.md
+- T7-T8 — Fin de session orchestrée à forme unique, relecture manuelle, EXECUTANT réservé · → plans/P10/S3.md
+- T9-T12 — Orchestrateur seul rédacteur, fin-de-plan, WORKFLOW aligné, publication 0.45.0 · → plans/P10/S4.md
+- T13-T14 — Clarté des skills de plan, renvois gardés par test, annexes · → plans/P10/S5.md
+- T15-T16 — Clarté des agents et des petites skills, glossaire · → plans/P10/S6.md
+- T17-T18 — Ménage des plans P6-P9, publication 0.46.0 · → plans/P10/S7.md
 
 ## Tâches — plan P9 (revue d'usage, brief tenu par les décisions)
 
