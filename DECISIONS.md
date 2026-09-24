@@ -32,16 +32,15 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   Claude Design et l'état Design Sync vivent dans `DESIGN_SPEC.md` ; `ARCHITECTURE.md` redevient un
   document technique (découpage, état/persistance, entités) →
   [détail](docs/decisions/2026-08-22-design-spec-validation.md)
-- 2026-08-24 — **Chaque session committe son propre travail** — renversement de §4b : le commit n'est
-  plus reporté en fin de plan, chaque session prend le sien avant de rendre la main (repère
-  `Plan: P<n>/S<k>/T<m>`) ; `index.md` garde un rédacteur unique, push toujours groupé →
+- 2026-08-24 — **Chaque session committe son propre travail** — repère `Plan: P<n>/S<k>/T<m>`,
+  `index.md` à rédacteur unique ; push groupé remplacé le 2026-09-17 (push par session) →
   [détail](docs/decisions/2026-08-24-commit-par-session.md)
 - 2026-08-30 — **Un échec de prémisse étend le plan, il ne crée pas le plan suivant** — `/nouveau-plan`
   gagne une Étape 0 (plan neuf vs extension de `P<n>`) ; plafond à deux vagues de remédiation, la
   troisième passe par `/cadrer` → [détail](docs/decisions/2026-08-30-extension-de-plan.md)
 - 2026-08-30 — **Contexte d'un sous-agent : fork oui, mémoire non** — le `fork` est autorisé quand la
   tâche a besoin du contexte courant, interdit pour une session de plan, une reprise d'échec ou une
-  restitution pure ; aucune mémoire sur les quatre agents mécaniques →
+  restitution pure ; aucune mémoire sur les agents de délégation →
   [détail](docs/decisions/2026-08-30-contexte-des-sous-agents.md)
 - 2026-08-30 — **Écrire pour qui décide** — registre d'écriture opposable dans `CLAUDE-BASE.md` : ce
   qu'un humain lit dit d'abord ce que ça change et à quoi il le verra ; appliqué par `/nouveau-plan`
@@ -51,10 +50,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   commits et statuts (elle ne peut plus coûter la session) ; résultats dans `S<k>.revue.md` classés
   bloquant/backlog, une ligne par vague relayée par l'orchestrateur, tri en clôture de plan →
   [détail](docs/decisions/2026-08-31-revue-plomberie.md)
-- 2026-09-04 — **Les quatre agents de délégation tournent au premier plan** — `explorateur`,
-  `verificateur-n0`, `resumeur-git`, `lecteur-doc` ne se lancent jamais en arrière-plan
-  (`run_in_background: true`) : leur verdict conditionne la suite immédiate de la tâche, à la
-  différence de la voie sous-agent de session entière (`WORKFLOW.md` §5b) →
+- 2026-09-04 — **Les agents de délégation tournent au premier plan** — jamais `run_in_background:
+  true` : leur verdict conditionne la suite de la tâche (`verificateur-n0` retiré depuis, C1) →
   [détail](docs/decisions/2026-09-04-delegation-au-premier-plan.md)
 - 2026-09-05 — **Une revue a posteriori qui recale l'objectif avant de juger le code** — skill
   `/revue-de-conception` : constat écrit/code, **interview de recalage** avec gate explicite, puis
@@ -121,8 +118,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
   orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
   partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
-- 2026-09-18 — **L'effort d'une session vient de son agent** — cadrage : cinq agents
-  `session-<effort>` portant `effort:` en frontmatter, lancés par `subagent_type` composé depuis
+- 2026-09-18 — **L'effort d'une session vient de son agent** — cadrage : quatre agents
+  `session-<effort>` (pas de `session-max`) portant `effort:` en frontmatter, lancés par `subagent_type` composé depuis
   l'index ; l'action `regler-effort` se retire. Neutre sur les outils (filtres identiques pour agent
   nommé et générique) et hors garde de K5 — applique l'effort déjà décidé, n'en décide aucun. Reste
   ouvert : effort de l'orchestrateur, `Agent` en sous-agent d'arrière-plan
@@ -143,6 +140,9 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   [détail](docs/decisions/2026-09-23-brief-tenu-par-les-decisions.md)
 - 2026-09-24 — **Une idée neuve entre par `/cadrer`** — dépliée en question par une annexe d'interview ;
   issue « Idée reportée » vers le brief ; `model: opus` ; pas de skill dédiée → [détail](docs/decisions/2026-09-24-idee-neuve-par-cadrer.md)
+- 2026-09-24 — **Revue finale : propriétaire unique, verrou réparé, régime Pro** — racine par
+  `--show-toplevel` ; l'orchestrateur seul committe revues et clôture ; reprise auto de bloquant
+  retirée ; 1 passe Opus de remédiation par plan → [détail](docs/decisions/2026-09-24-revue-finale-et-regime-pro.md)
 
 ## Archives
 
