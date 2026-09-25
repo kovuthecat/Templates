@@ -1,6 +1,6 @@
 ---
 name: nouveau-plan
-description: Découper un chantier en sessions et générer le dossier plans/P<n>/ (index + un fichier par session). À dérouler par Opus quand une tâche demande plusieurs sessions, ou quand le scope est flou.
+description: Découper un chantier en sessions et générer le dossier plans/P<n>/ (index + un fichier par session). À dérouler par Opus quand une tâche demande plusieurs sessions.
 model: opus
 ---
 
@@ -41,7 +41,7 @@ Un plan sert deux lectures, et rate sa cible s'il n'en sert qu'une :
 `/maj-workflow`. Sans `DÉRIVE` : mise à jour sans question, rapportée ; avec `DÉRIVE` : question
 avant de continuer. Écrire un plan sur un workflow en retard fige dans les squelettes ce que la
 source a déjà corrigé. Dépôt source du workflow (pas de `.claude/workflow/manifest.json`, `plugin/`
-présent) → `claude plugin update workflow@templates` à la place de `/maj-workflow`.
+présent) → `claude plugin update workflow@templates --scope local` à la place de `/maj-workflow`.
 
 Un plan en cours peut produire un résultat qui invalide une hypothèse dont dépendent ses sessions
 restantes : vérité de référence fausse, contrat à changer, mesure qui contredit l'attendu d'une
@@ -298,7 +298,8 @@ Principes :
 
 - **Le bandeau est auto-suffisant** : modèle, effort, environnement, mode parallèle — jamais besoin
   de retourner à l'index pour lancer la session.
-- **« Lire » est restrictif et porté** : que ces fichiers, à la section/fonction près.
+- **« Lire » est un point de départ, pas un plafond** : la lecture reste ouverte, seule
+  l'**écriture** est bornée (à la zone du plan) — `EXECUTANT.md`.
 - **« Étapes » = le comment**, ordonné. Plus le modèle est faible, plus elles sont fines ; si une
   tâche demande trop de jugement pour le modèle visé → la **découper**. Une étape dont l'intention
   n'est pas évidente porte sa raison en fin de ligne, après un tiret : c'est ce qui permet de

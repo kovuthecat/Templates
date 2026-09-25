@@ -903,12 +903,12 @@ function extraireLigneExtension() {
   return m[1];
 }
 
-/** Le bloc gabarit du rapport de passation (section « Gabarit ») de `reprendre-echec/SKILL.md`. */
+/** Le bloc gabarit du rapport de passation, déplacé en annexe (P10/S5/T14) :
+ *  `reprendre-echec/references/gabarit-echec.md`. */
 function extraireGabaritEchec() {
-  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'reprendre-echec', 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
-  const apresGabarit = texte.slice(texte.indexOf('## Gabarit'));
-  const m = /```md\n([\s\S]*?)```/.exec(apresGabarit);
-  if (!m) throw new Error('gabarit reprendre-echec introuvable après « ## Gabarit »');
+  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'reprendre-echec', 'references', 'gabarit-echec.md'), 'utf8').replace(/\r\n/g, '\n');
+  const m = /```md\n([\s\S]*?)```/.exec(texte);
+  if (!m) throw new Error('gabarit reprendre-echec introuvable dans references/gabarit-echec.md');
   return m[1];
 }
 
