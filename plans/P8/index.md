@@ -2,6 +2,8 @@
 
 Workflow : v0.40.0
 
+Clos : 2026-09-24
+
 ## Objectif d'ensemble
 Aujourd'hui, deux exécutants qui suivent le workflow à la lettre font des gestes différents au même
 endroit — et trois de ces endroits cassent à coup sûr (lancement refusé par l'outil `Agent`, agent

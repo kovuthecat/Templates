@@ -2,6 +2,10 @@
 
 Workflow : v0.39.1
 
+Clos : 2026-09-24
+
+Revues S2-S4 non faites, plan publié en 0.40.0.
+
 ## Objectif d'ensemble
 
 Aujourd'hui, la colonne « Effort » de l'index est lue, affichée, recopiée dans chaque `S<k>.md` — et
@@ -32,7 +36,7 @@ vague en le disant, au lieu de se dégrader en silence.
 | [S2](S2.md) | T2-T4 | Le moteur : effort normalisé, validé, transmis | Sonnet | high | — | S1 | `plugin/bin/prochaine-action.mjs` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [x] (2026-09-18) | — |
 | [S3](S3.md) | T5-T7 | Le lancement compose le `subagent_type` | Sonnet | medium | — | S2 | `plugin/skills/orchestrer-plan/SKILL.md` · `plugin/skills/orchestrer-plan/references/remediation.md` | [x] (2026-09-18) | — |
 | [S4](S4.md) | T8-T10 | Les textes disent ce que le code fait | Sonnet | medium | — | S1 | `plugin/WORKFLOW.md` · `plugin/skills/nouveau-plan/SKILL.md` · `plugin/templates/project-settings.json` · `plugin/README.md` | [x] (2026-09-18) | — |
-| [S5](S5.md) | T11 | Version, CHANGELOG, publication | Haiku | low | — | S2, S3, S4 | `plugin/.claude-plugin/plugin.json` · `CHANGELOG.md` · `plugin/MIGRATION.md` | [ ] | — |
+| [S5](S5.md) | T11 | Version, CHANGELOG, publication | Haiku | low | — | S2, S3, S4 | `plugin/.claude-plugin/plugin.json` · `CHANGELOG.md` · `plugin/MIGRATION.md` | [x] 2026-09-24 | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 

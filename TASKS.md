@@ -1,14 +1,16 @@
 # TASKS.md — bloquants et tâches en cours
 
-## Bloquants de revue P6 (à corriger avant prochaine vague)
+## Bloquants de revue (à corriger avant prochaine vague)
 
-- **P6/S1** — `plans/P6/S1.md:94-95` : section « Bilan de session » jamais remplie (reste `<à compléter>`), alors que `/fin-de-tache` l'exige « Toujours ». Contenu existe dans `docs/analyses/2026-09-17-sondes-p6.md` mais au mauvais endroit. `S1.md` est le point d'entrée attendu ; lecteur tombe sur placeholder. Incohérence visible avec `plans/P6/index.md`.
+- **P8/S5** — `docs/analyses/2026-09-22-evals-orchestrateur.md:17-20,79-118` : le doc T12 reste figé
+  sur le rejeu intermédiaire à 7/9 alors que la remédiation a ensuite atteint 9/9 avant publication ;
+  renvoie en l.118 à `plans/P8/S5.echec.md`, supprimé — lien mort dans un livrable publié, contredit
+  par `CHANGELOG.md:6` qui affirme « 9/9 » et renvoie au même doc. Preuve : `plans/P8/S5.revue.md`.
 
-- **P6/S3** — `plugin/hooks/stop-contexte.mjs:90-108` : Sur branche sans amont configuré (ex. `wip/…`), le contrôle ne fait que `git ls-remote --heads origin <branche>` : dès que la branche existe sur le remote, reste muet même si commits ultérieurs ne sont jamais repoussés. Flux normal d'une branche `wip/…` poussée une première fois puis retravaillée : commit peut rester local sans signal. Le hook refuse de rendre la main sur commits non poussés (Objectif T5) mais test existant ne recommite pas après premier push → laisse passer la régression.
-
-- **P6/S4** — `plugin/EXECUTANT.md:68` : ligne « Push en fin de session… sauf sous `wave.lock`… ou en sous-agent orchestré » invente exemption absente de `WORKFLOW.md` §4b et C3. « Sous-agent orchestré » = voie normale §5b (quasi-totalité des sessions). Utilisateur suit `EXECUTANT.md` (ce que *toute* session charge), ne pousse pas en fin de session dans cas le plus courant, croyant orchestrateur poussera « après collecte ». Contredit objectif T9 (sans dupliquer `WORKFLOW.md`) : règle divergente hors domicile. Commits session orchestrée restent non poussés plus longtemps que promis.
-
-- **P6/S7** — `plugin/skills/nouveau-plan/references/squelette-session.md:12`, `plugin/skills/nouveau-plan/SKILL.md:181`, `plugin/agents/verificateur-plan.md:49` : trois disent session `exploration` n'a besoin que branche jetable **nommée**, citant C6. Mais C6 exige branche jetable **poussée** — et même session l'a écrit correctement dans `plugin/skills/cadrer/SKILL.md:136` (« branche jetable poussée »). Cadreur qui suit squelette nomme branche locale sans la pousser ; `verificateur-plan` (contrôle 10) dont c'est rôle rattraper écart, rend RAS car vérifie que présence de nom, pas push. Session `exploration` tourne en sous-agent sur branche invisible d'autre machine/`orchestrer-plan` — défaut exact que C6 voulait fermer.
+- **P9/S3** — `docs/analyses/2026-09-23-eval-revue-d-usage.md:32,47-49` : l'analyse affirme que les
+  graders du cas négatif sont `withOnly` en citant une phrase absente des JSON commités ; or
+  `docs/analyses/evals-23.json` montre `withOnly: false` et un score `without` réel (0/3). Conclusion
+  PASS correcte, justification fabriquée. Preuve : `plans/P9/S3.revue.md`.
 
 ## Tâches — plan P10 (fins de session à propriétaire unique, verrou réparé, régime Pro)
 
