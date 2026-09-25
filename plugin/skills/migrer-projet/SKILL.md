@@ -111,7 +111,7 @@ réponse reformulée en une ligne avant la suivante.
 Ne pas demander ce que la Phase A a déjà établi. Si une réponse contredit le code, le dire et
 trancher avec l'utilisateur : c'est souvent là que se trouve la vraie dette.
 
-## Gate — restituer avant d'écrire
+## Question — restituer avant d'écrire
 
 Synthèse en **≤ 15 lignes** : la voie retenue et pourquoi, l'état constaté, les fichiers qui seront
 créés ou modifiés, ce qui sera supprimé, ce qui sera absorbé depuis la doc existante. Faire valider

@@ -12,8 +12,6 @@ ce qui vient après : elle transforme un rapport de passation en correction vali
 **Démarrage à froid, toujours.** Ne jamais reprendre la conversation de la session en échec pour
 la réparer : elle traîne toutes ses fausses pistes, et c'est justement ce que le rapport de
 passation existe pour éviter (`WORKFLOW.md` §5b). Le rapport est la seule entrée normale.
-`claude --resume <uuid>` (identifiant dans `.claude/vague/S<k>.session`) reste un **recours**, à
-n'ouvrir que si le rapport s'avère insuffisant — et à refermer sans y corriger quoi que ce soit.
 
 Pour la même raison, **jamais de sous-agent `fork` ici** : un fork hérite de toute la conversation,
 c'est-à-dire précisément des fausses pistes qu'on veut laisser derrière. Le seul contexte légitime
@@ -22,7 +20,7 @@ d'une reprise est le rapport de passation.
 ## Mode orchestré
 
 Quand le prompt de lancement dit **« Mode orchestré »**, cette skill tourne dans un sous-agent
-frais lancé par `/orchestrer-plan` (Étape 5c), qui attend une ligne de verdict pour enchaîner ou
+frais lancé par `/orchestrer-plan` (action `reprendre`), qui attend une ligne de verdict pour enchaîner ou
 arrêter le plan. Même procédure, trois différences :
 
 - **Réponse finale en une ligne, exactement** :
@@ -32,7 +30,7 @@ arrêter le plan. Même procédure, trois différences :
 
   | Ce qui arrête la correction | Verdict | Pourquoi |
   | --- | --- | --- |
-  | hypothèse épuisée, aucune autre en une passe (Étape 3) | `ENQUETE` | c'est un **manque d'information** : un humain à qui l'on rend la main ici lancera exactement l'enquête que l'orchestrateur sait lancer (Étape 5d) |
+  | hypothèse épuisée, aucune autre en une passe (Étape 3) | `ENQUETE` | c'est un **manque d'information** : un humain à qui l'on rend la main ici lancera exactement l'enquête que l'orchestrateur sait lancer (action `enqueter`) |
   | `FAIL` après correction, N0 toujours rouge (Étape 4) | `FAIL` | l'orchestrateur décide de la suite d'après le budget de la session ; il n'y a rien à demander ici |
   | annulation destructive (Étape 2) | `DECISION` | irréversible : migration jouée, données écrites, artefact publié |
   | prémisse de plan **confirmée** fausse (Étape 3) | `DECISION` | le périmètre change — étendre, réduire ou abandonner est un arbitrage, pas un diagnostic |
@@ -220,7 +218,7 @@ de soin : c'est le cas où l'état laissé derrière est le moins connu.
 
 - `prémisse` → **en mode orchestré, deux cas, jamais la ligne prise telle quelle sans regarder
   lequel** : (1) l'orchestrateur a fait vérifier l'affirmation (`verificateur-premisse`,
-  `/orchestrer-plan` 5c) et n'a lancé cette reprise que parce qu'elle a été **réfutée** — le prompt
+  `/orchestrer-plan` action `verifier-premisse`) et n'a lancé cette reprise que parce qu'elle a été **réfutée** — le prompt
   de lancement porte alors la preuve. Traiter la session comme une nature `exécution`, en partant de
   cette preuve : la vraie cause est ailleurs que là où la session l'a cherchée. (2) le prompt de
   lancement porte `Nature : prémisse` + `Auto : oui · option <m>` : la prémisse **n'a pas été
@@ -290,7 +288,7 @@ rapport de passation **mis à jour** (même gabarit, section « Déjà écarté 
 d'être invalidé, `Tentatives :` incrémentée sur `reprise`) et rendre la main — mode orchestré :
 `VERDICT: ENQUETE`, motif « hypothèse épuisée : <ce qui vient de tomber> ». **Ce n'est pas une
 demande d'arbitrage** : c'est un manque d'information, et l'orchestrateur lancera l'enquête
-(Étape 5d) que l'utilisateur aurait lancée lui-même. Deux tentatives sur la même hypothèse coûtent
+(action `enqueter`) que l'utilisateur aurait lancée lui-même. Deux tentatives sur la même hypothèse coûtent
 plus qu'une enquête en lecture seule.
 
 ## Étape 4 — Corriger, puis prouver

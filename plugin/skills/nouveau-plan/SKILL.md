@@ -65,13 +65,24 @@ sondable rencontrée à l'Étape 1 — pas seulement au deuxième plan tué sur 
 `/cadrer`, qui sortira par un protocole de preuve, plutôt que de continuer à découper un plan sur
 une inconnue.
 
-**Avant d'écrire un plan neuf, regarder si la zone a déjà tué un plan sur une prémisse** :
-`grep -l 'Nature :.*prémisse' plans/*/*.echec.md`. **Deuxième plan sur la même zone avec cette
-cause → ne pas en écrire un troisième.** La réponse n'existe qu'à l'exécution, et un plan de plus
-gèlera en « tranché » ce qui a tué le précédent — c'est ainsi qu'une zone finit par ne plus contenir
-le geste qu'un humain fait. Dérouler `/cadrer`, qui sortira par un protocole de preuve (décision du
-2026-09-14). `prémisse` est le mode d'échec dominant du workflow : une fois, c'est le système qui
-fonctionne ; c'est la **répétition sur une même zone** qui est le signal.
+### Seuil unique — domicile de « encore un plan ou `/cadrer` »
+
+C'est le seul endroit du workflow qui définit ce seuil ; tout autre texte qui l'évoque y renvoie,
+sans le reformuler ni recalculer son propre compteur.
+
+- **zone** = les chemins de la colonne « Zone modifiée » (`/nouveau-plan` Étape 2).
+- **Un plan a été tué sur une prémisse** si un de ses `.echec.md` a porté `Nature : prémisse`, **y
+  compris supprimé** (l'Étape 5 de `/reprendre-echec` le supprime une fois l'échec résolu — un
+  `grep` sur les fichiers présents sous-compte) :
+  `git log --all -p --diff-filter=AD -- 'plans/*/*.echec.md' | grep -n 'Nature :.*pr[ée]misse'`.
+- **Deuxième plan tué sur la même zone avec cette cause → ne pas en écrire un troisième.** La
+  réponse n'existe qu'à l'exécution, et un plan de plus gèlera en « tranché » ce qui a tué le
+  précédent — c'est ainsi qu'une zone finit par ne plus contenir le geste qu'un humain fait.
+  Dérouler `/cadrer`, qui sortira par un protocole de preuve (décision du 2026-09-14). `prémisse`
+  est le mode d'échec dominant du workflow : une fois, c'est le système qui fonctionne ; c'est la
+  **répétition sur une même zone** qui est le signal.
+- La règle de la **troisième vague de remédiation** (ci-dessus) reste, inchangée : c'est un
+  deuxième compteur, sur le même plan plutôt que sur la zone, et les deux s'appliquent.
 
 ## Étape 1 — Investiguer (jamais modifier)
 
@@ -204,7 +215,7 @@ colonnes — sont ci-dessous.
 **La ligne « en clair » est un contrat de lisibilité, pas une redite du titre.** Elle dit ce que la
 session change et **à quoi l'utilisateur le constatera** : un écran, un comportement, un fichier
 produit, une mesure obtenue. `/orchestrer-plan` la relaie **mot pour mot** au lancement de la vague
-(son Étape 3) sans jamais ouvrir le `S<k>.md` — c'est donc la seule chose que l'utilisateur lira
+(son Étape 1) sans jamais ouvrir le `S<k>.md` — c'est donc la seule chose que l'utilisateur lira
 avant de voir passer les commits. Une ligne qui paraphrase le titre (« S2 — refonte du module
 d'édition ») ne lui apprend rien ; deux phrases suffisent, à condition d'être les bonnes.
 
@@ -218,7 +229,7 @@ vague n'a droit ni à la reprise ni à l'enquête automatiques) portent sur la v
 précise — elle se lance par le repli pastille (premier plan, navigateur complet), **même en
 Desktop** : c'est le cadreur qui le décide ici, au cadrage, quand le N1 de cette session est
 structurant (nouvel écran, refonte de mise en page) et mérite un déroulé surveillé plutôt qu'un
-sous-agent (`/orchestrer-plan` Étape 3, `/verif-visuelle`).
+sous-agent (`/orchestrer-plan` Étape 1, `/verif-visuelle`).
 
 **`validation-humaine` a un seul critère : le `PASS` lui-même demande ton jugement** — une ligne
 `N2 humain` non vide dans une session de la vague, dont la réponse décide s'il faut lancer la
@@ -231,8 +242,8 @@ plus : `/orchestrer-plan` l'ignore.
 
 **Vagues orchestrées (optionnel)** — toute vague s'exécute via `/orchestrer-plan`, qui déroule les
 sessions les unes après les autres jusqu'à épuisement, une `validation-humaine`, ou une **question** à l'utilisateur.
-Un `FAIL` déclenche par défaut le cycle de remédiation à froid (`/orchestrer-plan` 5c et 5d,
-budget : 2 reprises et 1 enquête par session, `WORKFLOW.md` §9c) ; le mot **`reprise-manuelle`** sur
+Un `FAIL` déclenche par défaut le cycle de remédiation à froid (`/orchestrer-plan` actions `reprendre`
+et `enqueter`, budget : 2 reprises et 1 enquête par session, `WORKFLOW.md` §9c) ; le mot **`reprise-manuelle`** sur
 la ligne d'ordonnancement d'une vague le désactive — à déclarer au cadrage quand un échec dans
 cette vague doit passer par un humain d'emblée (état coûteux à annuler, zone sensible). Voies et
 colonne `Env.` : domicile `WORKFLOW.md` §5b, ne pas le reformuler ici. Résumé pour le découpage :

@@ -5,7 +5,7 @@
 // POURQUOI CE FICHIER EXISTE
 // C'était le point qui manquait à l'annexe A4 (docs/decisions/2026-09-14-conditions-nommees-domicile-
 // unique.md, section (a) règle 3) : son risque était nommé (« une annexe mal désignée n'est jamais
-// lue ») sans être levé. Un renvoi qu'aucune machine ne vérifie ne vaut rien. Six assertions, pas
+// lue ») sans être levé. Un renvoi qu'aucune machine ne vérifie ne vaut rien. Sept assertions, pas
 // une de plus — le contrôle porte sur la PRÉSENCE du renvoi, jamais sur son sens : il ne saura jamais
 // dire qu'un invariant est faux, seulement qu'il n'est pas atteignable.
 //
@@ -23,6 +23,10 @@
 //      non citée ne contient `: ` ni ` #` (Trail of Bits — sinon le frontmatter tombe en silence).
 //   6. Toute citation `${CLAUDE_PLUGIN_ROOT}/skills/<s>/references/<x>.md` se résout ; aucune annexe
 //      ne cite elle-même une annexe (une annexe ne chaîne pas).
+//   7. Aucun fichier de `plugin/**` ne cite `/orchestrer-plan` suivi, dans la même phrase, de « 5c »,
+//      « 5d » ou d'un numéro d'`Étape` supérieur au nombre de titres `## Étape` de
+//      `orchestrer-plan/SKILL.md` (restes de la voie headless, ou renumérotation jamais reportée
+//      dans les renvois — P10/S5/T13).
 //
 // Node pur, aucune dépendance : lit les fichiers texte de `plugin/`, aucune écriture.
 //
@@ -376,6 +380,45 @@ cas(`assertion 6 — citation croisée résolue, annexe sans chaîne (${citation
       return `plugin/skills/${a.skill}/references/${a.nom}:${chaine.ligne} cite elle-même references/${chaine.nom} — une annexe ne chaîne pas`;
     }
   }
+  return null;
+});
+
+// ── Assertion 7 — /orchestrer-plan cité sans renvoi mort (« 5c », « 5d », Étape > N) ─────────
+// Restes de la voie headless (« 5c », « 5d ») ou renumérotation d'`orchestrer-plan/SKILL.md`
+// jamais reportée dans ses appelants : un numéro d'Étape qui n'existe plus pointe dans le vide
+// (P10/S5/T13). Le nombre d'étapes réelles se lit dans le fichier lui-même, jamais en dur ici —
+// sinon ce test devient lui-même le prochain renvoi mort à corriger après une renumérotation.
+const orchestrerPlanTexte = readFileSync(join(PLUGIN, 'skills', 'orchestrer-plan', 'SKILL.md'), 'utf8');
+const nbEtapesOrchestrerPlan = (orchestrerPlanTexte.match(/^## Étape \d+/gm) || []).length;
+
+// Découpage grossier en phrases : sur '.', '!', '?' suivi d'espace + majuscule/guillemet/backtick,
+// ou double saut de ligne. Suffisant pour repérer une co-occurrence dans le même voisinage — ce
+// n'est pas une analyse linguistique, seulement de quoi éviter les faux positifs entre deux
+// paragraphes sans rapport qui citeraient chacun `/orchestrer-plan` et une « Étape » de leur côté.
+function phrasesDe(texte) {
+  return texte.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý«`])|\n\n+/);
+}
+
+cas(`assertion 7 — /orchestrer-plan cité sans renvoi mort (5c, 5d, Étape > ${nbEtapesOrchestrerPlan}) (${fichiersPlugin.length} fichier(s) de plugin/** inspecté(s))`, () => {
+  if (nbEtapesOrchestrerPlan === 0) return 'aucun titre ## Étape trouvé dans orchestrer-plan/SKILL.md — motif probablement cassé';
+  let phrasesInspectees = 0;
+  for (const f of fichiersPlugin) {
+    let texte;
+    try { texte = readFileSync(join(PLUGIN, f), 'utf8'); } catch { continue; }
+    if (!texte.includes('/orchestrer-plan')) continue;
+    for (const phrase of phrasesDe(texte)) {
+      if (!phrase.includes('/orchestrer-plan')) continue;
+      phrasesInspectees++;
+      if (/\b5c\b/.test(phrase) || /\b5d\b/.test(phrase)) {
+        return `plugin/${f} : phrase citant /orchestrer-plan et « 5c »/« 5d » — ${JSON.stringify(phrase.slice(0, 140))}`;
+      }
+      const mEtape = phrase.match(/Étape\s+(\d+)/);
+      if (mEtape && Number(mEtape[1]) > nbEtapesOrchestrerPlan) {
+        return `plugin/${f} : phrase citant /orchestrer-plan et « Étape ${mEtape[1]} » (> ${nbEtapesOrchestrerPlan} étapes réelles dans orchestrer-plan/SKILL.md) — ${JSON.stringify(phrase.slice(0, 140))}`;
+      }
+    }
+  }
+  if (phrasesInspectees === 0) return 'aucune phrase citant /orchestrer-plan trouvée sous plugin/** — motif probablement cassé';
   return null;
 });
 
