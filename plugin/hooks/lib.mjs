@@ -321,7 +321,12 @@ export function revuesManquantes(cwd, depuis) {
     if (entree && entree.effort === 'low') continue;
     const cheminRevue = `plans/${plan}/${session}.revue.md`;
     const ajoutee = git(cwd, 'log', '--diff-filter=A', '--format=%H', '--', cheminRevue);
-    if (ajoutee) continue;
+    if (ajoutee) {
+      const dernier = git(cwd, 'log', '-1', '--diff-filter=AM', '--format=%H', '--', cheminRevue);
+      const contenu = dernier ? git(cwd, 'show', `${dernier}:${cheminRevue}`) : null;
+      const couverture = /^Couverture\s*:\s*(.+)$/m.exec(contenu ?? '')?.[1].trim();
+      if (/^Bloquant\s*:\s*\d+/m.test(contenu ?? '') && (!couverture || couverture === 'complète')) continue;
+    }
     manquantes.push(ref);
   }
   return manquantes;

@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "session": "P11/S1",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "e34ab6fcdb053d4d0cbde8b121e0a65c42d1c0697b0128415456066687f667ab",
+  "date": "2026-09-25T17:28:15.867Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 6943
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 7625
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 92
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 30586
+    }
+  ]
+}

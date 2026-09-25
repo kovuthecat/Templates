@@ -71,10 +71,10 @@ if (!sousVerrou) {
 
   for (const ref of revuesManquantes(cwd, repereHead)) {
     problemes.push(
-      `**Revue de session absente — ${ref}.** Des commits de cette session portent du code sous ` +
-      `\`Plan: ${ref}/\`, mais git ne trouve aucun commit ayant ajouté \`plans/${ref}.revue.md\`. ` +
+      `**Revue de session absente ou incomplète — ${ref}.** Des commits de cette session portent du code sous ` +
+      `\`Plan: ${ref}/\`, mais git ne trouve aucune revue terminée dans \`plans/${ref}.revue.md\`. ` +
       `Si la revue n'a pas tourné : lance l'agent \`relecteur-session\` AU PREMIER PLAN ` +
-      `(/fin-de-tache, « Relecture de session ») — c'est LUI qui dépose et commite le fichier. Si ` +
+      `(/fin-de-tache, « Relecture de session ») — il dépose le fichier ; le parent le committe. Si ` +
       `cette session n'a pas l'outil Agent (sous-agent orchestré) : dis-le en une ligne, ` +
       `l'orchestrateur la lance après collecte (/orchestrer-plan Étape 2).`
     );

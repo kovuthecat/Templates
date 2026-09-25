@@ -30,13 +30,14 @@ Si tu déclares une **prémisse** du plan fausse (hors amendement), écris-la **
 qu'une lecture du dépôt confirme ou réfute, jamais un jugement : elle sera vérifiée avant d'arrêter
 le plan (`WORKFLOW.md` §9c). Critère général et cas non couverts par la table : `WORKFLOW.md` §9c.
 
-## Déléguer plutôt que faire soi-même
+## Chercher directement ou déléguer
 
 **Tout appel `Agent` : `run_in_background: false`. Aucune commande détachée. Sans exception.**
 
 | Besoin | Agent |
 | --- | --- |
-| localiser qqch touchant plus d'1 fichier | `explorateur` |
+| recherche précise, chemins connus, sortie courte (≤ 30 lignes) | `Grep` / `Glob` / `Read` directement ; élargissement nécessaire → `explorateur` |
+| exploration large, plusieurs pistes ou traces volumineuses | `explorateur` |
 | résumer un diff/historique | `resumeur-git` |
 | lire une doc externe | `lecteur-doc` |
 | comprendre un flux existant (lecture seule) | `analyste-flux` |
@@ -60,6 +61,13 @@ quatre autres agents du workflow (`relecteur-session`, `verificateur-plan`, `ver
 - **Jamais de worktree.**
 
 ## Fin de tâche
+
+Index avec `Preuve N0 : requise` : avant le dernier commit de tâche, lancer N0 **complet** avec
+`--session P<n>/S<k>` et committer `plans/P<n>/S<k>.n0.json` avec les fichiers validés.
+Un test ciblé sert au diagnostic, jamais de preuve complète. Si des entrées changent après N0,
+le relancer ; les fichiers de suivi `plans/`, STATUS/TASKS/DECISIONS/CHANGELOG sont exclus.
+Sous verrou : produire la preuve après stabilisation des écritures ; l'orchestrateur la committe.
+La preuve vérifie les fichiers Git non ignorés (liens et modes compris) ; pas les services externes.
 
 Teste, dans l'ordre, **avant** d'agir :
 

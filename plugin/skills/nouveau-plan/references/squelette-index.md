@@ -7,6 +7,7 @@ vit ici et nulle part ailleurs (`WORKFLOW.md` §4a).
 # Plan P<n> — <titre du plan>   (rédigé par Opus)
 
 Workflow : v<x>
+Preuve N0 : requise
 
 <!-- Deux lignes facultatives, hors table, ni écrites ni retirées par le cadrage (T6, P10/S2) :
      `Remédiation Opus : <n>` — le compteur des passes Opus de remédiation déjà consommées sur ce

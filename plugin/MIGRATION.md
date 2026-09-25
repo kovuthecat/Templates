@@ -1,5 +1,19 @@
 # MIGRATION.md — remplacé par la skill `/migrer-projet`
 
+## Vers 0.48.0
+
+Synchroniser le workflow via `/maj-workflow`. Les nouvelles sessions utilisent des listes
+`- Lire : `chemin`` et `- Modifier : `chemin` (créer)` pour le vérificateur mécanique.
+Les nouveaux index portent `Preuve N0 : requise` ; les anciens restent compatibles et ne
+l'adoptent que sur décision explicite. En extension d'un ancien plan, lancer `verifier-plan.mjs`
+avec `--extension` (les contrôles mécaniques restent actifs).
+N0 final : `node .claude/workflow/bin/n0.mjs --session P<n>/S<k>` ; committer la preuve
+`plans/P<n>/S<k>.n0.json` avec les fichiers validés. Tests ciblés : diagnostic seulement.
+Revues : `Reprises : 0|1` et `Dépendances : bloquées|libres` ; champ de dépendances absent
+avec bloquants = blocage conservateur. Les anciennes revues sans champ Couverture restent
+lisibles ; `Couverture : en cours` ne vaut jamais revue terminée.
+
+
 **Ce document est un renvoi, plus une procédure.** L'historique des migrations successives
 (centralisation 2026-07-07 → plugin 2026-08-22 → vendoring 2026-08-24) vivait ici et décrivait, à la
 fin, l'inverse du modèle courant : suivre l'ancienne Étape 5 recréait `enabledPlugins` et le double

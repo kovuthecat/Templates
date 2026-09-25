@@ -103,7 +103,7 @@ Qui coche `index.md` : un seul juge à la fois, décidé par `.claude/wave.lock`
 | `[x]` | `PASS`, revue sans bloquant ou sans diff à relire |
 | `[x]!` | `PASS`, **revue à bloquant** — commité, défaut connu, non trié |
 
-Verdict **auto-déclaré** par la session qui écrit le code ; la relecture (`relecteur-session`) arrive après. Qui **committe** `.revue.md` : l'**orchestrateur**, en mode orchestré (`/orchestrer-plan` Étape 2) ; la **session elle-même**, en chaînage manuel (`/fin-de-tache`, Relecture) — jamais les deux (§4b). Le **versement** d'un `[x]!` dans `TASKS.md` a lieu **à la clôture du plan** (`fin-de-plan.md`) — **ce versement le passe à `[x]`** ; un `[x]!` qui reste est un défaut non arbitré, jamais un oubli. Il ne relance rien, satisfait les dépendances comme un `[x]`.
+Verdict **auto-déclaré** par la session qui écrit le code ; la relecture (`relecteur-session`) arrive après. Qui **committe** `.revue.md` : l'**orchestrateur**, en mode orchestré (`/orchestrer-plan` Étape 2) ; la **session elle-même**, en chaînage manuel (`/fin-de-tache`, Relecture) — jamais les deux (§4b). Le **versement** d'un `[x]!` dans `TASKS.md` a lieu **à la clôture du plan** (`fin-de-plan.md`) — **ce versement le passe à `[x]`** ; un `[x]!` qui reste est un défaut non arbitré, jamais un oubli. Il ne relance pas le code ; il satisfait les dépendances seulement si la revue porte `Dépendances : libres`. Une revue interrompue est reprise une fois, puis signalée en question.
 
 ### 4b. Commits, push et parallélisation — *domicile, les autres fichiers renvoient ici*
 
@@ -129,11 +129,11 @@ Plan: P<n>/S<k>/T<m>
 
 `git add -A`/`.`/`commit -a` refusés par hook. Fin de plan : `STATUS.md`/`TASKS.md`/`VALIDATION.md` à jour, un dernier push.
 
-## 5. Déléguer au lieu de faire
+## 5. Recherche directe et délégation
 
 Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contexte de traces payées à chaque tour. Huit agents **de délégation**, chacun ne rend que sa **conclusion** :
 
-- `explorateur` → localiser (>1 fichier). `analyste-flux` → lire **comment** un flux fonctionne. `resumeur-git` → résumer diff/historique. `lecteur-doc` → lire une doc externe.
+- `explorateur` → exploration large ou plusieurs pistes ; recherche précise et sortie ≤30 lignes en direct, même multi-fichiers. `analyste-flux` → lire **comment** un flux fonctionne. `resumeur-git` → résumer diff/historique. `lecteur-doc` → lire une doc externe.
 - `relecteur-session` → relire une session close — ou une **vague entière**, `low` exemptées (C7) — **déposer** `.revue.md` ; qui la committe ensuite dépend du mode (§4a).
 - `verificateur-plan` → confronter un plan écrit au dépôt avant commit (`/nouveau-plan` 4b).
 - `verificateur-premisse` → confronter au dépôt l'affirmation d'une session en échec, **avant** qu'elle n'arrête le plan (`/orchestrer-plan` action `verifier-premisse`, §9c).

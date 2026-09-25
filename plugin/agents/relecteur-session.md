@@ -28,7 +28,8 @@ compris `EXECUTANT.md`** : ouvre-le seulement si ton prompt de lancement l'exige
 pour ses Interdits — tu n'es pas une session d'exécution, le reste ne te concerne pas.
 
 Pour chaque session à relire (hors `low`), écris tout de suite `plans/P<n>/S<k>.revue.md` avec
-`Bloquant : 0`, `Couverture : en cours`, sections `## Bloquants` / `## Backlog` à `- aucun`. Un
+`Bloquant : 0`, `Couverture : en cours`, `Reprises : <0 ou 1 fourni par le parent>`,
+`Dépendances : bloquées`, sections `## Bloquants` / `## Backlog` à `- aucun`. Un
 agent qui épuise ses 30 tours laisse ainsi un fichier par session, jamais un silence — c'est ce
 dépôt initial, pas la relecture elle-même, qui garantit que l'orchestrateur ne confond plus jamais
 tours épuisés et revue jamais lancée. Enquête et lecture du diff ne commencent qu'après. À la fin de
@@ -90,6 +91,8 @@ rien trouvé ». Format :
 ```
 Bloquant : <n>
 Couverture : en cours | complète
+Reprises : 0 | 1
+Dépendances : bloquées | libres
 
 ## Bloquants
 - <fichier:ligne> — <défaut, une à trois lignes> — <ce qu'un utilisateur rencontrerait>
@@ -103,6 +106,11 @@ ligne **exactement** `Couverture : en cours` (dépôt initial, avant lecture) ou
 complète` (réécriture finale) — mécanique elle aussi, jamais reformulée. Sections vides : garder le
 titre et écrire `- aucun`. Le statut `[x]!` d'une session à bloquant reste décidé **par session**
 (`WORKFLOW.md` §4a) : un bloquant sur `S3` ne repasse pas `S2` à `[x]!`.
+
+`Dépendances : bloquées` si un défaut compromet les prérequis des sessions dépendantes ; sinon
+`libres`, justifié dans le constat. Absence du champ avec un bloquant = blocage conservateur.
+Une revue interrompue ne constitue jamais une preuve d'absence de défaut. Ne remets pas le compteur
+`Reprises` à zéro ; le parent fournit 1 pour la seule reprise automatique autorisée.
 
 Les deux classes, un seul seuil :
 

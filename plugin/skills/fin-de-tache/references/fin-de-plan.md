@@ -28,8 +28,8 @@ session elle-même (`/fin-de-tache`, Relecture). Il ne reste que le rangement.
    couvre repasse à `[x]` dans `index.md` (`WORKFLOW.md` §4a : verser un bloquant est précisément ce
    qui le passe à `[x]`) ; **puis** chaque `.revue.md` est **supprimé**, dans le même commit que son
    versement : l'historique garde son dépôt et son contenu, plus besoin d'un marqueur séparé pour
-   prouver qu'elle a existé. `Couverture : en cours` : verser ce qui est là quand même et noter
-   « revue partielle » dans le rapport de clôture. Un `Bloquant : 0` sans backlog ne se verse pas, il
+   prouver qu'elle a existé. `Couverture : en cours` : ne pas clore ; terminer la revue ou poser une question après
+   épuisement de sa reprise. Aucun versement au backlog ne vaut validation d’un prérequis bloqué. Un `Bloquant : 0` sans backlog ne se verse pas, il
    se supprime tout aussi bien. **Une session qui a produit du code et n'a laissé aucun `.revue.md`
    n'a pas eu de revue** : le signaler dans le rapport de clôture plutôt que de le lire comme « rien
    à signaler ». **Aucun `[x]!` ne survit à la clôture** — un `[x]!` encore là après ce point est un

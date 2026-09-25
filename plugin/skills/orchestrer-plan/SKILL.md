@@ -53,6 +53,7 @@ pas une question posée à l'utilisateur tant que l'abandon n'a pas été tenté
 | `reprendre` | `references/remediation.md` — canal court si ses trois conditions tiennent, sinon reprise à froid ; `modele`/`option` déjà décidés par le script. |
 | `enqueter` | `references/remediation.md` — bloc d'enquête ; `modele` déjà décidé par le script. |
 | `relancer-interrompue` | `references/remediation.md` — bloc `relancer-interrompue` ; hors budget, exception écrite aux trois conditions du canal court. |
+| `valider-n0` | Lancer N0 complet avec `--session P<n>/S<k>`, committer la preuve si PASS, puis rappeler le moteur. FAIL → rapport d’échec et décocher la session ; jamais fabriquer une preuve. |
 | `relire` | Étape 2, pour chaque session de `sessions` — l'orchestrateur committe chaque `.revue.md`. |
 | `pousser` | `git pull --rebase` puis `git push` ; conflit → rappeler le script, il rend `question`. |
 | `validation-humaine` | Étape 3 : rendre la main, jugement attendu sur `vague`. |
@@ -170,21 +171,25 @@ Agent({
   run_in_background: false,
   prompt: "Relis la session S<k> du plan P<n>, effort <effort de S<k>, tel que rendu par `relire`>, mode
 orchestré, commits présents (git log --grep
-\"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, puis rends tes deux lignes."
+\"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, avec Reprises : <reprise rendue par le script, 0 ou 1>, puis rends tes deux lignes."
 })
 ```
 
 `Agent type 'relecteur-session' not found` : repli `subagent_type: "workflow:relecteur-session"` ;
 encore introuvable → `subagent_type: "general-purpose"`, `model: "sonnet"`, prompt « Lis
-`.claude/agents/relecteur-session.md` et tiens ce rôle pour S<k> de P<n> … ». Repli en échec aussi →
-`Revue S<k> : absente` au rapport, non bloquante, + incident (§9b).
+`.claude/agents/relecteur-session.md` et tiens ce rôle pour S<k> de P<n> … ». Repli en échec aussi → incident (§9b). Si aucun fichier n'a été déposé, l'orchestrateur écrit
+exceptionnellement un `.revue.md` avec `Bloquant : 0`, `Couverture : en cours`,
+`Reprises : <reprise de l'action>` : il trace l'interruption sans prétendre avoir relu.
+Le moteur borne la reprise ; une absence persistante ne boucle pas indéfiniment.
 
 Lire seulement les deux lignes rendues, jamais les trouvailles. Une fois la ligne lue, l'orchestrateur
 **committe lui-même** le `.revue.md` déposé (`revue(P<n>): S<k> relue, <n> bloquant(s)`, repère
 `Plan: P<n>/S<k>` en dernière ligne) — le relecteur ne committe plus le sien. `Bloquant : <n>` avec
 n > 0 : une ligne au rapport (`Revue S<k> : <n> bloquant(s) → plans/P<n>/S<k>.revue.md`), et le statut
 de S<k> passe de `[x]` à `[x]!` dans `index.md` (§4a) — non bloquant, la vague suivante s'enchaîne.
-`Couverture :` autre que `complète` : `Revue S<k> : partielle → …`, sans fichier d'incident. Puis
+`Couverture :` autre que `complète` : signaler la revue interrompue ; le moteur rend une seule
+reprise, puis `question` source `revue-incomplete`. `Dépendances : bloquées` avec bloquants suspend
+les sessions dépendantes ; les indépendantes restent lançables. Puis
 rappeler le script.
 
 ## Étape 3 — Rapport final, question, validation humaine
@@ -225,14 +230,16 @@ session dont une dépendance (directe ou transitive) est celle qui bloque, même
 
 Options jamais inventées ici : `options.source` de l'action (`etape6`, `budget-epuise`, `budget-opus`,
 `effort-invalide`, `session-hors-vague`, `nature-inconnue`, `filtre`, `rebase`, `arbre-sale`,
-`reprise-manuelle`, `wave-lock`) et la section `## Issues` d'un rapport
+`reprise-manuelle`, `wave-lock`, `revue-incomplete`, `dependance-revue`) et la section `## Issues` d'un rapport
 d'enquête (`references/remediation.md`) les fournissent. Les lignes de `## Issues` **sont** les
 options : recopiées sans rien changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme
 se recopie tel quel aussi. Source `arbre-sale`,
 options fixes : `1. Committer ces fichiers toi-même, puis relancer — débloque la vague · 2. Les mettre
 de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables ·
 3. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Motif « arbre
-invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Une seule question par
+invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Source `revue-incomplete` : proposer de terminer la revue à la main ou reporter le plan, jamais
+annoncer une couverture complète. Source `dependance-revue` : proposer de corriger le prérequis
+ou réviser explicitement la dépendance ; ne pas enlever le blocage sans preuve. Une seule question par
 arrêt.
 
 **Action ou source inconnue** — le script rend une action absente de la « Table des actions », ou une

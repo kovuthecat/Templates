@@ -119,11 +119,10 @@ projet qui a du code mais n'a jamais été outillé). (`plugin/MIGRATION.md` n'e
 - **Le détail des décisions** vit dans `docs/decisions/`, pas dans le registre.
 - **Modèle = capacité, effort = quantité de travail** — ne pas monter l'un pour l'autre (§3).
 - **N0/N1/N2** : ne mettre dans `VALIDATION.md` que ce qu'un humain seul peut juger (§6).
-- **Délégation** : les tâches mécaniques (exploration, build/typecheck/tests, résumé de diff,
-  lecture de doc externe, relecture d'une session close) passent par les cinq agents du plugin —
-  seule leur conclusion remonte dans la conversation principale, jamais les traces brutes
-  (`WORKFLOW.md` §5). Tous se lancent **au premier plan** : un agent en
-  arrière-plan dont on rend la main aussitôt rend son verdict à personne.
+- **Délégation** : recherche précise et sortie courte en direct ; exploration large, traces
+  volumineuses et revues indépendantes via agents. N0 et contrôles mécaniques de plan par scripts
+  (`WORKFLOW.md` §5), au premier plan.
+
 
 Workflow modifié ? → une ligne dans `CHANGELOG.md` ; projets existants : `MIGRATION.md`, au fil
 de l'eau.

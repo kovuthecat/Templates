@@ -326,16 +326,19 @@ Principes :
 
 ## Étape 4b — Faire vérifier la découpe (jamais par soi-même)
 
-Le plan est écrit, rien n'est encore commité. Lancer d'abord `brief-a-jour.mjs` **au premier plan**
+Le plan est écrit, rien n'est encore commité. Lancer d'abord
+`node ${CLAUDE_PLUGIN_ROOT}/bin/verifier-plan.mjs P<n>` (vendoré :
+`node .claude/workflow/bin/verifier-plan.mjs P<n>`). En mode extension, ajouter `--extension` (ne force pas la preuve N0 sur les anciennes sessions). Corriger tout écart mécanique ou format non
+reconnu jusqu'à `RAS` ; le script ne juge pas le design. Puis lancer `brief-a-jour.mjs` **au premier plan**
 (`node .claude/workflow/bin/brief-a-jour.mjs`, `plugin/bin/` dans ce dépôt source), puis l'agent
 **`verificateur-plan`**, **au premier plan** (§5), en lui donnant `P<n>`, en mode extension les
 sessions ajoutées, et la sortie du script :
 
-> Vérifie `plans/P<n>/` — les douze contrôles. Sortie de brief-a-jour : <sortie>
+> Vérifie `plans/P<n>/` — contrôles sémantiques restants. Sortie de verifier-plan : RAS. Sortie de brief-a-jour : <sortie>
 
-Il ne juge pas la conception : il confronte le plan au dépôt (fichiers de « Modifier » qui
-n'existent pas sans étape de création, sessions parallèles dont les fichiers se recoupent,
-Validation sans commande vérifiable, `Dépend de` incohérent). Haiku, un tour, quelques secondes.
+Le script a vérifié chemins, collisions et dépendances. L'agent ne les refait pas : il juge la
+pertinence des validations, les justifications d'exception et les arrêts humains. Une seule passe.
+
 
 **Pourquoi un autre que le cadreur** : l'Étape 1 finit par « plan rédigeable maintenant ? », et
 c'est le rédacteur qui répond. Une découpe fausse ne se voit pas de l'intérieur — elle se voit à

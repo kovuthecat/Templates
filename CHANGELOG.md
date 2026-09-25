@@ -3,6 +3,13 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-25` — **Preuves et contrôles économes** (plugin `workflow` 0.48.0).
+  Revues interrompues reprises une fois, dépendances compromises suspendues sans bloquer les
+  sessions indépendantes. N0 peut produire une preuve JSON complète liée au contenu Git,
+  vérifiée avant PASS sur les nouveaux plans. Recherche précise et courte autorisée en direct.
+  `verifier-plan.mjs` contrôle chemins, collisions, dépendances et champs ; l'agent garde le
+  jugement sémantique. Régressions sur dépôts jetables et suites de scripts ajoutées à la gate
+  de publication. Décision : `docs/decisions/2026-09-25-preuves-et-controles-workflow.md`.
 - `2026-09-25` — **Clarté des agents et des petites skills** (plugin `workflow` 0.47.0). Les exemples
   de `verificateur-premisse` citent désormais l'affirmation vérifiée et concluent explicitement
   « vraie »/« fausse ». `verificateur-plan` gagne un douzième contrôle (réglages Claude Code édités

@@ -196,6 +196,15 @@ try {
   // portent sur le contenu de `plugin/**`, comme les hooks — donc avant la synchro, qui porte sur
   // le dépôt.
   testerRenvois();
+  for (const script of ['tester-scripts.mjs', 'tester-preuves.mjs']) {
+    try {
+      execFileSync('node', [join(dirname(RACINE_PAYLOAD), 'tests', script)],
+        { cwd: dirname(RACINE_PAYLOAD), stdio: 'inherit', windowsHide: true });
+    } catch {
+      console.error(`publier: ${script} en échec — publication annulée`);
+      process.exit(1);
+    }
+  }
 
   // Avant toute construction : le dépôt qui produit le payload doit être à jour (le push est --force).
   verifierSynchroSource();

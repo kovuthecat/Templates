@@ -28,7 +28,8 @@ Jamais de dépendance ajoutée seul : à trancher dans le plan (« Modifier »),
 - **N0 auto (bloque le commit)** : `build` + `typecheck` + tests du périmètre, par le script
   `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` en dépôt source) — **au premier plan,
   comme toute commande**, jamais un agent. À créer si la tâche introduit de la logique testable ;
-  `—` (aucun test) justifié dans le plan. Piège du typecheck qui ne compile aucun fichier : gabarit
+  `—` (aucun test) justifié dans le plan. Nouveaux plans : preuve complète `--session P<n>/S<k>`
+  commitée avec le code, vérifiée par le moteur avant de valider le PASS (`EXECUTANT.md`). Piège du typecheck qui ne compile aucun fichier : gabarit
   `CLAUDE.md`.
 - **N1 visuel auto (non bloquant)** : erreurs console, contenu présent, 4xx/5xx, responsive —
   uniquement via le navigateur in-app de Desktop (`/verif-visuelle`) ; ailleurs, la skill sort une
@@ -46,7 +47,7 @@ Relecture (contexte : `docs/decisions/2026-09-07-revue-orpheline.md`).
 
 ## Avant de coder
 
-Plan court (max 5 lignes) : objectif, fichiers, étapes, risques. Déléguer plutôt que faire soi-même
+Plan court (max 5 lignes) : objectif, fichiers, étapes, risques. Recherche précise et courte en direct ; déléguer les explorations larges
 (table des agents, règle du premier plan, `fork`, mémoire d'agent) — `WORKFLOW.md` §5. `/clear`
 entre deux sessions, pour ne pas traîner le contexte de l'une dans l'autre (voie et mécanique §5b).
 

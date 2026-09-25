@@ -22,7 +22,6 @@ Gabarit dans `plugin/templates/DECISIONS.md` (Décision · Contexte · Alternati
 Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque cadrage.
 
 ---
-
 ## Décisions
 
 - 2026-08-22 — **`VALIDATION.md` = N2 en attente uniquement** — Item tranché = ligne supprimée
@@ -148,3 +147,4 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 
 > Décisions caduques ou remplacées : sorties du registre pour ne plus peser à chaque cadrage.
 > On archive, on ne supprime pas → [docs/decisions/archives.md](docs/decisions/archives.md)
+- 2026-09-25 — **Preuves et contrôles économes** — Revues explicites, preuve N0, recherche directe bornée et vérificateur mécanique → [détail](docs/decisions/2026-09-25-preuves-et-controles-workflow.md).

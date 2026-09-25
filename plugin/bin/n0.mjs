@@ -20,7 +20,11 @@
 //   { "commandes": [{ "nom": "build", "cmd": "…", "delaiMs": <optionnel> }, …],
 //     "testCible": "<commande avec {fichier}>", "delaiMs": <optionnel, défaut de toutes> }
 //
-// SORTIE, et rien d'autre : une ligne `nom → PASS|FAIL (durée)` par commande ; si FAIL, au plus
+//   --session P<n>/S<k> produit plans/P<n>/S<k>.n0.json (à committer avec le code).
+//   Sans --seulement/--cible seulement : preuve complète, vérifiée par le moteur du plan.
+//   Une mutation des entrées Git pendant les commandes force FAIL.
+//
+// SORTIE : une ligne `nom → PASS|FAIL (durée)` par commande ; si FAIL, au plus
 // 5 lignes `fichier:ligne — message` (ou le texte extrait, au mieux) ; chemin du log complet
 // (`.claude/n0/dernier.log`, ignoré par git — toutes les commandes y sont journalisées, vertes
 // comprises, dans l'ordre). Code 0 si tout est vert, 1 si au moins une commande est rouge, 2 en cas
@@ -33,6 +37,7 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import { empreinte } from './preuve-n0.mjs';
 
 const RACINE = process.cwd();
 const MESSAGE_CONFIG_ABSENTE =
@@ -46,6 +51,7 @@ const opt = (n) => {
 };
 const seulement = opt('--seulement');
 const cible = opt('--cible');
+const session = opt('--session');
 
 function erreurConfig(motif = MESSAGE_CONFIG_ABSENTE) {
   console.error(`n0: ${motif}`);
@@ -68,6 +74,11 @@ for (const c of config.commandes) {
   if (!c || typeof c.nom !== 'string' || typeof c.cmd !== 'string') erreurConfig();
 }
 
+if (args.includes('--session') && !/^P\d+\/S\d+$/.test(session ?? '')) erreurConfig('--session attend P<n>/S<k>');
+let avant = null;
+if (session) {
+  try { avant = empreinte(RACINE); } catch (e) { erreurConfig(`empreinte indisponible : ${e.message}`); }
+}
 let aLancer;
 if (cible !== null) {
   if (typeof config.testCible !== 'string') {
@@ -138,7 +149,7 @@ let logComplet = '';
 for (const c of aLancer) {
   const delaiMs = Number.isFinite(c.delaiMs) ? c.delaiMs : delaiParDefaut;
   const r = executer(c.cmd, delaiMs);
-  resultats.push({ nom: c.nom, ...r });
+  resultats.push({ nom: c.nom, cmd: c.cmd, ...r });
   logComplet += `### ${c.nom} — ${c.cmd}\n${r.sortie}\n\n`;
 }
 writeFileSync(cheminLog, logComplet, 'utf8');
@@ -159,5 +170,17 @@ for (const r of resultats) {
   texte += `  log : ${cheminLog}\n`;
 }
 
+if (session) {
+  let apres = null;
+  try { apres = empreinte(RACINE); } catch { /* empreinte impossible : échec fermé */ }
+  if (avant !== apres) { codeFinal = 1; texte += 'n0: entrées modifiées pendant la validation → FAIL\n'; }
+  const chemin = join(RACINE, 'plans', `${session}.n0.json`);
+  const preuve = { schema: 1, session, portee: cible !== null || seulement !== null ? 'ciblee' : 'complete',
+    resultat: codeFinal === 0 ? 'PASS' : 'FAIL', empreinte: avant, date: new Date().toISOString(),
+    commandes: resultats.map(r => ({ nom: r.nom, cmd: r.cmd, code: r.ok ? 0 : 1, dureeMs: r.duree })) };
+  mkdirSync(join(RACINE, 'plans', session.split('/')[0]), { recursive: true });
+  writeFileSync(chemin, JSON.stringify(preuve, null, 2) + '\n');
+  texte += `preuve : plans/${session}.n0.json\n`;
+}
 process.stdout.write(texte);
 process.exit(codeFinal);

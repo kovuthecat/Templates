@@ -40,6 +40,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { verifierPreuve } from './preuve-n0.mjs';
 
 const RACINE = process.cwd();
 
@@ -239,7 +240,7 @@ function lireIndex(dossierPlan) {
   }
   if (vagues.length === 0) return erreur(`aucune vague reconnue sous « ## Ordonnancement » (${chemin})`);
 
-  return { workflow, sessions, vagues, remediationOpus, clos };
+  return { workflow, sessions, vagues, remediationOpus, clos, preuveN0: /^Preuve N0\s*:\s*requise\s*$/m.test(texte) };
 }
 
 // ── Tâches d'une session, commitées ou non ────────────────────────────────────────────────────────
@@ -355,10 +356,14 @@ function lireEchec(chemin) {
   };
 }
 
-function lireRevue(chemin) {
-  const texte = readFileSync(chemin, 'utf8');
+function lireRevue(chemin, texte = readFileSync(chemin, 'utf8')) {
   const m = /^Bloquant\s*:\s*(\d+)/m.exec(texte);
-  return { bloquant: m ? Number(m[1]) : null };
+  const couverture = /^Couverture\s*:\s*(.+)$/m.exec(texte)?.[1].trim();
+  const reprises = Number(/^Reprises\s*:\s*(\d+)$/m.exec(texte)?.[1] ?? 0);
+  const dependances = /^Dépendances\s*:\s*(.+)$/m.exec(texte)?.[1].trim();
+  return { bloquant: m ? Number(m[1]) : null,
+    couverture: m ? (couverture ?? 'complète') : 'invalide', // anciennes revues : pas de champ Couverture
+    reprises, dependances: dependances === 'libres' ? 'libres' : 'bloquées' };
 }
 
 // ── Moteur (S10) — table « la nature décide » de remediation.md, reprise telle quelle ────────────────
@@ -655,6 +660,21 @@ function prochaineAction(sortie) {
     return { action: 'pousser' };
   }
 
+  if (sortie.preuveN0 && !sortie.clos) {
+    const invalide = sortie.sessions.find(s => s.etat === 'faite' && !s.preuve?.ok);
+    if (invalide) return { action: 'valider-n0', session: invalide.session,
+      motif: invalide.preuve?.motif ?? 'preuve N0 absente' };
+  }
+  const compromises = (s, visites = new Set()) => {
+    if (visites.has(s.session)) return true;
+    const suivants = new Set([...visites, s.session]);
+    return (s.dependDe.match(/S\d+/g) ?? []).some(id => {
+      const dep = sortie.sessions.find(x => x.session === id);
+      return !dep || dep.etat !== 'faite' ||
+        (dep.revue?.bloquant > 0 && dep.revue.dependances !== 'libres') || compromises(dep, suivants);
+    });
+  };
+  const bloques = [];
   const enqueteTotalPlan = sortie.sessions
     .filter((s) => s.etat === 'echec')
     .reduce((acc, s) => acc + (s.echec?.tentatives.enquete ?? 0), 0);
@@ -689,8 +709,54 @@ function prochaineAction(sortie) {
     }
 
     const toutesFaites = membres.every((s) => s.etat === 'faite'); // vrai par défaut si vague sans membre (clôture)
+    // Vague entièrement faite : revue (plans stampés `Workflow :` seulement — un plan antérieur à
+    // C4/C3 n'a jamais produit de .revue.md, lui en exiger un serait un état deviné), puis
+    // validation-humaine.
+    if (sortie.workflow) {
+      // Une session `low` n'est jamais relue (C7, relecteur-session.md « Sessions à sauter ») —
+      // exclue ici, au seul endroit qui décide quoi relire (T3, P7/S2), plutôt que de compter sur
+      // la prose du relecteur pour l'appliquer.
+      const sansRevue = membres.filter(
+        (s) =>
+          s.etat === 'faite' &&
+          s.effort !== 'low' &&
+          s.zone &&
+          s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune' &&
+          (!s.revue || s.revue.couverture !== 'complète'),
+      );
+      if (sansRevue.length > 0) {
+        const epuisee = sansRevue.find(s => s.revue && s.revue.reprises >= 1);
+        if (epuisee) return { action: 'question', motif: `revue ${epuisee.session} interrompue après une reprise`,
+          options: { source: 'revue-incomplete', session: epuisee.session } };
+        return {
+          action: 'relire',
+          vague: vague.numero,
+          sessions: sansRevue.map((s) => ({ session: s.session, effort: s.effort, reprise: s.revue ? 1 : 0 })),
+        };
+      }
+    }
+
+    // « validée » (accents/casse libres) dans le libellé de la vague l'acquitte explicitement
+    // (T5, P10/S2) — l'acquittement implicite par le démarrage de la vague suivante reste valable.
+    if (vague.validationHumaine && !vague.validee &&
+        (toutesFaites || (membres.some(s => s.etat === 'faite') &&
+          !membres.some(s => s.etat === 'a-lancer' && !compromises(s))))) {
+      const suivante = vagues.find((v) => v.numero === vague.numero + 1);
+      const suivanteDemarree = suivante
+        ? suivante.sessions.some((id) => {
+            const s = sortie.sessions.find((x) => x.session === id);
+            return s && s.etat !== 'a-lancer';
+          })
+        : false;
+      if (!suivanteDemarree) {
+        return { action: 'validation-humaine', vague: vague.numero };
+      }
+    }
     if (!toutesFaites) {
-      const aLancer = membres.filter((s) => s.etat === 'a-lancer');
+      const candidats = membres.filter((s) => s.etat === 'a-lancer');
+      bloques.push(...candidats.filter(comp => compromises(comp)).map(s => s.session));
+      const aLancer = candidats.filter(s => !compromises(s));
+      if (aLancer.length === 0) continue;
       const effortInvalide = aLancer.find((s) => !EFFORTS_LANCABLES.includes(s.effort));
       if (effortInvalide) return questionEffortInvalide(effortInvalide);
       const questionArbre = arreteSurArbreSale(aLancer, sortie.plan);
@@ -708,43 +774,6 @@ function prochaineAction(sortie) {
       };
     }
 
-    // Vague entièrement faite : revue (plans stampés `Workflow :` seulement — un plan antérieur à
-    // C4/C3 n'a jamais produit de .revue.md, lui en exiger un serait un état deviné), puis
-    // validation-humaine.
-    if (sortie.workflow) {
-      // Une session `low` n'est jamais relue (C7, relecteur-session.md « Sessions à sauter ») —
-      // exclue ici, au seul endroit qui décide quoi relire (T3, P7/S2), plutôt que de compter sur
-      // la prose du relecteur pour l'appliquer.
-      const sansRevue = membres.filter(
-        (s) =>
-          s.effort !== 'low' &&
-          s.zone &&
-          s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune' &&
-          !s.revue,
-      );
-      if (sansRevue.length > 0) {
-        return {
-          action: 'relire',
-          vague: vague.numero,
-          sessions: sansRevue.map((s) => ({ session: s.session, effort: s.effort })),
-        };
-      }
-    }
-
-    // « validée » (accents/casse libres) dans le libellé de la vague l'acquitte explicitement
-    // (T5, P10/S2) — l'acquittement implicite par le démarrage de la vague suivante reste valable.
-    if (vague.validationHumaine && !vague.validee) {
-      const suivante = vagues.find((v) => v.numero === vague.numero + 1);
-      const suivanteDemarree = suivante
-        ? suivante.sessions.some((id) => {
-            const s = sortie.sessions.find((x) => x.session === id);
-            return s && s.etat !== 'a-lancer';
-          })
-        : false;
-      if (!suivanteDemarree) {
-        return { action: 'validation-humaine', vague: vague.numero };
-      }
-    }
     // Sinon : vague déjà validée (explicitement, ou implicitement par le démarrage de la suivante) —
     // continuer.
   }
@@ -761,6 +790,9 @@ function prochaineAction(sortie) {
       options: { source: 'session-hors-vague', sessions: horsVague.map((s) => s.session) },
     };
   }
+
+  if (bloques.length > 0) return { action: 'question', motif: `prérequis non validés : ${bloques.join(', ')}`,
+    options: { source: 'dependance-revue', sessions: bloques } };
 
   // Clôture (T6, P10/S2, décision 2026-09-24 point 4) : un plan stampé `Workflow :` sans `Clos :`
   // dans l'index revient à l'orchestrateur pour `fin-de-plan.md`, qui pose le marqueur — un plan déjà
@@ -883,6 +915,7 @@ for (const s of index.sessions) {
     s.etat = 'a-lancer';
   }
 
+  s.preuve = index.preuveN0 && s.etat === 'faite' ? verifierPreuve(RACINE, `${plan}/${s.session}`) : null;
   s.echec = s.etat === 'echec' ? lireEchec(cheminEchec) : null;
   // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
   // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
@@ -890,7 +923,9 @@ for (const s of index.sessions) {
   if (existsSync(cheminRevue)) {
     s.revue = lireRevue(cheminRevue);
   } else if (ajouteParUnCommit(`plans/${plan}/${s.session}.revue.md`)) {
-    s.revue = { bloquant: null };
+    const derniere = git('log', '-1', '--diff-filter=AM', '--format=%H', '--', `plans/${plan}/${s.session}.revue.md`);
+    const texte = derniere ? git('show', `${derniere}:plans/${plan}/${s.session}.revue.md`) : null;
+    s.revue = texte ? lireRevue(cheminRevue, texte) : null;
   } else {
     s.revue = null;
   }
@@ -903,6 +938,7 @@ const sortie = {
   plan,
   workflow: index.workflow,
   clos: index.clos,
+  preuveN0: index.preuveN0,
   remediationOpus: index.remediationOpus,
   depot: {
     waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
