@@ -331,7 +331,7 @@ Le plan est écrit, rien n'est encore commité. Lancer d'abord `brief-a-jour.mjs
 **`verificateur-plan`**, **au premier plan** (§5), en lui donnant `P<n>`, en mode extension les
 sessions ajoutées, et la sortie du script :
 
-> Vérifie `plans/P<n>/` — les onze contrôles. Sortie de brief-a-jour : <sortie>
+> Vérifie `plans/P<n>/` — les douze contrôles. Sortie de brief-a-jour : <sortie>
 
 Il ne juge pas la conception : il confronte le plan au dépôt (fichiers de « Modifier » qui
 n'existent pas sans étape de création, sessions parallèles dont les fichiers se recoupent,
