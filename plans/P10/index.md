@@ -68,7 +68,7 @@ Décision : `docs/decisions/2026-09-24-revue-finale-et-regime-pro.md`. Détail d
     rien supprimer. Sous verrou, elle ne committe rien. Une session lancée à la main fait
     relire son travail et committe la revue. Le relecteur écrit son fichier dès son premier geste,
     en une seule passe.
-- **Vague 4 — `validation-humaine`** : S4 (après S3).
+- **Vague 4 — `validation-humaine` · validée** : S4 (après S3).
   *Pourquoi maintenant* : la publication de 0.45.0 met le verrou réparé entre les mains des
   projets, et ebm-msp a une vague verrouillée en cours. L'arrêt qui suit est une contrainte
   d'outillage, pas un jugement : l'orchestrateur de cette conversation tourne sur le texte 0.44.0
