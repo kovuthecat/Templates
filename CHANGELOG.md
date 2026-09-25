@@ -3,6 +3,19 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-25` — **Clarté des agents et des petites skills** (plugin `workflow` 0.47.0). Les exemples
+  de `verificateur-premisse` citent désormais l'affirmation vérifiée et concluent explicitement
+  « vraie »/« fausse ». `verificateur-plan` gagne un douzième contrôle (réglages Claude Code édités
+  par une session orchestrée — incident Templates du 2026-09-17), description raccourcie,
+  `maxTurns` porté à 40 avec une consigne d'économie de tours. Renvoi corrigé dans `analyste-flux`
+  (règle 2, pas 3, d'`explorateur`) et outils différés du navigateur alignés dans `parcoureur-usage`.
+  Petites skills débarrassées de leurs contradictions internes (`maj-workflow` : source décidable via
+  `claude plugin list`, test manuel non exécuté par erreur ; `nouveau-projet` : `.claude/n0.json` créé
+  tout de suite si les commandes sont connues, sinon une ligne `TASKS.md` ; `purge-contexte` : règle
+  unique déplacer/supprimer ; `reprendre` et `purge-contexte` : `effort:` du frontmatter aligné sur le
+  texte ; `revue-d-usage` : outils différés, contexte d'agent neuf vs état du navigateur hérité).
+  `WORKFLOW.md` gagne un glossaire des mots à double sens et les modèles actuels. Décision : aucune
+  (correctifs de clarté, plan `plans/P10/S6.md`).
 - `2026-09-25` — **Clarté des skills de plan** (plugin `workflow` 0.46.0). Cinq skills de plan
   (`nouveau-plan`, `cadrer`, `reprendre-echec`, `revue-de-conception`, `migrer-projet`) nettoyées des
   renvois morts vers l'ancienne voie headless (« 5c », « 5d », « Étape 6 ») et vers des étapes
