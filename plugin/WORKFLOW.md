@@ -1,8 +1,16 @@
 # WORKFLOW.md — Modèles, effort, plans, validation, garde-fous
 
-Source unique : répartition du travail, format des plans, niveaux de validation ; les autres fichiers y renvoient. Modèles actuels : Fable 5 · Opus 5 · Sonnet 5 · Haiku 4.5. Squelettes de plan : skill `/nouveau-plan`, pas ici.
+Source unique : répartition du travail, format des plans, niveaux de validation ; les autres fichiers y renvoient. Modèles actuels : Fable 5.1 · Opus 5.5 · Sonnet 5 · Haiku 4.5. Squelettes de plan : skill `/nouveau-plan`, pas ici.
 
 ## 1. Principe directeur
+### Glossaire — mots à double sens
+
+- *gate* : contrôle qui refuse sans demander, jamais « attendre un oui ».
+- *session* : un `S<k>.md` exécuté, pas une conversation.
+- *verdict* : la ligne `VERDICT:` d'une session orchestrée ; ses commits en font foi.
+- *bloquant* : `Bloquant : n` d'une revue de session (la sévérité d'usage est un autre mot).
+- *vague* : groupe de sessions de l'ordonnancement.
+- *clôture* : `fin-de-plan.md`, marqueur `Clos :`.
 
 **Opus pense, les autres font.** Opus (cher) : design, cadrage, écrit les plans. Fable : hors workflow, à la main, jamais dans une grille ni une skill. Sonnet : exécute le cadré moyen, juge le code. Haiku : exécute le cadré mécanique. Claude Design (claude.ai) : maquette UI au cadrage — entrée `ARCHITECTURE.md`, sortie `design/maquettes/`, le câblage suit la maquette.
 

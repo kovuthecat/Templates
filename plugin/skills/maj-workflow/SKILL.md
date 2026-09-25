@@ -50,11 +50,10 @@ Sortie : version de la source vs version du projet, puis un décompte — à jou
 
 | Situation | `--source` |
 | --- | --- |
-| Le dépôt source est cloné sur cette machine | son dossier `plugin/` |
-| Le plugin d'amorçage est installé | `${CLAUDE_PLUGIN_ROOT}` |
-| Ni l'un ni l'autre | `git clone --depth 1 https://github.com/kovuthecat/claude-workflow <tmp>` puis `<tmp>` |
+| `workflow@templates` apparaît dans `claude plugin list` | le chemin de cache qu'il rend pour ce plugin — **jamais** `.claude/workflow` (qui est la copie à mettre à jour) |
+| Absent de `claude plugin list` | `git clone --depth 1 https://github.com/kovuthecat/claude-workflow <tmp>` puis `<tmp>` |
 
-Le troisième cas est le mode normal pour quelqu'un qui découvre le projet : un clone jetable, le
+Le second cas est le mode normal pour quelqu'un qui découvre le projet : un clone jetable, le
 temps de la synchronisation, et plus rien à maintenir sur la machine.
 
 **`correctifCritiqueDepuis`** — `plugin.json` de la source peut porter cette clé (une version) : un
@@ -106,8 +105,9 @@ manifeste. Un fichier propre et déjà à jour n'est pas réécrit : le diff git
    `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/` et il ne reste **ni** `enabledPlugins`, **ni**
    `extraKnownMarketplaces` (les deux ensemble avec les fichiers vendorés = workflow chargé deux
    fois — cf. le tableau du double chargement dans `/migrer-projet`).
-4. **Nouvelle session** (la config n'est lue qu'au démarrage) : un `git add -A` de test doit être
-   refusé, et les skills doivent être proposées. C'est la preuve que le câblage est actif.
+4. **Nouvelle session** (la config n'est lue qu'au démarrage) — contrôle que l'**humain** fait dans
+   cette nouvelle session, jamais la session courante : un `git add -A` doit être refusé, et les
+   skills doivent être proposées. C'est la preuve que le câblage est actif.
 
 ## Signaler l'`AGENTS.md` racine, s'il existe
 

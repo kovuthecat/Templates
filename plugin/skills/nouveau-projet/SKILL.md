@@ -112,15 +112,19 @@ place d'un humain.
    message exact : `chore: instanciation projet depuis Templates`. Le commit inclut `.claude/` —
    c'est ce qui rend le workflow disponible à quiconque clone, dans tous les environnements.
 
-## Phase D — Annonce des étapes suivantes (les citer, ne PAS les exécuter ici)
+## Phase D — Étapes suivantes
 
-1. Rédiger `ARCHITECTURE.md` (avec Opus).
-2. Si UI : `DESIGN_SPEC.md` + maquette Claude Design (claude.ai), écran par écran.
+1. Rédiger `ARCHITECTURE.md` (avec Opus) — annoncer, ne pas exécuter ici.
+2. Si UI : `DESIGN_SPEC.md` + maquette Claude Design (claude.ai), écran par écran — annoncer, ne pas
+   exécuter ici.
 3. Dérouler `/nouveau-plan` pour cadrer le premier plan (`P1`) à partir du brief, de l'architecture
-   et de la maquette.
+   et de la maquette — annoncer, ne pas exécuter ici.
 4. Remplir les commandes réelles dans `CLAUDE.md` + vérifier que le typecheck n'est pas vide sur un
-   projet vide (piège scaffold Vite/TS — cf. `CLAUDE.md` § Commandes).
-5. Créer `.claude/n0.json` à partir de ces mêmes commandes (`{ "commandes": [{ "nom": "build",
-   "cmd": "…" }, …], "testCible": "…" }`, cf. `n0.mjs`) — jamais deviné avant que `CLAUDE.md` §
-   Commandes soit rempli, donc pas avant l'étape précédente ; committer le fichier.
-6. Renseigner `.claude/launch.json` si le projet a un serveur dev.
+   projet vide (piège scaffold Vite/TS — cf. `CLAUDE.md` § Commandes) — annoncer, ne pas exécuter
+   ici.
+5. **`.claude/n0.json`** (`{ "commandes": [{ "nom": "build", "cmd": "…" }, …], "testCible": "…" }`,
+   cf. `n0.mjs`) — commandes du projet **déjà connues** (rare à ce stade, mais si l'interview les a
+   données) → le créer **maintenant** et le committer ; **inconnues** (cas normal, avant l'étape 4)
+   → une ligne `TASKS.md` : `- [ ] créer .claude/n0.json` — jamais deviné avant que `CLAUDE.md` §
+   Commandes soit rempli.
+6. Renseigner `.claude/launch.json` si le projet a un serveur dev — annoncer, ne pas exécuter ici.

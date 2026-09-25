@@ -2,6 +2,7 @@
 name: reprendre
 description: Répondre à « où j'en étais ? » sur un projet laissé de côté, jusqu'à UNE prochaine action proposée. À dérouler en ouverture de session sur un projet dormant, ou si SessionStart signale un STATUS.md en retard.
 model: sonnet
+effort: medium
 ---
 
 # Reprendre un projet
