@@ -12,17 +12,12 @@
   `docs/analyses/evals-23.json` montre `withOnly: false` et un score `without` réel (0/3). Conclusion
   PASS correcte, justification fabriquée. Preuve : `plans/P9/S3.revue.md`.
 
-## Tâches — plan P10 (fins de session à propriétaire unique, verrou réparé, régime Pro)
-
-Suivi d'avancement dans `plans/P10/index.md`, jamais ici.
-
-- T1-T3 — Racine du dépôt juste, garde du verrou, collecteur, version chargée · → plans/P10/S1.md
-- T4-T6 — Script d'orchestration : lecture tolérante, nouveaux états, clôture, budget Opus · → plans/P10/S2.md
-- T7-T8 — Fin de session orchestrée à forme unique, relecture manuelle, EXECUTANT réservé · → plans/P10/S3.md
-- T9-T12 — Orchestrateur seul rédacteur, fin-de-plan, WORKFLOW aligné, publication 0.45.0 · → plans/P10/S4.md
-- T13-T14 — Clarté des skills de plan, renvois gardés par test, annexes · → plans/P10/S5.md
-- T15-T16 — Clarté des agents et des petites skills, glossaire · → plans/P10/S6.md
-- T17-T18 — Ménage des plans P6-P9, publication 0.46.0 · → plans/P10/S7.md
+- **P10/S2** (résolu) — `plugin/skills/orchestrer-plan/SKILL.md` : au moment de la revue, la
+  « Table des actions » ne documentait pas `cloturer` ni `relancer-interrompue`, ajoutées par cette
+  session (T5-T6) — un orchestrateur recevant l'une de ces actions l'aurait traitée comme inconnue.
+  Réglé par S4/T9 (commit `a7251b8`), qui a ajouté les deux lignes en construisant son propre
+  périmètre ; vérifié après coup, les deux entrées et leurs renvois sont bien présents. Preuve :
+  `plans/P10/S2.revue.md`.
 
 ## Tâches — plan P9 (revue d'usage, brief tenu par les décisions)
 
