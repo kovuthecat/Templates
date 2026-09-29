@@ -43,11 +43,29 @@ if (new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+add\s+(-A\b|--all\b|\.(?:\s
   );
 }
 
-if (
-  new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+commit\b`).test(commande) &&
-  /\s-(?:a|[a-zA-Z]*a[a-zA-Z]*)\b|--all\b/.test(commande) &&
-  !/--amend/.test(commande)
-) {
+// Le texte cité n'est pas une option : message de commit (`-m "… commit -a …"`), heredoc bash,
+// here-string PowerShell. Il est vidé avant de chercher `-a`, sinon le message lui-même déclenche
+// le refus (incident Templates du 2026-09-29).
+function neutraliserTexte(cmd) {
+  return cmd
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\b/g, '<<TEXTE')
+    .replace(/@'[\s\S]*?'@|@"[\s\S]*?"@/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, "''");
+}
+
+// Seules comptent les options du segment `git commit` lui-même, jusqu'au prochain séparateur de
+// commande : un `Select-String -NotMatch` enchaîné après le commit n'en est pas une.
+function commitAvecToutStager(cmd) {
+  const neutre = neutraliserTexte(cmd);
+  const motif = new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+commit\b`, 'g');
+  for (const m of neutre.matchAll(motif)) {
+    const segment = neutre.slice(m.index + m[0].length).split(/[;&|\n]/)[0];
+    if (/\s-[a-zA-Z]*a[a-zA-Z]*\b|\s--all\b/.test(segment) && !/--amend/.test(segment)) return true;
+  }
+  return false;
+}
+
+if (commitAvecToutStager(commande)) {
   refuser(
     "WORKFLOW.md §4b : `git commit -a` interdit. Stage explicitement les fichiers de la tâche, " +
     'puis `git commit -m "…"`.'

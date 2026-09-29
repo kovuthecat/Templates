@@ -126,6 +126,35 @@ function estBloque(sortie) {
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 
+  // Vrais positifs : `-a` groupé, forme longue, option globale, commit enchaîné après un autre geste.
+  for (const commande of [
+    'git commit -am "x"',
+    'git commit --all -m "x"',
+    'git -C sous/dossier commit -a -m "x"',
+    'git add f.txt && git commit -a -m "x"',
+  ]) {
+    cas(`pretooluse-git : refusé — ${commande}`, () => {
+      const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: commande } });
+      return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+    });
+  }
+
+  // Faux positifs de l'incident du 2026-09-29 : drapeau d'une autre commande de la même ligne,
+  // `-a` à l'intérieur du message (guillemets, heredoc bash, here-string PowerShell).
+  for (const commande of [
+    "git commit -q -F msg.txt; git status --short | Select-String -NotMatch '^x'",
+    'git commit -q -F msg.txt; Get-Content f -Raw',
+    'git commit -m "docs: refus de commit -a sur un faux positif"',
+    "git commit -m 'fix: option -am retirée'",
+    "git commit -m \"$(cat <<'EOF'\nfix: refus de commit -a\n\nCo-Authored-By: x\nEOF\n)\"",
+    "git commit -m @'\nfix: refus de commit -a\n'@",
+  ]) {
+    cas(`pretooluse-git : accepté — ${commande.split('\n')[0]}`, () => {
+      const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: commande } });
+      return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
+    });
+  }
+
   cas('pretooluse-git : git add fichier accepté', () => {
     const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git add fichier.txt' } });
     return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;

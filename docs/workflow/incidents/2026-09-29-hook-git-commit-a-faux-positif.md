@@ -17,3 +17,7 @@ drapeau contenant un « a » ailleurs dans la ligne (`-NotMatch`, `-Raw`, `-Patt
 ## Sur place
 Commit isolé dans son propre appel. Piste : n'appliquer le second test qu'au segment de la
 commande qui suit `git commit`, jusqu'au prochain séparateur (`;`, `&&`, `|`, fin de ligne).
+
+## Corrigé
+0.50.0, le jour même : test limité au segment `git commit`, texte cité vidé avant (le message
+« commit -a » d'un commit déclenchait aussi le refus). Cas de régression dans `tests/tester-hooks.mjs`.

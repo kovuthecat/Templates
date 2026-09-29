@@ -3,6 +3,13 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-29` — **Hook git : plus de refus de commit sur un faux `-a`** (plugin `workflow` 0.50.0).
+  `pretooluse-git.mjs` ne cherche plus `-a` / `--all` dans toute la ligne de commande, mais dans le
+  seul segment `git commit` (jusqu'au prochain `;`, `&&`, `|`, fin de ligne), texte cité vidé
+  (guillemets, heredoc bash, here-string PowerShell). Un `Select-String -NotMatch` enchaîné, ou
+  « commit -a » écrit dans le message, ne bloquent plus le commit ; `git commit -a`, `-am`,
+  `--all` restent refusés. Dix cas ajoutés à `tests/tester-hooks.mjs`. Décision : aucune
+  (correctif, incident `docs/workflow/incidents/2026-09-29-hook-git-commit-a-faux-positif.md`).
 - `2026-09-29` — **Lanceur `/creer-projet`** (plugin `workflow` 0.49.0). Nouvelle source
   `plugin/lanceur/creer-projet/SKILL.md`, **non vendorée** dans les projets : elle se pose dans le
   dossier parent des projets et y crée un projet (dossier, `git init`, vendoring), puis bascule la
