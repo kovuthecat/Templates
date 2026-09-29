@@ -3,6 +3,13 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-29` — **`publier.mjs` met à jour le plugin local** (plugin `workflow` 0.52.0). Après une
+  publication réussie, le script lance `claude plugin update workflow@templates --scope local` et
+  vérifie que `claude plugin list` rend la version publiée, `enabled` : le geste manuel de
+  fin-de-plan §8b, souvent oublié, laissait le poste source sur un plugin périmé. Échec de cette
+  étape → sortie 3 (publié, plugin local non à jour) avec la commande à lancer. §8b et `CLAUDE.md`
+  suivent. Aucun changement pour un projet vendoré (`publier.mjs` n'y est pas copié). Décision :
+  aucune (correctif d'outillage du dépôt source).
 - `2026-09-29` — **Cache plugin : seules les versions courantes comptent** (plugin `workflow` 0.51.0).
   `sync-workflow.mjs` ne compare plus à la source que la version la plus récente de chaque
   marketplace du cache plugin : les anciennes versions que `claude plugin update` laisse en place

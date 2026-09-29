@@ -52,9 +52,11 @@ Depuis n'importe quelle tâche, pas seulement en fin de plan : bumper `version` 
 emplacement, jamais sous `.claude/workflow/bin/`). Sans bump, les projets vendorés ne voient jamais
 la mise à jour ; sans publication, toute machine neuve embarque une version périmée.
 
-**Puis, dans ce dépôt source seulement** : `claude plugin update workflow@templates --scope local`
-— ce dépôt charge son propre plugin par une installation **locale** au poste
-(`.claude/settings.local.json`, jamais commité), qui copie `plugin/` dans le cache. **Vérifier le
-geste** : `claude plugin list` doit rendre `workflow@templates` à la version tout juste bumpée,
-`✔ enabled` — sans ce contrôle, ce poste peut continuer de dérouler la version d'avant le bump
-(constat du 2026-09-17, `CLAUDE.md` « Règles spécifiques »).
+**Le plugin local suit tout seul** : ce dépôt charge son propre plugin par une installation
+**locale** au poste (`.claude/settings.local.json`, jamais commité), qui copie `plugin/` dans le
+cache. Après une publication réussie, `publier.mjs` lance lui-même
+`claude plugin update workflow@templates --scope local` puis vérifie que `claude plugin list` rend
+`workflow@templates` à la version bumpée, `enabled` (oubli constaté les 2026-09-17 et 2026-09-29).
+**Sortie 3** = publié, mais plugin local NON à jour : lancer la commande affichée à la main, sinon
+ce poste continue de dérouler la version d'avant le bump. Dans tous les cas, redémarrer les
+sessions ouvertes pour charger la nouvelle version.

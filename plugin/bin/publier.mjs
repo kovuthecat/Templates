@@ -14,6 +14,10 @@
 //   --dry-run   fait tout sauf le push : construit le payload temporaire, scanne, affiche ce qui
 //               serait poussé, puis nettoie. Aucune écriture réseau.
 //
+// Après une publication réussie, met à jour le plugin local du poste (`claude plugin update
+// workflow@templates --scope local`) et vérifie `claude plugin list` — voir mettreAJourPluginLocal.
+// Sorties : 0 publié et plugin local à jour · 1 rien publié · 3 publié, plugin local NON à jour.
+//
 // Idempotent : rejouable à l'identique, le dépôt public n'a pas d'historique à préserver
 // (--force assumé, cf. README §Distribution — c'est un artefact, pas un historique).
 //
@@ -41,7 +45,7 @@
 // temporaire étant neuf à chaque publication, le tag posé ici pointe toujours le commit unique
 // qu'on vient de créer.
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -186,6 +190,53 @@ function verifierSynchroSource() {
   if (!sale && avance === 0) console.log('publier: dépôt source synchronisé avec origin/main');
 }
 
+// ── Mise à jour du plugin local — après une publication réussie ─────────────
+// Ce dépôt charge son propre plugin par une installation locale au poste, qui COPIE `plugin/` dans
+// `~/.claude/plugins/cache/`. Tant que `claude plugin update` n'a pas tourné, le poste sert la
+// version d'avant : skills périmées en session, et `sync-workflow` qui refuse de vendorer (sortie 3).
+// Ce geste, laissé à la main après chaque publication (fin-de-plan §8b), a été oublié plus d'une
+// fois (constats du 2026-09-17 et du 2026-09-29) : le script le fait, puis vérifie
+// `claude plugin list`, comme §8b le demandait.
+//
+// La publication a déjà réussi à ce stade : un échec ici sort en 3, pas en 1, pour ne pas faire
+// croire que rien n'est parti. Le message donne la commande à lancer à la main.
+function mettreAJourPluginLocal() {
+  const racineDepot = dirname(RACINE_PAYLOAD);
+  const commande = 'claude plugin update workflow@templates --scope local';
+  // Par un shell (execSync) : une installation npm pose `claude.cmd` sous Windows, qu'execFileSync
+  // ne lance pas sans shell. Arguments constants : rien à échapper.
+  const claude = (args) => execSync(`claude ${args.join(' ')}`, {
+    cwd: racineDepot, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 120000,
+  });
+  const echec = (raison) => {
+    console.error(`publier: publication OK, mais plugin local NON mis à jour — ${raison}`);
+    console.error(`  → lancer à la main : ${commande}, puis vérifier \`claude plugin list\`.`);
+    process.exit(3);
+  };
+
+  try {
+    claude(['plugin', 'update', 'workflow@templates', '--scope', 'local']);
+  } catch (e) {
+    echec(`\`${commande}\` a échoué : ${(e.stderr || e.stdout || e.message).toString().trim().split('\n').pop()}`);
+  }
+
+  let liste;
+  try { liste = claude(['plugin', 'list']); }
+  catch (e) { echec(`\`claude plugin list\` a échoué : ${e.message}`); }
+
+  // Bloc de `workflow@templates` : de sa ligne jusqu'au plugin suivant (ligne qui commence par ❯).
+  const lignes = liste.split(/\r?\n/);
+  const debut = lignes.findIndex((l) => l.includes('workflow@templates'));
+  if (debut < 0) echec('`claude plugin list` ne cite pas workflow@templates');
+  const fin = lignes.findIndex((l, i) => i > debut && l.includes('❯'));
+  const bloc = lignes.slice(debut, fin < 0 ? undefined : fin).join('\n');
+  const versionLocale = bloc.match(/Version:\s*(\S+)/)?.[1];
+  if (versionLocale !== version) echec(`\`claude plugin list\` rend ${versionLocale ?? '(aucune version)'}, attendu ${version}`);
+  if (!/enabled/.test(bloc)) echec('workflow@templates n\'est pas `enabled` dans `claude plugin list`');
+
+  console.log(`publier: plugin local à jour — workflow@templates ${version}, enabled (redémarrer les sessions ouvertes pour le charger)`);
+}
+
 let tmp;
 try {
   // Avant tout le reste, --dry-run compris : les hooks doivent tenir avant qu'on publie quoi que
@@ -233,6 +284,7 @@ try {
     console.log(`publier: aurait poussé vers ${DEPOT_PUBLIC} (HEAD:main, --force) avec le message :`);
     console.log(`  Plugin workflow — marketplace templates (v${version})`);
     console.log(`publier: aurait posé et poussé le tag ${tag} (--force) sur le commit publié`);
+    console.log('publier: puis aurait lancé `claude plugin update workflow@templates --scope local` et vérifié `claude plugin list`');
     process.exit(0);
   }
 
@@ -277,3 +329,7 @@ try {
   // Nettoyage systématique, y compris en cas d'échec du push ou du garde-fou.
   if (tmp) rmSync(tmp, { recursive: true, force: true });
 }
+
+// Hors du try : on n'arrive ici qu'après une publication réussie (tout échec et --dry-run sortent
+// avant), et le dossier temporaire est déjà nettoyé quand mettreAJourPluginLocal() sort en 3.
+mettreAJourPluginLocal();
