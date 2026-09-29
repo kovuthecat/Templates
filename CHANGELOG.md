@@ -3,6 +3,14 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-29` — **Cache plugin : seules les versions courantes comptent** (plugin `workflow` 0.51.0).
+  `sync-workflow.mjs` ne compare plus à la source que la version la plus récente de chaque
+  marketplace du cache plugin : les anciennes versions que `claude plugin update` laisse en place
+  ne bloquent plus l'amorçage (`/nouveau-projet`, lanceur `/creer-projet`) ni `/maj-workflow` sur
+  le poste du dépôt source. Un cache dont la version la plus récente diffère de la source bloque
+  toujours (sortie 3). Puce « Sortie 3 » du lanceur réécrite. Quatre cas ajoutés à
+  `tests/tester-scripts.mjs`. Décision : aucune (correctif, incident
+  `docs/workflow/incidents/2026-09-29-cache-plugin-anciennes-versions.md`).
 - `2026-09-29` — **Hook git : plus de refus de commit sur un faux `-a`** (plugin `workflow` 0.50.0).
   `pretooluse-git.mjs` ne cherche plus `-a` / `--all` dans toute la ligne de commande, mais dans le
   seul segment `git commit` (jusqu'au prochain `;`, `&&`, `|`, fin de ligne), texte cité vidé

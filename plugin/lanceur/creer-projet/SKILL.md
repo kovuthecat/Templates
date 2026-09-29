@@ -45,12 +45,14 @@ P="<chemin absolu>" && mkdir -p "$P" && git -C "$P" init && WF="$(mktemp -d)/wf"
   suivant, la création en cours continue avec celle-ci.
 - `SETTINGS  .claude/settings.json absent` dans la sortie est attendu : `/nouveau-projet` le pose
   en Phase C étape 2.
-- **Sortie 3 avec des lignes `CACHE`** : `sync-workflow` a trouvé d'anciennes versions du plugin
-  dans `~/.claude/plugins/cache/` et n'a rien écrit. Sur le poste du dépôt source, ce sont les
-  restes des `claude plugin update` successifs : le plugin n'y est actif que dans Templates, pas
-  dans le nouveau projet. Montrer les lignes `CACHE` et poser la question : supprimer ces dossiers,
-  ou relancer seulement le vendoring avec `--ignorer-cache` (`WF` affiché par la commande).
-  Ailleurs, un cache actif et périmé est un vrai risque : ne pas passer outre sans cette réponse.
+- **Sortie 3 avec une ligne `CACHE`** : la version la plus récente du plugin dans
+  `~/.claude/plugins/cache/` n'est pas celle du payload cloné, et rien n'a été écrit (les anciennes
+  versions que `claude plugin update` laisse à côté ne comptent pas). Sur le poste du dépôt source,
+  c'est une publication pas encore suivie de `claude plugin update workflow@templates --scope local`.
+  Montrer la ligne `CACHE` et poser la question : lancer cette mise à jour puis relancer, ou
+  relancer seulement le vendoring avec `--ignorer-cache` (`WF` affiché par la commande) — le plugin
+  n'est actif que dans Templates, pas dans le nouveau projet. Ailleurs, un cache actif et périmé
+  est un vrai risque : ne pas passer outre sans cette réponse.
 - Échec de `git clone` (réseau) → rien n'est à défaire hors du dossier vide créé : le dire, et
   proposer de relancer.
 

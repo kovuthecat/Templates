@@ -22,3 +22,8 @@ Lanceur `/creer-projet` : lignes `CACHE` montrées, question à l'utilisateur (s
 ou relancer avec `--ignorer-cache`). Piste : ne compter que la version la plus récente de chaque
 marketplace (les autres sont des restes de mise à jour), ou ne compter que les plugins activés pour
 le projet cible.
+
+## Corrigé
+0.51.0, le jour même : `cachesPlugin()` ne retient que la version la plus récente de chaque
+marketplace (comparaison numérique, 0.10.0 > 0.9.0). Le blocage demeure quand cette version-là
+diffère de la source. Quatre cas dans `tests/tester-scripts.mjs`.

@@ -198,6 +198,25 @@ function controlerDeriveSettings(source, projet) {
 // donc ici que l'écart doit se voir. Bloquant (sortie 3), parce qu'un simple avertissement dans un
 // flot de sortie est exactement ce qui n'a pas été lu la première fois ; `--ignorer-cache` laisse
 // la porte ouverte au cas légitime (payload plus récent que le cache, qu'on ne veut pas toucher).
+//
+// Seule la version la PLUS RÉCENTE de chaque marketplace compte : `claude plugin update` pose la
+// nouvelle version à côté des anciennes sans les retirer, et ces restes ne sont plus servis.
+// Les compter bloquait tout vendoring sur le poste du dépôt source dès la deuxième mise à jour
+// (docs/workflow/incidents/2026-09-29-cache-plugin-anciennes-versions.md). Le cas du 2026-08-28
+// reste bloqué : là, c'est la version la plus récente elle-même qui était en retard.
+function comparerVersions(a, b) {
+  const pa = String(a).split(/[.-]/);
+  const pb = String(b).split(/[.-]/);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? '0';
+    const y = pb[i] ?? '0';
+    // Numérique quand les deux le sont (0.10.0 > 0.9.0, que l'ordre alphabétique inverserait).
+    const d = /^\d+$/.test(x) && /^\d+$/.test(y) ? Number(x) - Number(y) : x.localeCompare(y);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
 function cachesPlugin() {
   const base = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'cache');
   if (!existsSync(base)) return [];
@@ -205,6 +224,7 @@ function cachesPlugin() {
   for (const marketplace of readdirSync(base)) {
     const dossier = join(base, marketplace, 'workflow');
     if (!existsSync(dossier) || !statSync(dossier).isDirectory()) continue;
+    let plusRecent = null;
     for (const v of readdirSync(dossier)) {
       const chemin = join(dossier, v);
       if (!statSync(chemin).isDirectory()) continue;
@@ -213,8 +233,9 @@ function cachesPlugin() {
       let version = v;
       try { version = JSON.parse(readFileSync(join(chemin, '.claude-plugin', 'plugin.json'), 'utf8')).version ?? v; }
       catch { /* dossier incomplet : le nom reste la meilleure information disponible */ }
-      out.push({ chemin, version });
+      if (!plusRecent || comparerVersions(version, plusRecent.version) > 0) plusRecent = { chemin, version };
     }
+    if (plusRecent) out.push(plusRecent);
   }
   return out;
 }

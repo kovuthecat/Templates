@@ -64,10 +64,11 @@ function copierFixture(sousChemin) {
 }
 
 /** Lance un script node dans `cwd`, sans jamais lever : renvoie {code, sortie} (stdout+stderr fusionnés). */
-function lancer(script, args, cwd) {
+function lancer(script, args, cwd, env = undefined) {
   try {
     const sortie = execFileSync('node', [script, ...args], {
       cwd,
+      env: env ? { ...process.env, ...env } : undefined,
       encoding: 'utf8',
       input: '',
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -1453,6 +1454,62 @@ cas('collecter-incidents : en-tête vraiment incomplet (champ manquant) → touj
   const json = JSON.parse(sortie);
   const inc = json.incidents[0];
   if (inc.conforme) return `en-tête attendu non conforme (Plan et Étape absents), reçu: ${JSON.stringify(inc)}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// sync-workflow.mjs — cache plugin : seule la version la plus récente de chaque marketplace compte
+// (docs/workflow/incidents/2026-09-29-cache-plugin-anciennes-versions.md)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const SYNC_WORKFLOW = join(BIN, 'sync-workflow.mjs');
+
+/** Payload minimal en `version`, projet vide, et un CLAUDE_CONFIG_DIR jetable dont le cache porte
+ * `caches` = { marketplace: [versions…] }. Lance sync-workflow et renvoie {code, sortie}. */
+function syncAvecCache(version, caches) {
+  const source = dossierJetable('workflow-sync-source-');
+  mkdirSync(join(source, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, '.claude-plugin', 'plugin.json'), JSON.stringify({ version }));
+  writeFileSync(join(source, 'CLAUDE-BASE.md'), '# base\n');
+  const projet = dossierJetable('workflow-sync-projet-');
+  const config = dossierJetable('workflow-sync-config-');
+  for (const [marketplace, versions] of Object.entries(caches)) {
+    for (const v of versions) {
+      const d = join(config, 'plugins', 'cache', marketplace, 'workflow', v, '.claude-plugin');
+      mkdirSync(d, { recursive: true });
+      writeFileSync(join(d, 'plugin.json'), JSON.stringify({ version: v }));
+    }
+  }
+  return lancer(SYNC_WORKFLOW, ['--source', source, '--projet', projet], projet, { CLAUDE_CONFIG_DIR: config });
+}
+
+cas('sync-workflow : anciennes versions en cache à côté de la version à jour → écrit, aucune ligne CACHE', () => {
+  // Le cas de l'incident : `claude plugin update` laisse 0.40.0… en place à côté de la version courante.
+  const { code, sortie } = syncAvecCache('0.47.0', { templates: ['0.40.0', '0.41.0', '0.46.0', '0.47.0'] });
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (/CACHE/.test(sortie)) return `aucune ligne CACHE attendue: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : version la plus récente du cache en retard sur la source → sortie 3, seule elle est citée', () => {
+  // Le cas du 2026-08-28 (cache 0.10.0, payload 0.17.1) doit rester bloqué.
+  const { code, sortie } = syncAvecCache('0.47.0', { templates: ['0.45.0', '0.46.0'] });
+  if (code !== 3) return `code ${code} attendu 3, sortie: ${sortie}`;
+  if (!/CACHE\s+plugin workflow 0\.46\.0 en cache/.test(sortie)) return `ligne CACHE 0.46.0 absente: ${sortie}`;
+  if (/0\.45\.0/.test(sortie)) return `0.45.0 (reste de mise à jour) ne doit pas être cité: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : versions comparées numériquement (0.10.0 plus récente que 0.9.0)', () => {
+  // L'ordre alphabétique placerait 0.9.0 après 0.10.0 et bloquerait à tort.
+  const { code, sortie } = syncAvecCache('0.10.0', { templates: ['0.9.0', '0.10.0'] });
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : une marketplace à jour, une autre en retard → sortie 3 sur la seconde', () => {
+  const { code, sortie } = syncAvecCache('0.47.0', { templates: ['0.47.0'], autre: ['0.30.0'] });
+  if (code !== 3) return `code ${code} attendu 3, sortie: ${sortie}`;
+  if (!/0\.30\.0 en cache/.test(sortie)) return `ligne CACHE 0.30.0 absente: ${sortie}`;
   return null;
 });
 
