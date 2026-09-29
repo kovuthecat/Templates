@@ -22,6 +22,11 @@ Elle n'exige aucun état préalable — ni plugin, ni marketplace, ni CLI `claud
 seulement `git` et `node`, que tout environnement Claude Code possède. C'est ce qui la rend
 utilisable à l'identique depuis l'app Desktop, VS Code, une session cloud ou l'appli mobile.
 
+Depuis le dossier parent des projets, `/creer-projet` (source : `plugin/lanceur/` du dépôt
+Templates) fait cet amorçage et `git init`, puis bascule la session ici : la question 14 est alors
+déjà tranchée, et la Phase C étape 1 n'a pas à dérouler `/maj-workflow` sur un vendoring qui vient
+d'être posé.
+
 Si vous lisez ceci depuis une session, l'amorçage a déjà eu lieu (ou le plugin optionnel est
 installé) : passer à la Phase A.
 

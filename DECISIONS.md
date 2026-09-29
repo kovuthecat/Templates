@@ -24,13 +24,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 ---
 ## Décisions
 
-- 2026-08-22 — **`VALIDATION.md` = N2 en attente uniquement** — Item tranché = ligne supprimée
-  (git reste l'archive), plafond abaissé de 120 à 60 lignes →
-  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
-- 2026-08-22 — **`DESIGN_SPEC.md` sépare le brief UI de l'architecture technique** — Le brief
-  Claude Design et l'état Design Sync vivent dans `DESIGN_SPEC.md` ; `ARCHITECTURE.md` redevient un
-  document technique (découpage, état/persistance, entités) →
-  [détail](docs/decisions/2026-08-22-design-spec-validation.md)
+- 2026-08-22 — **`VALIDATION.md` = N2 en attente ; `DESIGN_SPEC.md` porte le brief UI** — item
+  tranché = ligne supprimée (git archive), plafond 120 → 60 lignes ; brief Claude Design et état Design
+  Sync dans `DESIGN_SPEC.md`, `ARCHITECTURE.md` redevient technique (découpage, état/persistance,
+  entités) → [détail](docs/decisions/2026-08-22-design-spec-validation.md)
 - 2026-08-24 — **Chaque session committe son propre travail** — repère `Plan: P<n>/S<k>/T<m>`,
   `index.md` à rédacteur unique ; push groupé remplacé le 2026-09-17 (push par session) →
   [détail](docs/decisions/2026-08-24-commit-par-session.md)
@@ -142,9 +139,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-09-24 — **Revue finale : propriétaire unique, verrou réparé, régime Pro** — racine par
   `--show-toplevel` ; l'orchestrateur seul committe revues et clôture ; reprise auto de bloquant
   retirée ; 1 passe Opus de remédiation par plan → [détail](docs/decisions/2026-09-24-revue-finale-et-regime-pro.md)
+- 2026-09-25 — **Preuves et contrôles économes** — Revues explicites, preuve N0, recherche directe bornée et vérificateur mécanique → [détail](docs/decisions/2026-09-25-preuves-et-controles-workflow.md).
+- 2026-09-29 — **Lanceur `/creer-projet` dans le dossier parent des projets** — plomberie seule
+  (dossier, `git init`, vendoring, bascule), `/nouveau-projet` prend le relais ; source
+  `plugin/lanceur/`, non vendorée, auto-mise à jour → [détail](docs/decisions/2026-09-29-lanceur-creer-projet.md)
 
 ## Archives
 
 > Décisions caduques ou remplacées : sorties du registre pour ne plus peser à chaque cadrage.
 > On archive, on ne supprime pas → [docs/decisions/archives.md](docs/decisions/archives.md)
-- 2026-09-25 — **Preuves et contrôles économes** — Revues explicites, preuve N0, recherche directe bornée et vérificateur mécanique → [détail](docs/decisions/2026-09-25-preuves-et-controles-workflow.md).

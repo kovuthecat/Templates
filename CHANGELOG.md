@@ -3,6 +3,15 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-09-29` — **Lanceur `/creer-projet`** (plugin `workflow` 0.49.0). Nouvelle source
+  `plugin/lanceur/creer-projet/SKILL.md`, **non vendorée** dans les projets : elle se pose dans le
+  dossier parent des projets et y crée un projet (dossier, `git init`, vendoring), puis bascule la
+  session dans le nouveau dossier, où `/nouveau-projet` prend le relais. Le lanceur se met à jour
+  seul depuis le clone public à chaque création. `nouveau-projet` le mentionne (question 14 déjà
+  tranchée, pas de `/maj-workflow` sur un vendoring tout juste posé). Aucun changement pour un
+  projet vendoré. Décision : `docs/decisions/2026-09-29-lanceur-creer-projet.md`. La 0.48.0
+  ci-dessous, publiée le 2026-09-25 depuis une branche Codex, n'entre dans `main` qu'ici
+  (fast-forward).
 - `2026-09-25` — **Preuves et contrôles économes** (plugin `workflow` 0.48.0).
   Revues interrompues reprises une fois, dépendances compromises suspendues sans bloquer les
   sessions indépendantes. N0 peut produire une preuve JSON complète liée au contenu Git,
@@ -10,6 +19,15 @@ d'un projet.
   `verifier-plan.mjs` contrôle chemins, collisions, dépendances et champs ; l'agent garde le
   jugement sémantique. Régressions sur dépôts jetables et suites de scripts ajoutées à la gate
   de publication. Décision : `docs/decisions/2026-09-25-preuves-et-controles-workflow.md`.
+=======
+- `2026-09-29` — **Lanceur `/creer-projet`** (plugin `workflow` 0.48.0). Nouvelle source
+  `plugin/lanceur/creer-projet/SKILL.md`, **non vendorée** dans les projets : elle se pose dans le
+  dossier parent des projets et y crée un projet (dossier, `git init`, vendoring), puis bascule la
+  session dans le nouveau dossier, où `/nouveau-projet` prend le relais. Le lanceur se met à jour
+  seul depuis le clone public à chaque création. `nouveau-projet` le mentionne (question 14 déjà
+  tranchée, pas de `/maj-workflow` sur un vendoring tout juste posé). Aucun changement pour un
+  projet vendoré. Décision : `docs/decisions/2026-09-29-lanceur-creer-projet.md`.
+>>>>>>> Stashed changes
 - `2026-09-25` — **Clarté des agents et des petites skills** (plugin `workflow` 0.47.0). Les exemples
   de `verificateur-premisse` citent désormais l'affirmation vérifiée et concluent explicitement
   « vraie »/« fausse ». `verificateur-plan` gagne un douzième contrôle (réglages Claude Code édités
