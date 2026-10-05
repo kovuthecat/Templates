@@ -93,27 +93,18 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   travail spécifiable, régime ouvert pour la recherche (branche jetable, budget, N0 final, livrable =
   preuve) ; et « demander quand il y a un choix, agir quand il y a une gate » →
   [détail](docs/decisions/2026-09-14-deux-regimes-et-frontiere-humaine.md)
-- 2026-09-14 — **Un domicile par invariant, et des conditions nommées** — un invariant se range par
-  destinataire (`EXECUTANT.md` / `WORKFLOW.md`), un gabarit y renvoie par une ligne fixe vérifiée par
-  `publier.mjs` ; le canal de reprise suit la nature (bloqué → `SendMessage`, trompé → à froid, ligne
-  `Blocage :`) ; un exécutant s'arrête sur un choix, pas sur une casse — `gate` / `question` /
-  `contrainte d'outillage` cessent de s'écrire `STOP` →
-  [détail](docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md)
+- 2026-09-14 — **Un domicile par invariant, et des conditions nommées** — un invariant a un seul
+  domicile par destinataire, la reprise suit la nature de l'échec, un exécutant s'arrête sur un choix
+  et non sur une casse → [détail](docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md)
 - 2026-09-15 — **Réflexion outillée : préparation prouvée, critique avant approbation, flux lu par
-  un agent** — `allowed-tools` corrigé ; gabarits sans stack ; annexes de réflexion dans
-  `cadrer/references/` (grille, six fiches, `NONE`, rechercher l'existant) ; prémisse comportementale
-  sondée avant le plan ; agents `critique-plan` (Opus, plan architectural) et `analyste-flux`
-  (Sonnet) ; gates de publication étendues, évals de déclenchement (≥ 2.1.269) →
-  [détail](docs/decisions/2026-09-15-reflexion-outillee-critique-et-flux.md)
+  un agent** — annexes de `/cadrer`, prémisse comportementale sondée avant le plan, agents
+  `critique-plan` et `analyste-flux` → [détail](docs/decisions/2026-09-15-reflexion-outillee-critique-et-flux.md)
 - 2026-09-17 — **Arrêts sans jugement retirés, correctif localisé** — `gate` retiré (seul
   `validation-humaine` arrête un `PASS`), défaut mesuré et petit corrigé dans la session, bloc de
   relance obligatoire → [détail](docs/decisions/2026-09-17-gates-sans-arret-et-correctif-localise.md)
 - 2026-09-17 — **Autonomie par défaut, état scripté, push par session** — arrêt sur quatre critères
-  nommés seulement (latitude par défaut, lecture ouverte, budget en hypothèses, amendement de
-  session) ; N0 et état d'orchestration par scripts (`n0.mjs`, `prochaine-action.mjs`),
-  `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
-  orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
-  partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
+  nommés seulement ; N0 et état d'orchestration par scripts ; push à chaque fin de session ;
+  contrôle de version du vendoré → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
 - 2026-09-18 — **L'effort d'une session vient de son agent** — quatre agents `session-<effort>`
   (`effort:` en frontmatter, lancés par `subagent_type` depuis l'index) ; `regler-effort` retiré
   → [détail](docs/decisions/2026-09-18-effort-porte-par-l-agent-de-session.md)

@@ -12,13 +12,6 @@
   `docs/analyses/evals-23.json` montre `withOnly: false` et un score `without` réel (0/3). Conclusion
   PASS correcte, justification fabriquée. Preuve : `plans/P9/S3.revue.md`.
 
-- **P10/S2** (résolu) — `plugin/skills/orchestrer-plan/SKILL.md` : au moment de la revue, la
-  « Table des actions » ne documentait pas `cloturer` ni `relancer-interrompue`, ajoutées par cette
-  session (T5-T6) — un orchestrateur recevant l'une de ces actions l'aurait traitée comme inconnue.
-  Réglé par S4/T9 (commit `a7251b8`), qui a ajouté les deux lignes en construisant son propre
-  périmètre ; vérifié après coup, les deux entrées et leurs renvois sont bien présents. Preuve :
-  `plans/P10/S2.revue.md`.
-
 ## Tâches — plan P9 (revue d'usage, brief tenu par les décisions)
 
 Suivi d'avancement dans `plans/P9/index.md`, jamais ici.
