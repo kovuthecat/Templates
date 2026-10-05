@@ -24,6 +24,13 @@ fois la tâche planifiée qui ouvre les conversations neuves.
 Ce qu'elle rend : un verdict positif ou négatif par mod, écrit d'avance. Rien n'entre dans le
 plugin avant la décision qui suivra.
 
+**Décidé par l'utilisateur (2026-10-05) : la session neuve lancée par l'orchestrateur remplacera la
+pastille.** Aujourd'hui, une pastille (`spawn_task`) attend ton clic « Démarrer localement », et c'est
+toi qui préviens l'orchestrateur quand la session a fini. Demain, l'orchestrateur ouvre lui-même la
+conversation neuve, règle son modèle et son effort, et apprend seul qu'elle est terminée. Ce qui est
+décidé, c'est la direction. L'intégration dans `WORKFLOW.md` §5b et `/orchestrer-plan` attend la
+mesure M5 ci-dessous, car le canal de retour n'est pas encore prouvé.
+
 **Le revers** : une preuve sans humain ne juge rien de visuel. M4 (le panneau) est déjà acquis ;
 tout nouveau constat d'affichage se fait par `claude plugin test` (rendu simulé), pas à l'œil.
 
@@ -92,13 +99,54 @@ n'installe quoi que ce soit.
   (`preuves/harnais/collecter.mjs` : journal + `limites.jsonl` → mesures, par horodatage).
 - Positif : tests verts, prompt autonome relu par `verificateur-plan`. Négatif : sans objet (outil).
 
+### M5 — Session neuve lancée par l'orchestrateur, à la place de la pastille
+
+Faits relevés le 2026-10-05 dans les descriptions d'outils de Desktop (2.19675.0) :
+- `run_scheduled_task` démarre une **nouvelle** session dans le dossier de la tâche et rend son
+  identifiant ; `create_scheduled_task` avec `notifyOnCompletion` (vrai par défaut) notifie **la
+  session qui a créé la tâche** à chaque fin d'exécution ; `list_task_runs` rend statut et résumé ;
+  `mcp__ccd_session_mgmt__list_events` lit ce que la session a fait.
+- Une session lancée par tâche planifiée **ne peut pas** écrire à une autre : `send_message` est
+  « indisponible dans les sessions sans surveillance ». Le retour passe donc par la notification,
+  pas par un message de la session.
+- `set_session_model` et `set_session_effort` règlent une session **démarrée par cette session**,
+  à partir de son tour suivant, sans demande quand le modèle n'est pas plus cher que celui de
+  l'orchestrateur.
+- `start_session` (session liée, dont le lanceur « est prévenu quand ses tours se terminent », selon
+  `detach_session`) est cité par ces outils mais **absent** de la session du cadrage.
+- `run_scheduled_task` refuse une tâche déjà en cours : une session parallèle = une tâche.
+
+Mesure, jouée **par l'orchestrateur lui-même** en vague 2 (seule la session qui crée la tâche reçoit
+la notification ; un sous-agent rendu ne la recevrait plus) :
+1. Créer une tâche ad hoc par session (`P<n>-S<k>`, sans horaire), prompt = le prompt de lancement
+   orchestré actuel (ligne `VERDICT:` en dernier), puis `run_scheduled_task`.
+2. Sur l'identifiant rendu : `set_session_model` et `set_session_effort` selon l'index ; relever par
+   `get_session` le modèle et l'effort effectifs, et le tour où ils s'appliquent.
+3. Lancer deux sessions à la fois (vague parallèle de fixture), puis rendre la main **sans rien
+   demander** et attendre.
+4. Relever : la notification de fin arrive-t-elle d'elle-même et réveille-t-elle l'orchestrateur ?
+   Le `VERDICT:` se lit-il par `list_events` ou dans le résumé de `list_task_runs` ? Une approbation
+   humaine a-t-elle été demandée (permission, outil) ?
+5. Supprimer les tâches créées.
+
+- **Positif** : les deux sessions tournent sans geste humain, l'orchestrateur reprend la main sur la
+  notification de fin, lit chaque `VERDICT:`, et le modèle et l'effort de l'index s'appliquent dès le
+  premier tour de travail.
+- **Négatif** : la notification ne réveille pas l'orchestrateur (il faut un message humain ou une
+  attente bornée), ou une approbation humaine est exigée à chaque lancement, ou le modèle ne
+  s'applique qu'après un tour déjà payé au mauvais prix. Chaque négatif est chiffré : nombre de
+  gestes ou de tours restants contre la pastille d'aujourd'hui.
+- Si `start_session` est disponible au moment du plan, la même mesure se joue aussi par cette voie,
+  et les deux se comparent.
+
 ### Vague 2 — en direct, à froid, en séquence
 
-Une session qui installe les trois mods dans le plugin de la branche
-(`"modules": ["./observateur.tsx", "./fichiers.ts", "./limites.ts"]`), réinstalle le plugin
-(`uninstall` + `install` `--scope local`, `update` ne recopiant rien à version égale), puis démarre
-**deux** sessions neuves par `run_scheduled_task`, à plus de 5 minutes d'écart (cache froid). Chacune
-reçoit le même prompt autonome :
+Une session (sous-agent ordinaire) installe les trois mods dans le plugin de la branche
+(`"modules": ["./observateur.tsx", "./fichiers.ts", "./limites.ts"]`) et réinstalle le plugin
+(`uninstall` + `install` `--scope local`, `update` ne recopiant rien à version égale). Puis
+**l'orchestrateur lui-même** démarre **deux** sessions neuves par tâche planifiée, selon M5 (c'est la
+mesure M5 en même temps), à plus de 5 minutes d'écart (cache froid). Chacune reçoit le même prompt
+autonome :
 
 1. **M1 bis** : relever la ligne `session.start` du plugin `workflow`, racine dans le cache, sans
    variable d'environnement. Positif : présente dans la première session planifiée. Négatif :
@@ -113,9 +161,10 @@ reçoit le même prompt autonome :
    déroulés sur chaque poste, poste dominant identifié. Négatif : usage absent pour un sous-agent.
 4. Les mesures de F et L en direct (ci-dessus).
 
-La session de vague 2 attend la fin de chaque session planifiée en lisant un fichier témoin que le
-prompt autonome écrit en dernier (`~/.claude/preuves/mods/<run>.fin`), par une boucle au premier plan
-bornée à 10 minutes par appel. Elle ne lance aucune commande détachée.
+L'orchestrateur attend la notification de fin (M5). Repli, si elle ne vient pas dans les 30 minutes
+du budget : le prompt autonome écrit en dernier un fichier témoin (`~/.claude/preuves/mods/<run>.fin`),
+que l'orchestrateur lit par une boucle au premier plan bornée à 10 minutes par appel, sans commande
+détachée. Le recours au repli est lui-même un résultat négatif de M5.
 
 ### Vague 3 — rendu
 
@@ -156,7 +205,8 @@ conclu, budget » pour les mesures restantes, rendre ce qui est mesuré.
 | résultat visé | READY | Demande explicite de l'utilisateur : preuves parallèles et autonomes, mods de fichiers, de limites d'usage et autres jugés nécessaires |
 | vérification | READY | Critères positifs et négatifs écrits ci-dessus ; `plugin test` sondé (0,24 s, sans compte) |
 | périmètre | READY | Branche `preuve/mods-2`, dossiers `preuves/mods/*`, `preuves/harnais/`, `plugin/hooks/hooks.json` en vague 2 seulement |
-| cohérence | OPEN | La tâche planifiée : dossier de travail, mode de permission, approbations au premier lancement, notification de fin → **expérience**, premier geste de la vague 2 ; si une approbation humaine est exigée → **tâche** : l'utilisateur l'accorde une fois, avant le plan |
+| cohérence | OPEN | La tâche planifiée : dossier de travail, mode de permission, approbations au premier lancement, réveil de l'orchestrateur par la notification de fin → **expérience** (M5, premier geste de la vague 2) ; si une approbation humaine est exigée → **tâche** : l'utilisateur l'accorde une fois, avant le plan. Disponibilité de `start_session` → **expérience** (le plan constate s'il est listé) |
+| intégration au workflow | OPEN | Remplacer la pastille dans `WORKFLOW.md` §5b et `/orchestrer-plan` : direction décidée par l'utilisateur, intégration conditionnée au verdict M5 → **expérience**, puis un plan ordinaire sur `main` |
 
 Validité : moteur Desktop 2.1.286, kit `claude-code/testing` de ce build, outils `scheduled-tasks`
 tels que décrits le 2026-10-05.
