@@ -143,6 +143,10 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-10-05 — **Mods : preuve avant adoption** — protocole M1-M4 (chargement, sous-agents, coût
   en tokens, affichage) sur `preuve/mods`, une session ; rien n'entre dans le plugin avant la
   décision qui suivra → [détail](docs/decisions/2026-10-05-preuve-mods.md)
+- 2026-10-05 — **Mods : preuves autonomes et parallèles** — fichiers (garde de zone), limites
+  d'usage (fenêtre 5 h), chargement à froid M1 bis, garde git en arrière-plan, coût rejoué ; zéro
+  geste humain pendant le plan (sessions neuves par tâche planifiée, logique par `plugin test`) →
+  [détail](docs/decisions/2026-10-05-preuves-mods-autonomes.md)
 
 ## Archives
 
