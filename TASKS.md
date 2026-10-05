@@ -33,3 +33,13 @@ Suivi d'avancement dans `plans/P9/index.md`, jamais ici.
 - T8 — Éval de déclenchement, cas positif et négatif · → plans/P9/S3.md
 - T9 — Version 0.42.0 et publication (si éval PASS) · → plans/P9/S4.md
 - T10 — Déroulé réel sur Chords, bilan en cinq points · → plans/P9/S5.md
+
+## Tâches — plan P12 (preuve des mods, exploration)
+
+Suivi d'avancement dans `plans/P12/index.md`, jamais ici.
+
+- T1 — Instrument : mod d'observation dans le plugin installé · → plans/P12/S1.md
+- T2 — M1 : chargement sans réglage · → plans/P12/S1.md
+- T3 — M2 : outils des sous-agents · → plans/P12/S1.md
+- T4 — M3 coût d'un plan · M4 affichage de l'état · → plans/P12/S1.md
+- T5 — Rendu : mesures, réfutations, mod candidat · → plans/P12/S1.md
