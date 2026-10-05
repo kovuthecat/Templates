@@ -60,6 +60,13 @@ const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE_PAYLOAD = dirname(ICI);
 
 const dryRun = process.argv.includes('--dry-run');
+// Un argument inconnu (`--help` compris) n'est jamais une publication : il publiait pour de bon
+// (incident 2026-10-05-publier-argument-inconnu).
+const inconnus = process.argv.slice(2).filter(a => a !== '--dry-run');
+if (inconnus.length) {
+  console.error(`publier : argument inconnu ${inconnus.join(' ')} — usage : node publier.mjs [--dry-run]. Rien publié.`);
+  process.exit(1);
+}
 
 const version = (() => {
   const p = join(RACINE_PAYLOAD, '.claude-plugin', 'plugin.json');

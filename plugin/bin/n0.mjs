@@ -37,7 +37,7 @@
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
-import { empreinte } from './preuve-n0.mjs';
+import { empreinte, nonSuivis } from './preuve-n0.mjs';
 
 const RACINE = process.cwd();
 const MESSAGE_CONFIG_ABSENTE =
@@ -76,8 +76,9 @@ for (const c of config.commandes) {
 
 if (args.includes('--session') && !/^P\d+\/S\d+$/.test(session ?? '')) erreurConfig('--session attend P<n>/S<k>');
 let avant = null;
+let horsIndex = [];
 if (session) {
-  try { avant = empreinte(RACINE); } catch (e) { erreurConfig(`empreinte indisponible : ${e.message}`); }
+  try { avant = empreinte(RACINE); horsIndex = nonSuivis(RACINE); } catch (e) { erreurConfig(`empreinte indisponible : ${e.message}`); }
 }
 let aLancer;
 if (cible !== null) {
@@ -176,11 +177,12 @@ if (session) {
   if (avant !== apres) { codeFinal = 1; texte += 'n0: entrées modifiées pendant la validation → FAIL\n'; }
   const chemin = join(RACINE, 'plans', `${session}.n0.json`);
   const preuve = { schema: 1, session, portee: cible !== null || seulement !== null ? 'ciblee' : 'complete',
-    resultat: codeFinal === 0 ? 'PASS' : 'FAIL', empreinte: avant, date: new Date().toISOString(),
+    resultat: codeFinal === 0 ? 'PASS' : 'FAIL', empreinte: avant, nonSuivis: horsIndex, date: new Date().toISOString(),
     commandes: resultats.map(r => ({ nom: r.nom, cmd: r.cmd, code: r.ok ? 0 : 1, dureeMs: r.duree })) };
   mkdirSync(join(RACINE, 'plans', session.split('/')[0]), { recursive: true });
   writeFileSync(chemin, JSON.stringify(preuve, null, 2) + '\n');
   texte += `preuve : plans/${session}.n0.json\n`;
+  if (horsIndex.length) texte += `n0: preuve calculée avec des fichiers non suivis — à committer avec la tâche, sinon elle sera périmée : ${horsIndex.join(', ')}\n`;
 }
 process.stdout.write(texte);
 process.exit(codeFinal);

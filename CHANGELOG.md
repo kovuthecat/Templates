@@ -3,6 +3,14 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-05` — **Preuve N0 : plus de boucle `valider-n0` sur un fichier non suivi** (plugin `workflow` 0.54.0).
+  `empreinte()` comptait `.claude/journal-modeles.jsonl`, écrit par le hook PostModelSwitch et jamais
+  commité : toute preuve calculée sur l'arbre divergeait du commit, et `prochaine-action.mjs` rendait
+  `valider-n0` sans fin (P12, 2026-10-05). Le journal rejoint les fichiers de suivi ; la preuve note
+  ses fichiers non suivis (`nonSuivis`), `n0.mjs` avertit au moment de la preuve, et le motif du moteur
+  les nomme au lieu de « périmée ». `publier.mjs` refuse un argument inconnu : `--help` publiait
+  (incident `docs/workflow/incidents/2026-10-05-publier-argument-inconnu.md`). `tests/tester-preuves.mjs`
+  passe de 29 à 32 cas. Projet vendoré : `/maj-workflow`. Décision : aucune (correctif).
 - `2026-10-05` — **Délégation : `run_in_background: false` dicté partout** (plugin `workflow` 0.53.0).
   L'outil `Agent` lance désormais un sous-agent en arrière-plan quand le paramètre manque : les
   skills qui disaient seulement « déléguer » (`cadrer`, `revue-de-conception`, `reprendre`,

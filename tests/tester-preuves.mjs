@@ -78,5 +78,9 @@ cas('vague partiellement bloquée : revue de la session livrée avant la suivant
  put(d,'plans/P1/index.md',texte);revue(d,'Bloquant : 1\nCouverture : complète\nDépendances : bloquées\n');commit(d);
  assert.equal(action(d).action,'relire');assert.equal(action(d).sessions[0].session,'S3');
 });
+function commitPreuve(d) { git(d,'add','plans'); git(d,'commit','-qm','T1\n\nPlan: P1/S1/T1'); }
+cas('journal des modèles non suivi au N0 → preuve valide au commit',()=>{const d=depot();put(d,'.claude/journal-modeles.jsonl','{"de":"a"}\n');const r=run(d,'n0.mjs','--session','P1/S1');assert.equal(r.status,0,r.stdout+r.stderr);assert.ok(!r.stdout.includes('non suivis'),r.stdout);commitPreuve(d);assert.equal(verifierPreuve(d,'P1/S1').ok,true);});
+cas('fichier non suivi jamais commité → N0 avertit et le motif le nomme',()=>{const d=depot();put(d,'src/oubli.js','export const o=1;\n');const r=run(d,'n0.mjs','--session','P1/S1');assert.equal(r.status,0,r.stdout+r.stderr);assert.ok(r.stdout.includes('src/oubli.js'),r.stdout);commitPreuve(d);const v=verifierPreuve(d,'P1/S1');assert.equal(v.ok,false);assert.ok(v.motif.includes('src/oubli.js'),v.motif);});
+cas('fichier non suivi commité avec la tâche → preuve valide',()=>{const d=depot();put(d,'src/neuf.js','export const n=1;\n');assert.equal(run(d,'n0.mjs','--session','P1/S1').status,0);commit(d,'T1\n\nPlan: P1/S1/T1');assert.equal(verifierPreuve(d,'P1/S1').ok,true);});
 for(const d of dirs) rmSync(d,{recursive:true,force:true});
 console.log(`${echecs} échec(s)`); process.exitCode=echecs?1:0;

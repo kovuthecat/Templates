@@ -5,8 +5,11 @@ import { readFileSync, lstatSync, readlinkSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
+// `.claude/journal-modeles.jsonl` : écrit par le hook PostModelSwitch du workflow lui-même, jamais
+// commité ; compté, il périmait toute preuve au commit (`valider-n0` en boucle, P12 2026-10-05).
 const suivi = (p) => p.startsWith('plans/') || p.startsWith('.claude/n0/') ||
-  /^(STATUS|TASKS|DECISIONS|CHANGELOG)\.md$/.test(p) || p === '.claude/wave.lock';
+  /^(STATUS|TASKS|DECISIONS|CHANGELOG)\.md$/.test(p) || p === '.claude/wave.lock' ||
+  p === '.claude/journal-modeles.jsonl';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 });
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
@@ -48,6 +51,12 @@ export function empreinte(cwd, ref = null) {
   return sha(JSON.stringify(fichiers));
 }
 
+// Fichiers non suivis et non ignorés que l'empreinte de l'arbre compte : à committer avec la tâche,
+// sinon la preuve ne correspondra jamais au commit.
+export function nonSuivis(cwd) {
+  return git(cwd, 'ls-files', '-z', '--others', '--exclude-standard').split('\0').filter(Boolean).filter(p => !suivi(p)).sort();
+}
+
 export function verifierPreuve(cwd, session) {
   const chemin = `plans/${session}.n0.json`;
   try {
@@ -65,7 +74,15 @@ export function verifierPreuve(cwd, session) {
     const dernier = git(cwd, 'log', '-1', '--format=%H', '--fixed-strings', `--grep=Plan: ${session}/`).trim();
     if (!dernier) return { ok: false, motif: 'aucun commit de tâche pour cette preuve' };
     git(cwd, 'merge-base', '--is-ancestor', dernier, commit);
-    if (empreinte(cwd, commit) !== preuve.empreinte) return { ok: false, motif: 'preuve N0 périmée au commit validé' };
+    if (empreinte(cwd, commit) !== preuve.empreinte) {
+      // Nommer les fichiers comptés à N0 mais jamais commités : sans eux, ce motif fait boucler valider-n0.
+      const auCommit = new Set(git(cwd, 'ls-tree', '-rz', '--name-only', commit).split('\0').filter(Boolean));
+      const absents = (Array.isArray(preuve.nonSuivis) ? preuve.nonSuivis : []).filter(p => !auCommit.has(p));
+      if (absents.length) {
+        return { ok: false, motif: `preuve N0 calculée avec des fichiers absents du commit : ${absents.join(', ')} — les committer, les ignorer ou les retirer, puis relancer N0` };
+      }
+      return { ok: false, motif: 'preuve N0 périmée au commit validé' };
+    }
     const config = JSON.parse(git(cwd, 'show', `${commit}:.claude/n0.json`));
     if (JSON.stringify(config.commandes.map(c => ({ nom: c.nom, cmd: c.cmd }))) !==
         JSON.stringify(preuve.commandes.map(c => ({ nom: c.nom, cmd: c.cmd })))) {
