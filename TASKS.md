@@ -43,3 +43,19 @@ Suivi d'avancement dans `plans/P12/index.md`, jamais ici.
 - T3 — M2 : outils des sous-agents · → plans/P12/S1.md
 - T4 — M3 coût d'un plan · M4 affichage de l'état · → plans/P12/S1.md
 - T5 — Rendu : mesures, réfutations, mod candidat · → plans/P12/S1.md
+
+## Tâches — plan P13 (preuves des mods, autonomes et parallèles)
+
+Suivi d'avancement dans `plans/P13/index.md` (sur `preuve/mods-2`), jamais ici.
+
+- T1 — F : mod de fichiers et ses tests simulés · → plans/P13/S1.md
+- T2 — L : mod de limites d'usage et ses tests simulés · → plans/P13/S2.md
+- T3 — Observateur v2 · → plans/P13/S3.md
+- T4 — Harnais : consignes A et B, attente, collecte · → plans/P13/S3.md
+- T5 — Plans de fixture P92 et P93, relus · → plans/P13/S3.md
+- T6 — O1 à O5 : mods d'orchestration et leurs tests · → plans/P13/S4.md
+- T7 — Installation à froid des quatre mods · → plans/P13/S5.md
+- T8 — M5 : sessions planifiées, attente, verdicts, archivage · → plans/P13/S6.md
+- T9 — État remis en ordre · → plans/P13/S6.md
+- T10 — Fichier de mesures · → plans/P13/S7.md
+- T11 — Mods retirés, réinstallation, report sur main · → plans/P13/S7.md
