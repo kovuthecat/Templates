@@ -114,11 +114,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   `verificateur-n0` retiré ; push à chaque fin de session, `.revue.md` commité ; exploration
   orchestrable ; contrôle de version du vendoré ; `WORKFLOW.md` < 300 lignes. Remontée d'incidents
   partagée : reportée → [détail](docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md)
-- 2026-09-18 — **L'effort d'une session vient de son agent** — cadrage : quatre agents
-  `session-<effort>` (pas de `session-max`) portant `effort:` en frontmatter, lancés par `subagent_type` composé depuis
-  l'index ; l'action `regler-effort` se retire. Neutre sur les outils (filtres identiques pour agent
-  nommé et générique) et hors garde de K5 — applique l'effort déjà décidé, n'en décide aucun. Reste
-  ouvert : effort de l'orchestrateur, `Agent` en sous-agent d'arrière-plan
+- 2026-09-18 — **L'effort d'une session vient de son agent** — quatre agents `session-<effort>`
+  (`effort:` en frontmatter, lancés par `subagent_type` depuis l'index) ; `regler-effort` retiré
   → [détail](docs/decisions/2026-09-18-effort-porte-par-l-agent-de-session.md)
 - 2026-09-22 — **Un geste par instruction** — mesure : Sonnet reste l'orchestrateur, l'effort ne
   change rien, le texte si. Le script rend l'appel d'agent prêt (casse `model`) et le contrôle
@@ -143,6 +140,9 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-09-29 — **Lanceur `/creer-projet` dans le dossier parent des projets** — plomberie seule
   (dossier, `git init`, vendoring, bascule), `/nouveau-projet` prend le relais ; source
   `plugin/lanceur/`, non vendorée, auto-mise à jour → [détail](docs/decisions/2026-09-29-lanceur-creer-projet.md)
+- 2026-10-05 — **Mods : preuve avant adoption** — protocole M1-M4 (chargement, sous-agents, coût
+  en tokens, affichage) sur `preuve/mods`, une session ; rien n'entre dans le plugin avant la
+  décision qui suivra → [détail](docs/decisions/2026-10-05-preuve-mods.md)
 
 ## Archives
 
