@@ -127,11 +127,19 @@ la notification ; un sous-agent rendu ne la recevrait plus) :
 4. Relever : la notification de fin arrive-t-elle d'elle-même et réveille-t-elle l'orchestrateur ?
    Le `VERDICT:` se lit-il par `list_events` ou dans le résumé de `list_task_runs` ? Une approbation
    humaine a-t-elle été demandée (permission, outil) ?
-5. Supprimer les tâches créées.
+5. **Archiver les sessions lancées** (demande de l'utilisateur, 2026-10-05 : elles s'accumulent).
+   Une fois le `VERDICT:` lu, l'orchestrateur archive chaque session qu'il a lancée
+   (`mcp__ccd_session_mgmt__archive_session`), jamais lui-même. Accord de principe donné par
+   l'utilisateur pour les sessions lancées par l'orchestrateur, et pour elles seules. L'outil refuse
+   une session encore au travail, et l'archivage est réversible (`unarchive_session`). Relever :
+   l'archivage passe-t-il sans carte d'approbation en mode auto ? Une exécution de tâche planifiée
+   s'archive-t-elle déjà d'elle-même (champ `archived` de `list_task_runs`) ? Ce n'est pas un mod :
+   l'environnement d'un mod n'expose pas les sessions de l'application.
+6. Supprimer les tâches créées.
 
 - **Positif** : les deux sessions tournent sans geste humain, l'orchestrateur reprend la main sur la
-  notification de fin, lit chaque `VERDICT:`, et le modèle et l'effort de l'index s'appliquent dès le
-  premier tour de travail.
+  notification de fin, lit chaque `VERDICT:`, le modèle et l'effort de l'index s'appliquent dès le
+  premier tour de travail, et les sessions finies sont archivées sans geste humain.
 - **Négatif** : la notification ne réveille pas l'orchestrateur (il faut un message humain ou une
   attente bornée), ou une approbation humaine est exigée à chaque lancement, ou le modèle ne
   s'applique qu'après un tour déjà payé au mauvais prix. Chaque négatif est chiffré : nombre de
@@ -184,8 +192,9 @@ conclu, budget » pour les mesures restantes, rendre ce qui est mesuré.
 
 - **`valider-n0` boucle** sur un fichier non suivi dans l'arbre (`plugin/bin/preuve-n0.mjs`,
   `empreinte()` sans `ref` compte `--others`) ; `.claude/journal-modeles.jsonl`, écrit par le hook
-  PostModelSwitch, déclenche la boucle à chaque plan à preuve N0. À corriger avant, sinon chaque
-  session de la preuve repaie ≈ 3 min 20 s de N0 par revalidation.
+  PostModelSwitch, déclenche la boucle à chaque plan à preuve N0. **Fait le 2026-10-05, plugin
+  0.54.0** (`5eecf32`) : journal classé en suivi, fichiers non suivis notés dans la preuve et nommés
+  par le moteur ; 3 cas de régression dans `tests/tester-preuves.mjs`.
 
 ## Options écartées
 
