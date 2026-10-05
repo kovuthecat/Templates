@@ -69,7 +69,8 @@ Ouvrir `plans/P<n>/S<k>.echec.md`, puis le `S<k>.md` de la session **uniquement 
 concernée** (pas les autres tâches du fichier). Point de départ, pas un plafond : la lecture reste
 ouverte pour diagnostiquer (`EXECUTANT.md`) — ni l'`index.md` du plan ni le code ne sont interdits
 en soi, seule l'écriture reste bornée à la zone de la tâche. Ce qui demande de balayer plusieurs
-fichiers ou l'historique se délègue (`explorateur`, `resumeur-git`) plutôt que de se lire en direct.
+fichiers ou l'historique se délègue (`explorateur`, `resumeur-git`) plutôt que de se lire en direct,
+toujours avec `run_in_background: false` (`EXECUTANT.md`).
 
 Rapport absent ou vide (session tuée avant de l'écrire) → le dire, et repartir de la tâche du
 `S<k>.md` comme si elle n'avait jamais été lancée, après avoir fait l'Étape 2 avec d'autant plus

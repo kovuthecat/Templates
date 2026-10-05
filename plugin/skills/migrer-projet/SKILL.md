@@ -26,7 +26,8 @@ conserver et signaler dans le rapport, jamais supprimer.
 
 **Déléguer, ne pas lire soi-même.** Un inventaire lu en direct remplit le contexte de chemins et
 d'extraits qu'on paie ensuite à chaque tour, alors que seule la synthèse sert. Lancer l'agent
-`explorateur` pour la carte du dépôt, `resumeur-git` pour l'état git.
+`explorateur` pour la carte du dépôt, `resumeur-git` pour l'état git — tous deux avec
+`run_in_background: false`.
 
 Constater, ne rien corriger encore. Huit points :
 

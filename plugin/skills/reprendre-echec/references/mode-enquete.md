@@ -12,7 +12,7 @@ demandé. L'enquête est bornée : **une passe**, pas de tentative de correction
 de N0 lancé en passant.
 
 1. Lire le `.echec.md` et la tâche concernée du `S<k>.md` (Étape 1). Rien d'autre en direct :
-   ce qui manque se délègue à `explorateur` / `resumeur-git`.
+   ce qui manque se délègue à `explorateur` / `resumeur-git`, avec `run_in_background: false`.
 2. Traiter **Déjà écarté** comme acquis, et l'**Hypothèse en cours** comme réfutée — c'est
    précisément parce qu'elle est tombée que cette enquête tourne. Chercher ailleurs.
 3. **Écrire le `.echec.md` mis à jour en premier geste**, avant de répondre : « Déjà écarté »

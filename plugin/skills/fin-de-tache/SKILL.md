@@ -67,7 +67,7 @@ Sinon :
     « Mode orchestré » en tête de ce fichier) :
     - session `low`, ou `Zone modifiée : aucune` dans l'`index.md` → sautée, une ligne au bilan
       (« Relecture : sautée (low/zone aucune) ») ;
-    - sinon, lancer `relecteur-session` **au premier plan**, avec la session à relire. Agent
+    - sinon, lancer `relecteur-session` **au premier plan** (`run_in_background: false`), avec la session à relire. Agent
       introuvable : repli `workflow:relecteur-session`, puis `general-purpose` tenant le rôle décrit
       dans `relecteur-session.md` ;
     - committer le `.revue.md` qu'il a déposé (`revue(P<n>): S<k> relue, <n> bloquant`, repère

@@ -73,7 +73,7 @@ automatique aux frontières de C4 tenable — un humain n'est sollicité que qua
 
 Une ligne `DÉRIVE` signale un fichier géré modifié à la main — peut-être une amélioration jamais
 remontée, peut-être un accident. Ni l'un ni l'autre ne se tranche seul : **question** à
-l'utilisateur (`WORKFLOW.md` §9c), avec le diff (`resumeur-git` si le fichier est commité) et deux
+l'utilisateur (`WORKFLOW.md` §9c), avec le diff (`resumeur-git`, `run_in_background: false`, si le fichier est commité) et deux
 options chiffrées :
 
 1. **Remonter** — la modification a de la valeur : la porter dans le dépôt source, publier, puis

@@ -3,6 +3,15 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-05` — **Délégation : `run_in_background: false` dicté partout** (plugin `workflow` 0.53.0).
+  L'outil `Agent` lance désormais un sous-agent en arrière-plan quand le paramètre manque : les
+  skills qui disaient seulement « déléguer » (`cadrer`, `revue-de-conception`, `reprendre`,
+  `reprendre-echec` et son mode enquête, `nouveau-plan`, `fin-de-tache`, `choisir-mecanisme`,
+  `orchestrer-plan` pour `resumeur-git`, `maj-workflow`, `migrer-projet`) le dictent en une ligne ;
+  `WORKFLOW.md` §5 et `CLAUDE-BASE.md` aussi. Lancements de sessions en arrière-plan d'
+  `/orchestrer-plan` inchangés. Projet vendoré : `/maj-workflow`. Décision : aucune (application de
+  `docs/decisions/2026-09-04-delegation-au-premier-plan.md`, incident
+  `docs/workflow/incidents/2026-10-05-agents-de-delegation-en-arriere-plan.md`).
 - `2026-09-29` — **`publier.mjs` met à jour le plugin local** (plugin `workflow` 0.52.0). Après une
   publication réussie, le script lance `claude plugin update workflow@templates --scope local` et
   vérifie que `claude plugin list` rend la version publiée, `enabled` : le geste manuel de

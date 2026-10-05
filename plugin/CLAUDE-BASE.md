@@ -48,7 +48,7 @@ Relecture (contexte : `docs/decisions/2026-09-07-revue-orpheline.md`).
 ## Avant de coder
 
 Plan court (max 5 lignes) : objectif, fichiers, étapes, risques. Recherche précise et courte en direct ; déléguer les explorations larges
-(table des agents, règle du premier plan, `fork`, mémoire d'agent) — `WORKFLOW.md` §5. `/clear`
+(table des agents, premier plan = `run_in_background: false` explicite, `fork`, mémoire d'agent) — `WORKFLOW.md` §5. `/clear`
 entre deux sessions, pour ne pas traîner le contexte de l'une dans l'autre (voie et mécanique §5b).
 
 **Session de plan (`S<k>.md`) ?** Lire d'abord `${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md`.

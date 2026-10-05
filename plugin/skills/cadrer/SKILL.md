@@ -68,6 +68,7 @@ Avant de déléguer, l'aiguillage de `references/protocoles.md` : `NONE` est la 
 Une option qui suppose un mécanisme neuf passe par `references/rechercher-existant.md`.
 
 Avant d'ouvrir un fichier soi-même, se demander lequel des agents de délégation rend la conclusion voulue.
+Tout appel `Agent` porte `run_in_background: false` — sans lui, l'agent part en arrière-plan (`WORKFLOW.md` §5).
 Opus lit **les conclusions**, pas les traces. Ce qu'il garde pour lui : le raisonnement, les
 hypothèses racines, l'arbitrage final — le reste se délègue.
 

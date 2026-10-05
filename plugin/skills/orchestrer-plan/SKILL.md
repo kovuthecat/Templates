@@ -35,8 +35,8 @@ pas une question posée à l'utilisateur tant que l'abandon n'a pas été tenté
 
 - **Ne jamais ouvrir un `S<k>.md`**, sans exception — un message de commit sous verrou vient
   d'`index.md` (Étape 1). L'`index.md` et `git log` suffisent.
-- **Ne jamais lire un diff ni une sortie de build.** Déléguer à `resumeur-git` ; un code de sortie
-  n'est pas une sortie.
+- **Ne jamais lire un diff ni une sortie de build.** Déléguer à `resumeur-git` (`run_in_background: false`) ;
+  un code de sortie n'est pas une sortie.
 - **Ne jamais corriger soi-même, ni reprendre une session en échec.** `fork` vers l'agent en échec
   interdit sans condition ; `SendMessage` seulement sous les trois conditions du canal court
   (`references/remediation.md`), sinon à froid.

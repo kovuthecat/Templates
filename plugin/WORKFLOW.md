@@ -149,7 +149,7 @@ proactivement, jamais par une session de plan.
 
 **N0 n'est plus un agent, c'est un script (C1)** : `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` dans ce dépôt) — **au premier plan, comme toute commande**, sans sous-agent ni frontière de tour.
 
-**Les quatre derniers** : personne ne relit son propre travail (découpe fausse, faille de plan, PASS vide, prémisse fausse). Les huit agents de délégation se lancent **au premier plan** (invariant : `EXECUTANT.md`, domicile §5b) — leur verdict conditionne la suite. `relecteur-session` : dernier geste, jamais en arrière-plan (la revue ne serait jamais déposée).
+**Les quatre derniers** : personne ne relit son propre travail (découpe fausse, faille de plan, PASS vide, prémisse fausse). Les huit agents de délégation se lancent **au premier plan** (invariant : `EXECUTANT.md`, domicile §5b) — leur verdict conditionne la suite. **`run_in_background: false` s'écrit à chaque appel** : l'outil `Agent` part en arrière-plan quand le paramètre manque (constat du 2026-10-05). `relecteur-session` : dernier geste, jamais en arrière-plan (la revue ne serait jamais déposée).
 
 **`fork`** : contexte courant nécessaire **et** bruit à retenir dehors — jamais pour une session de plan ni une reprise (`docs/decisions/2026-08-30-contexte-des-sous-agents.md`). Pas de `memory:` sur les huit : légitime seulement sans source de dépôt déjà existante.
 

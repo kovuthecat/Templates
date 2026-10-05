@@ -119,7 +119,8 @@ fichiers → agent `explorateur` ; **compréhension d'un flux** (point 1) → ag
 sépare faits, inférences et inconnues — une inconnue qu'il nomme est une hypothèse à typer au point
 5, pas un fait ; résumé de diff/historique git → agent `resumeur-git`. Chacun ne rend que sa
 conclusion, l'exploration ne pollue pas le contexte Opus (qui est le plus cher). Garder pour soi les
-points 1, 5 et 6 — c'est le raisonnement, pas la recherche.
+points 1, 5 et 6 — c'est le raisonnement, pas la recherche. Tout appel `Agent` porte
+`run_in_background: false` — sans lui, l'agent part en arrière-plan (`WORKFLOW.md` §5).
 
 ## Étape 1bis — Critiquer avant de faire approuver (conditionnel)
 
@@ -331,7 +332,7 @@ Le plan est écrit, rien n'est encore commité. Lancer d'abord
 `node .claude/workflow/bin/verifier-plan.mjs P<n>`). En mode extension, ajouter `--extension` (ne force pas la preuve N0 sur les anciennes sessions). Corriger tout écart mécanique ou format non
 reconnu jusqu'à `RAS` ; le script ne juge pas le design. Puis lancer `brief-a-jour.mjs` **au premier plan**
 (`node .claude/workflow/bin/brief-a-jour.mjs`, `plugin/bin/` dans ce dépôt source), puis l'agent
-**`verificateur-plan`**, **au premier plan** (§5), en lui donnant `P<n>`, en mode extension les
+**`verificateur-plan`**, **au premier plan** (`run_in_background: false`, §5), en lui donnant `P<n>`, en mode extension les
 sessions ajoutées, et la sortie du script :
 
 > Vérifie `plans/P<n>/` — contrôles sémantiques restants. Sortie de verifier-plan : RAS. Sortie de brief-a-jour : <sortie>
