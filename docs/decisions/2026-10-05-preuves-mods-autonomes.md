@@ -19,7 +19,11 @@ fois la tâche planifiée qui ouvre les conversations neuves.
 - le **chargement à froid** resté non conclu (M1), y compris par la voie qui servirait aux projets
   vendorés ;
 - la **garde git** dans le cas que P12 n'a pas testé (sous-agent en arrière-plan) et le **coût d'un
-  plan**, rejoué deux fois avec un orchestrateur neuf.
+  plan**, rejoué deux fois avec un orchestrateur neuf ;
+- les mods **d'orchestration**, qui remplacent par un mécanisme des règles que le workflow répète
+  aujourd'hui en prose : le modèle d'une session imposé par l'index, `CLAUDE-BASE` injecté aux
+  sous-agents, `run_in_background: false` par défaut, la collecte des verdicts et des coupures de
+  quota, et une ligne d'état.
 
 Ce qu'elle rend : un verdict positif ou négatif par mod, écrit d'avance. Rien n'entre dans le
 plugin avant la décision qui suivra.
@@ -66,7 +70,7 @@ test` sur son dossier, `node tests/tester-hooks.mjs`. N0 complet une seule fois,
 
 ### Vague 1 — logique des mods, en parallèle, hors session
 
-Trois sessions sur des dossiers disjoints, lancées en sous-agents par `/orchestrer-plan`. Aucune
+Quatre sessions sur des dossiers disjoints, lancées en sous-agents par `/orchestrer-plan`. Aucune
 n'installe quoi que ce soit.
 
 **F — mod de fichiers** (`preuves/mods/fichiers/`)
@@ -98,6 +102,57 @@ n'installe quoi que ce soit.
 - Le prompt autonome de la session planifiée (vague 2) et le script de collecte
   (`preuves/harnais/collecter.mjs` : journal + `limites.jsonl` → mesures, par horodatage).
 - Positif : tests verts, prompt autonome relu par `verificateur-plan`. Négatif : sans objet (outil).
+
+**O — mods d'orchestration** (`preuves/mods/orchestration/`, un module, cinq hooks indépendants,
+chacun désactivable par une option `userConfig`)
+
+Fait vérifié le 2026-10-05 (`types/claude-code.d.ts`, 2.1.286) : `agent.spawn` se déclenche quand
+l'outil `Agent` va démarrer un sous-agent, avant la résolution du modèle ; un hook peut rendre
+`{ model }`, appeler `next({ ...e, model, prompt })`, ou `{ deny }`. Son entrée porte `prompt`,
+`description`, `subagentType` et `model` — pas `run_in_background`, qui se lit sur `tool.call`.
+
+- **O1 — modèle imposé par l'index** (`agent.spawn`). Si le prompt nomme `plans/P<n>/S<k>.md`, le
+  mod lit la ligne de `S<k>` dans `plans/P<n>/index.md` et impose sa colonne Modèle.
+  Défaut qu'il traite : en P12 M2, une `session-low` lancée sans `model` a tourné en Opus 5.5.
+  - Positif : `plugin test` couvre modèle absent (imposé), modèle contraire à l'index (remplacé),
+    prompt sans plan (inchangé), index illisible (inchangé, jamais un refus) ; **et** en M3 bis, le
+    `turn.complete` de chaque session porte le modèle de l'index.
+  - Négatif : `agent.spawn` ne se déclenche pas pour un sous-agent du plugin (`workflow:session-*`),
+    ou le modèle rendu par le hook n'est pas celui que relève `turn.complete`.
+- **O2 — `CLAUDE-BASE` injecté aux sous-agents** (`agent.spawn`, prompt réécrit). Le mod préfixe le
+  prompt du contenu de `CLAUDE-BASE.md` (racine du plugin), une fois.
+  Défaut qu'il traite : `EXECUTANT.md` fait relire `CLAUDE-BASE.md` à chaque session, parce que le
+  hook `SessionStart` ne touche pas les sous-agents.
+  - Positif : `plugin test` prouve le préfixe unique (pas de doublon si déjà présent) ; **et** en
+    M3 bis, le surcoût de cache creation par session est inférieur au coût de la lecture de
+    `CLAUDE-BASE.md` qu'il remplace (les deux relevés au journal).
+  - Négatif : le surcoût dépasse le coût de la lecture, ou la réécriture du prompt casse le
+    lancement d'un agent du plugin.
+- **O3 — `run_in_background: false` par défaut** (`tool.call` sur `Agent`, entrée réécrite). Le mod
+  ajoute `run_in_background: false` quand le paramètre manque, et laisse passer un `true` explicite.
+  Défaut qu'il traite : la 0.53.0 a dû dicter le paramètre dans une dizaine de skills.
+  - Positif : `plugin test` couvre absent (ajouté), `true` (inchangé), `false` (inchangé) ; **et** en
+    M3 bis, l'orchestrateur lance ses sessions en arrière-plan (son `true` explicite passe) pendant
+    qu'un appel `Agent` sans paramètre part au premier plan.
+  - Négatif : une réécriture de l'entrée de `tool.call` n'est pas prise en compte par l'outil `Agent`.
+- **O4 — collecte des verdicts et des coupures de quota** (`turn.complete` d'un sous-agent). Le mod
+  extrait la dernière ligne `VERDICT:` du tour et l'écrit dans `plans/P<n>/S<k>.verdict` (non
+  commité) ; sur une erreur `rate_limit` sans `VERDICT:`, il écrit `plans/P<n>/S<k>.echec.md` avec
+  `Nature : interruption` (règle « Coupure par quota » de `/orchestrer-plan`, appliquée à la main
+  aujourd'hui).
+  - Positif : `plugin test` couvre verdict présent, verdict absent, erreur `rate_limit` simulée ;
+    **et** en M3 bis, chaque session laisse son `.verdict`, identique à la ligne que l'orchestrateur
+    a reçue.
+  - Négatif : le texte final du sous-agent n'est pas lisible depuis `turn.complete`, ou l'erreur de
+    quota n'y est pas distinguable.
+  - Hors preuve : brancher `prochaine-action.mjs` sur ces fichiers. Ce sera la décision qui suit.
+- **O5 — ligne d'état** (`$.ui.status`, sur `session.measure` et `turn.complete`). Plan, vague et
+  session en cours (sortie de `prochaine-action.mjs --json`), % de la fenêtre de 5 h, remplissage du
+  contexte, avec un rappel unique à 70 % de contexte (seuil d'arrêt d'`EXECUTANT.md`).
+  - Positif : `plugin test` prouve le texte rendu et le rappel unique au franchissement de 70 % ;
+    **et** en vague 2, la ligne est posée dans la session planifiée (`$.ui.status` sans refus au
+    journal). L'aspect visuel n'est pas jugé (règle d'autonomie).
+  - Négatif : `$.ui.status` refusé ou sans effet dans une session lancée par tâche planifiée.
 
 ### M5 — Session neuve lancée par l'orchestrateur, à la place de la pastille
 
@@ -149,8 +204,8 @@ la notification ; un sous-agent rendu ne la recevrait plus) :
 
 ### Vague 2 — en direct, à froid, en séquence
 
-Une session (sous-agent ordinaire) installe les trois mods dans le plugin de la branche
-(`"modules": ["./observateur.tsx", "./fichiers.ts", "./limites.ts"]`) et réinstalle le plugin
+Une session (sous-agent ordinaire) installe les quatre mods dans le plugin de la branche
+(`"modules": ["./observateur.tsx", "./fichiers.ts", "./limites.ts", "./orchestration.ts"]`) et réinstalle le plugin
 (`uninstall` + `install` `--scope local`, `update` ne recopiant rien à version égale). Puis
 **l'orchestrateur lui-même** démarre **deux** sessions neuves par tâche planifiée, selon M5 (c'est la
 mesure M5 en même temps), à plus de 5 minutes d'écart (cache froid). Chacune reçoit le même prompt
@@ -167,7 +222,8 @@ autonome :
 3. **M3 bis** : orchestrer un plan de fixture de deux sessions (P92 puis P93 dans la seconde
    session planifiée), orchestrateur en Sonnet · medium. Positif : écart < 15 % entre les deux
    déroulés sur chaque poste, poste dominant identifié. Négatif : usage absent pour un sous-agent.
-4. Les mesures de F et L en direct (ci-dessus).
+4. Les mesures de F, L et O1 à O5 en direct (ci-dessus), relevées pendant M3 bis : c'est lui qui
+   orchestre de vraies sessions.
 
 L'orchestrateur attend la notification de fin (M5). Repli, si elle ne vient pas dans les 30 minutes
 du budget : le prompt autonome écrit en dernier un fichier témoin (`~/.claude/preuves/mods/<run>.fin`),
@@ -184,7 +240,7 @@ gestes humains demandés** (cible : 0). Désinstaller les mods du plugin local (
 
 ### Budget
 
-Vague 1 : 3 sessions × 40 tours, en parallèle. Vague 2 : 1 session de 40 tours + 2 sessions
+Vague 1 : 4 sessions × 40 tours, en parallèle. Vague 2 : 1 session de 40 tours + 2 sessions
 planifiées de 30 minutes au plus chacune. Vague 3 : 20 tours. Dépassement : s'arrêter, écrire « non
 conclu, budget » pour les mesures restantes, rendre ce qui est mesuré.
 
@@ -205,6 +261,11 @@ conclu, budget » pour les mesures restantes, rendre ce qui est mesuré.
 - **Dossier dev-mods + rechargement à chaud** : un clic humain par conversation ; écarté.
 - **Levier de réduction de coût (M3b, `prompt.section`)** : reporté tant que M3 bis n'a pas donné un
   coût de référence stable.
+- **Formatage prettier par mod** à la place du hook PostToolUse : aucun gain, le hook marche.
+- **Mod qui détecte un mod refusé** : impossible, un module refusé ne s'exécute pas ; c'est la gate
+  `plugin validate` du moteur qui le couvre.
+- **Archivage des sessions finies par mod** : l'environnement d'un mod n'expose pas les sessions de
+  l'application ; c'est l'orchestrateur qui archive (M5, étape 5).
 
 ## État final de la grille
 

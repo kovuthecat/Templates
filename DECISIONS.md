@@ -144,7 +144,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   en tokens, affichage) sur `preuve/mods`, une session ; rien n'entre dans le plugin avant la
   décision qui suivra → [détail](docs/decisions/2026-10-05-preuve-mods.md)
 - 2026-10-05 — **Mods : preuves autonomes et parallèles** — fichiers (garde de zone), limites
-  d'usage (fenêtre 5 h), chargement à froid M1 bis, garde git en arrière-plan, coût rejoué ; zéro
+  d'usage (fenêtre 5 h), orchestration (modèle imposé, CLAUDE-BASE aux sous-agents, verdicts,
+  ligne d'état), chargement à froid M1 bis, garde git en arrière-plan, coût rejoué ; zéro
   geste humain pendant le plan (sessions neuves par tâche planifiée, logique par `plugin test`) ;
   principe décidé : la session neuve lancée par l'orchestrateur remplacera la pastille, après M5 →
   [détail](docs/decisions/2026-10-05-preuves-mods-autonomes.md)
