@@ -85,3 +85,29 @@ et de `p15-pose.txt` ; `claude auto-mode config`. S3-S6 sont figées : ces geste
 
 Conclusion : après les deux corrections ci-dessus, aucune consigne n'interdit un geste dont le parcours a
 besoin.
+
+## W1 — lancement
+
+Contrôle de départ (quatre conditions, toutes vraies) :
+1. Ma transcription (`6456b39f-….jsonl`, premier message `/orchestrer-plan P15`) rejouée par
+   `transcription.mjs --lire` : 24 requêtes à cet instant, toutes `claude-sonnet-5-5` · `medium` ;
+   `permissionMode` = `auto` (5 enregistrements `user`, aucun autre mode).
+2. Premier enregistrement : `2026-10-06T11:25:03.875Z`, postérieur à `p15-pose.txt` (`2026-10-06T11:22:11.525Z`).
+3. `claude auto-mode config` : 7 entrées `allow` commençant par `P15 —` (ligne comptée : 7 ; « P15 » apparaît
+   dans les 7, la 7e se cite elle-même).
+4. `~/.claude/settings.json` : `modelSettings["claude-opus-5-5"].effortLevel` = `low`.
+
+Lancement :
+- `create_scheduled_task` `P95-A` : créée du premier coup, sans carte ni refus ; `model: opus` ajouté au
+  frontmatter de `~/.claude/scheduled-tasks/p95-a/SKILL.md` et relu.
+- T0 = `1791288623144` (`2026-10-06T12:10:23.144Z`). `run_scheduled_task` → session
+  `local_37bad09d-c35b-48a6-a290-394ac949c73c`.
+- `get_session` aussitôt : `model: "opus"`, `isRunning: true`, `remoteControlState: "off"` (effort et mode de
+  permission non affichés à ce stade).
+- **R** — `set_remote_control` (activation) sur cette session (`local_3887f034-…`) : accepté du premier
+  coup, réponse `{"remoteControlState":"on"}`, aucune carte d'approbation.
+- Minuteur de secours : `CronCreate` `953d910d`, une fois, `35 14 6 10 *` (T0 + 25 min, heure locale +02:00).
+- Attente : `Bash` en arrière-plan, tâche `bheoo01bp`, commande exacte du plan.
+- Refus ou cartes rencontrés depuis le début de cette conversation : aucun sur la branche de preuve. Un
+  geste humain avant la branche : la réponse « 2 » à la question sur le commit/push/publication refusés
+  à S1 (classificateur, motif « Modify Shared Resources », sur `main`).
