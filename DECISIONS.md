@@ -142,6 +142,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   mesure K) ; F, L, O2, O4 et garde git non adoptés ; preuve P15 (permission, Remote Control,
   modèle, effort, réveil, archivage, report) ; cinq leçons de méthode →
   [détail](docs/decisions/2026-10-06-suite-des-preuves-mods.md)
+- 2026-10-06 — **Après P15 : session neuve reportée, mods par mini-plugin** — la pastille reste
+  (une tâche planifiée ne peut pas lancer le serveur de dev, cas même des sessions `pastille`) ;
+  rouvrir si Desktop permet serveur de dev sans surveillance ET notification de fin au lanceur ;
+  K négatif → mini-plugin `plugin/mods/` installé par `/maj-workflow` →
+  [détail](docs/decisions/2026-10-06-apres-p15.md)
 
 ## Archives
 
