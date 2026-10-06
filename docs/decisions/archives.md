@@ -51,3 +51,7 @@
 - 2026-08-24 — **`/migrer-projet` couvre le projet jamais outillé** — Fusion avec l'ébauche
   `/adopter-projet` en un point d'entrée unique, diagnostic à 4 états →
   [détail](2026-08-24-migrer-projet-jamais-outille.md) — accomplie : skill en place, diagnostic à 4 états documenté dans la skill
+- 2026-10-05 — **Mods : preuve avant adoption** — protocole M1-M4 sur `preuve/mods` →
+  [détail](2026-10-05-preuve-mods.md) — remplacée par 2026-10-06 (après P12-P14)
+- 2026-10-06 — **Session planifiée : modèle et effort dès le premier tour** — preuve B/C →
+  [détail](2026-10-06-reglage-des-sessions-planifiees.md) — remplacée par 2026-10-06 (après P12-P14)

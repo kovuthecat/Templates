@@ -131,18 +131,12 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-09-29 — **Lanceur `/creer-projet` dans le dossier parent des projets** — plomberie seule
   (dossier, `git init`, vendoring, bascule), `/nouveau-projet` prend le relais ; source
   `plugin/lanceur/`, non vendorée, auto-mise à jour → [détail](docs/decisions/2026-09-29-lanceur-creer-projet.md)
-- 2026-10-05 — **Mods : preuve avant adoption** — protocole M1-M4 (chargement, sous-agents, coût
-  en tokens, affichage) sur `preuve/mods`, une session ; rien n'entre dans le plugin avant la
-  décision qui suivra → [détail](docs/decisions/2026-10-05-preuve-mods.md)
 - 2026-10-05 — **Mods : preuves autonomes et parallèles** — fichiers (garde de zone), limites
   d'usage (fenêtre 5 h), orchestration (modèle imposé, CLAUDE-BASE aux sous-agents, verdicts,
   ligne d'état), chargement à froid M1 bis, garde git en arrière-plan, coût rejoué ; zéro
   geste humain pendant le plan (sessions neuves par tâche planifiée, logique par `plugin test`) ;
   principe décidé : la session neuve lancée par l'orchestrateur remplacera la pastille, après M5 →
   [détail](docs/decisions/2026-10-05-preuves-mods-autonomes.md)
-- 2026-10-06 — **Session planifiée : modèle et effort dès le premier tour** — preuve : frontmatter du
-  `SKILL.md` de la tâche (B), sinon mod `turn.step` (C) ; repli : session relais (2 préambules) →
-  [détail](docs/decisions/2026-10-06-reglage-des-sessions-planifiees.md)
 - 2026-10-06 — **Après P12-P14 : mods O1/O3/O5 adoptés, session neuve prouvée de bout en bout** —
   mods dans `plugin/mods/`, vendorés et installés par `/maj-workflow` (sauf câblage par settings,
   mesure K) ; F, L, O2, O4 et garde git non adoptés ; preuve P15 (permission, Remote Control,
