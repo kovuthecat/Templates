@@ -52,7 +52,7 @@ s'ouvre **après** la pose ; S3 le vérifie.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1 | Hook Stop : jamais de relance d'une session planifiée (sur `main`) | Sonnet | medium | — | — | `plugin/hooks/stop-contexte.mjs` · `plugin/hooks/lib.mjs` · `tests/tester-hooks.mjs` · `plugin/.claude-plugin/plugin.json` · `plugin/WORKFLOW.md` · `CHANGELOG.md` | [ ] | — |
-| [S2](S2.md) | T2-T3 | Branche, instrument, plan de fixture P95, tableau des permissions | Sonnet | medium | — | S1 | `preuves/reglage/transcription.mjs` · `preuves/session-neuve/` · `plans/P95/` · `.gitignore` · `docs/analyses/session-neuve-releves.md` | [ ] | — |
+| [S2](S2.md) | T2-T3 | Branche, instrument, plan de fixture P95, tableau des permissions | Sonnet | medium | — | S1 | `preuves/reglage/transcription.mjs` · `preuves/session-neuve/` · `plans/P95/` · `.gitignore` · `docs/analyses/session-neuve-releves.md` | [x] | — |
 | [S3](S3.md) | T4-T5 | Déroulé W1 : session A, réveil par `Bash` (jouée par l'orchestrateur) | Sonnet | medium | — | S2 | `docs/analyses/session-neuve-releves.md` | [ ] | — |
 | [S4](S4.md) | T6 | Déroulé W2 : session B, réveil par `SendMessage` (jouée par l'orchestrateur) | Sonnet | medium | — | S3 | `docs/analyses/session-neuve-releves.md` | [ ] | — |
 | [S5](S5.md) | T7-T8 | K : un mod câblé par les settings d'un projet sans plugin | Sonnet | medium | — | S4 | `preuves/session-neuve/k/` · `docs/analyses/session-neuve-releves.md` | [ ] | — |
