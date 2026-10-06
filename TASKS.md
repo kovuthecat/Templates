@@ -26,3 +26,18 @@ Suivi d'avancement dans `plans/P9/index.md`, jamais ici.
 - T8 — Éval de déclenchement, cas positif et négatif · → plans/P9/S3.md
 - T9 — Version 0.42.0 et publication (si éval PASS) · → plans/P9/S4.md
 - T10 — Déroulé réel sur Chords, bilan en cinq points · → plans/P9/S5.md
+
+## Tâches — plan P15 (preuve : session neuve de bout en bout)
+
+Suivi d'avancement dans `plans/P15/index.md` (S1 sur `main`, la suite sur `preuve/session-neuve`).
+
+- T1 — Hook Stop : jamais de relance d'une session planifiée (0.55.0) · → plans/P15/S1.md
+- T2 — Branche, base, instrument restauré, état du réglage préalable · → plans/P15/S2.md
+- T3 — Plan de fixture P95, script de fixture, tableau des permissions · → plans/P15/S2.md
+- T4 — W1 : contrôle de départ, lancement de A, fin de tour · → plans/P15/S3.md
+- T5 — W1 et mesures de la session A · → plans/P15/S3.md
+- T6 — W2 : session B, réveil par message, mesures · → plans/P15/S4.md
+- T7 — K : mod câblé par les settings d'un projet sans plugin · → plans/P15/S5.md
+- T8 — Remise en ordre de K · → plans/P15/S5.md
+- T9 — Rendu et report sur main · → plans/P15/S6.md
+- T10 — Réglages retirés, poste vérifié · → plans/P15/S6.md
