@@ -139,7 +139,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-10-06 — **Après P15 : session neuve reportée, mods par mini-plugin** — la pastille reste
   (une tâche planifiée ne peut pas lancer le serveur de dev, cas même des sessions `pastille`) ;
   rouvrir si Desktop permet serveur de dev sans surveillance ET notification de fin au lanceur ;
-  K négatif → mini-plugin `plugin/mods/` installé par `/maj-workflow` →
+  K négatif → `plugin/mods/` installé par `/maj-workflow`, deux mini-plugins (garde-fous O1/O3,
+  affichage O5 + limites, fichiers, plan, incidents) : `claude-mods` absorbé →
   [détail](docs/decisions/2026-10-06-apres-p15.md)
 
 ## Archives
