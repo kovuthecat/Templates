@@ -143,6 +143,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-10-06 — **Session planifiée : modèle et effort dès le premier tour** — preuve : frontmatter du
   `SKILL.md` de la tâche (B), sinon mod `turn.step` (C) ; repli : session relais (2 préambules) →
   [détail](docs/decisions/2026-10-06-reglage-des-sessions-planifiees.md)
+- 2026-10-06 — **Après P12-P14 : mods O1/O3/O5 adoptés, session neuve prouvée de bout en bout** —
+  mods dans `plugin/mods/`, vendorés et installés par `/maj-workflow` (sauf câblage par settings,
+  mesure K) ; F, L, O2, O4 et garde git non adoptés ; preuve P15 (permission, Remote Control,
+  modèle, effort, réveil, archivage, report) ; cinq leçons de méthode →
+  [détail](docs/decisions/2026-10-06-suite-des-preuves-mods.md)
 
 ## Archives
 
