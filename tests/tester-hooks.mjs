@@ -272,6 +272,43 @@ cas('stop-contexte : sous wave.lock, diff non commité ne bloque pas', () => {
   return s === '' ? null : `attendu vide (sous verrou, non bloquant), reçu: ${s}`;
 });
 
+// Session planifiée : transcript dont l'`enqueue <scheduled-task …>` est en tête (forme réelle, `content`
+// raccourci). Chaque cas part du montage qui bloque aujourd'hui (src.js modifié sans suivi).
+const ENQUEUE = { type: 'queue-operation', operation: 'enqueue', timestamp: '2026-10-06T10:00:00.000Z',
+  content: '<scheduled-task name="p94-b" file="x">lance S1</scheduled-task>' };
+const ATTACHMENT = { type: 'attachment', timestamp: '2026-10-06T09:59:00.000Z', attachment: { type: 'hook_success' } };
+const USER = { type: 'user', message: { role: 'user', content: 'bonjour' } };
+function stopAvecTranscript(lignes) {
+  const repo = creerDepot();
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  let transcript = join(repo, 'absent.jsonl');
+  if (lignes) {
+    transcript = join(repo, 'transcript.jsonl');
+    writeFileSync(transcript, lignes.map((l) => JSON.stringify(l)).join('\n') + '\n');
+  }
+  return lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID(), transcript_path: transcript });
+}
+cas('stop-contexte : planifiée (enqueue en ligne 1) → rappel, jamais de blocage', () => {
+  const s = stopAvecTranscript([ENQUEUE, USER]);
+  return !estBloque(s) && s.includes('Session planifiée') ? null : `attendu rappel non bloquant, reçu: ${s || '(vide)'}`;
+});
+cas('stop-contexte : planifiée (enqueue en ligne 2, après un attachment) → rappel', () => {
+  const s = stopAvecTranscript([ATTACHMENT, ENQUEUE, USER]);
+  return !estBloque(s) && s.includes('Session planifiée') ? null : `attendu rappel non bloquant, reçu: ${s || '(vide)'}`;
+});
+cas('stop-contexte : transcript interactif (aucun enqueue) → bloque', () => {
+  const s = stopAvecTranscript([USER]);
+  return estBloque(s) ? null : `attendu un blocage, reçu: ${s || '(vide)'}`;
+});
+cas('stop-contexte : transcript_path absent → bloque', () => {
+  const s = stopAvecTranscript(null);
+  return estBloque(s) ? null : `attendu un blocage, reçu: ${s || '(vide)'}`;
+});
+cas('stop-contexte : enqueue après un premier message user → bloque', () => {
+  const s = stopAvecTranscript([USER, ENQUEUE]);
+  return estBloque(s) ? null : `attendu un blocage, reçu: ${s || '(vide)'}`;
+});
+
 cas('stop-contexte : STATUS.md au-delà du plafond → bloque', () => {
   const repo = creerDepot();
   const lignes = Array.from({ length: 90 }, (_, i) => `ligne ${i}`).join('\n') + '\n';

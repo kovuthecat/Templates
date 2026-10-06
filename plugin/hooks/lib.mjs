@@ -2,7 +2,7 @@
 // Aucune dépendance externe (pas de jq, pas de npm install).
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync, openSync, readSync, closeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -409,6 +409,35 @@ export function sessionsOuvertes(cwd) {
     // séparateur sont hors sujet.
     .filter((s) => /\[\s\]/.test(s.statutBrut))
     .map(({ plan, session, modele, effort }) => ({ plan, session, modele, effort }));
+}
+
+/** Session lancée par une tâche planifiée ? Le transcript porte, en tête, un enregistrement
+ *  `queue-operation` / `enqueue` dont `content` commence par `<scheduled-task name=` — pas forcément
+ *  en ligne 1 (l'ordre du fichier ne suit pas les horodatages). On lit une tête bornée (64 Kio) et on
+ *  s'arrête au premier enregistrement `user` / `assistant`. Fichier absent, illisible ou champ absent →
+ *  `false` : un faux positif retirerait la garde à une session interactive, un faux négatif ne coûte
+ *  qu'un tour. Ne lève jamais. */
+export function estSessionPlanifiee(transcriptPath) {
+  let fd = null;
+  try {
+    if (typeof transcriptPath !== 'string' || transcriptPath === '' || !existsSync(transcriptPath)) return false;
+    fd = openSync(transcriptPath, 'r');
+    const tampon = Buffer.alloc(65536);
+    const lu = readSync(fd, tampon, 0, tampon.length, 0);
+    for (const ligne of tampon.subarray(0, lu).toString('utf8').split('\n')) {
+      let e;
+      try { e = JSON.parse(ligne); } catch { continue; }
+      if (!e || typeof e !== 'object') continue;
+      if (e.type === 'user' || e.type === 'assistant') return false;
+      if (e.type === 'queue-operation' && e.operation === 'enqueue' &&
+          typeof e.content === 'string' && e.content.startsWith('<scheduled-task name=')) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    if (fd !== null) { try { closeSync(fd); } catch { /* rien */ } }
+  }
 }
 
 export function repondre(objet) {

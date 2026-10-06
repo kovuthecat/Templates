@@ -118,7 +118,7 @@ Plan: P<n>/S<k>/T<m>
 
 **Fin de tour = arbre propre et poussé (C3)** : plus de push « groupé » de fin de vague/plan — un commit local n'existe pour aucune autre machine, cloud compris.
 
-- `Stop` refuse si commits d'avance sur l'amont ou fichiers suivis non commités (§7). Exemptions : pas de remote, `.claude/wave.lock`, remote injoignable (signalé, jamais bloquant).
+- `Stop` refuse si commits d'avance sur l'amont ou fichiers suivis non commités (§7). Exemptions : pas de remote, `.claude/wave.lock`, remote injoignable (signalé, jamais bloquant), session planifiée (rappel seulement).
 - `git pull --rebase` avant de pousser ; conflit → **question**. Arrêt en cours de tâche/N0 rouge : en chaînage manuel, branche `wip/P<n>-S<k>` poussée avec `.echec.md`, jamais `main` ; en mode orchestré, `.echec.md` commité **sur la branche courante** — l'orchestrateur partage l'arbre de la session.
 - `main` impossible (cloud) : pousser la branche et la **nommer** en relance (`Commit : <sha> poussé sur <branche>`) — premier geste suivant : `git merge-base --is-ancestor <sha> HEAD`.
 - **`.revue.md` et `.echec.md` sont commités** ; le repère `Revues:` disparaît (git seul juge, §7) ; `[x]!` reste (§4a).
@@ -203,7 +203,7 @@ Cinq hooks (`${CLAUDE_PLUGIN_ROOT}/hooks/`, câblés dans `hooks.json`) applique
 | `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell/EnterWorktree) | Refuse `add -A`/`.`/`--all`, `commit -a` (options globales `git -C`/`git -c` tolérées avant la sous-commande) ; refuse commit/push/worktree sous `.claude/wave.lock`, et **par défaut** quand la racine du dépôt est introuvable (worktree lié d'un `.git` déplacé). |
 | `posttooluse-format.mjs` | PostToolUse (Edit/Write) | Prettier si configuré, silencieux sinon. |
 | `postmodelswitch-journal.mjs` | PostModelSwitch | Journalise chaque changement (`.claude/journal-modeles.jsonl`), jamais bloquant. |
-| `stop-contexte.mjs` | Stop | **Gate** (§9c) : refuse si code modifié sans suivi touché, session commitée sans `.revue.md` ajouté par un commit (repère `Revues:` disparu — §4a), plafond dépassé, ou — **C3** — commits d'avance/fichiers suivis non commités. Exemptions : pas de remote, `wave.lock`, remote injoignable (avertissement), sessions `low` (C7 — jamais de revue attendue). Bloque une fois, rappelle si la liste change ; sous `wave.lock`, seuls les plafonds comptent. |
+| `stop-contexte.mjs` | Stop | **Gate** (§9c) : refuse si code modifié sans suivi touché, session commitée sans `.revue.md` ajouté par un commit (repère `Revues:` disparu — §4a), plafond dépassé, ou — **C3** — commits d'avance/fichiers suivis non commités. Exemptions : pas de remote, `wave.lock`, remote injoignable (avertissement), session planifiée (rappel seulement), sessions `low` (C7 — jamais de revue attendue). Bloque une fois, rappelle si la liste change ; sous `wave.lock`, seuls les plafonds comptent. |
 
 ### Plafonds de lignes
 

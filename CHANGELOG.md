@@ -3,6 +3,14 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-06` — **Hook Stop : jamais de relance d'une session planifiée** (plugin `workflow` 0.55.0).
+  Le blocage du hook Stop relançait pour un tour de plus les sessions lancées par une tâche planifiée
+  (P13 : « travail non poussé » ; P14 : plafond de `TASKS.md`), alors que personne n'y lit le blocage —
+  tour inutile, et nombre de tours faussé. Détection par `estSessionPlanifiee` (`lib.mjs`) : tête du
+  transcript, `enqueue` `<scheduled-task name=…`, lu jusqu'au premier message. Session planifiée : mêmes
+  vérifications, mais un `systemMessage` « Session planifiée — rappel non bloquant », jamais `decision:
+  block`. Revers : une session planifiée reprise ensuite à la main n'a plus que ce rappel. Projet
+  vendoré : `/maj-workflow`. Décision : `docs/decisions/2026-10-06-suite-des-preuves-mods.md` (leçon 5).
 - `2026-10-05` — **Preuve N0 : plus de boucle `valider-n0` sur un fichier non suivi** (plugin `workflow` 0.54.0).
   `empreinte()` comptait `.claude/journal-modeles.jsonl`, écrit par le hook PostModelSwitch et jamais
   commité : toute preuve calculée sur l'arbre divergeait du commit, et `prochaine-action.mjs` rendait
