@@ -153,12 +153,6 @@ bloquaient la preuve N0 de S1. Aucune approbation de tâche, aucun clic.
   commit du plan → vide ; cache `0.54.0` : `modules` absent de `hooks.json`, `reglage.ts` absent.
   Rien n'a eu à être réparé.
 
-## Report sur `main` — non fait
+## Report sur `main`
 
-Le report de ce seul fichier sur `origin/main` (dernier geste de S4/T8) a été **refusé par le
-classificateur de permissions du mode automatique** (« Modify Shared Resources », puis
-« Auto-Mode Bypass » à la reprise) malgré l'accord donné dans la conversation. Il n'a pas été
-contourné. Ce fichier ne vit donc, pour l'instant, que sur `preuve/reglage-session`. **À faire par
-l'utilisateur** : depuis la racine, reporter ce seul fichier sur `main` (par exemple
-`git switch main && git checkout preuve/reglage-session -- docs/analyses/2026-10-06-reglage-sessions-planifiees-mesures.md`,
-commit, push), ou ajouter une règle d'autorisation pour ce push et le faire rejouer.
+Le report de ce seul fichier sur `origin/main` a d’abord été refusé par le classificateur de permissions du mode automatique (« Modify Shared Resources », puis « Auto-Mode Bypass »), sans être contourné. Il a été fait ensuite sur ordre direct de l’utilisateur (2026-10-06), par commit sur `origin/main` à index temporaire, ce seul fichier.
