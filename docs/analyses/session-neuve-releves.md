@@ -184,3 +184,64 @@ non archivée (cf. « A (partie A) »).
   W1). Cette section est donc écrite, commitée et poussée **avant** `run_scheduled_task` ; T0, l'identifiant
   de session de B et la réponse de `set_remote_control` sont relevés à la reprise, dans « W2 et session B »,
   depuis les sorties des outils de cette conversation. Les gestes restent les mêmes, seul leur ordre change.
+
+## W2 et session B
+
+Faits relevés à la reprise (sorties des outils de cette conversation) : `P95-B` lancée à T0 =
+`1791289567684` (`2026-10-06T12:26:07.684Z`), session `local_249e3824-4b77-472d-919b-c03e68b0d265`,
+`get_session` aussitôt : `model: "haiku"`, `isRunning: true`, Remote Control `off` ; **R** :
+`set_remote_control` (activation) sur B → `{"remoteControlState":"on"}`, sans carte.
+
+Source de la reprise : le premier enregistrement `user` du tour de reprise, dans ma transcription, est
+`2026-10-06T12:29:24.304Z` · `permissionMode: auto` · texte « Je ne vois pas W2. Est ce normal? » : **un
+message humain**, ni le message de B (aucun n'a été envoyé), ni le minuteur (`fb3eed09`, prévu 14:51 locale,
+supprimé par `CronDelete` : « Cancelled job », `CronList` → « No scheduled jobs. »). Témoin
+`plans/P95/sorties/B.fin` : `2026-10-06 14:26:52.594 +0200`, contenu
+`VERDICT: PASS — adresse P15-orchestrateur introuvable`. B a donc fini 45 s après T0 sans me joindre.
+
+Transcription de B (`82267b08-c522-44dd-a6b1-23db6c621721.jsonl`, retrouvée par
+`transcription.mjs --attendre … --depuis 1791289567684 --max 30`, lue par `--lire`) : 7 requêtes,
+`claude-haiku-4-5-20251001`, effort absent (prévu pour Haiku), 1 tour, outils `Read, Bash, Write, ToolSearch`
+— **ni `ListAgents` ni `SendMessage` appelés**. Cause de « adresse introuvable » : le premier
+`ToolSearch select:SendMessage,ListAgents` ne rend que `SendMessage` ; le second `select:ListAgents` rend
+« No matching deferred tools found ». B n'a jamais pu lister les agents, et n'a pas tenté d'envoyer au nom
+`P15-orchestrateur`. Le contrôle d'adresse du plan (`ListAgents`) n'est donc pas disponible dans une session
+lancée par tâche planifiée. Aucune erreur, aucun refus dans B (`is_error: false` seul).
+
+- **P-mode.** Enregistrement `user` de B : `permissionMode` = `default` ; négatif, comme A.
+- **P-gestes.** Dans B : aucun refus ni approbation. Dans mon fil : `is_error: true` ×2, **les deux sont les
+  refus de `archive_session`** (A à 12:11:25, B à 12:30:04 ; motif cité en S3), pas un refus du classificateur ;
+  aucune carte d'approbation. **Correction de S3** : la phrase « 0 `is_error: true` dans mon fil depuis T0 » était
+  vraie au moment du comptage (le refus d'archivage de A n'était pas encore dans la transcription) mais
+  fausse après coup : il y en avait 1, le refus d'archivage ; rien d'autre.
+- **A sur B.** `archive_session` avec Remote Control actif → même refus, mot pour mot que pour A (« … it still
+  has live work (an agent run, a Remote Control client, a queued message or a background task). … »).
+  **Sonde supplémentaire (hors critère)** : `set_remote_control` `enabled: false` sur B → `off`, puis
+  `archive_session` → « Archived session local_249e3824-… ("P95 b") » ; même geste sur A
+  (`off`, puis « Archived session local_37bad09d-… ("P95 a") »). Le « client connecté » est donc bien
+  Remote Control lui-même : une session avec Remote Control actif ne s'archive pas, et le critère A
+  (« `archived: true` sur les deux, Remote Control actif ») ne peut pas être positif.
+- `delete_scheduled_task` `p95-b` : « deleted » ; `list_scheduled_tasks` → « No scheduled tasks found. »
+
+**W2 :** non conclu : adresse — B n'a pas pu charger `ListAgents` (`No matching deferred tools found`), n'a rien envoyé ; ma reprise vient d'un message humain
+**P (partie B) :** négatif : B en `permissionMode` `default` (P-mode) ; P-gestes positif (aucun refus ni approbation dans B)
+**R (partie B) :** positif : `set_remote_control` accepté sans approbation sur B
+**M (partie B) :** positif : premier message de B en `claude-haiku-4-5-20251001` (frontmatter `model: haiku`), l'orchestrateur étant en `claude-sonnet-5-5`
+**A (partie B) :** négatif : `archive_session` refusé (« still has live work … a Remote Control client »), accepté une fois Remote Control éteint
+
+Synthèse A + B :
+
+**P :** négatif : les deux sessions tournent en `default`, pas en `auto` (P-mode négatif sur A et B) ; aucune approbation ni refus de classificateur dans A, B ni l'orchestrateur
+**R :** positif : `set_remote_control` accepté sans approbation sur l'orchestrateur, A et B
+**M :** positif : A en Opus, B en Haiku au premier message, l'orchestrateur en Sonnet
+**A :** négatif : l'archivage est refusé tant que Remote Control est actif, sur A comme sur B ; accepté une fois éteint (sonde, hors critère)
+
+Gestes humains depuis le début du plan : 2 — la réponse « 2 » au commit/push/publication de S1
+(sur `main`), et la question « Je ne vois pas W2. Est ce normal? », qui a été la source de la reprise de W2
+(pas un geste d'approbation). Aucune approbation sur la branche de preuve.
+
+Constats pour S6 : (1) la fixture B suppose `ListAgents` chargeable par `ToolSearch` ; ce n'est pas le cas dans
+une session lancée par tâche planifiée, W2 reste donc à mesurer autrement (envoi direct à un nom, sans lister) ;
+(2) A et B finissent en moins d'une minute : un réveil se mesure seulement si l'orchestrateur n'a plus rien à
+écrire après le lancement (ordre inversé en S4) ; (3) l'archivage d'une session de test passe par l'extinction
+de Remote Control.
