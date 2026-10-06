@@ -204,7 +204,7 @@ git push origin "$C:refs/heads/main"
 
 Constat : `git fetch origin` puis `git diff --name-only origin/main~1 origin/main` → ce seul fichier.
 
-**Report :** à constater
+**Report :** positif : le premier report (commit 96d05fd, index temporaire, `git push origin $C:refs/heads/main`) est passé sans refus ni du classificateur ni du hook ; `git diff --name-only origin/main~1 origin/main` ne rend que ce fichier
 
 ## Réfuté
 
