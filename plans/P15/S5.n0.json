@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "session": "P15/S5",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "71c3569b6d193b3923f953cffbead60fc0ccf1810a355e06e4184015c387eb9a",
+  "nonSuivis": [
+    "preuves/session-neuve/k/.claude-plugin/marketplace.json",
+    "preuves/session-neuve/k/.claude-plugin/plugin.json",
+    "preuves/session-neuve/k/hooks/hooks.json",
+    "preuves/session-neuve/k/hooks/journal.ts"
+  ],
+  "date": "2026-10-06T12:59:19.836Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 154533
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 121170
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 398
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 347767
+    }
+  ]
+}
