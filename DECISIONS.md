@@ -140,6 +140,9 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   geste humain pendant le plan (sessions neuves par tâche planifiée, logique par `plugin test`) ;
   principe décidé : la session neuve lancée par l'orchestrateur remplacera la pastille, après M5 →
   [détail](docs/decisions/2026-10-05-preuves-mods-autonomes.md)
+- 2026-10-06 — **Session planifiée : modèle et effort dès le premier tour** — preuve : frontmatter du
+  `SKILL.md` de la tâche (B), sinon mod `turn.step` (C) ; repli : session relais (2 préambules) →
+  [détail](docs/decisions/2026-10-06-reglage-des-sessions-planifiees.md)
 
 ## Archives
 
