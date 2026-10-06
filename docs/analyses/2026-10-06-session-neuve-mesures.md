@@ -22,6 +22,8 @@
 - **Ce qui n'a pas pu être mesuré** : le réveil de l'orchestrateur à la fin d'une session (W1, W2) —
   les sessions de test finissent en 19 s et 45 s, avant que l'orchestrateur ait rendu la main ; et le
   câblage d'un mod sans plugin (K) — le CLI lancé en sous-processus n'est pas authentifié.
+  **K rejoué le soir même, après reconnexion : négatif** — un mod ne se câble pas par les settings
+  d'un projet ; il faut un plugin installé (section « K — rejoué après reconnexion »).
 - **Ce qui bloque** : une session dont Remote Control est actif ne s'archive pas ; il faut d'abord
   l'éteindre.
 - **Voie retenue** : la pastille ne se retire pas du repli Desktop (voir « Voie retenue »). Revers :
@@ -181,6 +183,32 @@ puis `claude -p "Réponds OK."` dans la fixture avec une session connectée (`cl
 
 **K :** non conclu : instrument (`claude -p` n'est pas authentifié ; le témoin positif n'écrit pas non plus)
 
+## K — rejoué après reconnexion (2026-10-06, hors plan)
+
+Même protocole que S5, sur `main`, après `claude auth login` fait par l'utilisateur (`claude auth status` →
+`loggedIn: true`). Mini-plugin extrait de `origin/preuve/session-neuve` (`git archive`) dans le dossier
+temporaire de la session ; rien n'entre dans Templates. Binaire du bureau 2.1.286 pour tous les essais.
+
+**Protocole exécuté** : validation du `plugin.json` → « ✔ Validation passed with warnings »
+(`./journal.ts hooks: session.start`). Fixture `~/preuves-p15/k` : `git init`, `sync-workflow.mjs --source
+plugin --ignorer-cache` (74 fichiers, v0.55.0 ; sans l'option, refus « cache plugin périmé »), settings du
+gabarit, `journal.ts` en `.claude/mods/`. Trois `claude -p "Réponds OK."`, réponse « OK. » à chaque fois.
+
+**Lignes citées** :
+- Essai 1, `"modules": [".claude/mods/journal.ts"]` à la racine de `.claude/settings.json`, T0 19:19:37Z :
+  aucun avertissement sur la clé ; journal absent.
+- Essai 2, même clé en chemin absolu, T0 19:19:50Z : journal absent.
+- Essai 3, témoin positif (clé retirée, `p15-k-temoin@p15k` installé `--scope local`), T0 19:20:06Z :
+  `{"evt":"session.start","cwd":"C:\\Users\\Kovu\\preuves-p15\\k","iso":"2026-10-06T19:20:08.857Z"}`.
+- Les trois essais affichent « Ignoring 26 permissions.allow entries from .claude/settings.json: this
+  workspace has not been trusted. » Réserve : on n'a pas mesuré si un espace approuvé lirait la clé
+  `modules` ; le témoin montre que l'absence d'approbation n'empêche pas un module de plugin de se charger.
+
+**Remise en ordre** : plugin désinstallé, marketplace `p15k` retirée, fixture et journal supprimés ;
+`claude plugin list` (Templates) : `workflow@templates`, `design@synced`, aucun `p15-k-temoin`.
+
+**K :** négatif : la clé `modules` des settings d'un projet n'est pas lue (essais 1 et 2), le même module installé en plugin écrit sa ligne (essai 3)
+
 ## Report
 
 **Critère cité** : Positif : « le fichier de mesures est committé et poussé sur `main` par la session
@@ -229,7 +257,8 @@ visible en Remote Control, la régler en modèle et en effort). Manquent, nommé
   un envoi à un nom sans passer par `ListAgents` ;
 - A : éteindre Remote Control avant d'archiver (la sonde le fait passer), ce qui ne répond pas au
   critère « Remote Control actif » ;
-- K : une session connectée (`claude auth login`) pour mesurer la voie du module déclaré dans les settings.
+- K : ~~une session connectée pour mesurer la voie des settings~~ — mesuré depuis, négatif : le
+  chantier des mods prend la voie du mini-plugin installé par `/maj-workflow`.
 
 L'intégration dans `/orchestrer-plan` et `WORKFLOW.md` §5b reste une décision ultérieure sur `main`.
 
