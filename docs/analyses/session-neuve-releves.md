@@ -245,3 +245,50 @@ une session lancée par tâche planifiée, W2 reste donc à mesurer autrement (e
 (2) A et B finissent en moins d'une minute : un réveil se mesure seulement si l'orchestrateur n'a plus rien à
 écrire après le lancement (ordre inversé en S4) ; (3) l'archivage d'une session de test passe par l'extinction
 de Remote Control.
+
+## K
+
+Question : un module déclaré par une clé `"modules"` au niveau racine du `.claude/settings.json` d'un projet
+vendoré, sans plugin, est-il chargé ? (voie non documentée)
+
+- Module : `preuves/session-neuve/k/hooks/journal.ts` (mini-plugin `p15-k-temoin@p15k`, `hooks.json` =
+  `{ "modules": ["./journal.ts"] }`) ; il ajoute `{"evt":"session.start","cwd":…,"iso":…}` à
+  `~/.claude/preuves/p15-k.jsonl`.
+- Validation (`plugin validate` sur le `plugin.json`) :
+  - Avec le `claude` du PATH (`~/.local/bin/claude.exe`, **2.1.251**) : ✘ `"session.start" is not an event` —
+    ce binaire ne connaît pas l'événement (idem `session.end`; `tool.call` et `prompt.submit` passent).
+  - Avec le binaire du bureau (`%APPDATA%\Claude\claude-code\2.1.286\635c1867224a\claude.exe`, **2.1.286**,
+    celui dont la skill `plugin-authoring` décrit l'API) : « ✔ Validation passed with warnings » ;
+    `./journal.ts hooks: session.start`, `calls: $.env.get, $.fs.read, $.fs.write`, `env reads: USERPROFILE`
+    (seul avertissement : pas d'auteur).
+- Fixture : `~/preuves-p15/k` (`git init`, `sync-workflow.mjs --source plugin` : 74 fichiers, manifeste v0.55.0,
+  `settings.json` = gabarit `project-settings.json`, `journal.ts` copié en `.claude/mods/`).
+  `claude plugin list` dans la fixture : seul `workflow@templates` (désactivé), aucun `p15-k-temoin`.
+- Essai 1 (`"modules": [".claude/mods/journal.ts"]`, T0 12:47:21Z), `claude -p "Réponds OK."`, binaire 2.1.286 :
+  `Ignoring 26 permissions.allow entries from .claude/settings.json: this workspace has not been trusted. …`
+  puis `Failed to authenticate: OAuth session expired and could not be refreshed` ; journal : absent.
+- Essai 2 (chemin absolu, T0 12:48:07Z), binaire 2.1.251 : mêmes deux messages, sortie 1 ; journal absent.
+- Essai 3, témoin positif (clé retirée ; `plugin marketplace add …/preuves/session-neuve/k --scope local`,
+  `plugin install p15-k-temoin@p15k --scope local`, « enabled » ; T0 12:48:15Z) : mêmes messages, sortie 1 ;
+  journal absent.
+- Lecture : `claude auth status` → `loggedIn: false`. Le CLI lancé en sous-processus ne s'authentifie pas
+  (session OAuth expirée) et s'arrête avant d'ouvrir une session ; le témoin positif, module en plugin
+  installé, n'écrit rien non plus : l'absence aux essais 1 et 2 ne dit rien de la voie testée. Non corrigé :
+  se reconnecter est un geste d'identifiants. Aussi relevé : l'espace de travail non approuvé
+  (`hasTrustDialogAccepted`) fait ignorer les `permissions.allow` du projet ; l'effet sur un module n'est pas
+  mesuré.
+- Reproduire : valider avec le binaire 2.1.286, créer la fixture, ajouter la clé `modules`, puis
+  `claude -p "Réponds OK."` dans la fixture avec une session connectée (`claude auth login`) et lire
+  `~/.claude/preuves/p15-k.jsonl`.
+
+**K :** non conclu : instrument (`claude -p` n'est pas authentifié ; le témoin positif n'écrit pas non plus)
+
+## État après K
+
+- `claude plugin uninstall p15-k-temoin@p15k --scope local` → « ✔ Successfully uninstalled plugin » ;
+  `claude plugin marketplace remove p15k --scope local` → « ✔ Successfully removed marketplace: p15k ».
+- `~/preuves-p15/` et `~/.claude/preuves/p15-k.jsonl` (jamais créé) supprimés ; `test ! -e ~/preuves-p15` → 0.
+- Dans Templates, `claude plugin list` : `workflow@templates` 0.55.0, local, ✔ enabled, aucun `p15-k-temoin` ;
+  `claude plugin marketplace list` : `claude-plugins-official`, `templates`, aucune `p15k`.
+- Gestes humains depuis le début du plan : 2 (inchangé en S5, aucun geste demandé). Un appel PowerShell groupé
+  (désinstallation + suppression) a été refusé, rejoué en Bash par morceaux.

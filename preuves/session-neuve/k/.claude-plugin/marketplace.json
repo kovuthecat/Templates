@@ -1,0 +1,8 @@
+{
+  "name": "p15k",
+  "description": "Marketplace de preuve P15 (mesure K).",
+  "owner": { "name": "templates" },
+  "plugins": [
+    { "name": "p15-k-temoin", "source": "./", "description": "Témoin P15/K." }
+  ]
+}
