@@ -41,3 +41,20 @@ Suivi d'avancement dans `plans/P15/index.md` (S1 sur `main`, la suite sur `preuv
 - T8 — Remise en ordre de K · → plans/P15/S5.md
 - T9 — Rendu et report sur main · → plans/P15/S6.md
 - T10 — Réglages retirés, poste vérifié · → plans/P15/S6.md
+
+## Tâches — plan P16 (mods du workflow : garde-fous et affichage)
+
+Suivi d'avancement dans `plans/P16/index.md`.
+
+- T1 — Mini-plugin garde-fous (O1 filet de modèle, O3 premier plan) · → plans/P16/S1.md
+- T2 — installer-mods : installe et vérifie les mods du poste · → plans/P16/S2.md
+- T3 — Mods vendorés, contrôlés en N0, installés par publier · → plans/P16/S2.md
+- T4 — maj-workflow et migrer-projet installent les mods · → plans/P16/S3.md
+- T5 — SessionStart signale des mods absents ou en retard · → plans/P16/S3.md
+- T6 — Publication 0.56.0 avec garde-fous · → plans/P16/S4.md
+- T7 — Preuve : garde-fous actifs dans un projet vendoré · → plans/P16/S4.md
+- T8 — Affichage : ligne d'état plan et limites, panneau limites · → plans/P16/S5.md
+- T9 — Affichage : panneau fichiers (état git) · → plans/P16/S5.md
+- T10 — Affichage : panneau plan et boutons de relance · → plans/P16/S6.md
+- T11 — Affichage : commande /incidents · → plans/P16/S6.md
+- T12 — Publication 0.57.0 et rendu réel · → plans/P16/S7.md
