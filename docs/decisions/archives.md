@@ -55,3 +55,9 @@
   [détail](2026-10-05-preuve-mods.md) — remplacée par 2026-10-06 (après P12-P14)
 - 2026-10-06 — **Session planifiée : modèle et effort dès le premier tour** — preuve B/C →
   [détail](2026-10-06-reglage-des-sessions-planifiees.md) — remplacée par 2026-10-06 (après P12-P14)
+- 2026-10-05 — **Mods : preuves autonomes et parallèles** — fichiers (garde de zone), limites
+  d'usage (fenêtre 5 h), orchestration (modèle imposé, CLAUDE-BASE aux sous-agents, verdicts,
+  ligne d'état), chargement à froid M1 bis, garde git en arrière-plan, coût rejoué ; zéro
+  geste humain pendant le plan (sessions neuves par tâche planifiée, logique par `plugin test`) ;
+  principe décidé : la session neuve lancée par l'orchestrateur remplacera la pastille, après M5 →
+  [détail](2026-10-05-preuves-mods-autonomes.md) — remplacée par 2026-10-06 (après P12-P14, puis après P15 : session neuve reportée)
