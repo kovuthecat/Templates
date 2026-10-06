@@ -52,3 +52,16 @@ Suivi d'avancement dans `plans/P13/index.md` (sur `preuve/mods-2`), jamais ici.
 - T9 — État remis en ordre · → plans/P13/S6.md
 - T10 — Fichier de mesures · → plans/P13/S7.md
 - T11 — Mods retirés, réinstallation, report sur main · → plans/P13/S7.md
+
+## Tâches — plan P14 (preuve : réglage des sessions planifiées)
+
+Suivi d'avancement dans `plans/P14/index.md` (sur `preuve/reglage-session`), jamais ici.
+
+- T1 — Branche, instrument de transcription, plan de test P94 · → plans/P14/S1.md
+- T2 — Mesure B : frontmatter de la tâche planifiée · → plans/P14/S1.md
+- T3 — État remis en ordre après B · → plans/P14/S1.md
+- T4 — C1 : mod turn.step et ses tests simulés · → plans/P14/S2.md
+- T5 — Mod installé dans le plugin de la branche · → plans/P14/S3.md
+- T6 — Mesure C2 : mod en direct · → plans/P14/S3.md
+- T7 — Plugin et tâches rendus à leur état d'avant · → plans/P14/S3.md
+- T8 — Fichier de mesures, report sur main · → plans/P14/S4.md
