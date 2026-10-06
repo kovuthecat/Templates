@@ -163,3 +163,24 @@ aucun sur la branche de preuve.
 
 Constat pour S6 : la tâche A est trop courte (19 s) pour mesurer un réveil dans le déroulé prévu ; pour
 W1, soit rendre la main avant tout écrit, soit allonger A.
+
+## W2 — lancement
+
+Contrôle : aucune commande d'attente vivante (tâches `bheoo01bp` et `brwj45dm9` terminées avant S4) ;
+`P95-A` supprimée, aucune `P95-*` en liste au départ de S4 ; session A `local_37bad09d-…` toujours
+non archivée (cf. « A (partie A) »).
+
+- **Adresse** : `list_sessions` n'inclut pas la session courante (par construction) ; `get_session self` →
+  `local_3887f034-1633-481c-b7af-727777ee7ea7`, `claude-sonnet-5-5`, `medium`, `permissionMode: auto`,
+  `remoteControlActive: true`, titre « P15 template » (posé à la main). `set_session_title self` →
+  « Renamed this session to "P15-orchestrateur" (was "P15 template") », sans carte ni refus.
+- `P95-B` : `create_scheduled_task` du premier coup ; `model: haiku` ajouté au frontmatter du `SKILL.md`
+  et relu (`cat`).
+- Minuteur de secours : `CronCreate` `fb3eed09`, une fois, `51 14 6 10 *` (heure locale +02:00 ; T0 estimé
+  à 14:26, + 25 min).
+- **Écart d'ordre par rapport au plan (assumé).** S3 a montré qu'une session A finit en 19 s. Le plan place
+  les relevés (étape 5) *après* le lancement : B (Haiku) aurait fini et écrit son message avant la fin de
+  tour, et le message tomberait dans le tour en cours, pas sur un orchestrateur au repos (même défaut que
+  W1). Cette section est donc écrite, commitée et poussée **avant** `run_scheduled_task` ; T0, l'identifiant
+  de session de B et la réponse de `set_remote_control` sont relevés à la reprise, dans « W2 et session B »,
+  depuis les sorties des outils de cette conversation. Les gestes restent les mêmes, seul leur ordre change.
