@@ -111,3 +111,55 @@ Lancement :
 - Refus ou cartes rencontrés depuis le début de cette conversation : aucun sur la branche de preuve. Un
   geste humain avant la branche : la réponse « 2 » à la question sur le commit/push/publication refusés
   à S1 (classificateur, motif « Modify Shared Resources », sur `main`).
+
+## W1 et session A
+
+Source de la reprise : **il n'y a pas eu de tour de reprise.** La tâche `Bash` d'attente (`bheoo01bp`, exit 0,
+sortie : le chemin `…/16079728-81bb-4815-9717-701ebab72a79.jsonl`) s'est terminée **pendant** mon tour, entre
+deux outils (étape 7, rédaction des relevés), avant toute fin de tour. Témoin `plans/P95/sorties/A.fin` :
+`2026-10-06 14:10:42.187 +0200` (= 12:10:42Z), soit **19 s** après T0 ; `A.travail` : 14:10:40.557. A a fini
+avant que j'aie fini la section T4, donc avant que je puisse rendre la main. Le minuteur n'a pas sonné
+(`CronDelete 953d910d` → « Cancelled job », `CronList` → « No scheduled jobs. »). Aucune commande d'attente
+vivante à l'étape 2 (la tâche `bheoo01bp` était déjà terminée).
+
+Protocole tel qu'exécuté : transcription de A par
+`node preuves/reglage/transcription.mjs --lire ~/.claude/projects/C--Users-kovu-Projets-Templates/16079728-81bb-4815-9717-701ebab72a79.jsonl`
+(commande refaisable telle quelle). Sortie : 4 requêtes, `claude-opus-5-5`, effort `low` sur chacune,
+1 tour, outils `Read, Bash, Write`, rapport max(cache 2..n)/cache 1 = 0.019. Un seul message `user` humain-ou-tâche
+(le prompt de la tâche planifiée) : A ne fait **qu'un tour**, le correctif de S1 tient (risque 1 de l'index non réalisé).
+
+- **W1.** Le réveil n'a pas été mesuré au repos : l'attente a rendu pendant le travail, pas après une fin de
+  tour ; A (Opus · low, tâche d'un `node` et d'un `Write`) finit en 19 s, plus vite que la rédaction des
+  relevés que le plan place avant la fin de tour (étape 7 avant 9). Aucun tour n'a été repris après un
+  repos. Aucun minuteur, aucun message humain n'a repris le tour : ce n'est ni le positif (reprise seule
+  après repos) ni le négatif (aucune reprise) — la condition de mesure n'a pas existé.
+- **P-mode.** Enregistrements `user` de A : `permissionMode` = `default` (1 enregistrement) ; le mien : `auto`.
+  La tâche planifiée n'est donc pas en `auto` : moitié **négative**.
+- **P-gestes.** Dans A : 0 `tool_result` avec `is_error: true`, 1 `is_error: false`, aucune demande
+  d'approbation ni refus de classificateur (`fixture.mjs` en `Bash` passé sans refus, `Write` de `A.fin`
+  passé). Dans mon fil depuis T0 : 0 `is_error: true`, aucune carte (création, lancement, Remote Control,
+  suppression de la tâche, `--lire`, `CronCreate/Delete`) ; aucun refus à ranger. Moitié **positive**.
+- **R sur A.** `set_remote_control` (`enabled: true`) sur `local_37bad09d-…` : accepté du premier coup,
+  `{"remoteControlState":"on"}`, aucune carte ; `get_session` ensuite : `remoteControlActive: true`.
+- **A.** `get_session` avant : `isArchived: false`, `isRunning: false`, Remote Control `off` (avant mon
+  activation). `archive_session` → refus, mot pour mot : « Session local_37bad09d-c35b-48a6-a290-394ac949c73c
+  ("P95 a") was not archived: it still has live work (an agent run, a Remote Control client, a queued message or
+  a background task). Wait or ask the user; they can also archive it from the sidebar. » `get_session` après :
+  `isArchived: false`, `remoteControlActive: true`. Motif rangé « client connecté » — mais je venais
+  d'activer Remote Control sur A, donc la cause n'est pas isolée du client (l'archivage n'a pas été testé
+  Remote Control éteint). Session A **laissée non archivée**, à traiter en S4.
+- `delete_scheduled_task` `p95-a` : « deleted », dossier `SKILL.md` laissé ; `list_scheduled_tasks` →
+  « No scheduled tasks found. » (aucune `P95-*`).
+
+**W1 :** non conclu : A a fini 19 s après T0, avant la fin de tour ; l'attente a rendu pendant le travail, aucune reprise après repos n'a eu lieu
+**E :** positif : première requête de A à l'effort `low` (via `modelSettings`), l'orchestrateur étant en `medium`
+**P (partie A) :** négatif : A en `permissionMode` `default` (P-mode) ; P-gestes positif (aucune approbation ni refus dans A ni dans l'orchestrateur)
+**R (partie A) :** positif : `set_remote_control` accepté sans approbation sur l'orchestrateur et sur A
+**M (partie A) :** positif : premier message de A en `claude-opus-5-5` (frontmatter `model: opus`), l'orchestrateur étant en `claude-sonnet-5-5`
+**A (partie A) :** négatif : `archive_session` refusé, motif « still has live work (… a Remote Control client …) » ; cause non isolée (Remote Control activé juste avant)
+
+Gestes humains depuis le début du plan : 1 (réponse « 2 » au commit/push/publication de S1, sur `main`) ;
+aucun sur la branche de preuve.
+
+Constat pour S6 : la tâche A est trop courte (19 s) pour mesurer un réveil dans le déroulé prévu ; pour
+W1, soit rendre la main avant tout écrit, soit allonger A.
