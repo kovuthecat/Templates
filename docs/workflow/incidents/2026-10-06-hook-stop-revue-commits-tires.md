@@ -18,3 +18,12 @@ les commits d'autrui entrent dans « les commits de cette session ».
 Réponse explicite au hook (« faux positif, aucun commit dans cette session ») ; il ne s'est pas
 redéclenché. Piste : ne compter que les commits dont l'auteur-date est postérieure au début de
 session, ou exclure ceux déjà présents sur `origin` au moment du repère.
+
+## Récidive — 2026-10-06, v0.55.0
+Session de lecture seule (« que donnent les résultats des protocoles de preuve ? »), aucun commit.
+Après `git pull --rebase` (13 commits, dont les reports de P14 et P15 sur `main`), le hook Stop
+réclame les revues de `P15/S6` et `P14/S4`. Le correctif n'est pas encore fait : `lib.mjs:287-306`
+lit toujours `${depuis}..HEAD`. Réponse explicite au hook, comme la première fois.
+Second défaut visible ici : les commits signalés sont des **reports de mesures** (un seul fichier
+`docs/analyses/…`, poussé par index temporaire depuis une branche de preuve) ; le hook les compte
+comme « du code » sous `Plan:` alors que la session qui les a faits vit sur une branche jetable.
