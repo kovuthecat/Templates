@@ -3,6 +3,12 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-07` — **Mods du workflow : affichage** (plugin `workflow` 0.57.0, mods `garde-fous` et `affichage` 0.57.0).
+  Le mod `affichage` donne à la session une ligne d'état (plan en cours, limites 5 h et 7 j avec heure de
+  reset, contexte), trois panneaux (limites, fichiers touchés, plan) avec des boutons de relance, la
+  commande `/incidents` (table des incidents du workflow) et `/panneau` pour rouvrir un panneau fermé.
+  Revers : rien ne s'affiche hors d'un projet du workflow (le dossier `Projets` lui-même n'en est pas un) ;
+  le placement des panneaux reste à juger à l'usage (Desktop, téléphone). Projet vendoré : `/maj-workflow`.
 - `2026-10-07` — **Mods du workflow : garde-fous** (plugin `workflow` 0.56.0, mod `garde-fous` 0.56.0).
   Un premier mini-plugin vit dans `plugin/mods/garde-fous/` : O1, filet de modèle (un sous-agent lancé
   sur `plans/P<n>/S<k>.md` sans modèle reçoit celui de la colonne Modèle de l'index ; un modèle explicite
