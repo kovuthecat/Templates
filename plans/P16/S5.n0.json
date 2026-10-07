@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "session": "P16/S5",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "42a52d24d6040bce1fabed534b7aebd9d0673a8737f704d0fbb25248d06d9c0a",
+  "nonSuivis": [
+    "plugin/mods/affichage/.claude-plugin/plugin.json",
+    "plugin/mods/affichage/hooks/fichiers.ts",
+    "plugin/mods/affichage/hooks/hooks.json",
+    "plugin/mods/affichage/hooks/limites.ts",
+    "plugin/mods/affichage/hooks/register.tsx",
+    "plugin/mods/affichage/tests/fichiers.test.ts",
+    "plugin/mods/affichage/tests/limites.test.ts",
+    "plugin/mods/affichage/tests/rendu.test.tsx",
+    "plugin/mods/affichage/types/index.d.ts"
+  ],
+  "date": "2026-10-07T06:24:40.279Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 58377
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 41470
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 134
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 3112
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 123210
+    }
+  ]
+}
