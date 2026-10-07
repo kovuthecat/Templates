@@ -1513,6 +1513,224 @@ cas('sync-workflow : une marketplace à jour, une autre en retard → sortie 3 s
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// installer-mods.mjs — installe et vérifie les mods du poste (P16/S2/T2)
+// Un binaire factice, STATEFUL (il tient known_marketplaces.json et installed_plugins.json comme le
+// vrai) et qui journalise ses arguments : sans ce journal, un script qui n'appelle rien passerait.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const INSTALLER_MODS = join(BIN, 'installer-mods.mjs');
+
+const FAUX_CLAUDE = `
+import fs from 'node:fs';
+import path from 'node:path';
+const a = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify(a) + '\\n');
+const pd = path.join(process.env.CLAUDE_CONFIG_DIR, 'plugins');
+fs.mkdirSync(pd, { recursive: true });
+const rd = (n, vide) => { try { return JSON.parse(fs.readFileSync(path.join(pd, n), 'utf8')); } catch { return vide; } };
+const wr = (n, o) => fs.writeFileSync(path.join(pd, n), JSON.stringify(o));
+const lireJ = (...p) => JSON.parse(fs.readFileSync(path.join(...p), 'utf8'));
+const versionDe = (mkt, mod) => {
+  const loc = rd('known_marketplaces.json', {})[mkt].installLocation;
+  const p = lireJ(loc, '.claude-plugin', 'marketplace.json').plugins.find((x) => x.name === mod);
+  return lireJ(loc, p.source, '.claude-plugin', 'plugin.json').version;
+};
+const k = rd('known_marketplaces.json', {});
+const ip = rd('installed_plugins.json', { version: 2, plugins: {} });
+if (a[0] === '--version') { console.log('9.9.9 (faux claude)'); process.exit(0); }
+if (a[1] === 'marketplace' && a[2] === 'add') {
+  k[lireJ(a[3], '.claude-plugin', 'marketplace.json').name] = { installLocation: a[3] };
+  wr('known_marketplaces.json', k);
+} else if (a[1] === 'marketplace' && a[2] === 'remove') {
+  delete k[a[3]];
+  for (const id of Object.keys(ip.plugins)) if (id.endsWith('@' + a[3])) delete ip.plugins[id];
+  wr('known_marketplaces.json', k); wr('installed_plugins.json', ip);
+} else if (a[1] === 'install' || a[1] === 'update') {
+  const [mod, mkt] = a[2].split('@');
+  const liste = ip.plugins[a[2]] ?? [];
+  const mien = liste.find((x) => x.scope === 'local' && x.projectPath === process.cwd());
+  if (mien) mien.version = versionDe(mkt, mod);
+  else liste.push({ scope: 'local', projectPath: process.cwd(), version: versionDe(mkt, mod) });
+  ip.plugins[a[2]] = liste;
+  wr('installed_plugins.json', ip);
+} else if (a[1] === 'list') {
+  let out = 'Installed plugins:\\n\\n';
+  for (const [id, liste] of Object.entries(ip.plugins)) for (const x of liste)
+    out += '  ❯ ' + id + '\\n    Version: ' + x.version + '\\n    Scope: ' + x.scope + '\\n    Status: ✔ enabled\\n\\n';
+  process.stdout.write(out);
+}
+`;
+
+const fauxClaude = (() => {
+  const d = dossierJetable('workflow-faux-claude-');
+  writeFileSync(join(d, 'faux-claude.mjs'), FAUX_CLAUDE);
+  if (process.platform === 'win32') {
+    writeFileSync(join(d, 'claude.cmd'), '@echo off\r\nnode "%~dp0faux-claude.mjs" %*\r\n');
+    return join(d, 'claude.cmd');
+  }
+  writeFileSync(join(d, 'claude'), '#!/bin/sh\nexec node "$(dirname "$0")/faux-claude.mjs" "$@"\n', { mode: 0o755 });
+  return join(d, 'claude');
+})();
+
+/** Poste factice : CLAUDE_CONFIG_DIR jetable + journal des appels. */
+function posteFactice() {
+  const config = dossierJetable('workflow-inst-config-');
+  const journal = join(config, 'appels.jsonl');
+  const appels = () => (existsSync(journal) ? readFileSync(journal, 'utf8') : '')
+    .split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const lancerInstaller = (projet, args = [], env = {}) => {
+    writeFileSync(journal, '');
+    const r = lancer(INSTALLER_MODS, args, projet, {
+      CLAUDE_CODE_EXECPATH: fauxClaude, CLAUDE_CONFIG_DIR: config, FAKE_LOG: journal, ...env,
+    });
+    return { ...r, appels: appels() };
+  };
+  const json = (nom) => JSON.parse(readFileSync(join(config, 'plugins', nom), 'utf8'));
+  return { config, lancerInstaller, json };
+}
+
+/** Appels d'ÉCRITURE seuls (marketplace add/remove, install, update), en chaînes lisibles. */
+const ecritures = (appels) => appels
+  .filter((a) => a[1] === 'marketplace' || a[1] === 'install' || a[1] === 'update')
+  .map((a) => a.slice(1).join(' '));
+
+function projetVendore(mods = { alpha: '1.2.3', beta: '1.2.3' }) {
+  const p = dossierJetable('workflow-inst-');
+  mkdirSync(join(p, '.claude/workflow/mods/bruit'), { recursive: true }); // sans plugin.json : ignoré
+  writeFileSync(join(p, '.claude/workflow/manifest.json'), '{}');
+  for (const [nom, version] of Object.entries(mods)) {
+    const d = join(p, '.claude/workflow/mods', nom, '.claude-plugin');
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, 'plugin.json'), JSON.stringify({ name: nom, version }));
+  }
+  return p;
+}
+
+const nomMarketplaceVendoree = (poste) => Object.keys(poste.json('known_marketplaces.json'))
+  .find((n) => n.startsWith('workflow-mods-'));
+
+cas('installer-mods (a) : projet vendoré neuf → marketplace add puis install de chaque mod, marketplace générée au bon nom', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  const { code, sortie, appels } = poste.lancerInstaller(projet);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const nom = nomMarketplaceVendoree(poste);
+  if (!nom || !/^workflow-mods-workflow-inst-[a-z0-9-]+-[0-9a-f]{6}$/.test(nom)) return `nom de marketplace inattendu: ${nom}`;
+  const w = ecritures(appels);
+  const dossier = join(projet, '.claude/workflow/mods');
+  if (w.length !== 3) return `3 appels d'écriture attendus, reçu: ${JSON.stringify(w)}`;
+  if (w[0] !== `marketplace add ${dossier} --scope local`) return `1er appel inattendu: ${w[0]}`;
+  if (w[1] !== `install alpha@${nom} --scope local`) return `2e appel inattendu: ${w[1]}`;
+  if (w[2] !== `install beta@${nom} --scope local`) return `3e appel inattendu: ${w[2]}`;
+  const mk = JSON.parse(readFileSync(join(dossier, '.claude-plugin', 'marketplace.json'), 'utf8'));
+  if (mk.name !== nom) return `marketplace.json porte ${mk.name}, attendu ${nom}`;
+  if (JSON.stringify(mk.plugins.map((p) => [p.name, p.source])) !== JSON.stringify([['alpha', './alpha'], ['beta', './beta']])) {
+    return `plugins de marketplace.json inattendus: ${JSON.stringify(mk.plugins)}`;
+  }
+  if (!appels.some((a) => a[1] === 'list')) return '`plugin list` jamais appelé : la vérification n\'a pas eu lieu';
+  return null;
+});
+
+cas('installer-mods (b) : deuxième lancement, tout en place → aucun add/install/update, `plugin list` relu', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  if (poste.lancerInstaller(projet).code !== 0) return 'premier lancement en échec';
+  const { code, sortie, appels } = poste.lancerInstaller(projet);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (ecritures(appels).length !== 0) return `aucune écriture attendue, reçu: ${JSON.stringify(ecritures(appels))}`;
+  if (!appels.some((a) => a[1] === 'list')) return '`plugin list` jamais appelé';
+  return null;
+});
+
+cas('installer-mods (c) : même nom de marketplace pointant ailleurs → remove PUIS add (ordre), puis réinstallation', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  if (poste.lancerInstaller(projet).code !== 0) return 'premier lancement en échec';
+  const nom = nomMarketplaceVendoree(poste);
+  const k = poste.json('known_marketplaces.json');
+  k[nom].installLocation = join(dossierJetable('workflow-inst-ailleurs-'), 'mods');
+  writeFileSync(join(poste.config, 'plugins', 'known_marketplaces.json'), JSON.stringify(k));
+  const { code, sortie, appels } = poste.lancerInstaller(projet);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const w = ecritures(appels);
+  const iRemove = w.indexOf(`marketplace remove ${nom}`);
+  const iAdd = w.findIndex((x) => x.startsWith('marketplace add '));
+  if (iRemove < 0 || iAdd < 0) return `remove et add attendus, reçu: ${JSON.stringify(w)}`;
+  if (iRemove > iAdd) return `remove doit précéder add, reçu: ${JSON.stringify(w)}`;
+  if (!w.includes(`install alpha@${nom} --scope local`)) return `réinstallation attendue après remove, reçu: ${JSON.stringify(w)}`;
+  return null;
+});
+
+cas('installer-mods (d) : version installée en retard → update de ce mod seul', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  if (poste.lancerInstaller(projet).code !== 0) return 'premier lancement en échec';
+  const nom = nomMarketplaceVendoree(poste);
+  const ip = poste.json('installed_plugins.json');
+  ip.plugins[`alpha@${nom}`][0].version = '0.0.1';
+  writeFileSync(join(poste.config, 'plugins', 'installed_plugins.json'), JSON.stringify(ip));
+  const { code, sortie, appels } = poste.lancerInstaller(projet);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const w = ecritures(appels);
+  if (JSON.stringify(w) !== JSON.stringify([`update alpha@${nom} --scope local`])) return `un seul update attendu, reçu: ${JSON.stringify(w)}`;
+  return null;
+});
+
+cas('installer-mods (e) : CLAUDE_CODE_EXECPATH défini → c\'est ce binaire qui est appelé et imprimé', () => {
+  const poste = posteFactice();
+  const { code, sortie, appels } = poste.lancerInstaller(projetVendore());
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (appels.length === 0) return 'le binaire factice n\'a reçu aucun appel';
+  if (!sortie.includes(fauxClaude)) return `le binaire utilisé n'est pas imprimé: ${sortie}`;
+  return null;
+});
+
+cas('installer-mods (f) : binaire introuvable → sortie 4, rien écrit', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  const { code, sortie } = poste.lancerInstaller(projet, [], { CLAUDE_CODE_EXECPATH: join(poste.config, 'inexistant', 'claude') });
+  if (code !== 4) return `code ${code} attendu 4, sortie: ${sortie}`;
+  if (existsSync(join(projet, '.claude/workflow/mods/.claude-plugin'))) return 'marketplace générée alors qu\'aucun binaire n\'est lançable';
+  return null;
+});
+
+cas('installer-mods (g) : mode source → marketplace `templates`, install de chaque mod, rien de généré ; `templates` absente → sortie 3', () => {
+  const poste = posteFactice();
+  const p = dossierJetable('workflow-inst-source-');
+  mkdirSync(join(p, 'plugin/.claude-plugin'), { recursive: true });
+  writeFileSync(join(p, 'plugin/.claude-plugin/plugin.json'), JSON.stringify({ name: 'workflow', version: '9.0.0' }));
+  writeFileSync(join(p, 'plugin/.claude-plugin/marketplace.json'),
+    JSON.stringify({ name: 'templates', owner: { name: 't' }, plugins: [{ name: 'x', source: './mods/x' }] }));
+  mkdirSync(join(p, 'plugin/mods/x/.claude-plugin'), { recursive: true });
+  writeFileSync(join(p, 'plugin/mods/x/.claude-plugin/plugin.json'), JSON.stringify({ name: 'x', version: '9.0.0' }));
+  const absent = poste.lancerInstaller(p);
+  if (absent.code !== 3) return `templates absente : code ${absent.code} attendu 3, sortie: ${absent.sortie}`;
+  if (!/marketplace add/.test(absent.sortie)) return `la commande de CLAUDE.md doit être donnée: ${absent.sortie}`;
+  mkdirSync(join(poste.config, 'plugins'), { recursive: true });
+  writeFileSync(join(poste.config, 'plugins', 'known_marketplaces.json'),
+    JSON.stringify({ templates: { installLocation: join(p, 'plugin') } }));
+  const { code, sortie, appels } = poste.lancerInstaller(p);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const w = ecritures(appels);
+  if (JSON.stringify(w) !== JSON.stringify(['install x@templates --scope local'])) return `un seul install attendu, reçu: ${JSON.stringify(w)}`;
+  if (existsSync(join(p, 'plugin/mods/.claude-plugin'))) return 'une marketplace a été générée en mode source';
+  return null;
+});
+
+cas('installer-mods (h) : --verifier n\'appelle aucune commande d\'écriture (3 si rien en place, 0 si tout l\'est)', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  const vide = poste.lancerInstaller(projet, ['--verifier']);
+  if (vide.code !== 3) return `poste vide : code ${vide.code} attendu 3, sortie: ${vide.sortie}`;
+  if (ecritures(vide.appels).length !== 0) return `écriture en --verifier: ${JSON.stringify(ecritures(vide.appels))}`;
+  if (existsSync(join(projet, '.claude/workflow/mods/.claude-plugin'))) return 'marketplace.json écrite en --verifier';
+  if (poste.lancerInstaller(projet).code !== 0) return 'installation en échec';
+  const plein = poste.lancerInstaller(projet, ['--verifier']);
+  if (plein.code !== 0) return `tout en place : code ${plein.code} attendu 0, sortie: ${plein.sortie}`;
+  if (ecritures(plein.appels).length !== 0) return `écriture en --verifier: ${JSON.stringify(ecritures(plein.appels))}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {

@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "session": "P16/S2",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "7c15287a18c300afab26d6b1e03b1f0d4bda0b3db63f9ce6900e965891d8761d",
+  "nonSuivis": [
+    "plugin/bin/installer-mods.mjs",
+    "plugin/mods/.gitignore"
+  ],
+  "date": "2026-10-07T05:31:36.416Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 48786
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 40212
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 128
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 111888
+    }
+  ]
+}
