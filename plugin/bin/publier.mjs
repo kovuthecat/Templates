@@ -16,7 +16,10 @@
 //
 // Après une publication réussie, met à jour le plugin local du poste (`claude plugin update
 // workflow@templates --scope local`) et vérifie `claude plugin list` — voir mettreAJourPluginLocal.
-// Sorties : 0 publié et plugin local à jour · 1 rien publié · 3 publié, plugin local NON à jour.
+// Puis installe les mods du dépôt sur le poste (`installer-mods.mjs`, mode source : marketplace
+// `templates`, `--scope local`) — voir installerMods.
+// Sorties : 0 publié, plugin local ET mods à jour · 1 rien publié · 3 publié, plugin local ou mods
+// NON à jour (la commande à relancer est donnée).
 //
 // Idempotent : rejouable à l'identique, le dépôt public n'a pas d'historique à préserver
 // (--force assumé, cf. README §Distribution — c'est un artefact, pas un historique).
@@ -36,6 +39,12 @@
 // peut devenir mal désignée ou orpheline, sans qu'aucun signal ne le dise avant qu'un projet aval le
 // découvre — « sans qu'on puisse l'oublier » n'est pas une discipline de rédaction, c'est un refus
 // mécanique (`docs/decisions/2026-09-14-conditions-nommees-domicile-unique.md`, section (a) règle 3).
+//
+// CONTRÔLE DES MODS AVANT PUBLICATION (P16)
+// Hors --dry-run, `tests/tester-mods.mjs` tourne avec les autres pré-contrôles : un module de mod
+// invalide se tait au chargement (P12) et serait publié « enabled » sans jamais agir ; une version de
+// mod non alignée sur celle du workflow n'est jamais rechargée. En --dry-run, la N0 le lance déjà
+// (`.claude/n0.json`) : le refaire doublerait un contrôle long.
 //
 // TAG DE VERSION (C4, plan P6/S3/T7)
 // Chaque publication pose et pousse le tag `v<version>` (lu dans `.claude-plugin/plugin.json`) sur
@@ -244,6 +253,22 @@ function mettreAJourPluginLocal() {
   console.log(`publier: plugin local à jour — workflow@templates ${version}, enabled (redémarrer les sessions ouvertes pour le charger)`);
 }
 
+// ── Installation des mods — après la mise à jour du plugin local ─────────────
+// Même logique que ci-dessus : la publication a réussi, un échec sort en 3 avec la commande à relancer.
+// `installer-mods.mjs` détecte le mode source (ce dépôt n'a pas de manifeste vendoré), déclare ou
+// retrouve la marketplace `templates`, installe chaque mod `--scope local` et vérifie `plugin list`.
+function installerMods() {
+  const racineDepot = dirname(RACINE_PAYLOAD);
+  const commande = 'node plugin/bin/installer-mods.mjs';
+  try {
+    execFileSync('node', [join(ICI, 'installer-mods.mjs')], { cwd: racineDepot, stdio: 'inherit', windowsHide: true });
+  } catch {
+    console.error('publier: publication OK, plugin local à jour, mais mods NON installés ou NON vérifiés');
+    console.error(`  → lancer à la main : ${commande} (sortie 4 = aucun binaire claude lançable)`);
+    process.exit(3);
+  }
+}
+
 let tmp;
 try {
   // Avant tout le reste, --dry-run compris : les hooks doivent tenir avant qu'on publie quoi que
@@ -254,7 +279,7 @@ try {
   // portent sur le contenu de `plugin/**`, comme les hooks — donc avant la synchro, qui porte sur
   // le dépôt.
   testerRenvois();
-  for (const script of ['tester-scripts.mjs', 'tester-preuves.mjs']) {
+  for (const script of ['tester-scripts.mjs', 'tester-preuves.mjs', ...(dryRun ? [] : ['tester-mods.mjs'])]) {
     try {
       execFileSync('node', [join(dirname(RACINE_PAYLOAD), 'tests', script)],
         { cwd: dirname(RACINE_PAYLOAD), stdio: 'inherit', windowsHide: true });
@@ -291,7 +316,7 @@ try {
     console.log(`publier: aurait poussé vers ${DEPOT_PUBLIC} (HEAD:main, --force) avec le message :`);
     console.log(`  Plugin workflow — marketplace templates (v${version})`);
     console.log(`publier: aurait posé et poussé le tag ${tag} (--force) sur le commit publié`);
-    console.log('publier: puis aurait lancé `claude plugin update workflow@templates --scope local` et vérifié `claude plugin list`');
+    console.log('publier: puis aurait lancé `claude plugin update workflow@templates --scope local`, vérifié `claude plugin list`, et installé les mods (installer-mods.mjs)');
     process.exit(0);
   }
 
@@ -340,3 +365,4 @@ try {
 // Hors du try : on n'arrive ici qu'après une publication réussie (tout échec et --dry-run sortent
 // avant), et le dossier temporaire est déjà nettoyé quand mettreAJourPluginLocal() sort en 3.
 mettreAJourPluginLocal();
+installerMods();

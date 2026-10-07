@@ -1731,6 +1731,122 @@ cas('installer-mods (h) : --verifier n\'appelle aucune commande d\'écriture (3 
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// sync-workflow.mjs — vendoring des mods (P16/S2/T3) : copiés TELS QUELS dans .claude/workflow/mods/
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Marqueur construit par concaténation, comme dans sync-workflow.mjs (jamais écrit en clair).
+const MARQUEUR_TEST = '$' + '{CLAUDE_PLUGIN_ROOT}';
+
+cas('sync-workflow : mods vendorés tels quels (hooks.json inclus, marqueur intact dans .ts/.json), marketplace générée préservée', () => {
+  const source = dossierJetable('workflow-sync-mods-source-');
+  mkdirSync(join(source, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '1.0.0' }));
+  // Témoin : un .md ordinaire, lui, DOIT être substitué — sans lui, « le marqueur est intact dans le
+  // mod » serait vrai d'une synchronisation qui ne substitue plus rien du tout.
+  writeFileSync(join(source, 'CLAUDE-BASE.md'), `voir ${MARQUEUR_TEST}/EXECUTANT.md\n`);
+  mkdirSync(join(source, 'mods', 'x', 'hooks'), { recursive: true });
+  mkdirSync(join(source, 'mods', 'x', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, 'mods', 'x', 'hooks', 'hooks.json'), '{ "modules": ["./register.ts"] }\n');
+  writeFileSync(join(source, 'mods', 'x', 'hooks', 'register.ts'), `export const racine = '${MARQUEUR_TEST}/x';\n`);
+  writeFileSync(join(source, 'mods', 'x', 'config.json'), JSON.stringify({ chemin: `${MARQUEUR_TEST}/y` }));
+  writeFileSync(join(source, 'mods', 'x', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'x', version: '1.0.0' }));
+  writeFileSync(join(source, 'mods', '.gitignore'), '/.claude-plugin/\n');
+
+  const projet = dossierJetable('workflow-sync-mods-projet-');
+  // Marketplace générée par installer-mods, préexistante sur le poste : hors source, hors manifeste.
+  const generee = join(projet, '.claude/workflow/mods/.claude-plugin/marketplace.json');
+  mkdirSync(dirname(generee), { recursive: true });
+  writeFileSync(generee, '{"name":"workflow-mods-test-abc123"}');
+  const config = dossierJetable('workflow-sync-mods-config-');
+
+  for (let passe = 1; passe <= 2; passe++) { // 2e passe : le manifeste existe, la marketplace ne doit pas être « obsolète »
+    const { code, sortie } = lancer(SYNC_WORKFLOW, ['--source', source, '--projet', projet], projet, { CLAUDE_CONFIG_DIR: config });
+    if (code !== 0) return `passe ${passe} : code ${code} attendu 0, sortie: ${sortie}`;
+    if (!existsSync(generee)) return `passe ${passe} : la marketplace générée a été supprimée`;
+  }
+  const lire = (p) => readFileSync(join(projet, '.claude/workflow/mods', p), 'utf8');
+  if (!existsSync(join(projet, '.claude/workflow/mods/x/hooks/hooks.json'))) return 'hooks.json du mod non vendoré';
+  if (!lire('x/hooks/register.ts').includes(`${MARQUEUR_TEST}/x`)) return `marqueur substitué dans register.ts: ${lire('x/hooks/register.ts')}`;
+  if (!lire('x/config.json').includes(`${MARQUEUR_TEST}/y`)) return `marqueur substitué dans config.json: ${lire('x/config.json')}`;
+  if (!existsSync(join(projet, '.claude/workflow/mods/.gitignore'))) return 'mods/.gitignore non vendoré';
+  const base = readFileSync(join(projet, '.claude/workflow/CLAUDE-BASE.md'), 'utf8');
+  if (base.includes(MARQUEUR_TEST) || !base.includes('.claude/workflow/EXECUTANT.md')) return `témoin : le .md ordinaire devait être substitué: ${base}`;
+  const manifeste = JSON.parse(readFileSync(join(projet, '.claude/workflow/manifest.json'), 'utf8')).fichiers;
+  if (!manifeste['.claude/workflow/mods/x/hooks/hooks.json']) return 'hooks.json du mod absent du manifeste';
+  if (manifeste['.claude/workflow/mods/.claude-plugin/marketplace.json']) return 'la marketplace générée ne doit pas figurer au manifeste';
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// tester-mods.mjs — le contrôle des mods, lui-même testé (P16/S2/T3), avec le binaire factice ci-dessus
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+const TESTER_MODS = join(RACINE, 'tests', 'tester-mods.mjs');
+
+/** Racine factice : plugin `workflow` en `versionWorkflow`, les mods `{nom: version}`, marketplace
+ * listant ceux de `dansMarketplace` (défaut : tous). */
+function racineMods(versionWorkflow, mods, dansMarketplace = Object.keys(mods)) {
+  const r = dossierJetable('workflow-testmods-');
+  mkdirSync(join(r, 'plugin/.claude-plugin'), { recursive: true });
+  writeFileSync(join(r, 'plugin/.claude-plugin/plugin.json'), JSON.stringify({ name: 'workflow', version: versionWorkflow }));
+  writeFileSync(join(r, 'plugin/.claude-plugin/marketplace.json'), JSON.stringify({
+    name: 'templates', owner: { name: 't' },
+    plugins: dansMarketplace.map((m) => ({ name: m, source: `./mods/${m}` })),
+  }));
+  for (const [nom, version] of Object.entries(mods)) {
+    mkdirSync(join(r, 'plugin/mods', nom, '.claude-plugin'), { recursive: true });
+    writeFileSync(join(r, 'plugin/mods', nom, '.claude-plugin/plugin.json'), JSON.stringify({ name: nom, version }));
+  }
+  return r;
+}
+
+function lancerTesterMods(racine, env = {}) {
+  const poste = posteFactice();
+  writeFileSync(join(poste.config, 'appels.jsonl'), '');
+  const r = lancer(TESTER_MODS, ['--racine', racine], RACINE, {
+    CLAUDE_CODE_EXECPATH: fauxClaude, CLAUDE_CONFIG_DIR: poste.config, FAKE_LOG: join(poste.config, 'appels.jsonl'), ...env,
+  });
+  const brut = readFileSync(join(poste.config, 'appels.jsonl'), 'utf8');
+  return { ...r, appels: brut.split('\n').filter(Boolean).map((l) => JSON.parse(l)) };
+}
+
+cas('tester-mods : mod aligné, déclaré en marketplace → 0, et validate + test réellement appelés', () => {
+  const { code, sortie, appels } = lancerTesterMods(racineMods('2.0.0', { x: '2.0.0' }));
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!appels.some((a) => a[1] === 'validate' && /plugin\.json$/.test(a[2]))) return `plugin validate jamais appelé sur plugin.json: ${JSON.stringify(appels)}`;
+  if (!appels.some((a) => a[1] === 'test')) return `plugin test jamais appelé: ${JSON.stringify(appels)}`;
+  return null;
+});
+
+cas('tester-mods : liste de mods vide (mauvais chemin) → sortie 1, jamais un vert vide', () => {
+  const { code, sortie } = lancerTesterMods(racineMods('2.0.0', {}));
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/aucun mod trouvé/.test(sortie)) return `message « aucun mod trouvé » attendu: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods : version de mod ≠ version du workflow → sortie 1', () => {
+  const { code, sortie } = lancerTesterMods(racineMods('2.0.0', { x: '2.0.1' }));
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/x : version 2\.0\.1 ≠ 2\.0\.0/.test(sortie)) return `écart de version non nommé: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods : mod absent de marketplace.json → sortie 1', () => {
+  const { code, sortie } = lancerTesterMods(racineMods('2.0.0', { x: '2.0.0' }, []));
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/x : entrée .* absente/.test(sortie)) return `entrée absente non nommée: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods : aucun binaire lançable → sortie 1 nommée, jamais un saut silencieux', () => {
+  const poste = posteFactice();
+  const { code, sortie } = lancerTesterMods(racineMods('2.0.0', { x: '2.0.0' }),
+    { CLAUDE_CODE_EXECPATH: join(poste.config, 'inexistant', 'claude') });
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/aucun binaire claude lançable/.test(sortie)) return `échec « aucun binaire » attendu: ${sortie}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {
