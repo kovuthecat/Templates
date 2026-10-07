@@ -41,7 +41,8 @@ Un plan sert deux lectures, et rate sa cible s'il n'en sert qu'une :
 `/maj-workflow`. Sans `DÉRIVE` : mise à jour sans question, rapportée ; avec `DÉRIVE` : question
 avant de continuer. Écrire un plan sur un workflow en retard fige dans les squelettes ce que la
 source a déjà corrigé. Dépôt source du workflow (pas de `.claude/workflow/manifest.json`, `plugin/`
-présent) → `claude plugin update workflow@templates --scope local` à la place de `/maj-workflow`.
+présent) → `claude plugin update workflow@templates --scope local`, puis `node plugin/bin/installer-mods.mjs`
+à la place de `/maj-workflow`.
 
 Un plan en cours peut produire un résultat qui invalide une hypothèse dont dépendent ses sessions
 restantes : vérité de référence fausse, contrat à changer, mesure qui contredit l'attendu d'une

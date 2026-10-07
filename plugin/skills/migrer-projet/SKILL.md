@@ -35,6 +35,10 @@ Constater, ne rien corriger encore. Huit points :
    `extraKnownMarketplaces`, hook `SessionStart` de bootstrap (`.claude/hooks/session-start.sh`),
    entrées de hooks à **chemins absolus** — tous à retirer. Une `permissions.allow` enrichie par
    l'usage réel du projet est en revanche à **préserver**, jamais à écraser.
+   **Exception** : dans `.claude/settings.local.json` (jamais `settings.json`), des entrées
+   `enabledPlugins` / `extraKnownMarketplaces` pour une marketplace `workflow-mods-*` sont attendues
+   (celle des mods, propre au poste, jamais commitable) ; les mêmes dans `settings.json`, ou pour
+   `workflow@…`, restent un résidu de double chargement.
 2. `CLAUDE.md` — existe-t-il ? ligne d'import `@…CLAUDE-BASE.md` ? section `# Compact instructions`
    héritée (elle a été centralisée dans `CLAUDE-BASE.md` §Compactage — à retirer, pas à compléter) ?
    vraies commandes du projet, ou placeholders jamais remplis ?
@@ -144,8 +148,16 @@ rapport final comme restant à faire par l'utilisateur à sa prochaine session s
    node .claude/workflow/bin/sync-workflow.mjs --source <clone> --projet . --check
    ```
    → `ÉTAT: à jour`, exit **0**.
+   Puis, **toujours**, installer les mods du poste :
+   ```bash
+   node .claude/workflow/bin/installer-mods.mjs
+   ```
+   Sortie `0` : une ligne au rapport. `3` : **signalé, non bloquant** — la migration se commite, le
+   rapport cite la commande à relancer. `4` (pas de CLI Claude Code) : une ligne « mods non
+   installés : pas de CLI Claude Code sur ce poste », rien d'autre.
 3. **Aucun résidu du modèle plugin** dans `.claude/settings.json` : ni `enabledPlugins`, ni
-   `extraKnownMarketplaces`, ni chemin absolu. Les 5 hooks pointent vers
+   `extraKnownMarketplaces`, ni chemin absolu (les entrées `workflow-mods-*` de
+   `.claude/settings.local.json` sont l'exception attendue, cf. Phase A point 1). Les 5 hooks pointent vers
    `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`, et `.claude/hooks/session-start.sh` n'existe plus.
    ```bash
    node -e "const j=require('./.claude/settings.json');const t=JSON.stringify(j.hooks);console.log('plugin:',!!j.enabledPlugins||!!j.extraKnownMarketplaces,'| absolus:',/[A-Za-z]:[\\\\/]/.test(t),'| hooks:',Object.keys(j.hooks).length)"
@@ -158,7 +170,8 @@ rapport final comme restant à faire par l'utilisateur à sa prochaine session s
    ```
 5. **Nouvelle session dans le projet** (la config n'est lue qu'au démarrage) : un `git add -A` de
    test doit être **refusé**, et les skills du workflow doivent être proposées. C'est la preuve que
-   le câblage est actif, donc que `CLAUDE-BASE.md` est injecté. Vérifier que le hook `SessionStart`
+   le câblage est actif, donc que `CLAUDE-BASE.md` est injecté. Vérifier aussi les mods : `node .claude/workflow/bin/installer-mods.mjs --verifier`
+   (sortie 0 attendue ; 3 → signalé, non bloquant ; 4 → sans CLI). Vérifier que le hook `SessionStart`
    est silencieux (sinon : plafond dépassé → `/purge-contexte`).
 6. **Tout est versionné.** `git status` ne doit laisser hors du commit ni `.claude/skills`, ni
    `.claude/agents`, ni `.claude/workflow`. C'est la condition qui rend le workflow disponible en

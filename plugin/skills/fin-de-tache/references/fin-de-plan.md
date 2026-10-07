@@ -47,7 +47,8 @@ session elle-même (`/fin-de-tache`, Relecture). Il ne reste que le rangement.
 ## 8b — Le workflow lui-même a changé (dépôt source uniquement, sous `plugin/`)
 
 Depuis n'importe quelle tâche, pas seulement en fin de plan : bumper `version` dans
-`plugin/.claude-plugin/plugin.json` + une ligne dans `CHANGELOG.md`, **puis**
+`plugin/.claude-plugin/plugin.json` — et sur le `plugin.json` de chaque mod modifié sous
+`plugin/mods/` (N0 `tester-mods` le refuse sinon) — + une ligne dans `CHANGELOG.md`, **puis**
 `node plugin/bin/publier.mjs` (le dépôt source n'est pas vendoré — `publier.mjs` n'existe qu'à cet
 emplacement, jamais sous `.claude/workflow/bin/`). Sans bump, les projets vendorés ne voient jamais
 la mise à jour ; sans publication, toute machine neuve embarque une version périmée.
@@ -58,5 +59,6 @@ cache. Après une publication réussie, `publier.mjs` lance lui-même
 `claude plugin update workflow@templates --scope local` puis vérifie que `claude plugin list` rend
 `workflow@templates` à la version bumpée, `enabled` (oubli constaté les 2026-09-17 et 2026-09-29).
 **Sortie 3** = publié, mais plugin local NON à jour : lancer la commande affichée à la main, sinon
-ce poste continue de dérouler la version d'avant le bump. Dans tous les cas, redémarrer les
+ce poste continue de dérouler la version d'avant le bump. `publier.mjs` installe aussi les mods du
+poste (`installer-mods.mjs`). Dans tous les cas, redémarrer les
 sessions ouvertes pour charger la nouvelle version.

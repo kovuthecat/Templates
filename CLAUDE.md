@@ -52,3 +52,5 @@ il pointe vers le reste, sans le recopier. Plafond : **200 lignes** — au-delà
   au scope `user` et répond « Plugin "workflow" is not installed at scope user » — constaté le
   2026-09-22, à la publication de 0.41.0). Jamais de marketplace de **compte** (claude.ai) : elle
   s'applique à tous les projets et y double le workflow vendoré (constat du 2026-09-17).
+  Poste neuf : après l'installation du plugin `workflow`, lancer `node plugin/bin/installer-mods.mjs`
+  (installe les mods du dépôt, `--scope local`).
