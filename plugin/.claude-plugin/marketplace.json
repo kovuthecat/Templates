@@ -11,6 +11,10 @@
     {
       "name": "garde-fous",
       "source": "./mods/garde-fous"
+    },
+    {
+      "name": "affichage",
+      "source": "./mods/affichage"
     }
   ]
 }
