@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "session": "P16/S1",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "addaabd6b7aa90dd2e41b6416245bf99783052f810c0a3e65410e04ec09389b2",
+  "nonSuivis": [
+    "plugin/mods/garde-fous/.claude-plugin/plugin.json",
+    "plugin/mods/garde-fous/hooks/hooks.json",
+    "plugin/mods/garde-fous/hooks/register.ts",
+    "plugin/mods/garde-fous/tests/fixture-index.ts",
+    "plugin/mods/garde-fous/tests/garde-fous.test.ts"
+  ],
+  "date": "2026-10-07T05:22:40.183Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 50065
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 36180
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 132
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 110300
+    }
+  ]
+}
