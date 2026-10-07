@@ -3,6 +3,18 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-07` — **Mods du workflow : garde-fous** (plugin `workflow` 0.56.0, mod `garde-fous` 0.56.0).
+  Un premier mini-plugin vit dans `plugin/mods/garde-fous/` : O1, filet de modèle (un sous-agent lancé
+  sur `plans/P<n>/S<k>.md` sans modèle reçoit celui de la colonne Modèle de l'index ; un modèle explicite
+  n'est jamais écrasé) et O3, premier plan par défaut (un appel `Agent` sans `run_in_background` part au
+  premier plan). `installer-mods.mjs` les installe `--scope local` sur le poste, `sync-workflow.mjs` les
+  copie dans chaque projet vendoré, `/maj-workflow` et `/migrer-projet` lancent l'installation, et
+  SessionStart signale un mod absent ou en retard. `publier.mjs` refuse un mod invalide ou dont la version
+  diffère de celle du workflow, et installe les mods du poste. Revers : chaque changement de mod est une
+  nouvelle version ; un échec d'installation est signalé et ne bloque pas la mise à jour du workflow
+  (un poste peut tourner sans garde-fous tant que le rappel est ignoré ; en session cloud il se tait).
+  Projet vendoré : `/maj-workflow`. Décisions : `docs/decisions/2026-10-06-apres-p15.md`,
+  `docs/decisions/2026-10-06-suite-des-preuves-mods.md`.
 - `2026-10-06` — **Hook Stop : jamais de relance d'une session planifiée** (plugin `workflow` 0.55.0).
   Le blocage du hook Stop relançait pour un tour de plus les sessions lancées par une tâche planifiée
   (P13 : « travail non poussé » ; P14 : plafond de `TASKS.md`), alors que personne n'y lit le blocage —
