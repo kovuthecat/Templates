@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { SEUIL_REPLI } from '../hooks/fichiers'
+import { P15_ACTION, P15_ETAT } from './fixtures-plan'
 
 const norm = (p: string) => p.split(String.fromCharCode(92)).join('/')
 const NUL = String.fromCharCode(0)
@@ -16,7 +17,13 @@ const PROPS_PANE = {
   view: {},
 }
 
-type Sorties = { status: (string | undefined)[]; commandes: string[][]; panneaux: string[]; fermes: string[] }
+type Sorties = {
+  status: (string | undefined)[]
+  commandes: string[][]
+  panneaux: string[]
+  fermes: string[]
+  relances: { via: 'prompt' | 'commande' | 'toast'; text: string }[]
+}
 
 // Le monde sous le mod : un depot git simule, a la sortie EXACTE de chaque commande lancee.
 function monde(
@@ -32,7 +39,7 @@ function monde(
     scripts?: Record<string, string>
   } = {},
 ): Sorties {
-  const s: Sorties = { status: [], commandes: [], panneaux: [], fermes: [] }
+  const s: Sorties = { status: [], commandes: [], panneaux: [], fermes: [], relances: [] }
   const depot = opts.depot !== false
   mock.clock(on, { now: Date.parse('2026-10-07T12:00:00Z') })
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }))
@@ -46,6 +53,19 @@ function monde(
   on('fs.list', () => ({ value: [{ name: 'P1', kind: 'dir', size: 0, mtimeMs: 0 }] }))
   on('fs.read', (_$: any, e: any) => (norm(e.path).endsWith('plans/P1/index.md') ? { value: '# P1\n' } : { deny: 'ENOENT' }))
   on('command.register', () => ({ value: { isRegistered: true } }))
+  // Ce que les boutons du panneau « plan » declenchent : un prompt, une commande slash, ou un toast d'echec.
+  on('command.run', (_$: any, e: any) => {
+    s.relances.push({ via: 'commande', text: `/${e.command}${e.args ? ` ${e.args}` : ''}` })
+    return { text: 'ok' }
+  })
+  on('ui.toast', (_$: any, e: any) => {
+    s.relances.push({ via: 'toast', text: e.text })
+    return { value: undefined }
+  })
+  on('prompt.submit', (_$: any, e: any) => {
+    s.relances.push({ via: 'prompt', text: e.text })
+    return { text: e.text, origin: e.origin }
+  })
   on('ui.status', (_$: any, e: any) => {
     s.status.push(e.text)
     return { value: undefined }
@@ -72,11 +92,17 @@ function monde(
         : { value: { exitCode: 0, stdout: opts.nonPousses ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (argv[0] === 'node') {
-      return { value: { exitCode: 0, stdout: opts.scripts?.[argv[2]] ?? '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+      const cle = argv.includes('--etat') ? `${argv[2]}:etat` : argv[2]
+      return { value: { exitCode: 0, stdout: opts.scripts?.[cle] ?? '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   return s
+}
+
+// Laisse finir ce que session.start lance sans l'attendre (ouverture des panneaux) : le $ des tests n'a pas d'horloge.
+const attendre = async ($: any) => {
+  for (let i = 0; i < 30; i++) await $.tool.call({ tool: 'Read', file_path: '/proj/a' } as any)
 }
 
 const demarrer = ($: any) => $.session.start({ cwd: RACINE, surface: 'terminal', isInteractive: true })
@@ -218,7 +244,7 @@ describe('panneau fichiers', () => {
   test('hors depot git : panneau jamais ouvert', async ($, on) => {
     const s = monde(on, { depot: false })
     await demarrer($)
-    await $.clock?.settle?.()
+    await attendre($)
     expect(s.panneaux).not.toContain('fichiers')
   })
 
@@ -236,9 +262,101 @@ describe('panneau fichiers', () => {
   test('commande /panneau : rouvre les deux panneaux', async ($, on) => {
     const s = monde(on)
     await demarrer($)
+    await attendre($)
     s.panneaux.length = 0
     const r: any = await $.command.run({ command: 'panneau', args: '' } as any)
     expect(s.panneaux).toEqual(['limites', 'fichiers'])
     expect(String(r.text)).toContain('limites, fichiers')
+  })
+})
+
+describe('panneau plan', () => {
+  // P1 est le plan par defaut de monde() ; ses sorties sont celles, reelles, de P15 (voir fixtures-plan.ts).
+  const SCRIPTS = { P1: P15_ACTION, 'P1:etat': P15_ETAT }
+  const AVEC_PLAN = (vendore: boolean) => ({
+    fichiers: ['plugin/bin/prochaine-action.mjs', ...(vendore ? ['.claude/workflow/manifest.json'] : [])],
+    scripts: SCRIPTS,
+  })
+  // Chaque bouton : par quel canal il part et ce qui part. `$.prompt.submit` refuse un texte en `/` (le moteur
+  // le tient pour une commande) : les boutons slash passent par `$.command.run`.
+  const BOUTONS_ATTENDUS = (pref: string) => [
+    ['bouton:go', { via: 'prompt', text: 'Go' }],
+    ['bouton:reprends', { via: 'commande', text: `${pref}reprendre` }],
+    ['bouton:orchestrer', { via: 'commande', text: `${pref}orchestrer-plan P1` }],
+    ['bouton:commit', { via: 'prompt', text: `Committe et pousse le travail en attente, selon ${pref}fin-de-tache.` }],
+  ] as const
+  for (const surface of SURFACES) {
+    test(`${surface} : plan, vague, prochaine action, avertissement, sessions et quatre boutons`, async ($, on) => {
+      monde(on, AVEC_PLAN(false))
+      await demarrer($)
+      const ui = await monter($, surface, 'plan')
+      const lignes = await textes(ui)
+      expect(lignes[0]).toBe('P1 · vague 2')
+      expect(lignes).toContain('Prochaine action : lancer — vague 2 (séquentiel) : S2')
+      expect(lignes).toContain('⚠ index déclare Workflow : v0.54.0, plugin en v0.56.0')
+      expect(lignes.filter((l) => /^[✓→○✗] S\d/.test(l))).toHaveLength(6)
+      expect(lignes.find((l) => l.startsWith('→ S2'))).toBeDefined()
+      const boutons = await ui.findAll({ type: 'Button' })
+      expect(boutons.map((b: any) => b.text)).toEqual(['Go', 'Reprends', "Enchaîne l'orchestration", 'Commit+push'])
+    })
+
+    test(`${surface} : depot source, un appui lance ce que dit chaque bouton, prefixe /workflow:`, async ($, on) => {
+      const s = monde(on, AVEC_PLAN(false))
+      await demarrer($)
+      const ui = await monter($, surface, 'plan')
+      for (const [cle, attendu] of BOUTONS_ATTENDUS('/workflow:')) {
+        s.relances.length = 0
+        await ui.press({ key: cle })
+        expect(s.relances).toEqual([attendu])
+      }
+    })
+
+    test(`${surface} : projet vendore, un appui lance ce que dit chaque bouton, prefixe /`, async ($, on) => {
+      const s = monde(on, AVEC_PLAN(true))
+      await demarrer($)
+      const ui = await monter($, surface, 'plan')
+      for (const [cle, attendu] of BOUTONS_ATTENDUS('/')) {
+        s.relances.length = 0
+        await ui.press({ key: cle })
+        expect(s.relances).toEqual([attendu])
+      }
+    })
+
+    test(`${surface} : sans plan, message d'attente`, async ($, on) => {
+      monde(on)
+      await demarrer($)
+      expect(await textes(await monter($, surface, 'plan'))).toEqual(['Pas de plan en cours.'])
+    })
+  }
+
+  test('ouvert au demarrage quand un plan est en cours, jamais sinon', async ($, on) => {
+    const avec = monde(on, AVEC_PLAN(false))
+    await demarrer($)
+    await attendre($)
+    expect(avec.panneaux).toContain('plan')
+  })
+
+  test('hors projet du workflow : panneau plan jamais ouvert', async ($, on) => {
+    const s = monde(on)
+    await demarrer($)
+    await attendre($)
+    expect(s.panneaux).not.toContain('plan')
+  })
+
+  test('script en echec : pas de panneau plan', async ($, on) => {
+    const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: 'pas du json' } })
+    await demarrer($)
+    await attendre($)
+    expect(s.panneaux).not.toContain('plan')
+  })
+
+  test('commande /panneau : rouvre aussi le panneau plan', async ($, on) => {
+    const s = monde(on, AVEC_PLAN(false))
+    await demarrer($)
+    await attendre($)
+    s.panneaux.length = 0
+    const r: any = await $.command.run({ command: 'panneau', args: '' } as any)
+    expect(s.panneaux).toEqual(['limites', 'fichiers', 'plan'])
+    expect(String(r.text)).toContain('limites, fichiers, plan')
   })
 })

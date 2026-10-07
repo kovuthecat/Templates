@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { EtatFichiers, Fenetre, Limites } from '../types'
+import type { EtatFichiers, Fenetre, Limites, Mode, ModelePlan, PlanAffiche } from '../types'
 import {
   CMD_NON_POUSSES,
   CMD_STATUS,
@@ -23,15 +23,17 @@ import {
   planEstOuvert,
   plansParNumero,
 } from './limites'
+import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
 
-// Affichage du workflow : une ligne d'etat (plan, limites 5 h / 7 j, contexte), un panneau « limites »
-// et un panneau « fichiers » (etat git). Rien ici n'ecrit dans le projet ni ne refuse un evenement ;
-// toute lecture qui echoue laisse l'affichage tel quel.
+// Affichage du workflow : une ligne d'etat (plan, limites 5 h / 7 j, contexte), un panneau « limites »,
+// un panneau « fichiers » (etat git) et un panneau « plan » (sessions, prochaine action, boutons de relance).
+// Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
 //
 // Forme imposee par `plugin validate` : `$` ne passe qu'a des fonctions declarees au sommet.
 
 const PANE_LIMITES = 'limites'
 const PANE_FICHIERS = 'fichiers'
+const PANE_PLAN = 'plan'
 const CACHE_PLAN_MS = 20000
 const DELAI_PROCESS_MS = 5000
 const OUTILS_FICHIERS = ['Write', 'Edit', 'NotebookEdit', 'Bash', 'PowerShell']
@@ -39,12 +41,14 @@ const OUTILS_FICHIERS = ['Write', 'Edit', 'NotebookEdit', 'Bash', 'PowerShell']
 const limitesAtom = atom({ plugin: 'affichage', key: 'limites' } as const, { fenetres: [] } as Limites)
 const fichiersAtom = atom({ plugin: 'affichage', key: 'fichiers' } as const, ETAT_VIDE as EtatFichiers)
 const repliAtom = atom({ plugin: 'affichage', key: 'repli' } as const, {} as Record<string, boolean>)
+const planAtom = atom({ plugin: 'affichage', key: 'plan' } as const, { modele: null, mode: 'source' } as PlanAffiche)
 
 type Etat = {
   plan?: string
   session?: string
   script?: string | null
-  cachePlan?: { plan: string; at: number; vague?: string; sessions?: string }
+  mode?: Mode
+  cachePlan?: { plan: string; at: number; vague?: string; sessions?: string; modele?: ModelePlan }
   cacheDefaut?: { at: number; plan?: string }
   dernierTexte?: string
   fenetres: Fenetre[]
@@ -52,6 +56,10 @@ type Etat = {
   fichiersJson?: string
   depot: boolean
   fichiersOuvert: boolean
+  planModele?: ModelePlan
+  planJson?: string
+  planOuvert: boolean
+  demarree: boolean
 }
 
 async function racine($: any): Promise<string> {
@@ -82,17 +90,44 @@ async function trouverScript($: any, s: Etat): Promise<string | null> {
   return s.script
 }
 
-// Vague et sessions : `prochaine-action.mjs P<n> --json`, cache 20 s, delai 5 s.
-async function etatDuPlan($: any, s: Etat, plan: string, maintenant: number): Promise<{ vague?: string; sessions?: string }> {
+// Mode, comme installer-mods.mjs : manifeste vendore present -> skills sous /<skill>, sinon depot source.
+async function trouverMode($: any, s: Etat): Promise<Mode> {
+  if (s.mode) return s.mode
+  try {
+    const base = await racine($)
+    s.mode = (await $.fs.exists(`${base}/.claude/workflow/manifest.json`)) ? 'vendore' : 'source'
+  } catch {
+    s.mode = 'source'
+  }
+  return s.mode
+}
+
+async function lancerScript($: any, script: string, argv: string[]): Promise<string | undefined> {
+  try {
+    const r = await $.process.run(['node', script, ...argv], { cwd: await racine($), timeoutMs: DELAI_PROCESS_MS })
+    return String(r.stdout ?? '')
+  } catch {
+    return undefined
+  }
+}
+
+// Vague, sessions et modele du panneau : `prochaine-action.mjs P<n> --json` puis `--etat --json`, cache 20 s, delai 5 s.
+async function etatDuPlan(
+  $: any,
+  s: Etat,
+  plan: string,
+  maintenant: number,
+): Promise<{ vague?: string; sessions?: string; modele?: ModelePlan }> {
   if (s.cachePlan && s.cachePlan.plan === plan && maintenant - s.cachePlan.at < CACHE_PLAN_MS) return s.cachePlan
   const script = await trouverScript($, s)
-  let etat: { vague?: string; sessions?: string } = {}
+  let etat: { vague?: string; sessions?: string; modele?: ModelePlan } = {}
   if (script) {
-    try {
-      const r = await $.process.run(['node', script, plan, '--json'], { cwd: await racine($), timeoutMs: DELAI_PROCESS_MS })
-      etat = lireEtatPlan(String(r.stdout ?? ''))
-    } catch {
-      etat = {}
+    const action = await lancerScript($, script, [plan, '--json'])
+    if (action !== undefined) {
+      etat = lireEtatPlan(action)
+      const lignes = await lancerScript($, script, [plan, '--etat', '--json'])
+      const modele = modelePlan(plan, action, lignes)
+      if (modele) etat = { ...etat, modele }
     }
   }
   s.cachePlan = { plan, at: maintenant, ...etat }
@@ -121,6 +156,25 @@ async function planParDefaut($: any, s: Etat, maintenant: number): Promise<strin
   return plan
 }
 
+// Le panneau « plan » : son etat suit le modele ; il s'ouvre de lui-meme des qu'un plan en cours apparait
+// (une fois la session demarree) et se ferme quand il n'y en a plus.
+async function majPlan($: any, s: Etat, modele: ModelePlan | undefined): Promise<void> {
+  s.planModele = modele
+  const affiche: PlanAffiche = { modele: modele ?? null, mode: await trouverMode($, s) }
+  const json = JSON.stringify(affiche)
+  if (json !== s.planJson) {
+    s.planJson = json
+    await update($, planAtom, () => affiche)
+  }
+  if (modele && !s.planOuvert && s.demarree) {
+    s.planOuvert = true
+    await $.ui.open({ id: PANE_PLAN, title: 'Plan' })
+  } else if (!modele && s.planOuvert) {
+    s.planOuvert = false
+    await $.ui.close({ id: PANE_PLAN })
+  }
+}
+
 // La ligne d'etat, reecrite seulement si son texte change.
 async function rafraichirLigne($: any, s: Etat): Promise<void> {
   try {
@@ -128,11 +182,13 @@ async function rafraichirLigne($: any, s: Etat): Promise<void> {
     let plan: string | undefined
     let vague: string | undefined
     let sessions: string | undefined
+    let modele: ModelePlan | undefined
     if (await trouverScript($, s)) {
       plan = s.plan ?? (await planParDefaut($, s, maintenant))
       if (plan) {
         const etat = await etatDuPlan($, s, plan, maintenant)
         vague = etat.vague
+        modele = etat.modele
         sessions = etat.sessions ?? (plan === s.plan ? s.session : undefined)
       }
     }
@@ -149,6 +205,7 @@ async function rafraichirLigne($: any, s: Etat): Promise<void> {
       s.dernierTexte = texte
       $.ui.status(texte === '' ? undefined : texte)
     }
+    await majPlan($, s, modele)
   } catch {
     // la ligne d'etat n'est jamais bloquante
   }
@@ -207,11 +264,16 @@ async function ouvrirPanneaux($: any, s: Etat): Promise<string> {
     s.fichiersOuvert = true
     if (fichiers?.isPlaced !== false) ouverts.push('fichiers')
   }
+  if (s.planModele) {
+    s.planOuvert = true
+    const plan = await $.ui.open({ id: PANE_PLAN, title: 'Plan' })
+    if (plan?.isPlaced !== false) ouverts.push('plan')
+  }
   return ouverts.length > 0 ? `Panneaux ouverts : ${ouverts.join(', ')}.` : 'Aucun panneau placé : élargir le terminal.'
 }
 
 export const register: Register = (on) => {
-  const s: Etat = { fenetres: [], depot: false, fichiersOuvert: false }
+  const s: Etat = { fenetres: [], depot: false, fichiersOuvert: false, planOuvert: false, demarree: false }
 
   on('session.start', async ($, e, next) => {
     try {
@@ -222,8 +284,12 @@ export const register: Register = (on) => {
     }
     await rafraichirFichiers($, s)
     try {
-      await $.command.register({ name: 'panneau', description: 'Rouvre les panneaux limites et fichiers' })
-      void ouvrirPanneaux($, s).catch(() => {})
+      await $.command.register({ name: 'panneau', description: 'Rouvre les panneaux limites, fichiers et plan' })
+      void ouvrirPanneaux($, s)
+        .catch(() => {})
+        .then(() => {
+          s.demarree = true
+        })
     } catch {
       // les panneaux ne sont jamais bloquants
     }
@@ -232,6 +298,7 @@ export const register: Register = (on) => {
 
   on('command.run', { command: 'panneau' }, async ($) => {
     await rafraichirFichiers($, s)
+    await rafraichirLigne($, s)
     return { text: await ouvrirPanneaux($, s) }
   })
 
@@ -266,6 +333,37 @@ export const register: Register = (on) => {
         {lignesLimites(fenetres, maintenant, decalageLocal).map((l) => (
           <Text>{l}</Text>
         ))}
+      </Box>
+    )
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE_PLAN }, async ($, e) => {
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const { modele, mode } = await read($, planAtom)
+    if (!modele) return <Text dimColor>Pas de plan en cours.</Text>
+    const entete = [modele.plan, modele.vague ? `vague ${modele.vague}` : '', modele.clos ? 'clos' : ''].filter(Boolean).join(' · ')
+    return (
+      <Box flexDirection="column">
+        <Text bold>{entete}</Text>
+        <Text>{`Prochaine action : ${modele.action}`}</Text>
+        {modele.avertissement && <Text dimColor>{`⚠ ${modele.avertissement}`}</Text>}
+        {modele.sessions.map((x) => (
+          <Text>{ligneSession(x)}</Text>
+        ))}
+        <Box flexWrap="wrap" columnGap={1}>
+          {BOUTONS.map((b) => (
+            <Button
+              key={`bouton:${b.id}`}
+              label={b.label}
+              onPress={() => {
+                const r = relance(b.id, mode, modele.plan)
+                const echec = (x: any) => $.ui.toast(`Relance impossible : ${String(x?.message ?? x)}`)
+                if (r.via === 'prompt') void $.prompt.submit({ text: r.text, asUser: true }).catch(echec)
+                else void $.command.run({ command: r.command, args: r.args }).catch(echec)
+              }}
+            />
+          ))}
+        </Box>
       </Box>
     )
   })
