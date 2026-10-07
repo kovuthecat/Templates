@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "session": "P16/S6",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "66b548c228960de5984ff41f1eb3b455641076d9f887ddd82f25dbc3a48272a8",
+  "nonSuivis": [
+    "plugin/mods/affichage/hooks/incidents.ts",
+    "plugin/mods/affichage/tests/fixtures-incidents.ts",
+    "plugin/mods/affichage/tests/incidents.test.ts"
+  ],
+  "date": "2026-10-07T06:49:34.094Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 61724
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 43669
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 144
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 3974
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 129693
+    }
+  ]
+}

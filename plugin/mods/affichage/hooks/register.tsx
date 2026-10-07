@@ -23,10 +23,13 @@ import {
   planEstOuvert,
   plansParNumero,
 } from './limites'
+import { DOSSIER_INCIDENTS, depuisLe, estIncident, lireArgs, lireIncident, parentDe, projetScrutable, tableIncidents, trier } from './incidents'
+import type { Incident } from './incidents'
 import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
 
 // Affichage du workflow : une ligne d'etat (plan, limites 5 h / 7 j, contexte), un panneau « limites »,
 // un panneau « fichiers » (etat git) et un panneau « plan » (sessions, prochaine action, boutons de relance).
+// La commande `/incidents` liste les incidents de workflow des projets freres (lecture seule).
 // Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
 //
 // Forme imposee par `plugin validate` : `$` ne passe qu'a des fonctions declarees au sommet.
@@ -175,6 +178,50 @@ async function majPlan($: any, s: Etat, modele: ModelePlan | undefined): Promise
   }
 }
 
+// Projet du workflow : manifeste vendore ou manifeste du plugin source. Hors de l'un et de l'autre, les
+// commandes du workflow ne sont pas enregistrees.
+async function projetDuWorkflow($: any): Promise<boolean> {
+  try {
+    const base = await racine($)
+    return (await $.fs.exists(`${base}/.claude/workflow/manifest.json`)) || (await $.fs.exists(`${base}/plugin/.claude-plugin/plugin.json`))
+  } catch {
+    return false
+  }
+}
+
+// Les incidents de tous les projets freres (`<parent>/*/docs/workflow/incidents/*.md`) : comme
+// collecter-incidents.mjs, seuls les dossiers portant un `.git` sont des projets. Lecture seule.
+async function collecterIncidents($: any): Promise<{ projets: number; incidents: Incident[] }> {
+  const parent = parentDe(await racine($))
+  const incidents: Incident[] = []
+  let projets = 0
+  const entrees = (await $.fs.list(parent)) as any[]
+  for (const entree of entrees) {
+    const nom = String(entree.name)
+    if (entree.kind !== 'dir' || !projetScrutable(nom)) continue
+    const dossierProjet = `${parent}/${nom}`
+    try {
+      if (!(await $.fs.exists(`${dossierProjet}/.git`))) continue
+    } catch {
+      continue
+    }
+    projets++
+    let fichiers: any[]
+    try {
+      fichiers = (await $.fs.list(`${dossierProjet}/${DOSSIER_INCIDENTS}`)) as any[]
+    } catch {
+      continue
+    }
+    for (const f of fichiers) {
+      const fichier = String(f.name)
+      if (f.kind === 'dir' || !estIncident(fichier)) continue
+      const texte = await lireTexte($, `${dossierProjet}/${DOSSIER_INCIDENTS}/${fichier}`)
+      if (texte !== undefined) incidents.push(lireIncident(texte, fichier, nom))
+    }
+  }
+  return { projets, incidents }
+}
+
 // La ligne d'etat, reecrite seulement si son texte change.
 async function rafraichirLigne($: any, s: Etat): Promise<void> {
   try {
@@ -284,6 +331,13 @@ export const register: Register = (on) => {
     }
     await rafraichirFichiers($, s)
     try {
+      if (await projetDuWorkflow($)) {
+        await $.command.register({ name: 'incidents', description: 'Incidents de workflow de tous les projets', argumentHint: '[YYYY-MM-DD]' })
+      }
+    } catch {
+      // la commande n'est jamais bloquante
+    }
+    try {
       await $.command.register({ name: 'panneau', description: 'Rouvre les panneaux limites, fichiers et plan' })
       void ouvrirPanneaux($, s)
         .catch(() => {})
@@ -300,6 +354,17 @@ export const register: Register = (on) => {
     await rafraichirFichiers($, s)
     await rafraichirLigne($, s)
     return { text: await ouvrirPanneaux($, s) }
+  })
+
+  on('command.run', { command: 'incidents' }, async ($, e) => {
+    const args = lireArgs(e.args)
+    if ('erreur' in args) return { text: args.erreur }
+    try {
+      const { projets, incidents } = await collecterIncidents($)
+      return { text: tableIncidents(trier(depuisLe(incidents, args.depuis)), projets, args.depuis) }
+    } catch (x: any) {
+      return { text: `Incidents illisibles : ${String(x?.message ?? x)}` }
+    }
   })
 
   on('session.measure', async ($, e, next) => {

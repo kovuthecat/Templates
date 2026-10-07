@@ -45,7 +45,7 @@ transmet déjà le modèle.
 | [S3](S3.md) | T4-T5 | Mise en place par les skills, rappel au démarrage de session | Sonnet | medium | — | S2 | `plugin/skills/maj-workflow/SKILL.md` · `plugin/skills/migrer-projet/` · `plugin/hooks/sessionstart-contexte.mjs` · `tests/tester-hooks.mjs` · `plugin/skills/nouveau-plan/SKILL.md` · `plugin/skills/fin-de-tache/references/fin-de-plan.md` · `CLAUDE.md` | [ ] | — |
 | [S4](S4.md) | T6-T7 | Publication 0.56.0 et preuve de bout en bout | Sonnet | high | — | S3 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/analyses/2026-10-06-mods-distribution-preuve.md` | [ ] | — |
 | [S5](S5.md) | T8-T9 | Mini-plugin affichage : ligne d'état, limites, panneau fichiers | Sonnet | high | — | S4 | `plugin/mods/affichage/` · `plugin/.claude-plugin/marketplace.json` | [ ] | — |
-| [S6](S6.md) | T10-T11 | Panneau plan avec boutons de relance, commande `/incidents` | Sonnet | high | — | S5 | `plugin/mods/affichage/` | [ ] | — |
+| [S6](S6.md) | T10-T11 | Panneau plan avec boutons de relance, commande `/incidents` | Sonnet | high | — | S5 | `plugin/mods/affichage/` | [x] 2026-10-07 | — |
 | [S7](S7.md) | T12 | Publication 0.57.0 et rendu réel | Sonnet | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` | [ ] | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
