@@ -4,9 +4,10 @@
 // fonctionne pas en cloud). Les vérifications de dérive n'écrivent RIEN si tout est sain ;
 // l'émission de CLAUDE-BASE.md, elle, a lieu à chaque session (coût token assumé, D-P2-2).
 
-import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync, readdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   lireEntree, repertoireProjet, estUnDepot, git, depassements, vagueParallele, worktreeLie,
   repereSession, repondre, riendafaire, racineDepot,
@@ -217,6 +218,47 @@ try {
     }
   }
 } catch { /* plugin.json illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
+
+// Mods du projet absents ou en retard sur ce poste (P16, 2026-10-07). Un mod ne se charge que depuis
+// un plugin INSTALLÉ `--scope local` pour ce dossier ; un poste neuf qui clone un projet à jour n'a
+// rien à synchroniser mais rien d'installé, et l'échec d'installation est « signalé, non bloquant » :
+// ce signal doit donc revenir à chaque session. Lecture seule de `installed_plugins.json`, SANS lancer
+// de processus (budget du hook). Muet en session cloud (`CLAUDE_CODE_REMOTE=true`, pas de poste à
+// équiper), sans mod, ou sur toute erreur de lecture — jamais de faux positif.
+try {
+  const racineMods = racineDepot(cwd);
+  if (racineMods && process.env.CLAUDE_CODE_REMOTE !== 'true') {
+    const vendore = existsSync(join(racineMods, '.claude', 'workflow', 'manifest.json'));
+    const dossierMods = vendore
+      ? join(racineMods, '.claude', 'workflow', 'mods')
+      : join(racineMods, 'plugin', 'mods');
+    const attendus = [];
+    if (existsSync(dossierMods)) {
+      for (const nom of readdirSync(dossierMods)) {
+        const cheminPlugin = join(dossierMods, nom, '.claude-plugin', 'plugin.json');
+        if (existsSync(cheminPlugin)) {
+          attendus.push({ nom, version: JSON.parse(readFileSync(cheminPlugin, 'utf8')).version });
+        }
+      }
+    }
+    if (attendus.length) {
+      const config = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+      const plugins = JSON.parse(readFileSync(join(config, 'plugins', 'installed_plugins.json'), 'utf8')).plugins || {};
+      const norm = (p) => resolve(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      const manquants = attendus.filter(({ nom, version }) => !Object.entries(plugins).some(
+        ([cle, liste]) => cle.startsWith(`${nom}@`) && Array.isArray(liste) && liste.some(
+          (x) => x.scope === 'local' && x.projectPath && norm(x.projectPath) === norm(racineMods) && x.version === version,
+        ),
+      ));
+      if (manquants.length) {
+        lignes.push(
+          `**Mods non installés ou en retard** (${manquants.map((m) => m.nom).join(', ')}) — ` +
+          `\`node ${vendore ? '.claude/workflow/bin' : 'plugin/bin'}/installer-mods.mjs\``
+        );
+      }
+    }
+  }
+} catch { /* fichier absent, illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
 
 // Dépôt sous un dossier synchronisé (Synology Drive, OneDrive, Dropbox, iCloud) : le client ne
 // synchronise qu'au fichier près, jamais `.git` en bloc — une reprise en cours d'écriture git

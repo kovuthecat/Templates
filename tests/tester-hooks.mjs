@@ -610,6 +610,66 @@ cas('sessionstart-contexte : silencieux quand le modèle correspond au plan', ()
   return /lancée en/.test(s) ? `signal présent à tort: ${s}` : null;
 });
 
+// Mods du projet installés `--scope local` pour CE dossier, à la version attendue (P16/S3/T5).
+// `CLAUDE_CONFIG_DIR` jetable : le poste réel ne doit jamais influencer ni être touché.
+function depotAvecMod(version = '1.0.0') {
+  const repo = creerDepot();
+  const dossier = join(repo, 'plugin', 'mods', 'monmod', '.claude-plugin');
+  mkdirSync(dossier, { recursive: true });
+  writeFileSync(join(dossier, 'plugin.json'), JSON.stringify({ name: 'monmod', version }));
+  return repo;
+}
+function configAvec(entrees) {
+  const config = mkdtempSync(join(tmpdir(), 'workflow-hooks-config-'));
+  mkdirSync(join(config, 'plugins'), { recursive: true });
+  if (entrees !== null) {
+    writeFileSync(
+      join(config, 'plugins', 'installed_plugins.json'),
+      typeof entrees === 'string' ? entrees : JSON.stringify({ version: 2, plugins: entrees }),
+    );
+  }
+  return config;
+}
+const entreeMod = (projectPath, version) => ({ 'monmod@mkt-quelconque': [{ scope: 'local', projectPath, version }] });
+const hookMods = (repo, config, env = {}) =>
+  lancerHook('sessionstart-contexte.mjs', { cwd: repo }, { CLAUDE_CONFIG_DIR: config, CLAUDE_CODE_REMOTE: '', ...env });
+
+cas('sessionstart-contexte : mod absent de installed_plugins.json → ligne', () => {
+  const repo = depotAvecMod();
+  const s = hookMods(repo, configAvec({}));
+  return /Mods non installés ou en retard\*\* \(monmod\).*installer-mods\.mjs/.test(s) ? null : `ligne absente, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : mod installé en retard de version → ligne', () => {
+  const repo = depotAvecMod('1.0.1');
+  const s = hookMods(repo, configAvec(entreeMod(repo, '1.0.0')));
+  return s.includes('Mods non installés ou en retard') ? null : `ligne absente, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : mods en place à la bonne version → silence', () => {
+  const repo = depotAvecMod();
+  const s = hookMods(repo, configAvec(entreeMod(repo, '1.0.0')));
+  return s.includes('Mods non installés') ? `signal à tort: ${s}` : null;
+});
+
+cas('sessionstart-contexte : mods absents mais session cloud → silence', () => {
+  const repo = depotAvecMod();
+  const s = hookMods(repo, configAvec({}), { CLAUDE_CODE_REMOTE: 'true' });
+  return s.includes('Mods non installés') ? `signal en cloud: ${s}` : null;
+});
+
+cas('sessionstart-contexte : installed_plugins.json illisible → silence', () => {
+  const repo = depotAvecMod();
+  const s = hookMods(repo, configAvec('{pas du json'));
+  return s.includes('Mods non installés') ? `faux positif: ${s}` : null;
+});
+
+cas('sessionstart-contexte : mod installé pour un autre projectPath → ligne', () => {
+  const repo = depotAvecMod();
+  const s = hookMods(repo, configAvec(entreeMod(join(repo, '..', 'autre-projet'), '1.0.0')));
+  return s.includes('Mods non installés ou en retard') ? null : `ligne absente, reçu: ${s || '(vide)'}`;
+});
+
 cas('sessionstart-contexte : ignore les sessions déjà faites', () => {
   const repo = creerDepot();
   poserPlan(repo, [
