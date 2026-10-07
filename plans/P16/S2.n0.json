@@ -4,40 +4,38 @@
   "portee": "complete",
   "resultat": "PASS",
   "empreinte": "f5801ac98ecae805b96cef8d40182ac572cc5012a51721ed3641a430847add8c",
-  "nonSuivis": [
-    "tests/tester-mods.mjs"
-  ],
-  "date": "2026-10-07T05:40:53.419Z",
+  "nonSuivis": [],
+  "date": "2026-10-07T05:45:11.031Z",
   "commandes": [
     {
       "nom": "tester-hooks",
       "cmd": "node tests/tester-hooks.mjs",
       "code": 0,
-      "dureeMs": 48758
+      "dureeMs": 51955
     },
     {
       "nom": "tester-scripts",
       "cmd": "node tests/tester-scripts.mjs",
       "code": 0,
-      "dureeMs": 41476
+      "dureeMs": 44386
     },
     {
       "nom": "tester-renvois",
       "cmd": "node tests/tester-renvois.mjs",
       "code": 0,
-      "dureeMs": 129
+      "dureeMs": 138
     },
     {
       "nom": "tester-mods",
       "cmd": "node tests/tester-mods.mjs",
       "code": 0,
-      "dureeMs": 1350
+      "dureeMs": 1422
     },
     {
       "nom": "publier-dry-run",
       "cmd": "node plugin/bin/publier.mjs --dry-run",
       "code": 0,
-      "dureeMs": 112807
+      "dureeMs": 116912
     }
   ]
 }
