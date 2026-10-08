@@ -127,6 +127,9 @@ froid, pas celui d'un sous-agent.
 Toute issue qui écrit un `docs/decisions/` y met la ligne `Brief :` ; si elle n'est pas `inchangé`,
 la section nommée de `PROJECT_BRIEF.md` est réécrite **dans le même commit** — c'est
 `brief-a-jour.mjs`, lancé par `/nouveau-plan`, qui vérifiera que la propagation a bien eu lieu.
+Même règle pour la ligne `Règles :` (`inchangées` | `<règle> : <changement>`) : si elle annonce un
+changement, `CLAUDE.md` § Règles spécifiques est réécrit **dans le même commit**, au format d'une
+règle par ligne (règle — motif — levée).
 
 Une session de réflexion qui ne produit aucun écrit n'a pas eu lieu : elle sera refaite.
 
@@ -171,7 +174,7 @@ improvise.
 
 **Committer et pousser l'écrit avant de rendre la main** — staging explicite du `docs/decisions/` et
 de la ligne de registre, plus `PROJECT_BRIEF.md` quand la ligne `Brief :` l'a touché ou qu'une idée
-y est reportée, puis `git push`
+y est reportée, plus `CLAUDE.md` quand la ligne `Règles :` l'a touché, puis `git push`
 sur `main` (`WORKFLOW.md` §4b), session cloud comprise. Une
 décision qui n'existe que sur ce poste ne sera pas lue par la session de plan qui devait s'en servir,
 et c'est elle qu'on refera. Le cadrage est une unité de travail : il se clôt poussé.
@@ -187,7 +190,7 @@ restantes, typées, avec qui les résout.
 
 - **Aucune modification de code ni de fichier de contexte pendant l'investigation** — Plan Mode
   (Shift+Tab) dès le début, à quitter avant l'Étape 5, qui écrit seulement `docs/decisions/…`, la
-  ligne de `DECISIONS.md` et le brief si la ligne `Brief :` l'exige.
+  ligne de `DECISIONS.md` et le brief si la ligne `Brief :` l'exige, et `CLAUDE.md` si la ligne `Règles :` l'exige.
 - **Aucune exploration en direct** dès que ça dépasse un fichier : c'est le travail d'`explorateur`.
 - **Aucun enchaînement de `/nouveau-plan` dans la même conversation — contrainte d'outillage**
   (`WORKFLOW.md` §9c), pas un point d'arrêt de conception : rien ne peut démarrer une session à

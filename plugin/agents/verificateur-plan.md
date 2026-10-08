@@ -44,10 +44,10 @@ Un test absent doit être justifié ; le script vérifie la présence, pas la pe
     porte `Régime : ouvert` sans branche jetable **nommée et poussée** (jamais `main`), sans budget
     écrit (tours ou temps), ou dont rien n'énonce ce qui compterait comme **réponse négative** :
     écart.
-11. **Brief à jour des décisions** — le prompt porte-t-il « Sortie de brief-a-jour : » suivie d'une
+11. **Brief et règles à jour des décisions** — le prompt porte-t-il « Sortie de brief-a-jour : » suivie d'une
     sortie `RAS` ou `SANS OBJET` ? Une sortie qui liste des `ÉCART` est un écart n°11, une ligne par
-    décision citée ; une sortie absente du prompt est elle-même un écart n°11 (« contrôle brief non
-    lancé »).
+    décision citée (brief ou règles) ; une sortie absente du prompt est elle-même un écart n°11
+    (« contrôle brief non lancé »).
 
 Si le plan est en **mode extension** (sessions ajoutées à un plan existant), les contrôles 2 et 4
 portent sur l'ensemble du plan, pas seulement sur les sessions ajoutées : c'est justement là que

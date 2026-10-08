@@ -1456,6 +1456,100 @@ cas('brief-a-jour : décision sans ligne `Brief :`, plus ancienne que le brief �
   return null;
 });
 
+/** Dépôt de test « règles » : CLAUDE.md présent, pas de PROJECT_BRIEF.md. */
+function depotRegles(prefixe) {
+  const cwd = dossierJetable(prefixe);
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'CLAUDE.md'), '# CLAUDE\n\n## Règles spécifiques\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  return cwd;
+}
+const REGLE_ANNONCEE = '# Décision\n\n## Conséquences\n...\n\nRègles : pas de suppression : ajout d\'un interdit\n';
+
+cas('brief-a-jour : `Règles : inchangées` → RAS', () => {
+  const cwd = depotRegles('workflow-regles-inchangees-');
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-01-r1.md'), '# D\n\nRègles : inchangées\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : `Règles : <règle> : …` commitée avec CLAUDE.md → RAS', () => {
+  const cwd = depotRegles('workflow-regles-avec-');
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-02-r2.md'), REGLE_ANNONCEE);
+  writeFileSync(join(cwd, 'CLAUDE.md'), '# CLAUDE\n\n## Règles spécifiques\n- pas de suppression\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision + règles');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : règle annoncée SANS CLAUDE.md → ÉCART qui nomme la règle, code 1 (même sans brief)', () => {
+  const cwd = depotRegles('workflow-regles-sans-');
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-03-r3.md'), REGLE_ANNONCEE);
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision seule');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (sortie.includes('SANS OBJET')) return `SANS OBJET inattendu: ${sortie}`;
+  if (!/^ÉCART docs\/decisions\/2026-02-03-r3\.md — Règles : pas de suppression annoncé, CLAUDE\.md absent du commit .+ et aucun Regles-appliquees$/m.test(sortie)) {
+    return `ligne ÉCART attendue absente ou mal formée: ${sortie}`;
+  }
+  return null;
+});
+
+cas('brief-a-jour : règle annoncée + commit postérieur `Regles-appliquees:` → RAS', () => {
+  const cwd = depotRegles('workflow-regles-rattrapage-');
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-04-r4.md'), REGLE_ANNONCEE);
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision seule');
+  writeFileSync(join(cwd, 'CLAUDE.md'), '# CLAUDE\n\n## Règles spécifiques\n- pas de suppression\n');
+  git(cwd, 'add', '-A');
+  execFileSync('git', [
+    'commit', '-q', '-m',
+    'docs(regles): applique la décision\n\nRegles-appliquees: docs/decisions/2026-02-04-r4.md',
+  ], { cwd, stdio: 'pipe' });
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/^RAS — 1 décision/m.test(sortie)) return `RAS attendu: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : `Regles-appliquees:` ANTÉRIEUR à la décision → toujours ÉCART (anti-raccourci)', () => {
+  const cwd = depotRegles('workflow-regles-anterieur-');
+  writeFileSync(join(cwd, 'CLAUDE.md'), '# CLAUDE\n\n## Règles spécifiques\n- autre\n');
+  git(cwd, 'add', '-A');
+  execFileSync('git', [
+    'commit', '-q', '-m',
+    'docs(regles): applique par avance\n\nRegles-appliquees: docs/decisions/2026-02-05-r5.md',
+  ], { cwd, stdio: 'pipe' });
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-05-r5.md'), REGLE_ANNONCEE);
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision seule');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 1) return `code ${code} attendu 1 (rattrapage antérieur refusé), sortie: ${sortie}`;
+  if (!/^ÉCART docs\/decisions\/2026-02-05-r5\.md — Règles :/m.test(sortie)) return `ligne ÉCART attendue absente: ${sortie}`;
+  return null;
+});
+
+cas('brief-a-jour : décision sans ligne `Règles :` → aucune ligne d\'écart', () => {
+  const cwd = depotRegles('workflow-regles-absente-');
+  writeFileSync(join(cwd, 'docs', 'decisions', '2026-02-06-r6.md'), '# D\n\n## Conséquences\n...\n');
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', 'décision ancienne');
+  const { code, sortie } = lancer(BRIEF_A_JOUR, [], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (/ÉCART/.test(sortie)) return `aucun ÉCART attendu: ${sortie}`;
+  return null;
+});
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // collecter-incidents.mjs — champs regroupés sur une puce, séparés par `·` (T3, P10/S1)
 // ════════════════════════════════════════════════════════════════════════════════════════════════

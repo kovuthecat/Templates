@@ -362,6 +362,11 @@ réécrire la section dans un commit séparé `docs(brief): applique <décision>
 section) dans ce même commit ; ligne ambiguë (section ou changement indéduisibles) → `/cadrer`, pas
 de plan.
 
+Même traitement pour une ligne `Règles : <règle> : …` non appliquée : réécrire la règle dans
+`CLAUDE.md` § Règles spécifiques, commit séparé `docs(regles): applique <décision>` portant
+`Regles-appliquees: <chemin>`, puis relancer le script ; ligne absente → pas d'écart (décision d'avant
+la règle).
+
 ## Étape 5 — Reporter dans `TASKS.md`
 
 Une ligne par tâche du plan, statut remplacé par le renvoi : `- T-012 — <titre> · → plans/P2/S1.md`.
