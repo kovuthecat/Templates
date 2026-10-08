@@ -45,3 +45,13 @@ projets existants qui prend plusieurs séances.
 - Revue des projets existants : une séance par projet, hors plan, chaque projet commitant ses
   propres changements de règles.
 - Écarté : réviser seulement les futurs projets ; corriger les projets en bloc sans revue.
+
+## Application (plan P17, validé par l'utilisateur le 2026-10-08)
+
+- Point 5 : le contrôle n'est pas fait par le relecteur, qui ne voit ni les commits de `/cadrer` ni
+  les commits sans code. Il est fait par `brief-a-jour.mjs`, à chaque `/nouveau-plan`, sur une
+  ligne `Règles :` du fichier de décision (même mécanique que `Brief :`). Revers : l'écart n'apparaît
+  qu'au plan suivant.
+- Point 3 : un projet « sans aucune commande » le déclare dans `.claude/n0.json`
+  (`"commandes": []`, `"sansCommande": "<motif>"`) ; une liste vide sans motif ne vaut pas
+  déclaration.

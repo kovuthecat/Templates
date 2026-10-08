@@ -9,13 +9,17 @@
 Inventaire : `docs/analyses/2026-10-08-regles-projets-inventaire.md`. Une séance par projet, choix
 de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le projet.
 
-- [x] trames-consultation (`0326026`) · [x] DoxUploader (`a000543`)
-- [ ] ebm-msp · EBM-MSPv2 · Interface-OE · Chords (5 blocages chacun)
+- [x] trames-consultation (`0326026`) · [x] DoxUploader (`a000543`) · [x] ebm-msp (`f13e220`)
+- [ ] EBM-MSPv2 · Interface-OE · Chords (5 blocages chacun)
 - [ ] ETP interactif · Tuto-onshape (dépôt git invalide d'abord) · torrent-uploader · annuaire-msp ·
   claude-mods · MYO · Lunii Studio upgrade · S&C · vostfr-CLI · EBM-perso
 - [ ] Sans blocage, suspectes seules : cosme-diy · trieur-plex · extension-firefox · Veilleur · DrumsTraining
-- [ ] Plugin : points 1 à 5 de la décision → `/nouveau-plan` (étape de validation des règles dans
-  `/nouveau-projet`, gabarits, n0.json et allow à l'instanciation, J14)
+- [ ] Plugin : points 1 à 5 de la décision → plan P17 (`plans/P17/index.md`)
+  - Preuve N0 non requise pour un projet sans commande (J14) · → plans/P17/S1.md
+  - Permissions dérivées de la stack, allow en retard signalé · → plans/P17/S2.md
+  - Interview : règles validées une à une, commandes et n0.json à l'instanciation, gabarits · → plans/P17/S3.md
+  - Ligne `Règles :` des décisions contrôlée par brief-a-jour · → plans/P17/S4.md
+  - Publication 0.61.0 · → plans/P17/S5.md
 
 ## Backlog de revue (non bloquant)
 
