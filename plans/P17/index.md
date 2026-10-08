@@ -2,6 +2,7 @@
 
 Workflow : v0.60.0
 Preuve N0 : requise
+Clos : 2026-10-08
 
 ## Objectif d'ensemble
 Aujourd'hui, `/nouveau-projet` pose seul des interdits et des chiffres qui bloquent ensuite les
