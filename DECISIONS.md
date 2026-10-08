@@ -142,6 +142,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   K négatif → `plugin/mods/` installé par `/maj-workflow`, deux mini-plugins (garde-fous O1/O3,
   affichage O5 + limites, fichiers, plan, incidents) : `claude-mods` absorbé →
   [détail](docs/decisions/2026-10-06-apres-p15.md)
+- 2026-10-08 — **Règles de projet validées à la création, révisées dans les projets existants** —
+  interdit de classe = motif + condition de levée ; chiffres de l'interview provisoires ; n0.json et
+  allow complets à l'instanciation, `Preuve N0 : non requise` sans commande (J14) ; bloc « Critères
+  avant ajout de feature » retiré ; une règle, un fichier (`CLAUDE.md`) ; revue des 21 projets un
+  par un → [détail](docs/decisions/2026-10-08-regles-de-projet-validees.md)
 
 ## Archives
 
