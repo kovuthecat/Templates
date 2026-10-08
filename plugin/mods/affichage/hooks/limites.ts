@@ -1,4 +1,4 @@
-import type { Fenetre } from '../types'
+import type { Bandeau, Fenetre, FenetreBandeau } from '../types'
 
 // Logique pure de l'affichage : aucun `$`, aucune horloge, aucun fuseau lus ici. L'heure courante et
 // le fuseau (`Decalage`) sont injectes par l'appelant, pour que les tests ne dependent pas de la machine.
@@ -38,12 +38,13 @@ export function formaterReset(resetsAt: string | undefined, maintenant: number, 
 
 export const arrondi = (pourcent: number) => Math.round(pourcent)
 
-// `5 h 21 % ↺ 18:40` ; undefined pour une fenetre sans libelle.
-export function formaterFenetre(f: Fenetre, maintenant: number, decalage: Decalage): string | undefined {
+// Une fenetre du bandeau : libelle (en gras a l'ecran) et valeur. Le reset ne sert que pour 5 h : celui
+// de 7 j tombe toujours au meme moment de la semaine, il est dans le panneau « limites ».
+export function fenetreBandeau(f: Fenetre, maintenant: number, decalage: Decalage): FenetreBandeau | undefined {
   const libelle = libelleFenetre(f.kind)
   if (libelle === undefined) return undefined
-  const reset = formaterReset(f.resetsAt, maintenant, decalage)
-  return `${libelle} ${arrondi(f.percentUsed)} %${reset === undefined ? '' : ` ↺ ${reset}`}`
+  const reset = f.kind === 'five_hour' ? formaterReset(f.resetsAt, maintenant, decalage) : undefined
+  return { libelle, valeur: `${arrondi(f.percentUsed)} %${reset === undefined ? '' : ` ↺ ${reset}`}` }
 }
 
 // Les fenetres connues, dans l'ordre 5 h puis 7 j.
@@ -52,30 +53,28 @@ export function fenetresConnues(fenetres: readonly Fenetre[]): Fenetre[] {
   return ordre.map((k) => fenetres.find((f) => f.kind === k)).filter((f): f is Fenetre => f !== undefined)
 }
 
-export type EntreeLigne = {
+export type EntreeBandeau = {
   plan?: string
   vague?: string
   sessions?: string
   fenetres: readonly Fenetre[]
-  contexte?: number
   maintenant: number
   decalage: Decalage
 }
 
-// `P16 · vague 2 · S5 · 5 h 21 % ↺ 18:40 · 7 j 40 % ↺ lun. 09:00 · contexte 10 %` ; segment absent = omis.
-export function composerLigne(e: EntreeLigne): string {
-  const segments: string[] = []
-  if (e.plan) {
-    segments.push(e.plan)
-    if (e.vague) segments.push(`vague ${e.vague}`)
-    if (e.sessions) segments.push(e.sessions)
-  }
-  for (const f of fenetresConnues(e.fenetres)) {
-    const texte = formaterFenetre(f, e.maintenant, e.decalage)
-    if (texte !== undefined) segments.push(texte)
-  }
-  if (e.contexte !== undefined) segments.push(`contexte ${arrondi(e.contexte)} %`)
-  return segments.join(' · ')
+// Bandeau au-dessus du prompt : `P16 · vague 2 · S5` puis les fenetres ; segment absent = omis.
+export function composerBandeau(e: EntreeBandeau): Bandeau {
+  const plan = e.plan ? [e.plan, e.vague ? `vague ${e.vague}` : '', e.sessions ?? ''].filter(Boolean).join(' · ') : undefined
+  const fenetres = fenetresConnues(e.fenetres)
+    .map((f) => fenetreBandeau(f, e.maintenant, e.decalage))
+    .filter((f): f is FenetreBandeau => f !== undefined)
+  return { ...(plan ? { plan } : {}), fenetres }
+}
+
+// Forme texte du bandeau (tests, comparaison) : `P16 · vague 2 │ 5 h 21 % ↺ 18:40 · 7 j 40 %`.
+export function texteBandeau(b: Bandeau): string {
+  const limites = b.fenetres.map((f) => `${f.libelle} ${f.valeur}`).join(' · ')
+  return [b.plan ?? '', limites].filter(Boolean).join(' │ ')
 }
 
 // Barre texte de 10 cases : `██░░░░░░░░`.

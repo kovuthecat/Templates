@@ -141,38 +141,66 @@ describe('panneau limites', () => {
   }
 })
 
-describe('ligne d\'etat', () => {
-  test('au demarrage : limites et contexte lus par session.usage ; hors projet du workflow, pas de plan', async ($, on) => {
+describe('bandeau au-dessus du prompt', () => {
+  // Le bandeau dessine : son texte bout a bout, et les Text en gras a part.
+  const bandeau = async ($: any, surface: (typeof SURFACES)[number] = 'desktop', hasSurvey = false) => {
+    const ui = await $.ui.mount({
+      plugin: 'affichage',
+      surface,
+      component: 'AbovePrompt',
+      props: { hasSurvey, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+      viewport: { columns: 120, rows: 30 },
+    })
+    const tous = await ui.findAll({ type: 'Text' })
+    return {
+      texte: tous.map((t: any) => String(t.text)).join(''),
+      gras: tous.filter((t: any) => t.props?.bold).map((t: any) => String(t.text)),
+    }
+  }
+
+  for (const surface of SURFACES) {
+    test(`${surface} : limites, libelles en gras, ni contexte ni reset 7 j`, async ($, on) => {
+      monde(on, {
+        rateLimits: [
+          { kind: 'five_hour', percentUsed: 21, resetsAt: '2026-10-07T17:40:00Z' },
+          { kind: 'seven_day', percentUsed: 63, resetsAt: '2026-10-12T08:00:00Z' },
+        ],
+        contexte: 10,
+      })
+      await demarrer($)
+      const b = await bandeau($, surface)
+      expect(b.texte).toMatch(/^5 h 21 % ↺ \d\d:\d\d · 7 j 63 %$/)
+      expect(b.gras).toEqual(['5 h', '7 j'])
+    })
+  }
+
+  test("plus de ligne d'etat : le prefixe du plugin n'apparait plus", async ($, on) => {
     const s = monde(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 21 }], contexte: 10 })
     await demarrer($)
-    expect(s.status.at(-1)).toBe('5 h 21 % · contexte 10 %')
+    await $.session.measure({ context: { window: 200000, percent: 11 }, rateLimits: [], changed: ['context'] })
+    expect(s.status).toEqual([])
+  })
+
+  test('hors projet du workflow : pas de plan, prochaine-action jamais lance', async ($, on) => {
+    const s = monde(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 21 }] })
+    await demarrer($)
+    expect((await bandeau($)).texte).toBe('5 h 21 %')
     expect(s.commandes.some((c) => c[0] === 'node')).toBe(false)
   })
 
-  test('reecrite seulement si le texte change', async ($, on) => {
-    const s = monde(on)
-    await demarrer($)
-    const mesure = (pourcent: number) =>
-      $.session.measure({ context: { window: 200000, percent: pourcent }, rateLimits: [], changed: ['context'] })
-    await mesure(10)
-    await mesure(10.2)
-    await mesure(11)
-    expect(s.status).toEqual(['contexte 10 %', 'contexte 11 %'])
-  })
-
   test('dans un projet du workflow : plan, vague et session par prochaine-action ; repere par agent.spawn', async ($, on) => {
-    const s = monde(on, {
+    monde(on, {
       fichiers: ['plugin/bin/prochaine-action.mjs'],
       scripts: {
         P1: JSON.stringify({ action: 'lancer', vague: 2, sessions: [{ session: 'S3' }] }),
         P7: JSON.stringify({ action: 'lancer', vague: 4, sessions: [{ session: 'S2' }] }),
       },
-      contexte: 5,
+      rateLimits: [{ kind: 'seven_day', percentUsed: 40 }],
     })
     on('agent.spawn', () => ({ model: 'inherit', agentId: 'a1' }))
     await demarrer($)
     // plan par defaut : P1 (index sans « Clos : »)
-    expect(s.status.at(-1)).toBe('P1 · vague 2 · S3 · contexte 5 %')
+    expect((await bandeau($)).texte).toBe('P1 · vague 2 · S3  │  7 j 40 %')
     await $.agent.spawn({
       tool_use_id: 't1',
       prompt: 'Ouvre plans/P7/S2.md',
@@ -183,13 +211,34 @@ describe('ligne d\'etat', () => {
       background: false,
       fork: false,
     } as any)
-    expect(s.status.at(-1)).toBe('P7 · vague 4 · S2 · contexte 5 %')
+    expect((await bandeau($)).texte).toBe('P7 · vague 4 · S2  │  7 j 40 %')
   })
 
-  test('script en echec : la ligne garde limites et contexte', async ($, on) => {
-    const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: 'pas du json' }, contexte: 5 })
+  test('script en echec : le bandeau garde le plan et les limites', async ($, on) => {
+    monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: 'pas du json' }, rateLimits: [{ kind: 'seven_day', percentUsed: 40 }] })
     await demarrer($)
-    expect(s.status.at(-1)).toBe('P1 · contexte 5 %')
+    expect((await bandeau($)).texte).toBe('P1  │  7 j 40 %')
+  })
+
+  // Ce que le moteur dessine de lui-meme quand le mod passe la main (`next(e)`).
+  const moteur = (on: any) =>
+    on('ui.render', ($: any, e: any) => {
+      const { Text } = $.ui.resolve(e)
+      return <Text>moteur</Text>
+    })
+
+  test('pendant un sondage du moteur : le bandeau lui laisse la place', async ($, on) => {
+    monde(on, { rateLimits: [{ kind: 'five_hour', percentUsed: 21 }] })
+    moteur(on)
+    await demarrer($)
+    expect((await bandeau($, 'desktop', true)).texte).toBe('moteur')
+  })
+
+  test('sans plan ni limites : le bandeau passe la main', async ($, on) => {
+    monde(on)
+    moteur(on)
+    await demarrer($)
+    expect((await bandeau($)).texte).toBe('moteur')
   })
 })
 

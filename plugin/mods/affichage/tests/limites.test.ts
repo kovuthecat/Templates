@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'claude-code/testing'
 import {
-  composerLigne,
-  formaterFenetre,
+  composerBandeau,
+  fenetreBandeau,
   formaterReset,
   lignesLimites,
   lireEtatPlan,
@@ -9,6 +9,7 @@ import {
   planDepuisPrompt,
   planEstOuvert,
   plansParNumero,
+  texteBandeau,
 } from '../hooks/limites'
 
 // Horloge et fuseau injectes : aucun de ces tests ne depend de la machine qui les joue.
@@ -44,43 +45,56 @@ describe('formaterReset', () => {
   })
 })
 
-describe('formaterFenetre', () => {
-  test("arrondi a l'entier", () => {
-    expect(formaterFenetre({ kind: 'five_hour', percentUsed: 20.6, resetsAt: '2026-10-07T17:40:00Z' }, MAINTENANT, PARIS)).toBe('5 h 21 % ↺ 18:40')
-    expect(formaterFenetre({ kind: 'seven_day', percentUsed: 40.4 }, MAINTENANT, PARIS)).toBe('7 j 40 %')
+describe('fenetreBandeau', () => {
+  test("arrondi a l'entier ; reset pour 5 h seulement", () => {
+    expect(fenetreBandeau({ kind: 'five_hour', percentUsed: 20.6, resetsAt: '2026-10-07T17:40:00Z' }, MAINTENANT, PARIS)).toEqual({
+      libelle: '5 h',
+      valeur: '21 % ↺ 18:40',
+    })
+    expect(fenetreBandeau({ kind: 'seven_day', percentUsed: 40.4, resetsAt: '2026-10-12T08:00:00Z' }, MAINTENANT, PARIS)).toEqual({
+      libelle: '7 j',
+      valeur: '40 %',
+    })
   })
 
   test('fenetre inconnue : omise', () => {
-    expect(formaterFenetre({ kind: 'spend_limit', percentUsed: 3 }, MAINTENANT, PARIS)).toBeUndefined()
+    expect(fenetreBandeau({ kind: 'spend_limit', percentUsed: 3 }, MAINTENANT, PARIS)).toBeUndefined()
   })
 })
 
-describe('composerLigne', () => {
+describe('composerBandeau', () => {
   const fenetres = [
     { kind: 'seven_day', percentUsed: 40, resetsAt: '2026-10-12T08:00:00Z' },
     { kind: 'five_hour', percentUsed: 20.6, resetsAt: '2026-10-07T17:40:00Z' },
   ]
+  const texte = (e: Parameters<typeof composerBandeau>[0]) => texteBandeau(composerBandeau(e))
 
-  test("ligne complete, fenetres remises dans l'ordre 5 h puis 7 j", () => {
-    const ligne = composerLigne({ plan: 'P16', vague: '2', sessions: 'S5', fenetres, contexte: 10, maintenant: MAINTENANT, decalage: PARIS })
-    expect(ligne).toBe('P16 · vague 2 · S5 · 5 h 21 % ↺ 18:40 · 7 j 40 % ↺ lun. 09:00 · contexte 10 %')
+  test("bandeau complet, fenetres remises dans l'ordre 5 h puis 7 j, plan separe par │", () => {
+    const b = composerBandeau({ plan: 'P16', vague: '2', sessions: 'S5', fenetres, maintenant: MAINTENANT, decalage: PARIS })
+    expect(b).toEqual({
+      plan: 'P16 · vague 2 · S5',
+      fenetres: [
+        { libelle: '5 h', valeur: '21 % ↺ 18:40' },
+        { libelle: '7 j', valeur: '40 %' },
+      ],
+    })
+    expect(texteBandeau(b)).toBe('P16 · vague 2 · S5 │ 5 h 21 % ↺ 18:40 · 7 j 40 %')
   })
 
-  test('sans plan : limites et contexte seulement', () => {
-    const ligne = composerLigne({ fenetres, contexte: 9.6, maintenant: MAINTENANT, decalage: PARIS })
-    expect(ligne).toBe('5 h 21 % ↺ 18:40 · 7 j 40 % ↺ lun. 09:00 · contexte 10 %')
+  test('sans plan : limites seulement', () => {
+    expect(texte({ fenetres, maintenant: MAINTENANT, decalage: PARIS })).toBe('5 h 21 % ↺ 18:40 · 7 j 40 %')
   })
 
-  test('segments manquants omis : plan sans vague, une seule fenetre, pas de contexte', () => {
-    expect(composerLigne({ plan: 'P3', fenetres: [fenetres[1]], maintenant: MAINTENANT, decalage: PARIS })).toBe('P3 · 5 h 21 % ↺ 18:40')
+  test('segments manquants omis : plan sans vague, une seule fenetre', () => {
+    expect(texte({ plan: 'P3', fenetres: [fenetres[1]], maintenant: MAINTENANT, decalage: PARIS })).toBe('P3 │ 5 h 21 % ↺ 18:40')
   })
 
-  test('rien a dire : chaine vide', () => {
-    expect(composerLigne({ fenetres: [], maintenant: MAINTENANT, decalage: PARIS })).toBe('')
+  test('rien a dire : vide', () => {
+    expect(composerBandeau({ fenetres: [], maintenant: MAINTENANT, decalage: PARIS })).toEqual({ fenetres: [] })
   })
 
   test('vague et session sans plan : jamais affichees seules', () => {
-    expect(composerLigne({ vague: '2', sessions: 'S5', fenetres: [], contexte: 1, maintenant: MAINTENANT, decalage: PARIS })).toBe('contexte 1 %')
+    expect(texte({ vague: '2', sessions: 'S5', fenetres: [], maintenant: MAINTENANT, decalage: PARIS })).toBe('')
   })
 })
 

@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { EtatFichiers, Fenetre, Limites, Mode, ModelePlan, PlanAffiche } from '../types'
+import type { Bandeau, EtatFichiers, Fenetre, Limites, Mode, ModelePlan, PlanAffiche } from '../types'
 import {
   CMD_NON_POUSSES,
   CMD_STATUS,
@@ -15,19 +15,20 @@ import {
   ligneFichier,
 } from './fichiers'
 import {
-  composerLigne,
+  composerBandeau,
   decalageLocal,
   lignesLimites,
   lireEtatPlan,
   planDepuisPrompt,
   planEstOuvert,
   plansParNumero,
+  texteBandeau,
 } from './limites'
 import { DOSSIER_INCIDENTS, depuisLe, estIncident, lireArgs, lireIncident, parentDe, projetScrutable, tableIncidents, trier } from './incidents'
 import type { Incident } from './incidents'
 import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
 
-// Affichage du workflow : une ligne d'etat (plan, limites 5 h / 7 j, contexte), un panneau « limites »,
+// Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j), un panneau « limites »,
 // un panneau « fichiers » (etat git) et un panneau « plan » (sessions, prochaine action, boutons de relance).
 // La commande `/incidents` liste les incidents de workflow des projets freres (lecture seule).
 // Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
@@ -42,6 +43,7 @@ const DELAI_PROCESS_MS = 5000
 const OUTILS_FICHIERS = ['Write', 'Edit', 'NotebookEdit', 'Bash', 'PowerShell']
 
 const limitesAtom = atom({ plugin: 'affichage', key: 'limites' } as const, { fenetres: [] } as Limites)
+const bandeauAtom = atom({ plugin: 'affichage', key: 'bandeau' } as const, { fenetres: [] } as Bandeau)
 const fichiersAtom = atom({ plugin: 'affichage', key: 'fichiers' } as const, ETAT_VIDE as EtatFichiers)
 const repliAtom = atom({ plugin: 'affichage', key: 'repli' } as const, {} as Record<string, boolean>)
 const planAtom = atom({ plugin: 'affichage', key: 'plan' } as const, { modele: null, mode: 'source' } as PlanAffiche)
@@ -55,7 +57,6 @@ type Etat = {
   cacheDefaut?: { at: number; plan?: string }
   dernierTexte?: string
   fenetres: Fenetre[]
-  contexte?: number
   fichiersJson?: string
   depot: boolean
   fichiersOuvert: boolean
@@ -222,7 +223,7 @@ async function collecterIncidents($: any): Promise<{ projets: number; incidents:
   return { projets, incidents }
 }
 
-// La ligne d'etat, reecrite seulement si son texte change.
+// Le bandeau, reecrit seulement si son texte change.
 async function rafraichirLigne($: any, s: Etat): Promise<void> {
   try {
     const maintenant = Number(await $.clock.now())
@@ -239,29 +240,21 @@ async function rafraichirLigne($: any, s: Etat): Promise<void> {
         sessions = etat.sessions ?? (plan === s.plan ? s.session : undefined)
       }
     }
-    const texte = composerLigne({
-      plan,
-      vague,
-      sessions,
-      fenetres: s.fenetres,
-      contexte: s.contexte,
-      maintenant,
-      decalage: decalageLocal,
-    })
+    const bandeau = composerBandeau({ plan, vague, sessions, fenetres: s.fenetres, maintenant, decalage: decalageLocal })
+    const texte = texteBandeau(bandeau)
     if (texte !== (s.dernierTexte ?? '')) {
       s.dernierTexte = texte
-      $.ui.status(texte === '' ? undefined : texte)
+      await update($, bandeauAtom, () => bandeau)
     }
     await majPlan($, s, modele)
   } catch {
-    // la ligne d'etat n'est jamais bloquante
+    // le bandeau n'est jamais bloquant
   }
 }
 
-async function mesurer($: any, s: Etat, fenetres: Fenetre[], contexte: number | undefined): Promise<void> {
+async function mesurer($: any, s: Etat, fenetres: Fenetre[]): Promise<void> {
   s.fenetres = fenetres
-  s.contexte = contexte
-  await update($, limitesAtom, () => ({ fenetres, ...(contexte !== undefined ? { contexte } : {}) }))
+  await update($, limitesAtom, () => ({ fenetres }))
   await rafraichirLigne($, s)
 }
 
@@ -325,7 +318,7 @@ export const register: Register = (on) => {
   on('session.start', async ($, e, next) => {
     try {
       const usage = await $.session.usage()
-      await mesurer($, s, usage?.rateLimits ?? [], usage?.context?.percent)
+      await mesurer($, s, usage?.rateLimits ?? [])
     } catch {
       // limites connues a la premiere mesure
     }
@@ -368,7 +361,7 @@ export const register: Register = (on) => {
   })
 
   on('session.measure', async ($, e, next) => {
-    await mesurer($, s, e.rateLimits, e.context?.percent)
+    await mesurer($, s, e.rateLimits)
     return next(e)
   })
 
@@ -387,6 +380,26 @@ export const register: Register = (on) => {
     const r = await next(e)
     await rafraichirFichiers($, s)
     return r
+  })
+
+  // Le bandeau au-dessus du prompt : plan, puis « │ », puis les limites, libelles en gras. Il cede la
+  // place a un sondage du moteur et ne dessine rien quand il n'a rien a dire.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const bandeau = await read($, bandeauAtom)
+    if (e.props.hasSurvey || (!bandeau.plan && bandeau.fenetres.length === 0)) return next(e)
+    const { Box, Text } = $.ui.resolve(e)
+    const limites = bandeau.fenetres.flatMap((f, i) => [
+      ...(i > 0 ? [<Text dimColor>{' · '}</Text>] : []),
+      <Text bold>{f.libelle}</Text>,
+      <Text>{` ${f.valeur}`}</Text>,
+    ])
+    return (
+      <Box flexWrap="wrap">
+        {bandeau.plan && <Text>{bandeau.plan}</Text>}
+        {bandeau.plan && limites.length > 0 && <Text dimColor>{'  │  '}</Text>}
+        {limites}
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE_LIMITES }, async ($, e) => {
