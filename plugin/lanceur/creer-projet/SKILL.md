@@ -26,7 +26,7 @@ commandes). Le chemin cible est `<dossier courant>/<nom>`, en absolu.
 
 - Le dossier existe et n'est pas vide → s'arrêter ; `/migrer-projet` depuis ce dossier.
 - Le chemin contient `SynologyDrive`, `OneDrive`, `Dropbox` ou `iCloud` → le dire avant de créer
-  quoi que ce soit (même règle que `/nouveau-projet` Phase C étape 7 : un dépôt sous un client de
+  quoi que ce soit (même règle que `/nouveau-projet` Phase C étape 9 : un dépôt sous un client de
   synchro se corrompt) ; attendre le choix.
 
 ## 3. Créer, vendorer, se mettre à jour — une seule commande
