@@ -4,6 +4,19 @@
 
 - aucun (P8/S5 et P9/S3 fermés à la clôture du 2026-10-08, décision utilisateur)
 
+## Revue des règles des projets (`docs/decisions/2026-10-08-regles-de-projet-validees.md`)
+
+Inventaire : `docs/analyses/2026-10-08-regles-projets-inventaire.md`. Une séance par projet, choix
+de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le projet.
+
+- [x] trames-consultation (`0326026`) · [x] DoxUploader (`a000543`)
+- [ ] ebm-msp · EBM-MSPv2 · Interface-OE · Chords (5 blocages chacun)
+- [ ] ETP interactif · Tuto-onshape (dépôt git invalide d'abord) · torrent-uploader · annuaire-msp ·
+  claude-mods · MYO · Lunii Studio upgrade · S&C · vostfr-CLI · EBM-perso
+- [ ] Sans blocage, suspectes seules : cosme-diy · trieur-plex · extension-firefox · Veilleur · DrumsTraining
+- [ ] Plugin : points 1 à 5 de la décision → `/nouveau-plan` (étape de validation des règles dans
+  `/nouveau-projet`, gabarits, n0.json et allow à l'instanciation, J14)
+
 ## Backlog de revue (non bloquant)
 
 - **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
