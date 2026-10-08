@@ -60,6 +60,22 @@ function planValide(d){
 }
 function ecarts(d){const r=run(d,'verifier-plan.mjs','P1','--json');assert.ok([0,1].includes(r.status),r.stderr);return JSON.parse(r.stdout);}
 cas('plan canonique valide → RAS',()=>{const d=depot();planValide(d);assert.equal(ecarts(d).resultat,'RAS');});
+// J14 — table du contrôle 7 : un cas par ligne, texte de l'écart vérifié (deux lignes sortent en 1 pour des raisons opposées).
+function n0json(d,obj){put(d,'.claude/n0.json',typeof obj==='string'?obj:JSON.stringify(obj));}
+function declarer(d,valeur){const f='plans/P1/index.md';const t=readFileSync(join(d,f),'utf8').replace(/^Preuve N0 : .*\n/m,valeur?`Preuve N0 : ${valeur}\n`:'');put(d,f,t);}
+function motifs7(d){return ecarts(d).erreurs.filter(e=>e.controle===7).map(e=>e.motif);}
+const SANS={commandes:[],sansCommande:'projet documentaire, rien à compiler'};
+cas('N0 requise + commandes → RAS',()=>{const d=depot();planValide(d);assert.deepEqual(motifs7(d),[]);});
+cas('N0 requise + sansCommande → écart nommant le motif et non requise',()=>{const d=depot();planValide(d);n0json(d,SANS);const m=motifs7(d);assert.equal(m.length,1,m.join('|'));assert.ok(m[0].includes('projet documentaire, rien à compiler')&&m[0].includes('Preuve N0 : non requise'),m[0]);});
+cas('N0 non requise + sansCommande → RAS',()=>{const d=depot();planValide(d);declarer(d,'non requise');n0json(d,SANS);assert.equal(ecarts(d).resultat,'RAS');});
+cas('N0 non requise + commandes → écart « exige sansCommande »',()=>{const d=depot();planValide(d);declarer(d,'non requise');const m=motifs7(d);assert.equal(m.length,1,m.join('|'));assert.ok(m[0].includes('non requise')&&m[0].includes('exige')&&m[0].includes('sansCommande'),m[0]);});
+cas('N0 non requise + commandes ET sansCommande (incohérent) → écart',()=>{const d=depot();planValide(d);declarer(d,'non requise');n0json(d,{commandes:[{nom:'a',cmd:'x'}],sansCommande:'motif'});assert.equal(motifs7(d).length,1);});
+cas('N0 non requise + sansCommande vide → écart',()=>{const d=depot();planValide(d);declarer(d,'non requise');n0json(d,{commandes:[],sansCommande:'  '});assert.equal(motifs7(d).length,1);});
+for(const [etat,contenu] of [['absent',null],['illisible','{pas du json']])for(const valeur of ['requise','non requise'])
+ cas(`N0 ${valeur} + n0.json ${etat} → écart « créer .claude/n0.json »`,()=>{const d=depot();planValide(d);declarer(d,valeur);if(contenu===null)rmSync(join(d,'.claude/n0.json'));else n0json(d,contenu);const m=motifs7(d);assert.equal(m.length,1,m.join('|'));assert.ok(m[0].includes('créer')&&m[0].includes('.claude/n0.json'),m[0]);});
+cas('N0 sans ligne Preuve → écart nommant les deux valeurs',()=>{const d=depot();planValide(d);declarer(d,null);const m=motifs7(d);assert.equal(m.length,1,m.join('|'));assert.ok(m[0].includes('requise')&&m[0].includes('non requise'),m[0]);});
+cas('N0 non requise + tâche « N0 auto : — (motif) » → RAS',()=>{const d=depot();planValide(d);declarer(d,'non requise');n0json(d,SANS);put(d,'plans/P1/S1.md','### Objectif\nA\n### Lire / Modifier\n- Modifier : `src/a.mjs`\n### Validation\n- **N0 auto (bloque le commit)** : — (non requise : projet documentaire)\n');assert.equal(ecarts(d).resultat,'RAS',JSON.stringify(ecarts(d).erreurs));});
+cas('N0 requise + tâche « N0 auto : — (motif) » → écart contrôle 3 (relâché seulement pour non requise)',()=>{const d=depot();planValide(d);put(d,'plans/P1/S1.md','### Objectif\nA\n### Lire / Modifier\n- Modifier : `src/a.mjs`\n### Validation\n- **N0 auto (bloque le commit)** : — (rien)\n');assert.ok(ecarts(d).erreurs.some(e=>e.controle===3));});
 cas('chemin inexistant non déclaré créé → écart',()=>{const d=depot();planValide(d);put(d,'plans/P1/S2.md',readFileSync(join(d,'plans/P1/S2.md'),'utf8').replace(' (créer)',''));assert.ok(ecarts(d).erreurs.some(e=>e.motif.includes('absent sans création')));});
 cas('dépendance inexistante → écart',()=>{const d=depot();planValide(d);put(d,'plans/P1/index.md',readFileSync(join(d,'plans/P1/index.md'),'utf8').replace('| S1 | `src/b.js`','| S9 | `src/b.js`'));assert.ok(ecarts(d).erreurs.some(e=>e.controle===4));});
 cas('écritures parallèles même fichier → écart',()=>{const d=depot();planValide(d);put(d,'plans/P1/index.md',readFileSync(join(d,'plans/P1/index.md'),'utf8').replace('- **Vague 1** : S1.\n- **Vague 2** : S2.','- **Vague 1 — parallélisable** : S1 · S2.'));put(d,'plans/P1/S2.md',readFileSync(join(d,'plans/P1/S2.md'),'utf8').replace('`src/b.js` (créer)','`src/a.mjs`'));assert.ok(ecarts(d).erreurs.some(e=>e.controle===2));});

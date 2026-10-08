@@ -28,7 +28,23 @@ try {
   }
   if (sessions.length === 0) throw new Error('aucune session reconnue');
   if (!/^Workflow\s*:\s*v\S+/m.test(index)) signaler(plan, 7, 'Workflow : v absent');
-  if (!extension && !/^Preuve N0\s*:\s*requise\s*$/m.test(index)) signaler(plan, 7, 'Preuve N0 : requise absent (nouveau plan)');
+  // Contrôle 7 — Preuve N0 (nouveau plan seulement) : l'index déclare `requise` ou `non requise`, et
+  // `.claude/n0.json` doit dire la même chose (commandes → requise ; `sansCommande` → non requise).
+  let sansCommande = null; // motif de n0.json, si le projet est déclaré sans commande
+  if (!extension) {
+    const declaree = /^Preuve N0\s*:\s*(non requise|requise)\s*$/m.exec(index)?.[1];
+    let n0 = null;
+    try { n0 = JSON.parse(readFileSync(resolve(racine, '.claude', 'n0.json'), 'utf8')); } catch { /* absent ou illisible */ }
+    const motif = typeof n0?.sansCommande === 'string' ? n0.sansCommande.trim() : '';
+    const etat = !n0 || !Array.isArray(n0.commandes) ? 'absent'
+      : n0.commandes.length === 0 && motif ? 'sansCommande'
+      : n0.commandes.length > 0 && n0.sansCommande === undefined ? 'commandes' : 'absent';
+    if (!declaree) signaler(plan, 7, 'Preuve N0 : requise ou Preuve N0 : non requise absent (nouveau plan)');
+    else if (etat === 'absent') signaler(plan, 7, "créer `.claude/n0.json` (commandes de `CLAUDE.md` § Commandes, ou `sansCommande` avec son motif)");
+    else if (declaree === 'requise' && etat === 'sansCommande') signaler(plan, 7, `projet sans commande (${motif}) : écrire \`Preuve N0 : non requise\``);
+    else if (declaree === 'non requise' && etat !== 'sansCommande') signaler(plan, 7, "`non requise` exige `.claude/n0.json` avec `sansCommande`");
+    else if (declaree === 'non requise') sansCommande = motif;
+  }
   const ordonnancement = /^## Ordonnancement\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(index)?.[1] ?? '';
   const vagues = [];
   for (const ligne of ordonnancement.split('\n')) {
@@ -58,7 +74,9 @@ try {
     for (const [i, tache] of (taches.length ? taches : [texte]).entries()) {
       if (!/^### Objectif/m.test(tache) || !/^### Validation/m.test(tache)) signaler(s.id, 3, `tâche ${i + 1} : Objectif ou Validation absent`);
       const validation = /^### Validation[^\n]*\n([\s\S]*?)(?=^#{1,3} |$(?![\s\S]))/m.exec(tache)?.[1] ?? '';
-      if (!/N0 auto[^\n]*`[^`]+`/.test(validation)) signaler(s.id, 3, `tâche ${i + 1} : commande N0 auto absente`);
+      // Relâché dans le seul cas `non requise` + n0.json sansCommande : `N0 auto : — (<motif>)`.
+      const sansN0 = sansCommande !== null && /N0 auto[^\n]*?:\**\s*—\s*\(/.test(validation);
+      if (!/N0 auto[^\n]*`[^`]+`/.test(validation) && !sansN0) signaler(s.id, 3, `tâche ${i + 1} : commande N0 auto absente`);
     }
     let sectionChemins = false;
     for (const ligne of texte.split('\n')) {

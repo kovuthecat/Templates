@@ -20,6 +20,13 @@
 //   { "commandes": [{ "nom": "build", "cmd": "…", "delaiMs": <optionnel> }, …],
 //     "testCible": "<commande avec {fichier}>", "delaiMs": <optionnel, défaut de toutes> }
 //
+//   Projet SANS commande (documentaire, par exemple) : `{ "commandes": [], "sansCommande": "<motif>" }`.
+//   Le motif est obligatoire (chaîne non vide) : il empêche un projet de code de s'exempter de N0 en
+//   une ligne. Les plans de ce projet portent `Preuve N0 : non requise` (contrôlé par
+//   verifier-plan.mjs) et ce script, lancé quand même, sort en 2 — JAMAIS en 0 sur une liste vide,
+//   un vert vide serait indiscernable d'un vrai vert. `commandes` non vide ET `sansCommande` :
+//   incohérent, sortie 2.
+//
 //   --session P<n>/S<k> produit plans/P<n>/S<k>.n0.json (à committer avec le code).
 //   Sans --seulement/--cible seulement : preuve complète, vérifiée par le moteur du plan.
 //   Une mutation des entrées Git pendant les commandes force FAIL.
@@ -67,8 +74,22 @@ try {
 } catch {
   erreurConfig();
 }
-if (!config || !Array.isArray(config.commandes) || config.commandes.length === 0) {
-  erreurConfig();
+if (!config || !Array.isArray(config.commandes)) erreurConfig();
+const motifSansCommande =
+  typeof config.sansCommande === 'string' && config.sansCommande.trim() !== '' ? config.sansCommande.trim() : null;
+if (config.commandes.length === 0) {
+  if (motifSansCommande) {
+    erreurConfig(
+      `projet déclaré sans commande (${motifSansCommande}) : pas de N0, les plans portent \`Preuve N0 : non requise\``,
+    );
+  }
+  erreurConfig(
+    'aucune commande : les reporter depuis `CLAUDE.md` § Commandes ; un projet sans build ni test ' +
+      "l'écrit `\"sansCommande\": \"<motif>\"`",
+  );
+}
+if (config.sansCommande !== undefined) {
+  erreurConfig("`commandes` non vide et `sansCommande` déclaré : incohérent, garder l'un des deux");
 }
 for (const c of config.commandes) {
   if (!c || typeof c.nom !== 'string' || typeof c.cmd !== 'string') erreurConfig();

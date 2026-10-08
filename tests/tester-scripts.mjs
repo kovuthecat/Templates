@@ -136,6 +136,40 @@ cas('n0 : .claude/n0.json absent → code 2, message C1 mot pour mot', () => {
   return null;
 });
 
+function n0AvecConfig(prefixe, config) {
+  const cwd = dossierJetable(prefixe);
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', 'n0.json'), JSON.stringify(config));
+  return cwd;
+}
+
+// J14 — projet sans commande : n0.mjs ne sort JAMAIS en 0 sur une liste vide.
+cas('n0 : liste vide sans sansCommande → code 2, renvoie à CLAUDE.md § Commandes, ne propose pas non requise en premier', () => {
+  const { code, sortie } = lancer(N0, [], n0AvecConfig('workflow-n0-vide-', { commandes: [] }));
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!sortie.includes('CLAUDE.md` § Commandes')) return `renvoi « CLAUDE.md § Commandes » absent: ${sortie}`;
+  if (!sortie.includes('"sansCommande": "<motif>"')) return `consigne sansCommande absente: ${sortie}`;
+  if (sortie.includes('non requise')) return `non requise proposé en premier: ${sortie}`;
+  return null;
+});
+
+cas('n0 : liste vide avec sansCommande → code 2, message « non requise » citant le motif', () => {
+  const { code, sortie } = lancer(N0, [], n0AvecConfig('workflow-n0-sans-', { commandes: [], sansCommande: 'dépôt documentaire' }));
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!sortie.includes('projet déclaré sans commande (dépôt documentaire)')) return `motif absent: ${sortie}`;
+  if (!sortie.includes('Preuve N0 : non requise')) return `message « non requise » absent: ${sortie}`;
+  return null;
+});
+
+cas('n0 : commandes non vide ET sansCommande → code 2 (incohérent), aucune commande lancée', () => {
+  const cwd = n0AvecConfig('workflow-n0-incoherent-', { commandes: [{ nom: 'a', cmd: 'node -e "process.exit(0)"' }], sansCommande: 'motif' });
+  const { code, sortie } = lancer(N0, [], cwd);
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!sortie.includes('incohérent')) return `« incohérent » absent: ${sortie}`;
+  if (/a → PASS/.test(sortie)) return `une commande a tourné: ${sortie}`;
+  return null;
+});
+
 cas('n0 : délai dépassé → FAIL (délai), code 1', () => {
   const cwd = dossierJetable('workflow-n0-delai-');
   mkdirSync(join(cwd, '.claude'), { recursive: true });
@@ -328,6 +362,28 @@ function lancerJson(args, cwd) {
     /* laissé null, le test le signalera */
   }
   return { code, sortie, action };
+}
+
+// J14 — `Preuve N0 : non requise` : jamais d'action valider-n0 (la regex de preuveN0 ne la reconnaît
+// pas). Le témoin `requise`, même plan, doit rendre valider-n0 : sans lui, le cas ne prouverait rien.
+for (const [valeur, attendue] of [['requise', 'valider-n0'], ['non requise', null]]) {
+  cas(`prochaine-action : Preuve N0 : ${valeur}, S1 faite sans preuve → ${attendue ? attendue : 'aucune action valider-n0'}`, () => {
+    const cwd = dossierJetable('workflow-pa-n0-');
+    cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+    const index = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(index, readFileSync(index, 'utf8').replace('Workflow : v0.39.0\n', `Workflow : v0.39.0\nPreuve N0 : ${valeur}\n`));
+    writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n');
+    initDepot(cwd);
+    writeFileSync(join(cwd, 'a.txt'), 'x\n');
+    git(cwd, 'add', '-A');
+    git(cwd, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!action) return `sortie non JSON: ${sortie}`;
+    if (attendue && action.action !== attendue) return `action attendue "${attendue}", reçu: ${sortie}`;
+    if (!attendue && action.action === 'valider-n0') return `valider-n0 rendu pour un plan non requise: ${sortie}`;
+    return null;
+  });
 }
 
 cas('moteur : plan neuf, aucun commit Plan: → lancer vague 1, chaque session porte modèle et effort', () => {
