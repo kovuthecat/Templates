@@ -1581,6 +1581,53 @@ cas('sync-workflow : une marketplace à jour, une autre en retard → sortie 3 s
   return null;
 });
 
+// ── Allow en retard sur le gabarit (P17/S2/T3) ──
+// Le gabarit est le VRAI plugin/templates/project-settings.json : une copie figée laisserait passer
+// un socle mal calculé.
+const GABARIT_REEL = join(RACINE, 'plugin', 'templates', 'project-settings.json');
+
+/** Projet dont settings.json = le gabarit réel, avec `permissions` remplacé (undefined = clé retirée). */
+function syncAllow(transformer) {
+  const source = dossierJetable('workflow-sync-source-');
+  mkdirSync(join(source, '.claude-plugin'), { recursive: true });
+  mkdirSync(join(source, 'templates'), { recursive: true });
+  writeFileSync(join(source, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '0.47.0' }));
+  writeFileSync(join(source, 'CLAUDE-BASE.md'), '# base\n');
+  cpSync(GABARIT_REEL, join(source, 'templates', 'project-settings.json'));
+  const gabarit = JSON.parse(readFileSync(GABARIT_REEL, 'utf8'));
+  const projet = dossierJetable('workflow-sync-projet-');
+  mkdirSync(join(projet, '.claude'), { recursive: true });
+  const reglages = structuredClone(gabarit);
+  transformer(reglages);
+  writeFileSync(join(projet, '.claude', 'settings.json'), JSON.stringify(reglages));
+  const config = dossierJetable('workflow-sync-config-');
+  return lancer(SYNC_WORKFLOW, ['--source', source, '--projet', projet, '--check'], projet, { CLAUDE_CONFIG_DIR: config });
+}
+
+cas('sync-workflow : allow sans `git push` → ligne SETTINGS « allow en retard » qui le nomme', () => {
+  const { sortie } = syncAllow((r) => { r.permissions.allow = r.permissions.allow.filter((e) => e !== 'Bash(git push:*)'); });
+  if (!/SETTINGS\s+allow en retard sur le gabarit — manque : Bash\(git push:\*\)$/m.test(sortie)) return `ligne attendue absente: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : allow sans aucune entrée npm/npx mais socle complet → aucune ligne allow en retard', () => {
+  const { sortie } = syncAllow((r) => {
+    r.permissions.allow = r.permissions.allow.filter((e) => !e.startsWith('Bash(npm ') && !e.startsWith('Bash(npx '));
+    r.permissions.allow.push('Bash(pytest:*)');
+  });
+  if (/allow en retard/.test(sortie)) return `aucune ligne attendue: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : aucun `permissions` → ligne allow en retard listant le socle, sans npm/npx', () => {
+  const { sortie } = syncAllow((r) => { delete r.permissions; });
+  const m = sortie.match(/SETTINGS\s+allow en retard sur le gabarit — manque : (.*)/);
+  if (!m) return `ligne attendue absente: ${sortie}`;
+  if (!m[1].includes('Bash(git push:*)') || !m[1].includes('Bash(node .claude/workflow/bin/n0.mjs:*)')) return `socle incomplet: ${m[1]}`;
+  if (/npm|npx/.test(m[1])) return `npm/npx ne font pas partie du socle: ${m[1]}`;
+  return null;
+});
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // installer-mods.mjs — installe et vérifie les mods du poste (P16/S2/T2)
 // Un binaire factice, STATEFUL (il tient known_marketplaces.json et installed_plugins.json comme le

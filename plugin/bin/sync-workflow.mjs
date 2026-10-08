@@ -142,7 +142,9 @@ function construirePlan(source) {
 // ── Contrôle de dérive du bloc hooks de settings.json ───────────────────────
 // settings.json n'est PAS géré par le manifeste ci-dessus (permissions et effortLevel
 // appartiennent au projet, jamais réécrits) — mais son bloc `hooks` doit rester aligné sur
-// templates/project-settings.json du payload. Une évolution des hooks a déjà demandé une
+// templates/project-settings.json du payload, et son `permissions.allow` doit contenir le socle
+// du gabarit (entrées hors `Bash(npm ` / `Bash(npx `, exemple de stack JavaScript) : seules les
+// entrées manquantes sont signalées, les ajouts propres au projet ne sont jamais comparés. Une évolution des hooks a déjà demandé une
 // édition manuelle dans 6 projets ; un oubli laisse des hooks silencieusement absents. Ce
 // contrôle est purement informatif : jamais bloquant, jamais d'écriture.
 function normaliserHooks(objet) {
@@ -186,6 +188,16 @@ function controlerDeriveSettings(source, projet) {
   const styleSource = settingsSource.outputStyle;
   if (styleSource && !settingsProjet.outputStyle) {
     lignes.push(`  SETTINGS  outputStyle absent — le template propose "${styleSource}" (fichier vendoré dans .claude/output-styles/) ; ajouter la clé, ou s'en passer sciemment`);
+  }
+
+  // `permissions.allow` en retard : socle = allow du gabarit lu, hors exemple JavaScript. Une
+  // entrée ajoutée plus tard au gabarit est donc contrôlée sans toucher à ce script.
+  const socle = (settingsSource.permissions?.allow ?? [])
+    .filter((e) => !e.startsWith('Bash(npm ') && !e.startsWith('Bash(npx '));
+  const allowProjet = Array.isArray(settingsProjet.permissions?.allow) ? settingsProjet.permissions.allow : [];
+  const manquants = socle.filter((e) => !allowProjet.includes(e));
+  if (manquants.length > 0) {
+    lignes.push(`  SETTINGS  allow en retard sur le gabarit — manque : ${manquants.join(', ')}`);
   }
 
   return lignes.length > 0 ? lignes.join('\n') : null;

@@ -84,6 +84,19 @@ options chiffrées :
 Le moteur **préserve** les dérives par défaut : sans `--force`, un fichier modifié localement n'est
 pas touché. Le défaut protège le travail, il ne l'efface pas.
 
+## Étape 3b — Ligne `SETTINGS  allow en retard`
+
+Une ligne `SETTINGS  allow en retard sur le gabarit — manque : …` signale des entrées du socle du
+gabarit absentes de `permissions.allow` du projet (sans elles, une session headless peut se bloquer
+sur `git push`, `n0.mjs`…). Informatif, jamais bloquant : la rapporter à l'utilisateur et poser une
+**question à options** (`WORKFLOW.md` §9c) :
+
+1. **Ajouter** les entrées manquantes maintenant dans `.claude/settings.json`, en un commit
+   `chore(settings): allow aligné sur le gabarit`.
+2. **Laisser** en l'état.
+
+Jamais d'ajout silencieux : `settings.json` appartient au projet.
+
 ## Étape 4 — Synchroniser
 
 ```bash
