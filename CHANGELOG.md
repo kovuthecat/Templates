@@ -3,6 +3,12 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-08` — **Affichage : bandeau au-dessus du prompt** (plugin `workflow` 0.58.0, mods `garde-fous` et
+  `affichage` 0.58.0). Retour N2 de P16 : le plan et les limites quittent la ligne d'état (texte brut,
+  préfixée « affichage » par Claude Code) pour le bandeau au-dessus de la saisie — `P16 · vague 7 │ 5 h
+  0 % ↺ 11:00 · 7 j 63 %`, libellés 5 h et 7 j en gras. Le pourcentage de contexte et l'heure de reset
+  du 7 j n'y figurent plus (le reset 7 j reste dans le panneau limites). Revers : le bandeau prend une
+  ligne de hauteur et s'efface pendant un sondage de Claude Code. Projet vendoré : `/maj-workflow`.
 - `2026-10-07` — **Mods du workflow : affichage** (plugin `workflow` 0.57.0, mods `garde-fous` et `affichage` 0.57.0).
   Le mod `affichage` donne à la session une ligne d'état (plan en cours, limites 5 h et 7 j avec heure de
   reset, contexte), trois panneaux (limites, fichiers touchés, plan) avec des boutons de relance, la
