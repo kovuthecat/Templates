@@ -3,6 +3,7 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-08` — **Règles de projet validées à la création** (plugin `workflow` 0.61.0, mods `affichage` et `garde-fous` 0.61.0, version alignée). `/nouveau-projet` pose la question des interdits, soumet les règles une à une, demande les commandes, et écrit `n0.json` et l'allow à l'instanciation ; les règles ont une source unique dans `CLAUDE.md` ; la ligne `Règles :` est contrôlée par `brief-a-jour.mjs` ; `Preuve N0 : non requise` est admise avec `sansCommande` (J14) ; `/maj-workflow` signale l'allow en retard. Revers : interview plus longue ; un projet sans `n0.json` reçoit un écart au prochain `/nouveau-plan`.
 - `2026-10-08` — **Titre de session automatique** (plugin `workflow` 0.60.0, mod `affichage` 0.60.0,
   `garde-fous` 0.60.0 sans changement). La session se renomme selon la convention : `Projet - P<n> - S<k>`
   pour une session de plan (prompt qui cite `plans/P<n>/S<k>.md`, ou `/reprendre-echec` sur son
