@@ -10,7 +10,7 @@ Inventaire : `docs/analyses/2026-10-08-regles-projets-inventaire.md`. Une séanc
 de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le projet.
 
 - [x] trames-consultation (`0326026`) · [x] DoxUploader (`a000543`) · [x] ebm-msp (`f13e220`)
-- [ ] EBM-MSPv2 · Interface-OE · Chords (5 blocages chacun)
+- [x] EBM-MSPv2 (`551a5ef`) · [x] Interface-OE (`e515e3c`, lint en N0 : `95e9910`, `2eb1d79`) · [x] Chords (`0b63b8e`)
 - [ ] ETP interactif · Tuto-onshape (dépôt git invalide d'abord) · torrent-uploader · annuaire-msp ·
   claude-mods · MYO · Lunii Studio upgrade · S&C · vostfr-CLI · EBM-perso
 - [ ] Sans blocage, suspectes seules : cosme-diy · trieur-plex · extension-firefox · Veilleur · DrumsTraining
