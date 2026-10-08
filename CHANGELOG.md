@@ -3,6 +3,14 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-08` — **Titre de session automatique** (plugin `workflow` 0.60.0, mod `affichage` 0.60.0,
+  `garde-fous` 0.60.0 sans changement). La session se renomme selon la convention : `Projet - P<n> - S<k>`
+  pour une session de plan (prompt qui cite `plans/P<n>/S<k>.md`, ou `/reprendre-echec` sur son
+  `.echec.md`), `Projet - P<n> - orchestrateur` pour `/orchestrer-plan P<n>`, `Projet - <Libellé>` hors
+  plan (`/cadrer` → Cadrer, `/nouveau-plan` → Nouveau plan, revues, reprise, incidents…). Un skill
+  appelé par Claude sur le fil principal renomme au prompt suivant (Claude Code ne pose un titre qu'au
+  démarrage ou à l'envoi d'un prompt) ; un sous-agent ne renomme jamais. Revers : un titre posé à la
+  main est remplacé au prochain changement de contexte, jamais avant. Projet vendoré : `/maj-workflow`.
 - `2026-10-08` — **Correctifs de la passe d'incidents du 2026-10-08** (plugin `workflow` 0.59.0, mods
   `garde-fous` et `affichage` 0.59.0 sans changement). Synthèse : `docs/incidents/2026-10-08-synthese.md`.
   Ce que ça change : (1) **un plan `Clos :` est fini**, sessions non cochées comprises — une session

@@ -27,10 +27,13 @@ import {
 import { DOSSIER_INCIDENTS, depuisLe, estIncident, lireArgs, lireIncident, parentDe, projetScrutable, tableIncidents, trier } from './incidents'
 import type { Incident } from './incidents'
 import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
+import { contexteDepuisPrompt, contexteDepuisSkill, nomProjet } from './titre'
+import type { Contexte } from './titre'
 
 // Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j), un panneau « limites »,
 // un panneau « fichiers » (etat git) et un panneau « plan » (sessions, prochaine action, boutons de relance).
 // La commande `/incidents` liste les incidents de workflow des projets freres (lecture seule).
+// Le titre de la session suit la convention « Projet - P<n> - S<k> » / « Projet - Cadrer » (titre.ts).
 // Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
 //
 // Forme imposee par `plugin validate` : `$` ne passe qu'a des fonctions declarees au sommet.
@@ -64,10 +67,23 @@ type Etat = {
   planJson?: string
   planOuvert: boolean
   demarree: boolean
+  titreCle?: string
+  titreEnAttente?: Contexte
 }
 
 async function racine($: any): Promise<string> {
   return String(await $.session.root()).replace(/[\\/]+$/, '')
+}
+
+// Nom du projet pour le titre : racine du dépôt (l'arbre principal, même depuis un worktree), sinon
+// racine de session.
+async function projetCourant($: any): Promise<string | undefined> {
+  try {
+    const depot = await $.session.repo()
+    return nomProjet(depot?.root ?? (await racine($)))
+  } catch {
+    return undefined
+  }
 }
 
 async function lireTexte($: any, chemin: string): Promise<string | undefined> {
@@ -363,6 +379,33 @@ export const register: Register = (on) => {
   on('session.measure', async ($, e, next) => {
     await mesurer($, s, e.rateLimits)
     return next(e)
+  })
+
+  // Titre de session « Projet - P<n> - S<k> » / « Projet - P<n> - orchestrateur » / « Projet - Cadrer ».
+  // Seuls SessionStart et UserPromptSubmit peuvent poser un titre : un skill appelé par le modèle sur
+  // le fil principal (jamais dans un sous-agent : `agentId`) attend le prompt suivant. Même contexte
+  // que la dernière fois → rien, pour ne pas écraser un titre posé à la main.
+  on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
+    if (e.tool === 'Skill' && !e.agentId) {
+      const projet = await projetCourant($)
+      const ctx = projet ? contexteDepuisSkill(projet, String(e.skill ?? ''), String(e.args ?? '')) : undefined
+      if (ctx && ctx.cle !== s.titreCle) s.titreEnAttente = ctx
+    }
+    return next(e)
+  })
+
+  on('classic.UserPromptSubmit', async ($, e, next) => {
+    const r = await next(e)
+    try {
+      const projet = await projetCourant($)
+      const ctx = (projet ? contexteDepuisPrompt(projet, String(e.prompt ?? '')) : undefined) ?? s.titreEnAttente
+      s.titreEnAttente = undefined
+      if (!ctx || ctx.cle === s.titreCle) return r
+      s.titreCle = ctx.cle
+      return ctx.titre === e.session_title ? r : { ...r, sessionTitle: ctx.titre }
+    } catch {
+      return r
+    }
   })
 
   // Repere du plan : le dernier plans/P<n>/S<k>.md vu dans un prompt d'agent. `next(e)` inchange.
