@@ -2,59 +2,22 @@
 
 ## Bloquants de revue (à corriger avant prochaine vague)
 
-- **P8/S5** — `docs/analyses/2026-09-22-evals-orchestrateur.md:17-20,79-118` : le doc T12 reste figé
-  sur le rejeu intermédiaire à 7/9 alors que la remédiation a ensuite atteint 9/9 avant publication ;
-  renvoie en l.118 à `plans/P8/S5.echec.md`, supprimé — lien mort dans un livrable publié, contredit
-  par `CHANGELOG.md:6` qui affirme « 9/9 » et renvoie au même doc. Preuve : `plans/P8/S5.revue.md`.
+- aucun (P8/S5 et P9/S3 fermés à la clôture du 2026-10-08, décision utilisateur)
 
-- **P9/S3** — `docs/analyses/2026-09-23-eval-revue-d-usage.md:32,47-49` : l'analyse affirme que les
-  graders du cas négatif sont `withOnly` en citant une phrase absente des JSON commités ; or
-  `docs/analyses/evals-23.json` montre `withOnly: false` et un score `without` réel (0/3). Conclusion
-  PASS correcte, justification fabriquée. Preuve : `plans/P9/S3.revue.md`.
+## Backlog de revue (non bloquant)
 
-## Tâches — plan P9 (revue d'usage, brief tenu par les décisions)
-
-Suivi d'avancement dans `plans/P9/index.md`, jamais ici.
-
-- T1 — Grilles Nielsen et WCAG AA observables · → plans/P9/S1.md
-- T2 — `/revue-d-usage` : SKILL.md, parcours-types, rapport · → plans/P9/S1.md
-- T3 — Agent `parcoureur-usage` · → plans/P9/S1.md
-- T4 — Script `brief-a-jour.mjs` et ses sept cas · → plans/P9/S2.md
-- T5 — Ligne `Brief :` écrite par `/cadrer`, roadmap cochée en clôture · → plans/P9/S2.md
-- T6 — Onzième contrôle de `verificateur-plan` · → plans/P9/S2.md
-- T7 — Aiguillages vers `/revue-d-usage`, exception N2 écrite · → plans/P9/S3.md
-- T8 — Éval de déclenchement, cas positif et négatif · → plans/P9/S3.md
-- T9 — Version 0.42.0 et publication (si éval PASS) · → plans/P9/S4.md
-- T10 — Déroulé réel sur Chords, bilan en cinq points · → plans/P9/S5.md
-
-## Tâches — plan P15 (preuve : session neuve de bout en bout)
-
-Suivi d'avancement dans `plans/P15/index.md` (S1 sur `main`, la suite sur `preuve/session-neuve`).
-
-- T1 — Hook Stop : jamais de relance d'une session planifiée (0.55.0) · → plans/P15/S1.md
-- T2 — Branche, base, instrument restauré, état du réglage préalable · → plans/P15/S2.md
-- T3 — Plan de fixture P95, script de fixture, tableau des permissions · → plans/P15/S2.md
-- T4 — W1 : contrôle de départ, lancement de A, fin de tour · → plans/P15/S3.md
-- T5 — W1 et mesures de la session A · → plans/P15/S3.md
-- T6 — W2 : session B, réveil par message, mesures · → plans/P15/S4.md
-- T7 — K : mod câblé par les settings d'un projet sans plugin · → plans/P15/S5.md
-- T8 — Remise en ordre de K · → plans/P15/S5.md
-- T9 — Rendu et report sur main · → plans/P15/S6.md
-- T10 — Réglages retirés, poste vérifié · → plans/P15/S6.md
-
-## Tâches — plan P16 (mods du workflow : garde-fous et affichage)
-
-Suivi d'avancement dans `plans/P16/index.md`.
-
-- T1 — Mini-plugin garde-fous (O1 filet de modèle, O3 premier plan) · → plans/P16/S1.md
-- T2 — installer-mods : installe et vérifie les mods du poste · → plans/P16/S2.md
-- T3 — Mods vendorés, contrôlés en N0, installés par publier · → plans/P16/S2.md
-- T4 — maj-workflow et migrer-projet installent les mods · → plans/P16/S3.md
-- T5 — SessionStart signale des mods absents ou en retard · → plans/P16/S3.md
-- T6 — Publication 0.56.0 avec garde-fous · → plans/P16/S4.md
-- T7 — Preuve : garde-fous actifs dans un projet vendoré · → plans/P16/S4.md
-- T8 — Affichage : ligne d'état plan et limites, panneau limites · → plans/P16/S5.md
-- T9 — Affichage : panneau fichiers (état git) · → plans/P16/S5.md
-- T10 — Affichage : panneau plan et boutons de relance · → plans/P16/S6.md
-- T11 — Affichage : commande /incidents · → plans/P16/S6.md
-- T12 — Publication 0.57.0 et rendu réel · → plans/P16/S7.md
+- **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
+  (un `git log -1` par commit) ; un seul `git log --grep="Brief-applique: <chemin>" -F` suffirait.
+  Sans effet tant que les dépôts restent petits.
+- **P9/S3** — `plugin/templates/VALIDATION.md:4-5` : « passe esthétique demandée » répété deux fois
+  dans la même parenthèse, sans référent hors `/revue-d-usage` — simplifier en une mention.
+- **P16/S1** — `plugin/mods/garde-fous/tests/garde-fous.test.ts` : pas de cas « `run_in_background:
+  false` explicite conservé » pour O3 ; `register.ts:44` cherche la colonne Modèle dans le premier
+  tableau trouvé (fragile si un autre tableau précède).
+- **P16/S2** — wrapper `claude()` dupliqué (`installer-mods.mjs:98-103`, `tests/tester-mods.mjs:42-49`,
+  `publier.mjs`) : factoriser au quatrième appelant ; marketplace `templates` pointant ailleurs non contrôlée.
+- **P16/S3** — `sessionstart-contexte.mjs` (bloc mods) : un `plugin.json` de mod illisible fait taire
+  le signal pour tous les mods (try global).
+- **P16/S5-S6** — `plugin/mods/affichage/hooks/register.tsx` : `key` manquante sur le `<Box>` des
+  dossiers et les `<Text>` du panneau plan ; `incidents.ts` duplique `lireIncident` de
+  `collecter-incidents.mjs` — toute évolution du gabarit §9b se porte aux deux endroits.

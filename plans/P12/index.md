@@ -3,6 +3,8 @@
 Workflow : v0.53.0
 Preuve N0 : requise
 
+Clos : 2026-10-08 — preuve conclue sur sa branche jetable ; mesures docs/analyses/2026-10-05-preuve-mods-mesures.md
+
 ## Objectif d'ensemble
 Aujourd'hui, on ne sait pas combien coûte un plan en tokens, ni où part ce coût. L'orchestration ne
 se voit pas pendant qu'elle tourne. Et la garde git laisse passer les commits des sous-agents

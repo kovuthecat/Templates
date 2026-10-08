@@ -3,6 +3,8 @@
 Workflow : v0.54.0
 Preuve N0 : requise
 
+Clos : 2026-10-08 — preuve conclue sur sa branche jetable ; mesures docs/analyses/2026-10-06-reglage-sessions-planifiees-mesures.md
+
 ## Objectif d'ensemble
 Aujourd'hui, une session lancée par tâche planifiée tourne au modèle et à l'effort de la
 conversation qui la lance, pas à ceux de sa ligne d'index (M5, P13). P14 établit par la mesure

@@ -3,6 +3,8 @@
 Workflow : v0.54.0
 Preuve N0 : requise
 
+Clos : 2026-10-08 — preuve conclue sur sa branche jetable ; mesures docs/analyses/2026-10-05-preuves-mods-autonomes-mesures.md
+
 ## Objectif d'ensemble
 P12 a demandé une dizaine de gestes et a laissé sans réponse la question du chargement à froid
 (M1). P13 rejoue la preuve **sans toi** et l'élargit. On mesure les mods de fichiers, de limites

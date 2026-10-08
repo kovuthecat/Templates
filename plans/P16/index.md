@@ -3,6 +3,8 @@
 Workflow : v0.55.0
 Preuve N0 : requise
 
+Clos : 2026-10-08 — rendu validé par l’utilisateur
+
 ## Objectif d'ensemble
 Aujourd'hui les mods prouvés en P13 (modèle de l'index imposé, agents au premier plan par défaut,
 ligne d'état) ne vivent que sur une branche de preuve, et les quatre mods prévus par `claude-mods`
@@ -40,13 +42,13 @@ transmet déjà le modèle.
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1 | Mini-plugin garde-fous (O1 filet de modèle, O3 premier plan par défaut) | Sonnet | medium | — | — | `plugin/mods/garde-fous/` | [ ] | — |
-| [S2](S2.md) | T2-T3 | Distribution : installeur, vendoring, publication, contrôle des mods | Sonnet | high | — | S1 | `plugin/bin/installer-mods.mjs` · `plugin/bin/sync-workflow.mjs` · `plugin/bin/publier.mjs` · `plugin/.claude-plugin/marketplace.json` · `plugin/mods/.gitignore` · `tests/tester-scripts.mjs` · `tests/tester-mods.mjs` · `.claude/n0.json` | [ ] | — |
-| [S3](S3.md) | T4-T5 | Mise en place par les skills, rappel au démarrage de session | Sonnet | medium | — | S2 | `plugin/skills/maj-workflow/SKILL.md` · `plugin/skills/migrer-projet/` · `plugin/hooks/sessionstart-contexte.mjs` · `tests/tester-hooks.mjs` · `plugin/skills/nouveau-plan/SKILL.md` · `plugin/skills/fin-de-tache/references/fin-de-plan.md` · `CLAUDE.md` | [ ] | — |
-| [S4](S4.md) | T6-T7 | Publication 0.56.0 et preuve de bout en bout | Sonnet | high | — | S3 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/analyses/2026-10-06-mods-distribution-preuve.md` | [ ] | — |
-| [S5](S5.md) | T8-T9 | Mini-plugin affichage : ligne d'état, limites, panneau fichiers | Sonnet | high | — | S4 | `plugin/mods/affichage/` · `plugin/.claude-plugin/marketplace.json` | [ ] | — |
+| [S1](S1.md) | T1 | Mini-plugin garde-fous (O1 filet de modèle, O3 premier plan par défaut) | Sonnet | medium | — | — | `plugin/mods/garde-fous/` | [x] 2026-10-07 | — |
+| [S2](S2.md) | T2-T3 | Distribution : installeur, vendoring, publication, contrôle des mods | Sonnet | high | — | S1 | `plugin/bin/installer-mods.mjs` · `plugin/bin/sync-workflow.mjs` · `plugin/bin/publier.mjs` · `plugin/.claude-plugin/marketplace.json` · `plugin/mods/.gitignore` · `tests/tester-scripts.mjs` · `tests/tester-mods.mjs` · `.claude/n0.json` | [x] 2026-10-07 | — |
+| [S3](S3.md) | T4-T5 | Mise en place par les skills, rappel au démarrage de session | Sonnet | medium | — | S2 | `plugin/skills/maj-workflow/SKILL.md` · `plugin/skills/migrer-projet/` · `plugin/hooks/sessionstart-contexte.mjs` · `tests/tester-hooks.mjs` · `plugin/skills/nouveau-plan/SKILL.md` · `plugin/skills/fin-de-tache/references/fin-de-plan.md` · `CLAUDE.md` | [x] 2026-10-07 | — |
+| [S4](S4.md) | T6-T7 | Publication 0.56.0 et preuve de bout en bout | Sonnet | high | — | S3 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/analyses/2026-10-06-mods-distribution-preuve.md` | [x] 2026-10-07 | — |
+| [S5](S5.md) | T8-T9 | Mini-plugin affichage : ligne d'état, limites, panneau fichiers | Sonnet | high | — | S4 | `plugin/mods/affichage/` · `plugin/.claude-plugin/marketplace.json` | [x] 2026-10-07 | — |
 | [S6](S6.md) | T10-T11 | Panneau plan avec boutons de relance, commande `/incidents` | Sonnet | high | — | S5 | `plugin/mods/affichage/` | [x] 2026-10-07 | — |
-| [S7](S7.md) | T12 | Publication 0.57.0 et rendu réel | Sonnet | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` | [ ] | — |
+| [S7](S7.md) | T12 | Publication 0.57.0 et rendu réel | Sonnet | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` | [x] 2026-10-07 | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 

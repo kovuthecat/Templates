@@ -3,6 +3,8 @@
 Workflow : v0.54.0
 Preuve N0 : requise
 
+Clos : 2026-10-08 — S1 livrée (0.55.0), suite conclue sur branche ; mesures docs/analyses/2026-10-06-session-neuve-mesures.md, décision docs/decisions/2026-10-06-apres-p15.md
+
 ## Objectif d'ensemble
 Aujourd'hui, pour lancer une session de plan dans une conversation neuve, il faut la pastille et ton
 clic. P15 mesure si l'orchestrateur peut le faire seul : ouvrir deux sessions planifiées qui
@@ -51,7 +53,7 @@ s'ouvre **après** la pose ; S3 le vérifie.
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1 | Hook Stop : jamais de relance d'une session planifiée (sur `main`) | Sonnet | medium | — | — | `plugin/hooks/stop-contexte.mjs` · `plugin/hooks/lib.mjs` · `tests/tester-hooks.mjs` · `plugin/.claude-plugin/plugin.json` · `plugin/WORKFLOW.md` · `CHANGELOG.md` | [ ] | — |
+| [S1](S1.md) | T1 | Hook Stop : jamais de relance d'une session planifiée (sur `main`) | Sonnet | medium | — | — | `plugin/hooks/stop-contexte.mjs` · `plugin/hooks/lib.mjs` · `tests/tester-hooks.mjs` · `plugin/.claude-plugin/plugin.json` · `plugin/WORKFLOW.md` · `CHANGELOG.md` | [x] 2026-10-06 | — |
 | [S2](S2.md) | T2-T3 | Branche, instrument, plan de fixture P95, tableau des permissions | Sonnet | medium | — | S1 | `preuves/reglage/transcription.mjs` · `preuves/session-neuve/` · `plans/P95/` · `.gitignore` · `docs/analyses/session-neuve-releves.md` | [ ] | — |
 | [S3](S3.md) | T4-T5 | Déroulé W1 : session A, réveil par `Bash` (jouée par l'orchestrateur) | Sonnet | medium | — | S2 | `docs/analyses/session-neuve-releves.md` | [ ] | — |
 | [S4](S4.md) | T6 | Déroulé W2 : session B, réveil par `SendMessage` (jouée par l'orchestrateur) | Sonnet | medium | — | S3 | `docs/analyses/session-neuve-releves.md` | [ ] | — |
