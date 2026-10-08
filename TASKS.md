@@ -20,6 +20,8 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
   - Interview : règles validées une à une, commandes et n0.json à l'instanciation, gabarits · → plans/P17/S3.md
   - Ligne `Règles :` des décisions contrôlée par brief-a-jour · → plans/P17/S4.md
   - Publication 0.61.0 · → plans/P17/S5.md
+  - Constat pour S3 (outillage instancié) : Prettier sur poste Windows (`core.autocrlf=true`) signale
+    tout fichier en CRLF — `"endOfLine": "auto"` (Interface-OE : 124 faux écarts sur 151, `95e9910`)
 
 ## Backlog de revue (non bloquant)
 
