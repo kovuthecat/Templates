@@ -164,7 +164,8 @@ plus qu'une enquête en lecture seule.
    script, pas un agent (C1), lancé **au premier plan** comme toute commande : c'est son verdict qui
    décide de committer à l'Étape 5, et une reprise qui rend la main avant de le lire consomme son
    budget (`Tentatives :`) pour rien. Sans N0 vert, la session est toujours en échec — on ne remonte
-   pas un PASS sur une intuition.
+   pas un PASS sur une intuition. Index `Preuve N0 : non requise` → N0 sauté, bilan
+   `N0 : — (non requise : <motif de sansCommande>)`.
 3. La tâche touchait l'UI → `/verif-visuelle` pour le N1.
 
 ## Étape 5 — Clore l'échec

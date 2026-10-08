@@ -214,6 +214,11 @@ Le squelette de l'index est en annexe : **ouvrir `references/squelette-index.md`
 skill) au moment de l'écrire. Les règles de rédaction — ligne « en clair », ordonnancement,
 colonnes — sont ci-dessous.
 
+**Preuve N0.** Écrire `Preuve N0 : requise`, sauf si `.claude/n0.json` porte `sansCommande` (projet
+sans build ni test, motif obligatoire) : alors, et alors seulement, `Preuve N0 : non requise`, et
+`N0 auto : — (non requise : <motif>)` dans les tâches. `verifier-plan.mjs` contrôle les deux sens
+(index et `n0.json` doivent s'accorder) ; `n0.mjs` ne rend jamais de vert sur une liste vide.
+
 **La ligne « en clair » est un contrat de lisibilité, pas une redite du titre.** Elle dit ce que la
 session change et **à quoi l'utilisateur le constatera** : un écran, un comportement, un fichier
 produit, une mesure obtenue. `/orchestrer-plan` la relaie **mot pour mot** au lancement de la vague

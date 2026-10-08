@@ -75,6 +75,9 @@ le relancer ; les fichiers de suivi `plans/`, STATUS/TASKS/DECISIONS/CHANGELOG s
 Sous verrou : produire la preuve après stabilisation des écritures ; l'orchestrateur la committe.
 La preuve vérifie les fichiers Git non ignorés (liens et modes compris) ; pas les services externes.
 
+Index avec `Preuve N0 : non requise` (projet sans commande, `sansCommande` dans `.claude/n0.json`) :
+N0 sauté, aucune preuve à produire ; bilan `N0 : — (non requise : <motif de sansCommande>)`.
+
 Teste, dans l'ordre, **avant** d'agir :
 
 1. `.claude/wave.lock` existe ? → **ni commit ni push** : tes fichiers restent dans l'arbre,

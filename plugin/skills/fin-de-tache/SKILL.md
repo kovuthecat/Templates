@@ -25,7 +25,8 @@ quand, et l'exception : `WORKFLOW.md` §4b (domicile). Où vit le statut d'une t
 ## Après chaque tâche
 
 1. **N0** : `node .claude/workflow/bin/n0.mjs` (ce dépôt : `plugin/bin/n0.mjs`) — sinon la tâche
-   n'est pas finie. **Juste après, avant le N1** : toute skill projet `verif-<chose>`
+   n'est pas finie (index `Preuve N0 : non requise` → N0 sauté, bilan
+   `N0 : — (non requise : <motif de sansCommande>)`). **Juste après, avant le N1** : toute skill projet `verif-<chose>`
    (`.claude/skills/`, jamais du workflow vendoré).
 2. **N1** si la tâche touchait l'UI : `/verif-visuelle`. Avec navigateur in-app, un défaut N1 se
    corrige maintenant, il ne se reporte pas. Sans (mode checklist de `/verif-visuelle`), il se

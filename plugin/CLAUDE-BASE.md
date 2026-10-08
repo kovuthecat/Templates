@@ -29,7 +29,8 @@ Jamais de dépendance ajoutée seul : à trancher dans le plan (« Modifier »),
   `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` en dépôt source) — **au premier plan,
   comme toute commande**, jamais un agent. À créer si la tâche introduit de la logique testable ;
   `—` (aucun test) justifié dans le plan. Nouveaux plans : preuve complète `--session P<n>/S<k>`
-  commitée avec le code, vérifiée par le moteur avant de valider le PASS (`EXECUTANT.md`). Piège du typecheck qui ne compile aucun fichier : gabarit
+  commitée avec le code, vérifiée par le moteur avant de valider le PASS (`EXECUTANT.md`) ; index `Preuve N0 : non requise` →
+  N0 sauté, bilan `N0 : — (non requise : <motif de sansCommande>)` (`EXECUTANT.md`). Piège du typecheck qui ne compile aucun fichier : gabarit
   `CLAUDE.md`.
 - **N1 visuel auto (non bloquant)** : erreurs console, contenu présent, 4xx/5xx, responsive —
   uniquement via le navigateur in-app de Desktop (`/verif-visuelle`) ; ailleurs, la skill sort une
