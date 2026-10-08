@@ -223,6 +223,8 @@ Trois faits absents de §3b et qui manquent :
   qu'elle vise : ici c'est la **montée** d'un cran qui a été payée pour rien (deux reprises Opus sur
   du travail déjà vert), faute d'une case pour « frontière de tour ». Case ajoutée en v0.34.0 ; la
   moitié « partir un cran en dessous », elle, attend toujours l'éval B5.
+  Passe du 2026-10-08 : DrumsTraining `2026-09-24-verdict-s7-absent.md` (v0.44.0, verdict remplacé
+  par le bloc de relance) — même groupe, corrigé en 0.45.0 (fin de session orchestrée unique).
 
 ### K6 — Les prompts datés coûtent 36 % de plus, mesuré [coût] [jugement]
 
@@ -360,7 +362,10 @@ Trois faits absents de §3b et qui manquent :
   sa règle actuelle (« silencieux si tout est sain »). Parade : chaque nouveau signal doit passer
   la même barre que les existants — il ne parle que s'il y a un écart.
 - Fichiers : `plugin/hooks/sessionstart-contexte.mjs`, `plugin/WORKFLOW.md` §7.
-- Incidents liés :
+- Incidents liés : EBM-MSPv2 `2026-10-05-modele-session-non-conforme.md` (passe du 2026-10-08) —
+  P7/S3 bandeau Opus/high, lancée en Sonnet/medium, rien signalé : le contrôle de 0.31.0 se tait dès
+  qu'**une** session ouverte, **tous plans confondus**, demande la famille courante (P4 et P5 de ce
+  projet ont des sessions Sonnet ouvertes), au lieu de comparer à la prochaine session lançable.
 
 ## Vérifications du 2026-09-13
 
