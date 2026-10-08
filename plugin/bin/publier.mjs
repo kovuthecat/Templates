@@ -219,11 +219,14 @@ function verifierSynchroSource() {
 function mettreAJourPluginLocal() {
   const racineDepot = dirname(RACINE_PAYLOAD);
   const commande = 'claude plugin update workflow@templates --scope local';
-  // Par un shell (execSync) : une installation npm pose `claude.cmd` sous Windows, qu'execFileSync
-  // ne lance pas sans shell. Arguments constants : rien à échapper.
-  const claude = (args) => execSync(`claude ${args.join(' ')}`, {
-    cwd: racineDepot, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 120000,
-  });
+  // Le moteur qui fait tourner cette session d'abord (`CLAUDE_CODE_EXECPATH`, comme
+  // installer-mods.mjs) : le shim `claude` peut manquer ou viser un mauvais dossier sous Desktop
+  // (incident Templates 2026-10-06). À défaut, par un shell (execSync) : une installation npm pose
+  // `claude.cmd` sous Windows, qu'execFileSync ne lance pas sans shell. Arguments constants.
+  const options = { cwd: racineDepot, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 120000 };
+  const claude = (args) => process.env.CLAUDE_CODE_EXECPATH
+    ? execFileSync(process.env.CLAUDE_CODE_EXECPATH, args, options)
+    : execSync(`claude ${args.join(' ')}`, options);
   const echec = (raison) => {
     console.error(`publier: publication OK, mais plugin local NON mis à jour — ${raison}`);
     console.error(`  → lancer à la main : ${commande}, puis vérifier \`claude plugin list\`.`);

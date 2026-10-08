@@ -282,14 +282,28 @@ export function repereSession(entree, cwd, suffixe) {
  *  création : une suppression ultérieure ne referait jamais apparaître le faux positif que le
  *  repère `Revues:` existait pour éviter.
  *
+ *  `debut` (ms, heure du repère) écarte les commits **tirés** par un `git pull` : ils entrent dans
+ *  `depuis..HEAD` sans être de cette session (incident Templates 2026-10-06, deux fois). Une avance
+ *  rapide garde leur date de commit d'origine, un `pull --rebase` ne redate que les commits locaux
+ *  — ceux de la session. Reste compté : un commit fait par une autre session PENDANT celle-ci.
+ *
  *  Fail-open partout : repère illisible, `git` en échec, aucun repère `Plan:` → tableau vide. Ce
  *  contrôle signale un manque, il n'invente jamais une session. */
-export function revuesManquantes(cwd, depuis) {
+export function revuesManquantes(cwd, depuis, debut = null) {
   if (!depuis) return [];
   const { fichiersDeSuivi } = lirePlafonds();
 
-  const changes = (git(cwd, 'diff', '--name-only', `${depuis}..HEAD`) || '')
+  // Commits de la session : ceux de `depuis..HEAD`, moins les tirés (date de commit antérieure au
+  // repère, une minute de marge pour l'horloge).
+  const commits = (git(cwd, 'log', '--format=%H %ct', `${depuis}..HEAD`) || '')
     .split('\n')
+    .map((l) => l.trim().split(' '))
+    .filter(([sha, ct]) => sha && (debut === null || Number(ct) * 1000 >= debut - 60000))
+    .map(([sha]) => sha);
+  if (commits.length === 0) return [];
+
+  const changes = commits
+    .flatMap((sha) => (git(cwd, 'diff-tree', '--no-commit-id', '--name-only', '-r', '--root', sha) || '').split('\n'))
     .map((f) => f.trim().replaceAll('\\', '/'))
     .filter(Boolean);
   // Une session dont les commits ne portent que du suivi (bilan, statuts) n'a pas produit de code :
@@ -303,7 +317,7 @@ export function revuesManquantes(cwd, depuis) {
   const racine = racineDepot(cwd);
   if (racine === null) return [];
 
-  const messages = git(cwd, 'log', '--format=%B', `${depuis}..HEAD`) || '';
+  const messages = commits.map((sha) => git(cwd, 'log', '-1', '--format=%B', sha) || '').join('\n');
   const refs = new Set();
   for (const m of messages.matchAll(/Plan:\s*(P\d+)\/(S[A-Za-z0-9_-]+)\//g)) refs.add(`${m[1]}/${m[2]}`);
 
@@ -378,6 +392,7 @@ function toutesLesSessions(cwd) {
     } catch {
       continue;
     }
+    const clos = /^Clos\s*:/m.test(contenu);
     for (const ligne of contenu.split('\n')) {
       if (!ligne.trim().startsWith('|')) continue;
       const cellules = ligne.split('|').slice(1, -1).map((c) => c.trim());
@@ -390,6 +405,7 @@ function toutesLesSessions(cwd) {
         modele: cellules[3],
         effort: cellules[4].replace(/[`*]/g, '').trim().toLowerCase(),
         statutBrut: cellules[8],
+        clos,
       });
     }
   }
@@ -406,9 +422,20 @@ function toutesLesSessions(cwd) {
 export function sessionsOuvertes(cwd) {
   return toutesLesSessions(cwd)
     // `[ ]` = reste à faire. `[x]`, `[x]!` (revue à bloquant, §4a), `[~]`, l'en-tête et le
-    // séparateur sont hors sujet.
-    .filter((s) => /\[\s\]/.test(s.statutBrut))
+    // séparateur sont hors sujet. Un plan `Clos :` n'a plus rien à faire, abandons compris.
+    .filter((s) => !s.clos && /\[\s\]/.test(s.statutBrut))
     .map(({ plan, session, modele, effort }) => ({ plan, session, modele, effort }));
+}
+
+/** La prochaine session à lancer : première `[ ]`, dans l'ordre de la table, du plan ouvert le plus
+ *  récent (numéro le plus haut). `null` si aucune. Comparer le modèle courant à TOUTES les sessions
+ *  ouvertes taisait l'écart dès qu'un vieux plan dormant demandait la même famille (incident
+ *  EBM-MSPv2 2026-10-05 : P7/S3 Opus lancée en Sonnet, P4/P5 en Sonnet ouverts). */
+export function prochaineSession(cwd) {
+  const ouvertes = sessionsOuvertes(cwd);
+  if (ouvertes.length === 0) return null;
+  const plus = Math.max(...ouvertes.map((s) => Number(s.plan.slice(1))));
+  return ouvertes.find((s) => s.plan === `P${plus}`) ?? null;
 }
 
 /** Session lancée par une tâche planifiée ? Le transcript porte, en tête, un enregistrement

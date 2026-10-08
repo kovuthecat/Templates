@@ -70,6 +70,7 @@ cas('checkout CRLF de la preuve reste valide',()=>{const d=depot();git(d,'config
 cas('revue mal formée → reprise, jamais complète',()=>{const d=depot();index(d);revue(d,'rapport incomplet');commit(d);assert.equal(action(d).action,'relire');});
 cas('forme mixte de chemins ne cache pas settings',()=>{const d=depot();planValide(d);put(d,'plans/P1/S2.md',readFileSync(join(d,'plans/P1/S2.md'),'utf8')+'\n- **Modifier** : `.claude/settings.json`\n');assert.equal(ecarts(d).resultat,'ECART');});
 cas('validation absente de T2 détectée même avec T1 valide',()=>{const d=depot();planValide(d);put(d,'plans/P1/S1.md','## T1 — A\n'+readFileSync(join(d,'plans/P1/S1.md'),'utf8')+'\n## T2 — B\n### Objectif\nB\n');assert.ok(ecarts(d).erreurs.some(e=>e.controle===3));});
+cas('plan réécrit en CRLF → RAS (incident trames-consultation 2026-09-29)',()=>{const d=depot();planValide(d);for(const f of ['plans/P1/index.md','plans/P1/S1.md','plans/P1/S2.md'])put(d,f,readFileSync(join(d,f),'utf8').replace(/\r?\n/g,'\r\n'));assert.equal(ecarts(d).resultat,'RAS');});
 cas('extension ancien plan ne force pas preuve N0',()=>{const d=depot();planValide(d);put(d,'plans/P1/index.md',readFileSync(join(d,'plans/P1/index.md'),'utf8').replace('Preuve N0 : requise\n',''));assert.equal(run(d,'verifier-plan.mjs','P1','--extension').status,0);});
 cas('vague partiellement bloquée : revue de la session livrée avant la suivante',()=>{
  const d=depot();index(d,{third:true});let texte=readFileSync(join(d,'plans/P1/index.md'),'utf8');

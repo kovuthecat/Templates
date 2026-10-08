@@ -3,6 +3,18 @@
 Une ligne datée par évolution du workflow. Consulté par MIGRATION.md pour évaluer le retard
 d'un projet.
 
+- `2026-10-08` — **Correctifs de la passe d'incidents du 2026-10-08** (plugin `workflow` 0.59.0, mods
+  `garde-fous` et `affichage` 0.59.0 sans changement). Synthèse : `docs/incidents/2026-10-08-synthese.md`.
+  Ce que ça change : (1) **un plan `Clos :` est fini**, sessions non cochées comprises — une session
+  abandonnée ou une preuve tenue sur sa branche n'est plus proposée au lancement ; (2) le **hook Stop ne
+  réclame plus de revue pour des commits tirés par `git pull`** (datés d'avant le début de session) ;
+  (3) **au démarrage, le modèle est comparé à la prochaine session du plan en cours**, plus à toutes les
+  sessions ouvertes — un vieux plan dormant ne tait plus l'écart, et les plans clos ne comptent plus ;
+  (4) une session de plan **dit d'emblée** un modèle différent du bandeau, ou un navigateur in-app
+  refusé (tâche planifiée → N1 en mode B d'office) ; (5) `verifier-plan` et `prochaine-action`
+  acceptent les **fins de ligne Windows** ; (6) `publier.mjs` passe par `CLAUDE_CODE_EXECPATH` quand le
+  shim `claude` manque ; (7) `/orchestrer-plan` a des **options fixes pour « zone illisible »**.
+  Projet vendoré : `/maj-workflow`.
 - `2026-10-08` — **Affichage : bandeau au-dessus du prompt** (plugin `workflow` 0.58.0, mods `garde-fous` et
   `affichage` 0.58.0). Retour N2 de P16 : le plan et les limites quittent la ligne d'état (texte brut,
   préfixée « affichage » par Claude Code) pour le bandeau au-dessus de la saisie — `P16 · vague 7 │ 5 h

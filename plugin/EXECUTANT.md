@@ -10,6 +10,12 @@ Tu exécutes **UNIQUEMENT** les tâches de ton `S<k>.md`, dans l'ordre. Sa liste
 **point de départ**, pas un plafond : la lecture est ouverte (diagnostiquer une cause n'est borné
 par rien), seule l'**écriture** reste bornée à la zone du plan. Le design est fixé : ne reconçois pas.
 
+**Avant la première tâche, deux contrôles du bandeau** (incidents EBM-MSPv2 2026-10-05 et 2026-10-06) :
+ton modèle est-il celui du bandeau ? Sinon, le dire dans ta première réponse, avant tout travail —
+c'est le moment où changer ne coûte rien. Le bandeau exige-t-il le navigateur in-app pour le N1 ?
+Alors `preview_start` tout de suite : un refus « unattended sessions » (tâche planifiée) ne se
+contourne pas — le dire d'emblée, le N1 passera en mode B (`/verif-visuelle`).
+
 Tu t'arrêtes quand le geste suivant est un choix que tu n'as pas reçu ; tu ne t'arrêtes pas parce
 que quelque chose a cassé (nature de l'échec : `WORKFLOW.md` §9a) :
 

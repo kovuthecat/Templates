@@ -12,7 +12,7 @@ import {
   lireEntree, repertoireProjet, estUnDepot, git, depassements, vagueParallele, worktreeLie,
   repereSession, repondre, riendafaire, racineDepot,
   recupererAmont, etatAmont, aUnRemote, brancheCourante, brancheParDefaut,
-  familleModele, sessionsOuvertes, derniereVersionPubliee, versionSuperieure,
+  familleModele, prochaineSession, derniereVersionPubliee, versionSuperieure,
 } from './lib.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
@@ -123,20 +123,22 @@ if (!vagueParallele(cwd) && aUnRemote(cwd)) {
 
 // Modèle courant contre celui que le plan demande. La ligne « À régler AVANT de lancer » (§3) ne
 // fait que **rappeler** : jusqu'ici rien ne vérifiait, et une session partie au hasard des réglages
-// de la veille ne se découvrait qu'au résultat. Le hook reçoit `model` — si aucune session restant
-// à faire ne demande cette famille, le dire maintenant, quand la correction est encore gratuite.
+// de la veille ne se découvrait qu'au résultat. Le hook reçoit `model` — si la prochaine session du
+// plan en cours demande une autre famille, le dire maintenant, quand la correction est encore gratuite.
 // Muet pendant une vague (les sous-agents héritent du modèle de l'orchestrateur, pas du plan) et
 // dès qu'aucun plan ouvert ne déclare de modèle.
 if (!vagueParallele(cwd)) {
   const familleCourante = familleModele(entree.model);
   if (familleCourante) {
-    const ouvertes = sessionsOuvertes(cwd).filter((s) => familleModele(s.modele));
-    const attendues = new Set(ouvertes.map((s) => familleModele(s.modele)));
-    if (attendues.size > 0 && !attendues.has(familleCourante)) {
-      const detail = ouvertes.map((s) => `${s.plan}/${s.session} ${s.modele}/${s.effort}`).join(' · ');
+    // La prochaine session du plan le plus récent, pas toutes les sessions ouvertes : un vieux plan
+    // dormant de la même famille taisait l'écart (`lib.mjs` `prochaineSession`).
+    const prochaine = prochaineSession(cwd);
+    const attendue = prochaine ? familleModele(prochaine.modele) : null;
+    if (attendue && attendue !== familleCourante) {
       lignes.push(
-        `**Session lancée en ${familleCourante}, qu'aucune session restant à faire ne demande** ` +
-        `(${detail}). Régler modèle **et** effort avant de commencer (\`WORKFLOW.md\` §3) : en ` +
+        `**Session lancée en ${familleCourante}, la prochaine session du plan demande ${attendue}** ` +
+        `(${prochaine.plan}/${prochaine.session} ${prochaine.modele}/${prochaine.effort}). Si c'est elle ` +
+        `que tu lances : régler modèle **et** effort avant de commencer (\`WORKFLOW.md\` §3) — en ` +
         `changer en cours de route repaie tout le préfixe (§3b).`
       );
     }

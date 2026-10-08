@@ -655,6 +655,18 @@ cas('moteur : même plan, index avec `Clos : 2026-09-24` → fini (T6)', () => {
   return null;
 });
 
+cas('moteur : `Clos :` avec sessions jamais lancées → fini, pas lancer (clôtures du 2026-10-08)', () => {
+  const cwd = dossierJetable('workflow-pa-clos-abandon-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Workflow : v0.39.0', 'Workflow : v0.39.0\nClos : 2026-10-08 — S2 abandonnée'));
+  initDepot(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'fini') return `action attendue "fini" (plan clos), reçu: ${sortie}`;
+  return null;
+});
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // prochaine-action.mjs — D2 : appel d'agent prêt à recopier (T1, P8/S1)
 // ════════════════════════════════════════════════════════════════════════════════════════════════

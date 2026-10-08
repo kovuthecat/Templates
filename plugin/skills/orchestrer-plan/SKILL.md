@@ -237,7 +237,10 @@ se recopie tel quel aussi. Source `arbre-sale`,
 options fixes : `1. Committer ces fichiers toi-même, puis relancer — débloque la vague · 2. Les mettre
 de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables ·
 3. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Motif « arbre
-invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Source `revue-incomplete` : proposer de terminer la revue à la main ou reporter le plan, jamais
+invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Motif « zone illisible :
+<segment> » (glob ou accolades dans la cellule `Zone modifiée`, pas un état git) : options fixes
+`1. Réécrire ce segment en chemins explicites dans l'index, puis relancer — débloque la vague ·
+2. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Source `revue-incomplete` : proposer de terminer la revue à la main ou reporter le plan, jamais
 annoncer une couverture complète. Source `dependance-revue` : proposer de corriger le prérequis
 ou réviser explicitement la dépendance ; ne pas enlever le blocage sans preuve. Une seule question par
 arrêt.

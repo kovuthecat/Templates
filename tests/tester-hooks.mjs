@@ -469,6 +469,21 @@ cas('revuesManquantes : jamais commitée → manquante', () => {
   return manquantes.includes('P1/S1') ? null : `attendu P1/S1 manquante, reçu: ${manquantes.join(', ')}`;
 });
 
+cas('revuesManquantes : commit tiré par un pull (daté avant le repère) → jamais réclamé', () => {
+  const repo = creerDepot();
+  const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
+  const ancien = '2026-01-01T10:00:00';
+  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+  execFileSync('git', ['add', 'src.js'], { cwd: repo });
+  execFileSync('git', ['commit', '-q', '-m', 'feat: x\n\nPlan: P1/S1/T1'], {
+    cwd: repo, env: { ...process.env, GIT_AUTHOR_DATE: ancien, GIT_COMMITTER_DATE: ancien },
+  });
+  const tire = revuesManquantes(repo, debut, Date.now());
+  if (tire.length !== 0) return `commit antérieur au repère compté : ${tire.join(', ')}`;
+  const sansDebut = revuesManquantes(repo, debut);
+  return sansDebut.includes('P1/S1') ? null : `sans repère horaire, attendu P1/S1 manquante, reçu: ${sansDebut.join(', ')}`;
+});
+
 cas('revuesManquantes : .echec.md dispense de revue', () => {
   const repo = creerDepot();
   const debut = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
@@ -608,6 +623,25 @@ cas('sessionstart-contexte : silencieux quand le modèle correspond au plan', ()
   poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']);
   const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5' });
   return /lancée en/.test(s) ? `signal présent à tort: ${s}` : null;
+});
+
+cas('sessionstart-contexte : vieux plan dormant de même famille ne tait pas l’écart du plan en cours', () => {
+  const repo = creerDepot();
+  poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']); // P1, dormant
+  mkdirSync(join(repo, 'plans', 'P7'), { recursive: true });
+  writeFileSync(join(repo, 'plans', 'P7', 'index.md'), readFileSync(join(repo, 'plans', 'P1', 'index.md'), 'utf8')
+    .replace('| [S1](S1.md) | T1 | … | Sonnet | medium |', '| [S3](S3.md) | T6 | … | Opus | high |'));
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5-5' });
+  return /lancée en sonnet.*P7\/S3 Opus/.test(s) ? null : `écart P7/S3 non signalé, reçu: ${s || '(vide)'}`;
+});
+
+cas('sessionstart-contexte : plan clos ignoré pour le contrôle du modèle', () => {
+  const repo = creerDepot();
+  poserPlan(repo, ['| [S1](S1.md) | T1 | … | Opus | high | — | — | `src/` | [ ] |']);
+  const chemin = join(repo, 'plans', 'P1', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('# Plan P1 — test\n', '# Plan P1 — test\n\nClos : 2026-10-08\n'));
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5-5' });
+  return /lancée en/.test(s) ? `plan clos compté: ${s}` : null;
 });
 
 // Mods du projet installés `--scope local` pour CE dossier, à la version attendue (P16/S3/T5).

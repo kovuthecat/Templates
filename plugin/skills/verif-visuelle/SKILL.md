@@ -26,6 +26,9 @@ charger par `ToolSearch` avant de conclure qu'ils manquent.
   dérouler le mode B. Ne pas tenter de contourner (pas de
   Playwright, pas de capture par script) — le navigateur in-app est le seul outil visuel autorisé
   à Claude.
+- **Présents, mais `preview_start` refuse « Dev servers can't be started from unattended sessions »**
+  (tâche planifiée, arbre lancé à distance) : mode B d'office, sans second essai — personne n'est là
+  pour approuver la commande. Une ligne au bilan : « `N1 S<k> : à faire — <écran>` ».
 
 Si le bandeau de la session indique `Environnement : Desktop` et que les outils sont absents, la
 session a été lancée au mauvais endroit : signale-le au bilan, poursuis en mode B.

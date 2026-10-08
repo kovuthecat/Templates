@@ -27,7 +27,7 @@
 // mesuré, docs/decisions/2026-10-06-suite-des-preuves-mods.md, leçon 5). Revers : une session
 // planifiée reprise ensuite à la main n'a plus que ce rappel.
 
-import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs';
 import {
   lireEntree, repertoireProjet, estUnDepot, fichiersModifies, fichiersSuivisModifies,
   depassements, estFichierDeSuivi, lirePlafonds, repondre, riendafaire,
@@ -71,12 +71,16 @@ if (!sousVerrou) {
   // qu'aucune relecture n'ait été déposée. La seule absence légitime est celle du tri de clôture, qui
   // verse la revue dans TASKS.md puis la supprime — elle se déclare par un repère `Revues:`.
   let repereHead = null;
+  let debutSession = null;
   try {
     const { chemin } = repereSession(entree, cwd, 'head');
-    if (existsSync(chemin)) repereHead = readFileSync(chemin, 'utf8').trim();
+    if (existsSync(chemin)) {
+      repereHead = readFileSync(chemin, 'utf8').trim();
+      debutSession = statSync(chemin).mtimeMs;
+    }
   } catch { /* repère illisible : contrôle désactivé, jamais de faux positif */ }
 
-  for (const ref of revuesManquantes(cwd, repereHead)) {
+  for (const ref of revuesManquantes(cwd, repereHead, debutSession)) {
     problemes.push(
       `**Revue de session absente ou incomplète — ${ref}.** Des commits de cette session portent du code sous ` +
       `\`Plan: ${ref}/\`, mais git ne trouve aucune revue terminée dans \`plans/${ref}.revue.md\`. ` +

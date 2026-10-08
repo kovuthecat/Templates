@@ -298,7 +298,7 @@ function normaliserNature(brut) {
 }
 
 function lireEchec(chemin) {
-  const texte = readFileSync(chemin, 'utf8');
+  const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
   const valeur = (nom) => {
     const m = new RegExp(`^${nom}\\s*:\\s*(.*)$`, 'mi').exec(texte);
     return m ? m[1].trim() : null;
@@ -356,7 +356,7 @@ function lireEchec(chemin) {
   };
 }
 
-function lireRevue(chemin, texte = readFileSync(chemin, 'utf8')) {
+function lireRevue(chemin, texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n')) {
   const m = /^Bloquant\s*:\s*(\d+)/m.exec(texte);
   const couverture = /^Couverture\s*:\s*(.+)$/m.exec(texte)?.[1].trim();
   const reprises = Number(/^Reprises\s*:\s*(\d+)$/m.exec(texte)?.[1] ?? 0);
@@ -631,6 +631,10 @@ function prochaineAction(sortie) {
       options: { source: 'wave-lock' },
     };
   }
+
+  // Un plan clos est fini, sessions non cochées comprises : une session abandonnée, ou une preuve
+  // dont les statuts vivent sur sa branche jetable, ne se relance pas (clôtures du 2026-10-08).
+  if (sortie.clos) return { action: 'fini' };
 
   const vagues = [...sortie.vagues].sort((a, b) => a.numero - b.numero);
 

@@ -13,7 +13,9 @@ const erreurs = [];
 const signaler = (session, controle, motif) => erreurs.push({ session, controle, motif });
 try {
   if (!plan) throw new Error('indiquer P<n>');
-  const index = readFileSync(resolve(racine, 'plans', plan, 'index.md'), 'utf8');
+  // Fins de ligne CRLF (plan réécrit sous Windows) ramenées à LF : sans quoi `$` ne correspond plus
+  // en fin de ligne et chaque déclaration est rejetée (incident trames-consultation 2026-09-29).
+  const index = readFileSync(resolve(racine, 'plans', plan, 'index.md'), 'utf8').replace(/\r\n/g, '\n');
   const sessions = [];
   for (const ligne of index.split('\n')) {
     if (!ligne.trim().startsWith('|')) continue;
@@ -51,7 +53,7 @@ try {
     if (extension && s.terminee) continue; // ancien travail livré : pas de réécriture du plan
     const chemin = resolve(racine, 'plans', plan, `${s.id}.md`);
     if (!existsSync(chemin)) { signaler(s.id, 1, 'fichier de session absent'); continue; }
-    const texte = readFileSync(chemin, 'utf8');
+    const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
     const taches = texte.split(/^## T\d+[^\n]*$/m).slice(1);
     for (const [i, tache] of (taches.length ? taches : [texte]).entries()) {
       if (!/^### Objectif/m.test(tache) || !/^### Validation/m.test(tache)) signaler(s.id, 3, `tâche ${i + 1} : Objectif ou Validation absent`);
