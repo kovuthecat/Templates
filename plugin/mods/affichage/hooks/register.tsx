@@ -27,7 +27,7 @@ import {
 import { DOSSIER_INCIDENTS, depuisLe, estIncident, lireArgs, lireIncident, parentDe, projetScrutable, tableIncidents, trier } from './incidents'
 import type { Incident } from './incidents'
 import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
-import { contexteDepuisPrompt, contexteDepuisSkill, nomProjet } from './titre'
+import { contexteDepuisPrompt, contexteDepuisSkill, nomProjet, promptDeLaPersonne } from './titre'
 import type { Contexte } from './titre'
 
 // Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j), un panneau « limites »,
@@ -68,6 +68,8 @@ type Etat = {
   planOuvert: boolean
   demarree: boolean
   titreCle?: string
+  titrePose?: string
+  aReaffirmer?: boolean
   titreEnAttente?: Contexte
 }
 
@@ -384,7 +386,10 @@ export const register: Register = (on) => {
   // Titre de session « Projet - P<n> - S<k> » / « Projet - P<n> - orchestrateur » / « Projet - Cadrer ».
   // Seuls SessionStart et UserPromptSubmit peuvent poser un titre : un skill appelé par le modèle sur
   // le fil principal (jamais dans un sous-agent : `agentId`) attend le prompt suivant. Même contexte
-  // que la dernière fois → rien, pour ne pas écraser un titre posé à la main.
+  // que la dernière fois → rien, pour ne pas écraser un titre posé à la main — sauf au prompt qui suit
+  // la pose : Desktop génère son propre titre depuis le premier message et écrase le nôtre dans la
+  // seconde (constaté dans les transcripts) ; on le réaffirme alors une fois. Le prompt d'un sous-agent
+  // (`agent_id`) ne touche à rien : il renommait la session principale « P<n> - S<k> ».
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
     if (e.tool === 'Skill' && !e.agentId) {
       const projet = await projetCourant($)
@@ -396,13 +401,21 @@ export const register: Register = (on) => {
 
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const r = await next(e)
+    if (e.agent_id) return r
     try {
       const projet = await projetCourant($)
-      const ctx = (projet ? contexteDepuisPrompt(projet, String(e.prompt ?? '')) : undefined) ?? s.titreEnAttente
+      const lu = projet && promptDeLaPersonne(e.source) ? contexteDepuisPrompt(projet, String(e.prompt ?? '')) : undefined
+      const ctx = lu ?? s.titreEnAttente
       s.titreEnAttente = undefined
-      if (!ctx || ctx.cle === s.titreCle) return r
-      s.titreCle = ctx.cle
-      return ctx.titre === e.session_title ? r : { ...r, sessionTitle: ctx.titre }
+      if (ctx && ctx.cle !== s.titreCle) {
+        s.titreCle = ctx.cle
+        s.titrePose = ctx.titre
+        s.aReaffirmer = true
+        return ctx.titre === e.session_title ? r : { ...r, sessionTitle: ctx.titre }
+      }
+      const reaffirmer = s.aReaffirmer && s.titrePose !== undefined && s.titrePose !== e.session_title
+      s.aReaffirmer = false
+      return reaffirmer ? { ...r, sessionTitle: s.titrePose } : r
     } catch {
       return r
     }
