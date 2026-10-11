@@ -399,6 +399,15 @@ export const register: Register = (on) => {
     return next(e)
   })
 
+  // /clear (ou une reprise) ouvre une autre conversation dans le même processus : elle n'hérite pas
+  // de ce que le mod a retenu de la précédente, sinon le même contexte relancé n'y serait pas renommé.
+  // Le compactage ne termine pas la session : rien n'est oublié.
+  on('session.end', async ($, e, next) => {
+    s.titreCle = s.titrePose = s.titreEnAttente = undefined
+    s.aReaffirmer = false
+    return next(e)
+  })
+
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const r = await next(e)
     if (e.agent_id) return r

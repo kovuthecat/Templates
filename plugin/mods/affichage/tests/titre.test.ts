@@ -72,6 +72,15 @@ describe('titre : hooks', () => {
     expect(retour.sessionTitle).toBe(undefined)
   })
 
+  test('/clear puis même contexte → nouvelle conversation renommée', async ($, on) => {
+    monde(on)
+    on('session.end', () => ({ sessionId: 'x' }))
+    await ($ as any).classic.UserPromptSubmit({ prompt: '/orchestrer-plan P3' })
+    await ($ as any).session.end({ reason: 'clear' })
+    const r: any = await ($ as any).classic.UserPromptSubmit({ prompt: '/orchestrer-plan P3', session_title: 'Orchestrer plan P3' })
+    expect(r.sessionTitle).toBe('EBM-MSPv2 - P3 - orchestrateur')
+  })
+
   test('skill appelé sur le fil principal → titre au prompt suivant ; dans un sous-agent → rien', async ($, on) => {
     monde(on)
     await ($ as any).tool.call({ tool: 'Skill', skill: 'workflow:cadrer', agentId: 'sous-agent' })
