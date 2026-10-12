@@ -1,23 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Bandeau, EtatFichiers, Fenetre, Limites, Mode, ModelePlan, PlanAffiche } from '../types'
-import {
-  CMD_NON_POUSSES,
-  CMD_STATUS,
-  ETAT_VIDE,
-  RACINE_LABEL,
-  SEUIL_REPLI,
-  analyserNonPousses,
-  analyserStatus,
-  construireArbre,
-  dossierReplie,
-  ligneFichier,
-} from './fichiers'
+import type { Bandeau, Fenetre, Mode, ModelePlan, PlanAffiche } from '../types'
 import {
   composerBandeau,
   decalageLocal,
-  lignesLimites,
   lireEtatPlan,
   planDepuisPrompt,
   planEstOuvert,
@@ -30,25 +17,19 @@ import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
 import { contexteDepuisPrompt, contexteDepuisSkill, nomProjet, promptDeLaPersonne } from './titre'
 import type { Contexte } from './titre'
 
-// Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j), un panneau « limites »,
-// un panneau « fichiers » (etat git) et un panneau « plan » (sessions, prochaine action, boutons de relance).
+// Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j) et un panneau « plan »
+// (sessions, prochaine action, boutons de relance).
 // La commande `/incidents` liste les incidents de workflow des projets freres (lecture seule).
 // Le titre de la session suit la convention « Projet - P<n> - S<k> » / « Projet - Cadrer » (titre.ts).
 // Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
 //
 // Forme imposee par `plugin validate` : `$` ne passe qu'a des fonctions declarees au sommet.
 
-const PANE_LIMITES = 'limites'
-const PANE_FICHIERS = 'fichiers'
 const PANE_PLAN = 'plan'
 const CACHE_PLAN_MS = 20000
 const DELAI_PROCESS_MS = 5000
-const OUTILS_FICHIERS = ['Write', 'Edit', 'NotebookEdit', 'Bash', 'PowerShell']
 
-const limitesAtom = atom({ plugin: 'affichage', key: 'limites' } as const, { fenetres: [] } as Limites)
 const bandeauAtom = atom({ plugin: 'affichage', key: 'bandeau' } as const, { fenetres: [] } as Bandeau)
-const fichiersAtom = atom({ plugin: 'affichage', key: 'fichiers' } as const, ETAT_VIDE as EtatFichiers)
-const repliAtom = atom({ plugin: 'affichage', key: 'repli' } as const, {} as Record<string, boolean>)
 const planAtom = atom({ plugin: 'affichage', key: 'plan' } as const, { modele: null, mode: 'source' } as PlanAffiche)
 
 type Etat = {
@@ -60,9 +41,6 @@ type Etat = {
   cacheDefaut?: { at: number; plan?: string }
   dernierTexte?: string
   fenetres: Fenetre[]
-  fichiersJson?: string
-  depot: boolean
-  fichiersOuvert: boolean
   planModele?: ModelePlan
   planJson?: string
   planOuvert: boolean
@@ -272,66 +250,19 @@ async function rafraichirLigne($: any, s: Etat): Promise<void> {
 
 async function mesurer($: any, s: Etat, fenetres: Fenetre[]): Promise<void> {
   s.fenetres = fenetres
-  await update($, limitesAtom, () => ({ fenetres }))
   await rafraichirLigne($, s)
 }
 
-// L'etat git : `git status` (modifie, nouveau) et les commits sans amont atteint (`↑`).
-async function rafraichirFichiers($: any, s: Etat): Promise<void> {
-  try {
-    const base = await racine($)
-    const init = { cwd: base, timeoutMs: DELAI_PROCESS_MS }
-    const st = await $.process.run([...CMD_STATUS], init)
-    let etat: EtatFichiers = ETAT_VIDE
-    if (st.exitCode === 0) {
-      let amont = false
-      let nonPousses: string[] = []
-      try {
-        const r = await $.process.run([...CMD_NON_POUSSES], init)
-        if (r.exitCode === 0) {
-          amont = true
-          nonPousses = analyserNonPousses(String(r.stdout ?? ''))
-        }
-      } catch {
-        amont = false
-      }
-      etat = construireArbre(analyserStatus(String(st.stdout ?? '')), nonPousses, amont)
-    }
-    s.depot = etat.depot
-    const json = JSON.stringify(etat)
-    if (json !== s.fichiersJson) {
-      s.fichiersJson = json
-      await update($, fichiersAtom, () => etat)
-    }
-    if (!etat.depot && s.fichiersOuvert) {
-      s.fichiersOuvert = false
-      await $.ui.close({ id: PANE_FICHIERS })
-    }
-  } catch {
-    // le panneau garde son dernier etat
-  }
-}
-
-// Ouvre les panneaux utiles ; « fichiers » seulement dans un depot git.
+// Rouvre le panneau « plan » s'il y a un plan en cours.
 async function ouvrirPanneaux($: any, s: Etat): Promise<string> {
-  const ouverts: string[] = []
-  const limites = await $.ui.open({ id: PANE_LIMITES, title: 'Limites' })
-  if (limites?.isPlaced !== false) ouverts.push('limites')
-  if (s.depot) {
-    const fichiers = await $.ui.open({ id: PANE_FICHIERS, title: 'Fichiers' })
-    s.fichiersOuvert = true
-    if (fichiers?.isPlaced !== false) ouverts.push('fichiers')
-  }
-  if (s.planModele) {
-    s.planOuvert = true
-    const plan = await $.ui.open({ id: PANE_PLAN, title: 'Plan' })
-    if (plan?.isPlaced !== false) ouverts.push('plan')
-  }
-  return ouverts.length > 0 ? `Panneaux ouverts : ${ouverts.join(', ')}.` : 'Aucun panneau placé : élargir le terminal.'
+  if (!s.planModele) return 'Pas de plan en cours.'
+  s.planOuvert = true
+  const plan = await $.ui.open({ id: PANE_PLAN, title: 'Plan' })
+  return plan?.isPlaced !== false ? 'Panneau plan ouvert.' : 'Aucun panneau placé : élargir le terminal.'
 }
 
 export const register: Register = (on) => {
-  const s: Etat = { fenetres: [], depot: false, fichiersOuvert: false, planOuvert: false, demarree: false }
+  const s: Etat = { fenetres: [], planOuvert: false, demarree: false }
 
   on('session.start', async ($, e, next) => {
     try {
@@ -340,7 +271,6 @@ export const register: Register = (on) => {
     } catch {
       // limites connues a la premiere mesure
     }
-    await rafraichirFichiers($, s)
     try {
       if (await projetDuWorkflow($)) {
         await $.command.register({ name: 'incidents', description: 'Incidents de workflow de tous les projets', argumentHint: '[YYYY-MM-DD]' })
@@ -349,7 +279,7 @@ export const register: Register = (on) => {
       // la commande n'est jamais bloquante
     }
     try {
-      await $.command.register({ name: 'panneau', description: 'Rouvre les panneaux limites, fichiers et plan' })
+      await $.command.register({ name: 'panneau', description: 'Rouvre le panneau plan' })
       void ouvrirPanneaux($, s)
         .catch(() => {})
         .then(() => {
@@ -362,7 +292,6 @@ export const register: Register = (on) => {
   })
 
   on('command.run', { command: 'panneau' }, async ($) => {
-    await rafraichirFichiers($, s)
     await rafraichirLigne($, s)
     return { text: await ouvrirPanneaux($, s) }
   })
@@ -441,12 +370,6 @@ export const register: Register = (on) => {
     return next(e)
   })
 
-  on('tool.call', { tool: OUTILS_FICHIERS }, async ($, e, next) => {
-    const r = await next(e)
-    await rafraichirFichiers($, s)
-    return r
-  })
-
   // Le bandeau au-dessus du prompt : plan, puis « │ », puis les limites, libelles en gras. Il cede la
   // place a un sondage du moteur et ne dessine rien quand il n'a rien a dire.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -463,19 +386,6 @@ export const register: Register = (on) => {
         {bandeau.plan && <Text>{bandeau.plan}</Text>}
         {bandeau.plan && limites.length > 0 && <Text dimColor>{'  │  '}</Text>}
         {limites}
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PANE_LIMITES }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const { fenetres } = await read($, limitesAtom)
-    const maintenant = Number(await $.clock.now())
-    return (
-      <Box flexDirection="column">
-        {lignesLimites(fenetres, maintenant, decalageLocal).map((l) => (
-          <Text>{l}</Text>
-        ))}
       </Box>
     )
   })
@@ -507,38 +417,6 @@ export const register: Register = (on) => {
             />
           ))}
         </Box>
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PANE_FICHIERS }, async ($, e) => {
-    const { Box, Button, Text } = $.ui.resolve(e)
-    const etat = await read($, fichiersAtom)
-    const repli = await read($, repliAtom)
-    if (!etat.depot) return <Text dimColor>Pas de dépôt git.</Text>
-    const entete = `${etat.total} fichier${etat.total > 1 ? 's' : ''} · ● modifié  + nouveau  ↑ non poussé`
-    return (
-      <Box flexDirection="column">
-        {!etat.amont && <Text dimColor>pas d'amont</Text>}
-        {etat.total === 0 ? <Text dimColor>Rien à committer ni à pousser.</Text> : <Text dimColor>{entete}</Text>}
-        {etat.dossiers.map((d) => {
-          const replie = dossierReplie(d, repli)
-          const nom = d.chemin === RACINE_LABEL ? d.chemin : `${d.chemin}/`
-          return (
-            <Box flexDirection="column">
-              <Button
-                key={`dossier:${d.chemin}`}
-                plain
-                label={`${replie ? '▸' : '▾'} ${nom} (${d.fichiers.length})`}
-                onPress={() =>
-                  update($, repliAtom, (r) => ({ ...r, [d.chemin]: !(r[d.chemin] ?? d.fichiers.length > SEUIL_REPLI) }))
-                }
-              />
-              {!replie && d.fichiers.map((f) => <Text>{`  ${ligneFichier(f)}`}</Text>)}
-            </Box>
-          )
-        })}
-        {etat.tronque > 0 && <Text dimColor>{`… et ${etat.tronque} autres fichiers`}</Text>}
       </Box>
     )
   })
