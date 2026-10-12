@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "session": "P18/S2",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "9a2fb4a485986703f906e9de7de6b0dfd9f8a2eca73ffe4ea08cc80844b65b97",
+  "nonSuivis": [],
+  "date": "2026-10-12T12:08:01.193Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 79736
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 59985
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 158
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 5249
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run",
+      "code": 0,
+      "dureeMs": 172149
+    }
+  ]
+}
