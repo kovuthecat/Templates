@@ -80,9 +80,9 @@ Blocage : le build casse toujours sur le type de retour de parseDate
 Auto : non
 
 ## Issues
-1. Typer parseDate en `Date | null` et traiter null chez les trois appelants — deux fichiers de plus hors zone.
-2. Garder `Date` et lever une exception sur entrée invalide — change le contrat public de src/a.mjs.
-3. Reporter T2 et livrer T1 seule — la validation des dates reste partielle.
+1. Typer parseDate en `Date | null` et traiter null chez les trois appelants — deux fichiers de plus hors zone · débloque S1 puis S2, contrat de retour explicite.
+2. Garder `Date` et lever une exception sur entrée invalide — change le contrat public de src/a.mjs · débloque S1 puis S2.
+3. Reporter T2 et livrer T1 seule — la validation des dates reste partielle · débloque S1 pour T1 seule, S2 attend T2.
 EOF
 
 for c in A B C; do

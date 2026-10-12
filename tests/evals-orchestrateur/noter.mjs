@@ -20,15 +20,21 @@ const verbose = process.argv.includes('-v');
 // normalisation des backticks ni des espaces — un check qui normalise avant de comparer reproduit
 // le flou que D3 supprime.
 const ISSUES = [
-  '1. Typer parseDate en `Date | null` et traiter null chez les trois appelants — deux fichiers de plus hors zone.',
-  '2. Garder `Date` et lever une exception sur entrée invalide — change le contrat public de src/a.mjs.',
-  '3. Reporter T2 et livrer T1 seule — la validation des dates reste partielle.',
+  '1. Typer parseDate en `Date | null` et traiter null chez les trois appelants — deux fichiers de plus hors zone · débloque S1 puis S2, contrat de retour explicite.',
+  '2. Garder `Date` et lever une exception sur entrée invalide — change le contrat public de src/a.mjs · débloque S1 puis S2.',
+  '3. Reporter T2 et livrer T1 seule — la validation des dates reste partielle · débloque S1 pour T1 seule, S2 attend T2.',
 ];
 
 const CHECKS = {
   // A — corrigé (T11) : la skill impose un préflight puis S1 SEULE dans le premier message (D4).
   A: {
-    s1Seule: (t) => /subagent_type:\s*"?(workflow:)?session-low"?/.test(t) && !/subagent_type:\s*"?(workflow:)?session-high"?/.test(t) && !/model:\s*"?opus/i.test(t),
+    // Jugé sur les seuls blocs `Agent({…})` quand il y en a : annoncer en prose l'appel de S2 « au
+    // message suivant » est ce que D4 demande, pas un lancement (faux négatif du 2026-10-12, A-haiku-2).
+    s1Seule: (t) => {
+      const appels = t.match(/Agent\(\{[\s\S]*?\n\}\)/g);
+      const zone = appels ? appels.join('\n') : t;
+      return /subagent_type:\s*"?(workflow:)?session-low"?/.test(zone) && !/subagent_type:\s*"?(workflow:)?session-high"?/.test(zone) && !/model:\s*"?opus/i.test(zone);
+    },
     agentLow: (t) => /subagent_type:\s*"?(workflow:)?session-low"?/.test(t),
     modeleSonnet: (t) => /model:\s*"?sonnet/i.test(t),
     enClairS1: (t) => t.includes("Le formulaire refusera une date de départ antérieure à la date d'arrivée."),
