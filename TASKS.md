@@ -46,8 +46,7 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
 - **P16/S5-S6** — `plugin/mods/affichage/hooks/register.tsx` : `key` manquante sur le `<Box>` des
   dossiers et les `<Text>` du panneau plan ; `incidents.ts` duplique `lireIncident` de
   `collecter-incidents.mjs` — toute évolution du gabarit §9b se porte aux deux endroits.
-- **P17/S2** — `plugin/bin/sync-workflow.mjs:145-147` : commentaire de tête collé à la phrase
-  suivante, à reformater ; le filtre du socle (hors `Bash(npm ` / `Bash(npx `) est codé en dur —
+- **P17/S2** — `plugin/bin/sync-workflow.mjs` : le filtre du socle (hors `Bash(npm ` / `Bash(npx `) est codé en dur —
   une autre stack dans le gabarit obligerait à toucher au script.
 - **P17/S4** — `plugin/bin/brief-a-jour.mjs:~66` : le message « SANS OBJET — pas de PROJECT_BRIEF.md »
   ne dit pas que le contrôle porte aussi sur `CLAUDE.md` ; docs (skills, gabarit, agent) non relues.

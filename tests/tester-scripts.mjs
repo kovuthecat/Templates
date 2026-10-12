@@ -1740,6 +1740,33 @@ cas('sync-workflow : aucun `permissions` → ligne allow en retard listant le so
   return null;
 });
 
+// ── modelSettings en retard sur le gabarit (P18/S1/T2) ── clés attendues dérivées du VRAI gabarit.
+const clesModeleGabarit = Object.keys(JSON.parse(readFileSync(GABARIT_REEL, 'utf8')).modelSettings);
+
+cas('sync-workflow : modelSettings aux seules clés 5.0 → ligne qui nomme les clés du gabarit', () => {
+  const { sortie } = syncAllow((r) => {
+    r.modelSettings = { 'claude-opus-5': { effortLevel: 'high' }, 'claude-sonnet-5': { effortLevel: 'medium' }, 'claude-haiku-4-5': { effortLevel: 'low' } };
+  });
+  const m = sortie.match(/SETTINGS\s+modelSettings en retard sur le gabarit — manque : (.*)/);
+  if (!m) return `ligne attendue absente: ${sortie}`;
+  if (clesModeleGabarit.length === 0) return 'gabarit sans modelSettings';
+  const absentes = clesModeleGabarit.filter((k) => !m[1].split(', ').includes(k));
+  return absentes.length ? `clés non nommées: ${absentes.join(', ')} dans ${m[1]}` : null;
+});
+
+cas('sync-workflow : modelSettings aux mêmes clés que le gabarit, autres valeurs → aucune ligne', () => {
+  const { sortie } = syncAllow((r) => { for (const k of Object.keys(r.modelSettings)) r.modelSettings[k] = { effortLevel: 'xhigh' }; });
+  if (/modelSettings en retard/.test(sortie)) return `aucune ligne attendue: ${sortie}`;
+  return null;
+});
+
+cas('sync-workflow : aucun modelSettings → ligne listant toutes les clés du gabarit', () => {
+  const { sortie } = syncAllow((r) => { delete r.modelSettings; });
+  const m = sortie.match(/SETTINGS\s+modelSettings en retard sur le gabarit — manque : (.*)/);
+  if (!m) return `ligne attendue absente: ${sortie}`;
+  return m[1].split(', ').join('|') === clesModeleGabarit.join('|') ? null : `clés attendues ${clesModeleGabarit.join(', ')}, reçu: ${m[1]}`;
+});
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // installer-mods.mjs — installe et vérifie les mods du poste (P16/S2/T2)
 // Un binaire factice, STATEFUL (il tient known_marketplaces.json et installed_plugins.json comme le
