@@ -3,42 +3,39 @@
   "session": "P18/S1",
   "portee": "complete",
   "resultat": "PASS",
-  "empreinte": "14eb9f27bb3d0481d06bf722cedab5e6a3201b3aa67e14899dba54757753a5ff",
-  "nonSuivis": [
-    ".agents/skills/analyser-incidents/SKILL.md",
-    "AGENTS.md"
-  ],
-  "date": "2026-10-12T11:14:52.928Z",
+  "empreinte": "ef2801935d6652216aef9be22451e830ae40fbc9e054726d21967a0b7fedb084",
+  "nonSuivis": [],
+  "date": "2026-10-12T12:01:43.321Z",
   "commandes": [
     {
       "nom": "tester-hooks",
       "cmd": "node tests/tester-hooks.mjs",
       "code": 0,
-      "dureeMs": 87410
+      "dureeMs": 79769
     },
     {
       "nom": "tester-scripts",
       "cmd": "node tests/tester-scripts.mjs",
       "code": 0,
-      "dureeMs": 62775
+      "dureeMs": 63152
     },
     {
       "nom": "tester-renvois",
       "cmd": "node tests/tester-renvois.mjs",
       "code": 0,
-      "dureeMs": 168
+      "dureeMs": 160
     },
     {
       "nom": "tester-mods",
       "cmd": "node tests/tester-mods.mjs",
       "code": 0,
-      "dureeMs": 5513
+      "dureeMs": 5429
     },
     {
       "nom": "publier-dry-run",
       "cmd": "node plugin/bin/publier.mjs --dry-run",
       "code": 0,
-      "dureeMs": 181538
+      "dureeMs": 175978
     }
   ]
 }
