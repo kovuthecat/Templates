@@ -9,7 +9,8 @@ par geste** (0,024 $ contre 0,334 $ sur ce cas long).
 
 **Haiku `high` n'apporte rien** : 12/14, plus lent, et pas plus fiable. `medium` suffit.
 
-**Le seul cas encore raté par les deux modèles est un flou du texte, pas du modèle.** Sur la
+**Le seul cas encore raté par les deux modèles était un flou du texte, pas du modèle — corrigé
+depuis (§ « Après correction du texte de C »).** Sur la
 question « budget de reprises épuisé » (cas C), Haiku comme Sonnet répondent parfois sans ouvrir le
 rapport d'échec, alors que les options s'y trouvent. Plusieurs disent s'en abstenir « comme la skill
 l'interdit ». La commande qui lit ces options n'est écrite que dans l'annexe `remediation.md`, sous
@@ -52,12 +53,30 @@ rapport (2 essais en `high`) ou recopie les options avec des backticks ajoutés 
 Haiku y restent réels : un lancement des deux sessions dans le même message (cas A, règle D4) et un
 rapport non ouvert (cas C). Les autres venaient de l'instrument.
 
-## Correctif de texte proposé (non fait)
+## Après correction du texte de C (même jour)
 
-Dans `plugin/skills/orchestrer-plan/SKILL.md`, à côté de « Options jamais inventées ici », dire en
-clair : sur une `question` qui porte sur une session en échec, lire les options avec
-`sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md`. Ce rapport n'est **pas** un `S<k>.md`, et
-le lire est permis. Puis rejouer C sur les deux modèles.
+Correctif `c759bde` dans `plugin/skills/orchestrer-plan/SKILL.md` : l'interdit « ne jamais ouvrir un
+`S<k>.md` » précise que le rapport `S<k>.echec.md` n'en est pas un, et l'Étape 3 dit comment lire
+les options d'une question sur une session en échec
+(`sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md`). Banc complet rejoué, 5 essais par cas :
+
+| Cas | Haiku 5.5 `medium` | Sonnet 5.5 `medium` |
+| --- | :---: | :---: |
+| A | 5/5 | 5/5 |
+| B | 5/5 | 5/5 |
+| C | 3/5 | 5/5 |
+| D | 5/5 | 5/5 |
+| **Total** | **18/20** | **20/20** |
+| Coût moyen d'un geste, A-C / D | 0,007 $ / 0,024 $ | 0,11 $ / 0,335 $ |
+
+**Le correctif a pris** : sur C, les 10 essais lisent la section `## Issues` avec la commande de la
+skill. Plus aucun modèle ne répond sans avoir ouvert le rapport, ni n'invente d'options.
+
+**Les deux échecs restants de Haiku ne portent que sur la forme** : options exactes, dans le bon
+ordre, mais avec des backticks ajoutés (`` `parseDate` ``, `` `src/a.mjs` ``). Le texte dit
+« recopiées sans rien changer, ni la forme ni l'ordre », et le correcteur l'applique à la lettre.
+Sur la copie stricte, Sonnet reste plus fidèle. Pour un humain qui lit la question, le choix offert
+est le même.
 
 ## Défauts de l'instrument trouvés en route (tous corrigés)
 
