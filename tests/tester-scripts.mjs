@@ -765,6 +765,24 @@ cas('moteur : reprendre — échec exécution Sonnet reprise=1 → agent {sessio
   return null;
 });
 
+cas('moteur : reprendre — échec exécution Haiku (index "Haiku | low") reprise=0 → agent {session-medium, haiku} (effort de EFFORT_DU_MODELE)', () => {
+  const cwd = dossierJetable('workflow-pa-agent-reprendre-haiku-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Sonnet | medium', 'Haiku | low'));
+  writeFileSync(
+    join(cwd, 'plans', 'P9', 'S1.echec.md'),
+    ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : relancer après correction', ''].join('\n'),
+  );
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `action attendue "reprendre", reçu: ${sortie}`;
+  if (!action.agent || action.agent.subagent_type !== 'session-medium' || action.agent.model !== 'haiku') {
+    return `agent attendu {subagent_type: "session-medium", model: "haiku"}, reçu: ${JSON.stringify(action.agent)}`;
+  }
+  return null;
+});
+
 cas('moteur : enqueter — modèle et effort cohérents (Opus ⇒ session-high, opus)', () => {
   const cwd = dossierJetable('workflow-pa-agent-enqueter-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
