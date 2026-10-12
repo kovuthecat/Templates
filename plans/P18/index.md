@@ -18,6 +18,8 @@ et cohérent avec le `modelUsage` sondé le 2026-10-12 pour Haiku, mais pas mesu
 le réfuterait : une session Haiku lancée avec `claude-haiku-5-5` à `medium` et `effortLevel` racine à
 `low`, qui tourne en `low`. Ce plan ne change rien à ce mécanisme, il ne fait qu'aligner les valeurs.
 
+Clos : 2026-10-12
+
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
