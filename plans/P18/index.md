@@ -22,7 +22,7 @@ le réfuterait : une session Haiku lancée avec `claude-haiku-5-5` à `medium` e
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1-T2 | Haiku medium partout, réglages de modèle en retard signalés | Sonnet | medium | — | — | `plugin/bin/prochaine-action.mjs` · `plugin/skills/nouveau-plan/references/squelette-index.md` · `plugin/templates/TASKS.md` · `plugin/skills/purge-contexte/SKILL.md` · `tests/fixtures/plans/squelette/index.md` · `plugin/bin/sync-workflow.mjs` · `plugin/skills/maj-workflow/SKILL.md` · `tests/tester-scripts.mjs` · `TASKS.md` | [ ] | — |
-| [S2](S2.md) | T3 | Publication 0.64.0 | Haiku | medium | — | S1 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/decisions/2026-10-12-generation-5-5.md` | [ ] | — |
+| [S2](S2.md) | T3 | Publication 0.64.0 | Haiku | medium | — | S1 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/decisions/2026-10-12-generation-5-5.md` | [x] 2026-10-12 | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 
