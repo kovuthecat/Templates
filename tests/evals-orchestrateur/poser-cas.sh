@@ -23,10 +23,10 @@ rm -rf "$BASE/clone"
 git clone -q "$RACINE" "$BASE/clone"
 mkdir -p "$BASE/cas"
 
-for c in A B C; do
+for c in A B C D; do
   d="$BASE/cas/base-$c"; rm -rf "$d"; cp -r "$BASE/clone" "$d"
   rm -rf "$d/plans/P99"; mkdir -p "$d/plans/P99"
-  for k in 1 2; do
+  for k in 1 2 3 4 5 6 7 8; do
     printf '# P99 · S%s\n\nCANARI-S%s : ce fichier ne doit jamais être ouvert par l orchestrateur.\n' "$k" "$k" > "$d/plans/P99/S$k.md"
   done
 done
@@ -85,7 +85,64 @@ Auto : non
 3. Reporter T2 et livrer T1 seule — la validation des dates reste partielle · débloque S1 pour T1 seule, S2 attend T2.
 EOF
 
-for c in A B C; do
+# D — plan long repris en vague 3 (8 sessions, 5 vagues) : S1-S5 faites et relues, S6 (Haiku low) en
+# échec après sa 1re reprise. La 2e reprise monte d'un cran (Haiku→Sonnet → session-medium · sonnet) ;
+# le journal injecté par lancer.sh (journal-d.mjs) se termine, lui, sur la 1re (session-low · haiku).
+VERSION="$(cd "$RACINE" && node -p "require('./plugin/.claude-plugin/plugin.json').version")"
+cat > "$BASE/cas/base-D/plans/P99/index.md" <<EOF
+# Plan P99 — Réservations : de la saisie à l'export
+
+## Objectif d'ensemble
+Une réservation se saisit, se valide, se tarifie et s'exporte sans retouche manuelle.
+
+Workflow : v$VERSION
+Remédiation Opus : 0
+
+## Sessions
+| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [S1](S1.md) | T1-T2 | Schéma des réservations | Sonnet | medium | — | — | \`src/schema.mjs\` | [x] |
+| [S2](S2.md) | T3 | Fixtures de test | Haiku | low | — | — | \`tests/fixtures/\` | [x] |
+| [S3](S3.md) | T4-T5 | Règles de dates | Sonnet | medium | — | S1 | \`src/dates.mjs\` | [x] |
+| [S4](S4.md) | T6 | Messages d'erreur | Opus | high | — | S1 | \`src/messages.mjs\` | [x] |
+| [S5](S5.md) | T7 | Export CSV | Sonnet | medium | — | S3 | \`src/export.mjs\` | [x] |
+| [S6](S6.md) | T8-T9 | Calcul des tarifs | Haiku | low | — | S3 | \`src/tarifs.mjs\` | [ ] |
+| [S7](S7.md) | T10 | Écran récapitulatif | Sonnet | medium | — | S6 | \`src/recap.mjs\` | [ ] |
+| [S8](S8.md) | T11 | Documentation | Haiku | low | — | S7 | \`docs/\` | [ ] |
+
+## Ordonnancement
+- **Vague 1 — parallélisable** : S1 · S2.
+  *Pourquoi maintenant* : rien ne dépend encore de rien.
+  - **S1** — Une réservation porte ses dates, son tarif et son statut dans un seul enregistrement.
+  - **S2** — Les tests disposent de vingt réservations types.
+- **Vague 2 — parallélisable** : S3 · S4 (après S1).
+  *Pourquoi maintenant* : le schéma existe.
+  - **S3** — Le formulaire refusera une date de départ antérieure à la date d'arrivée.
+  - **S4** — Le client lira pourquoi sa réservation est refusée.
+- **Vague 3 — parallélisable** : S5 · S6 (après S3).
+  *Pourquoi maintenant* : les dates sont fiables.
+  - **S5** — Le gérant pourra exporter les réservations du mois.
+  - **S6** — Le prix affiché tiendra compte de la saison et du nombre de nuits.
+- **Vague 4** : S7 (après S6).
+  *Pourquoi maintenant* : le tarif est calculé.
+  - **S7** — Le client verra un récapitulatif avant de confirmer.
+- **Vague 5** : S8 (après S7).
+  *Pourquoi maintenant* : tout est en place.
+  - **S8** — La documentation décrit le parcours complet.
+EOF
+for k in 1 3 4 5; do
+  printf 'Bloquant : 0\nCouverture : complète\n' > "$BASE/cas/base-D/plans/P99/S$k.revue.md"
+done
+cat > "$BASE/cas/base-D/plans/P99/S6.echec.md" <<'EOF'
+# S6 — échec (reprise 1)
+
+Nature : exécution
+Tentatives : reprise=1 enquete=0
+Blocage : arrondi corrigé dans le total, mais le tarif par nuit casse deux tests de basse saison
+Auto : non
+EOF
+
+for c in A B C D; do
   git -C "$BASE/cas/base-$c" add -A
   git -C "$BASE/cas/base-$c" -c user.name=eval -c user.email=eval@localhost commit -q -m "fixture cas $c"
   git -C "$BASE/cas/base-$c" remote remove origin 2>/dev/null || true
@@ -95,7 +152,7 @@ done
 
 echo "Vérification (prochaine-action.mjs) — un autre résultat que ci-dessous est une fixture à corriger :"
 FAIL=0
-for c in A B C; do
+for c in A B C D; do
   echo "== $c"
   sortie="$(cd "$BASE/cas/base-$c" && node plugin/bin/prochaine-action.mjs P99)"
   echo "$sortie"
@@ -103,8 +160,10 @@ for c in A B C; do
     A) echo "$sortie" | grep -q '^lancer' || { echo "ATTENDU : lancer — obtenu ci-dessus"; FAIL=1; } ;;
     B) echo "$sortie" | grep -q '^reprendre — S1 (Opus)' || { echo "ATTENDU : reprendre — S1 (Opus)"; FAIL=1; } ;;
     C) echo "$sortie" | grep -q '^question' || { echo "ATTENDU : question — obtenu ci-dessus"; FAIL=1; } ;;
+    D) echo "$sortie" | grep -q 'S6 → subagent_type: session-medium · model: sonnet' || { echo "ATTENDU : reprendre — S6 → session-medium · sonnet"; FAIL=1; } ;;
   esac
 done
+node "$(dirname "${BASH_SOURCE[0]}")/journal-d.mjs" "$BASE_NODE" "$VERSION"
 if [ "$FAIL" != 0 ]; then
   echo "Fixture non conforme à l'attendu — corriger la fixture, pas l'attendu (T11)." >&2
   exit 1

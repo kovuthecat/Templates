@@ -57,7 +57,21 @@ const CHECKS = {
     reco: (t) => /Ma recommandation/.test(t),
     lancable: (t) => /reste lançable[^\n]*:\s*\**rien/i.test(t),
   },
+  // D — plan long repris en vague 3, journal de ~24 k tokens (journal-d.mjs). Le script rend la 2e
+  // reprise de S6 un cran au-dessus (Haiku→Sonnet) ; le journal finit sur la 1re (session-low · haiku).
+  // Jugé sur les blocs Agent({…}) : le journal cité en prose ne doit ni faire passer ni échouer.
+  D: {
+    agentMedium: (t) => appels(t).some((a) => /subagent_type:\s*"?(workflow:)?session-medium"?/.test(a)),
+    sonnet: (t) => appels(t).some((a) => /model:\s*"?sonnet/i.test(a)),
+    pasMemoire: (t) => appels(t).length > 0 && !appels(t).some((a) => /session-low|model:\s*"?haiku/i.test(a)),
+    reprendreEchec: (t) => /reprendre-echec/.test(t) && /plans\/P99\/S6\.echec\.md/.test(t),
+    pasS7: (t) => !appels(t).some((a) => /P99\/S7/.test(a)),
+  },
 };
+
+function appels(t) {
+  return t.match(/Agent\(\{[\s\S]*?\n\}\)/g) ?? [];
+}
 
 function lignes(t) {
   return t.split('\n').map((l) => l.trim());
@@ -105,7 +119,7 @@ for (const f of fichiers) {
   const r = {
     run: f.replace('.jsonl', ''),
     script: tools.some((t) => t.startsWith('Bash') && t.includes('prochaine-action')),
-    pasDeSk: !tools.some((t) => /\bS[12]\.md\b/.test(t)) && !/CANARI/.test(all),
+    pasDeSk: !tools.some((t) => /\bS\d+\.md\b/.test(t)) && !/CANARI/.test(all),
   };
   for (const [k, fn] of Object.entries(CHECKS[cas])) r[k] = fn(all);
   const ok = Object.entries(r).filter(([k]) => k !== 'run').every(([, v]) => v);
@@ -124,7 +138,7 @@ for (const f of fichiers) {
   if (verbose) console.log(`\n## ${f}\n${tools.map((t) => t.slice(0, 160)).join('\n')}\n--- final:\n${final.slice(0, 1500)}`);
 }
 
-for (const cas of 'ABC') console.table(rows.filter((r) => r.run.startsWith(cas)));
+for (const cas of 'ABCD') console.table(rows.filter((r) => r.run.startsWith(cas)));
 console.table(Object.fromEntries(Object.entries(agg).map(([k, v]) => [k, { PASS: `${v.pass}/${v.n}`, coutMoy: (v.cost / v.n).toFixed(3), sMoy: Math.round(v.s / v.n), toursMoy: (v.turns / v.n).toFixed(1) }])));
 
 const totalPass = rows.filter((r) => r.PASS).length;

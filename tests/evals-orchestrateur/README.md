@@ -8,7 +8,8 @@ codé en dur, tout se pose dans un dossier temporaire du système, jamais dans l
 ## Usage
 
 ```bash
-bash tests/evals-orchestrateur/lancer.sh                 # pose les bases, rejoue A/B/C, Sonnet low, 3 essais
+bash tests/evals-orchestrateur/lancer.sh                 # pose les bases, rejoue A/B/C/D, Sonnet low, 3 essais
+bash tests/evals-orchestrateur/lancer.sh --cas D --essais 5   # un sous-ensemble de cas
 node tests/evals-orchestrateur/noter.mjs                 # note le dernier rejeu
 node tests/evals-orchestrateur/noter.mjs -v               # + le détail des appels et de la réponse finale
 
@@ -19,7 +20,7 @@ bash tests/evals-orchestrateur/lancer.sh --model sonnet --effort medium --essais
 `poser-cas.sh` peut aussi se lancer seul (pose les bases et vérifie `prochaine-action.mjs`, sans
 appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
 
-## Les trois cas
+## Les quatre cas
 
 - **A** — vague parallèle à efforts mêlés (fixture `Sonnet low` / `Opus high`), lignes « en clair »
   du plan recopiées mot pour mot. Attendu : premier geste = lancement de **S1 seule** (D4 : la
@@ -35,6 +36,12 @@ appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
   (`N. <option> — <coût> · débloque <…>`). Attendu : question au format `❓ P99/S1`, les trois lignes
   recopiées **à l'identique** (égalité de ligne stricte — voir Pièges), une « Ma recommandation », et
   « reste lançable sans décider : rien ».
+- **D** — plan long repris en vague 3 (8 sessions, 5 vagues), contexte chargé : le prompt commence par
+  le journal des tours précédents (`journal-d.mjs`, ~24 k tokens), qui finit sur la 1re reprise de S6
+  en `session-low · haiku`. Le script rend la 2e reprise un cran au-dessus. Attendu, jugé sur les
+  seuls blocs `Agent({…})` : `session-medium` · `sonnet`, `/reprendre-echec` sur
+  `plans/P99/S6.echec.md`, rien en Haiku ni `session-low` (le piège de mémoire), pas de lancement de S7.
+  Prompt passé par l'entrée standard : il dépasse la ligne de commande Windows.
 
 ## Fixtures
 
