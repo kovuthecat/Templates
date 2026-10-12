@@ -148,7 +148,8 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
   avant ajout de feature » retiré ; une règle, un fichier (`CLAUDE.md`) ; revue des 21 projets un
   par un → [détail](docs/decisions/2026-10-08-regles-de-projet-validees.md)
 - 2026-10-12 — **Génération 5.5** — clés `modelSettings` en `claude-*-5-5` ; Haiku `medium` (plus
-  `low`) ; `/maj-workflow` signale les clés manquantes → [détail](docs/decisions/2026-10-12-generation-5-5.md)
+  `low`) ; orchestrateur en Haiku · medium (banc 18/20 contre 20/20 Sonnet, 14× moins cher) ;
+  `/maj-workflow` signale les clés manquantes → [détail](docs/decisions/2026-10-12-generation-5-5.md)
 
 ## Archives
 

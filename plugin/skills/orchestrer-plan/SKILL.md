@@ -5,11 +5,9 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 
 # Orchestrer un plan
 
-L'orchestrateur tourne en **Sonnet · medium**. Si tu tournes en Opus, dis-le à l'utilisateur au
-premier tour : il paie Opus pour exécuter un script.
-
-Sonnet, jamais Haiku (`WORKFLOW.md` §3) pour l'orchestrateur lui-même — contrainte inchangée. Chaque
-session tourne, elle, à l'effort de sa ligne d'index : le champ `agent` rendu par le script
+L'orchestrateur tourne en **Haiku · medium** (`WORKFLOW.md` §3). Si tu tournes en Opus ou en
+Sonnet, dis-le à l'utilisateur au premier tour : il paie un modèle plus cher pour exécuter un script.
+Chaque session tourne, elle, à l'effort de sa ligne d'index : le champ `agent` rendu par le script
 (`subagent_type`, `model`) le porte en frontmatter (Étape 1), recopié tel quel, sans geste humain à
 régler avant de lancer.
 Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
