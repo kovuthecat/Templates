@@ -231,8 +231,8 @@ cas('postmodelswitch-journal (gitfile) : journal écrit sous <arbre>/.claude/, j
   const s = lancerHook('postmodelswitch-journal.mjs', {
     cwd: arbre,
     session_id: 'test-' + randomUUID(),
-    from_model: 'claude-sonnet-5',
-    to_model: 'claude-opus-5',
+    from_model: 'claude-sonnet-5-5',
+    to_model: 'claude-opus-5-5',
   });
   if (s !== '') return `attendu vide (jamais bloquant), reçu: ${s}`;
   const journal = join(arbre, '.claude', 'journal-modeles.jsonl');
@@ -614,14 +614,14 @@ function poserPlan(repo, lignes) {
 cas('sessionstart-contexte : signale un modèle absent des sessions restantes', () => {
   const repo = creerDepot();
   poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']);
-  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-5-5' });
   return /lancée en haiku/.test(s) ? null : `signal absent, reçu: ${s || '(vide)'}`;
 });
 
 cas('sessionstart-contexte : silencieux quand le modèle correspond au plan', () => {
   const repo = creerDepot();
   poserPlan(repo, ['| [S1](S1.md) | T1 | … | Sonnet | medium | — | — | `src/` | [ ] |']);
-  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5' });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-sonnet-5-5' });
   return /lancée en/.test(s) ? `signal présent à tort: ${s}` : null;
 });
 
@@ -710,14 +710,14 @@ cas('sessionstart-contexte : ignore les sessions déjà faites', () => {
     '| [S1](S1.md) | T1 | … | Haiku | low | — | — | `src/` | [x] |',
     '| [S2](S2.md) | T2 | … | Sonnet | medium | — | — | `src/` | [ ] |',
   ]);
-  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-5-5' });
   // Haiku ne vaut que pour S1, déjà faite : le signal doit tomber.
   return /lancée en haiku/.test(s) ? null : `signal absent alors que S1 est faite, reçu: ${s || '(vide)'}`;
 });
 
 cas('sessionstart-contexte : muet sans plan', () => {
   const repo = creerDepot();
-  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-4-5' });
+  const s = lancerHook('sessionstart-contexte.mjs', { cwd: repo, model: 'claude-haiku-5-5' });
   return /lancée en/.test(s) ? `signal présent sans plan: ${s}` : null;
 });
 
@@ -855,14 +855,14 @@ cas('postmodelswitch-journal : écrit une ligne JSONL et reste silencieux', () =
   const s = lancerHook('postmodelswitch-journal.mjs', {
     cwd: repo,
     session_id: 'test-' + randomUUID(),
-    from_model: 'claude-sonnet-5',
-    to_model: 'claude-opus-5',
+    from_model: 'claude-sonnet-5-5',
+    to_model: 'claude-opus-5-5',
   });
   if (s !== '') return `attendu vide (jamais bloquant), reçu: ${s}`;
   const journal = join(repo, '.claude', 'journal-modeles.jsonl');
   if (!existsSync(journal)) return 'journal non écrit';
   const ligne = JSON.parse(readFileSync(journal, 'utf8').trim());
-  if (ligne.de !== 'claude-sonnet-5' || ligne.vers !== 'claude-opus-5') {
+  if (ligne.de !== 'claude-sonnet-5-5' || ligne.vers !== 'claude-opus-5-5') {
     return `contenu inattendu: ${JSON.stringify(ligne)}`;
   }
   return null;
@@ -872,8 +872,8 @@ cas('postmodelswitch-journal : n’écrit rien sur un changement nul', () => {
   const repo = creerDepot();
   lancerHook('postmodelswitch-journal.mjs', {
     cwd: repo,
-    from_model: 'claude-opus-5',
-    to_model: 'claude-opus-5',
+    from_model: 'claude-opus-5-5',
+    to_model: 'claude-opus-5-5',
   });
   return existsSync(join(repo, '.claude', 'journal-modeles.jsonl'))
     ? 'journal écrit alors que le modèle n’a pas changé'

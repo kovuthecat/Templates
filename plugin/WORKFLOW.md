@@ -1,6 +1,6 @@
 # WORKFLOW.md — Modèles, effort, plans, validation, garde-fous
 
-Source unique : répartition du travail, format des plans, niveaux de validation ; les autres fichiers y renvoient. Modèles actuels : Fable 5.1 · Opus 5.5 · Sonnet 5 · Haiku 4.5. Squelettes de plan : skill `/nouveau-plan`, pas ici.
+Source unique : répartition du travail, format des plans, niveaux de validation ; les autres fichiers y renvoient. Modèles actuels : Fable 5.1 · Opus 5.5 · Sonnet 5.5 · Haiku 5.5. Squelettes de plan : skill `/nouveau-plan`, pas ici.
 
 ## 1. Principe directeur
 ### Glossaire — mots à double sens
@@ -71,7 +71,7 @@ Défaut : `.claude/settings.json` du projet. Chaque `S<k>.md` porte **modèle + 
 | Effort, `thinking` | ✓ | selon modèle | ✗ |
 | Messages, images | ✓ | ✓ | ✗ |
 
-Seuls outils et modèle forcent une reconstruction complète (aucune échappatoire). Minimum cacheable : 512 (Opus 5), 1 024 (Sonnet 5), **4 096 (Haiku 4.5)**. Une entrée ne remonte que 20 positions. Conséquences : régler modèle **et** effort avant de lancer (§3) évite de repayer le préfixe ; `/compact` juste avant un changement **délibéré**, jamais avant une escalade (le résumé perdrait les impasses qui la justifient) ; chaque sous-agent part à froid, payé plein tarif — d'où le socle court. **Lancer une vague en décalé** : le cache ne se lit qu'après le streaming de la première réponse — sur 4 sessions, la part partagée passe d'environ 5,0× à 1,55× le prix d'entrée.
+Seuls outils et modèle forcent une reconstruction complète (aucune échappatoire). Minimum cacheable : 512 tokens sur Opus 5.5, Sonnet 5.5 et Haiku 5.5 (contre 4 096 sur Haiku 4.5 — plus de falaise sur Haiku). Une entrée ne remonte que 20 positions. Conséquences : régler modèle **et** effort avant de lancer (§3) évite de repayer le préfixe ; `/compact` juste avant un changement **délibéré**, jamais avant une escalade (le résumé perdrait les impasses qui la justifient) ; chaque sous-agent part à froid, payé plein tarif — d'où le socle court. **Lancer une vague en décalé** : le cache ne se lit qu'après le streaming de la première réponse — sur 4 sessions, la part partagée passe d'environ 5,0× à 1,55× le prix d'entrée.
 
 **Quota Pro** : vagues séquentielles par défaut (déjà la règle §4b) — le parallèle concentre la dépense dans la même fenêtre de quota, à réserver aux zones vraiment disjointes.
 
