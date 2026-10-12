@@ -2,48 +2,62 @@
 
 ## Ce que ça change
 
-**Sur les trois gestes du banc, Haiku 5.5 fait jeu égal avec Sonnet 5.5 : 8 sur 9 chacun, pour un
-coût 15× plus bas par geste** (≈ 0,007 $ contre ≈ 0,11 $). Après correction de l'instrument, la
-mesure ne retrouve plus le décrochage de Haiku 4.5 en septembre (4/6 contre 6/6).
+**La mesure ne justifie plus « Sonnet, jamais Haiku ».** Sur le banc complet, Haiku 5.5 (`medium`)
+fait jeu égal avec Sonnet 5.5 (`medium`) : **13 gestes réussis sur 14 chacun**, dont 5/5 sur le cas
+qui avait fait tomber Haiku 4.5, un plan long repris en contexte chargé. Il coûte **14× moins cher
+par geste** (0,024 $ contre 0,334 $ sur ce cas long).
 
-**Sonnet reste pourtant l'orchestrateur, pour l'instant.** Le banc ne joue que des gestes courts, en
-contexte frais. Or c'est sur un plan long à plusieurs vagues, en contexte dégradé, que Haiku 4.5
-s'effondrait (1/6 contre 6/6), et ce cas n'a pas été rejoué. La bascule se décide sur ce cas-là, pas
-sur celui-ci.
+**Haiku `high` n'apporte rien** : 12/14, plus lent, et pas plus fiable. `medium` suffit.
 
-Prochaine mesure : un cas « contexte dégradé / plan long » ajouté au banc, joué par les deux
-modèles. Si Haiku y tient, la bascule devient une décision à prendre ; sinon, la question est close
-pour cette génération.
+**Le seul cas encore raté par les deux modèles est un flou du texte, pas du modèle.** Sur la
+question « budget de reprises épuisé » (cas C), Haiku comme Sonnet répondent parfois sans ouvrir le
+rapport d'échec, alors que les options s'y trouvent. Plusieurs disent s'en abstenir « comme la skill
+l'interdit ». La commande qui lit ces options n'est écrite que dans l'annexe `remediation.md`, sous
+un autre cas, et `SKILL.md` interdit en tête « d'ouvrir un `S<k>.md` ». Le rapport `S<k>.echec.md`
+est lu comme couvert par cet interdit.
+
+Ce que la mesure ne couvre pas : elle note le **premier geste** d'un orchestrateur, sur un état
+posé. Une vraie orchestration enchaîne des dizaines de gestes et des retours d'agents réels. Le cas
+D simule cette longueur (journal de ~24 k tokens, contexte de ~75 k tokens à la première requête) ;
+il ne la rejoue pas.
 
 ## Résultats
 
-Banc `tests/evals-orchestrateur/` (cas A, B, C décrits dans son README), Claude Code 2.1.296
-(`haiku` → `claude-haiku-5-5`, `sonnet` → `claude-sonnet-5-5`), effort `medium`, 3 essais par cas.
+Banc `tests/evals-orchestrateur/` (cas A à D, décrits dans son README), Claude Code 2.1.296
+(`haiku` → `claude-haiku-5-5`, `sonnet` → `claude-sonnet-5-5`).
 
-**Mesure retenue** (fixture C corrigée, correcteur corrigé) :
+| Cas | Haiku `medium` | Haiku `high` | Sonnet `medium` |
+| --- | :---: | :---: | :---: |
+| A — vague parallèle à efforts mêlés | 3/3 | 3/3 | 3/3 |
+| B — reprise à froid | 3/3 | 3/3 | 3/3 |
+| C — question sur un budget épuisé | 2/3 | 1/3 | 2/3 |
+| D — plan long repris, piège de mémoire | 5/5 | 5/5 | 5/5 |
+| **Total** | **13/14** | **12/14** | **13/14** |
+| Coût moyen, cas A-C | ≈ 0,007 $ | ≈ 0,009 $ | ≈ 0,11 $ |
+| Coût moyen, cas D | 0,024 $ | 0,024 $ | 0,334 $ |
 
-| Cas | Haiku 5.5 | Sonnet 5.5 |
-| --- | :---: | :---: |
-| A — vague parallèle à efforts mêlés | 3/3 | 3/3 |
-| B — reprise à froid | 3/3 | 3/3 |
-| C — question sur un budget épuisé | 2/3 | 2/3 |
-| **Total** | **8/9** | **8/9** |
-| Coût moyen d'un geste | ≈ 0,007 $ | ≈ 0,11 $ |
+**Cas D — ce qu'il teste.** Plan de 8 sessions en 5 vagues, repris en vague 3. S1 à S5 sont faites
+et relues. S6 (Haiku `low`) a échoué après sa 1re reprise. Le prompt commence par le journal des
+tours précédents (`journal-d.mjs`) : vagues, appels d'agents, verdicts, sorties de N0. Ce journal se
+termine sur la 1re reprise de S6, lancée en `session-low · haiku`. Le script, lui, rend désormais la
+2e reprise un cran au-dessus (Haiku → Sonnet, `session-medium · sonnet`). Un orchestrateur qui se fie
+à sa mémoire relance en Haiku ; c'est l'erreur de 2026-09 (« attribuer au script une action qu'il
+n'a pas rendue »). Les trois configurations ont relancé le script et suivi sa sortie, 15 fois sur 15.
 
-Les deux échecs restants ne sont pas de même gravité :
+**Échecs de C, toutes configurations** : aucune option inventée par Haiku. Il répond sans ouvrir le
+rapport (2 essais en `high`) ou recopie les options avec des backticks ajoutés (1 essai en
+`medium`). Sonnet a une fois inventé trois options, en le disant, sans avoir ouvert le rapport.
 
-- **Haiku, C** : options recopiées fidèlement, mais avec des backticks ajoutés (`` `parseDate` ``,
-  `` `src/a.mjs` ``). C'est une faute de forme ; le fond est juste.
-- **Sonnet, C** : n'ouvre pas le rapport d'échec et **invente trois options** (il le dit
-  honnêtement). Faute de fond.
+**Première campagne** (avant la correction de la fixture C) : Haiku 5/9, Sonnet 8/9. Deux échecs de
+Haiku y restent réels : un lancement des deux sessions dans le même message (cas A, règle D4) et un
+rapport non ouvert (cas C). Les autres venaient de l'instrument.
 
-**Première campagne** (fixture C fautive, voir plus bas) : Haiku 5/9, Sonnet 8/9. Deux échecs de
-Haiku y restent réels après correction du correcteur. Sur A, il a lancé les deux sessions dans le
-même message (règle D4 : la première seule). Sur C, il n'a pas ouvert le rapport et a affirmé
-n'avoir aucune option. Les échecs de C sur les deux autres essais venaient de la fixture.
+## Correctif de texte proposé (non fait)
 
-Sur les deux campagnes, chaque modèle a donc fait au moins une fois l'erreur la plus grave : ne pas
-ouvrir le rapport d'échec et répondre quand même. Haiku est le seul à avoir enfreint D4.
+Dans `plugin/skills/orchestrer-plan/SKILL.md`, à côté de « Options jamais inventées ici », dire en
+clair : sur une `question` qui porte sur une session en échec, lire les options avec
+`sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md`. Ce rapport n'est **pas** un `S<k>.md`, et
+le lire est permis. Puis rejouer C sur les deux modèles.
 
 ## Défauts de l'instrument trouvés en route (tous corrigés)
 
@@ -51,21 +65,19 @@ ouvrir le rapport d'échec et répondre quand même. Haiku est le seul à avoir 
   clone, faisaient voir S1 comme déjà faite. Passé en `P99`.
 - **Attendu de B antérieur à la décision du 2026-09-24**, selon laquelle une première reprise garde
   le modèle de l'index : S1 de la fixture B passe en Opus `high`, l'attendu reste inchangé.
-- **Options de la fixture C sans « · débloque … »**, alors que le format de question l'exige : le
-  texte poussait les deux modèles à en inventer une. Complétées, ici et dans les lignes attendues.
-- **Critère `s1Seule` jugé sur tout le texte** : annoncer en prose que S2 (`session-high`, `opus`)
-  partira au message suivant, ce que D4 demande, comptait comme un lancement. Il est désormais jugé
-  sur les seuls blocs `Agent({…})`. Un essai Haiku de la mesure retenue en était victime.
-- **Ouvert, sans effet sur la note** : les fixtures déclarent `Workflow : v0.40.0`. Le script le
-  signale et les deux modèles en parlent.
+- **Options de la fixture C sans « · débloque … »** alors que le format l'exige : elles poussaient à
+  en inventer. Complétées, dans la fixture comme dans les lignes attendues.
+- **Critère `s1Seule` jugé sur tout le texte** : annoncer en prose que S2 partira au message suivant
+  comptait comme un lancement. Jugé désormais sur les seuls blocs `Agent({…})`.
+- **Ouvert, sans effet sur la note** : les fixtures A-C déclarent `Workflow : v0.40.0` (D déclare la
+  version courante). Le script le signale, et les modèles en parlent.
 
 ## Reproduire
 
 ```bash
-bash tests/evals-orchestrateur/lancer.sh --model haiku --effort medium --essais 3
-node tests/evals-orchestrateur/noter.mjs
-bash tests/evals-orchestrateur/lancer.sh --model sonnet --effort medium --essais 3
-node tests/evals-orchestrateur/noter.mjs
+bash tests/evals-orchestrateur/lancer.sh --model haiku --effort medium --essais 3 --cas "A B C"
+bash tests/evals-orchestrateur/lancer.sh --model haiku --effort medium --essais 5 --cas D
+node tests/evals-orchestrateur/noter.mjs        # après chaque lancement : il note le dernier
 ```
 
 Le banc lance le `claude` du PATH : vérifier d'abord que `claude -p --model haiku` résout bien
