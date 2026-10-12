@@ -2,50 +2,62 @@
 
 ## Ce que ça change
 
-**Rien : Sonnet reste l'orchestrateur.** Haiku 5.5 réussit 5 gestes sur 9, contre 8 sur 9 pour
-Sonnet 5.5 sur le même banc, au même effort (`medium`). Ses échecs restent du genre qui avait écarté
-Haiku 4.5 : il **affirme un fait qu'il n'a pas vérifié** ou **ajoute ce que la source ne dit pas**.
-Il est 15× moins cher par geste (≈ 0,008 $ contre ≈ 0,12 $), mais un orchestrateur qui invente lance la
-mauvaise session, et l'économie ne couvre pas ce risque. À rouvrir à la génération Haiku suivante, ou
-sur un texte de skill qui ferait tomber les échecs ci-dessous chez Haiku.
+**Sur les trois gestes du banc, Haiku 5.5 fait jeu égal avec Sonnet 5.5 : 8 sur 9 chacun, pour un
+coût 15× plus bas par geste** (≈ 0,007 $ contre ≈ 0,11 $). Après correction de l'instrument, la
+mesure ne retrouve plus le décrochage de Haiku 4.5 en septembre (4/6 contre 6/6).
+
+**Sonnet reste pourtant l'orchestrateur, pour l'instant.** Le banc ne joue que des gestes courts, en
+contexte frais. Or c'est sur un plan long à plusieurs vagues, en contexte dégradé, que Haiku 4.5
+s'effondrait (1/6 contre 6/6), et ce cas n'a pas été rejoué. La bascule se décide sur ce cas-là, pas
+sur celui-ci.
+
+Prochaine mesure : un cas « contexte dégradé / plan long » ajouté au banc, joué par les deux
+modèles. Si Haiku y tient, la bascule devient une décision à prendre ; sinon, la question est close
+pour cette génération.
 
 ## Résultats
 
 Banc `tests/evals-orchestrateur/` (cas A, B, C décrits dans son README), Claude Code 2.1.296
 (`haiku` → `claude-haiku-5-5`, `sonnet` → `claude-sonnet-5-5`), effort `medium`, 3 essais par cas.
 
+**Mesure retenue** (fixture C corrigée, correcteur corrigé) :
+
 | Cas | Haiku 5.5 | Sonnet 5.5 |
 | --- | :---: | :---: |
-| A — vague parallèle à efforts mêlés | 2/3 | 3/3 |
+| A — vague parallèle à efforts mêlés | 3/3 | 3/3 |
 | B — reprise à froid | 3/3 | 3/3 |
-| C — question sur un budget épuisé | 0/3 | 2/3 |
-| **Total** | **5/9** | **8/9** |
-| Coût moyen d'un geste | ≈ 0,008 $ | ≈ 0,12 $ |
+| C — question sur un budget épuisé | 2/3 | 2/3 |
+| **Total** | **8/9** | **8/9** |
+| Coût moyen d'un geste | ≈ 0,007 $ | ≈ 0,11 $ |
 
-Échecs de Haiku, lus dans les sorties :
+Les deux échecs restants ne sont pas de même gravité :
 
-- **C, essai 1** : n'ouvre pas le rapport `S1.echec.md`, puis affirme qu'il n'a « aucune option à
-  recopier ». Il recommande même de vérifier si ce rapport existe.
-- **C, essais 2 et 3** : options reformulées. Haiku ajoute des « coût : … · débloque … » absents du
-  rapport, dont une conséquence inventée.
-- **A, essai 2** : lance les deux sessions dans le même message (règle D4 : la première seule), et
-  annonce une « validation humaine » en fin de vague que le plan ne déclare pas.
+- **Haiku, C** : options recopiées fidèlement, mais avec des backticks ajoutés (`` `parseDate` ``,
+  `` `src/a.mjs` ``). C'est une faute de forme ; le fond est juste.
+- **Sonnet, C** : n'ouvre pas le rapport d'échec et **invente trois options** (il le dit
+  honnêtement). Faute de fond.
 
-Le seul échec de Sonnet (C, essai 2) ajoute « · débloque … » à chaque option. Voir le défaut de
-l'instrument ci-dessous.
+**Première campagne** (fixture C fautive, voir plus bas) : Haiku 5/9, Sonnet 8/9. Deux échecs de
+Haiku y restent réels après correction du correcteur. Sur A, il a lancé les deux sessions dans le
+même message (règle D4 : la première seule). Sur C, il n'a pas ouvert le rapport et a affirmé
+n'avoir aucune option. Les échecs de C sur les deux autres essais venaient de la fixture.
 
-## Défauts de l'instrument trouvés en route
+Sur les deux campagnes, chaque modèle a donc fait au moins une fois l'erreur la plus grave : ne pas
+ouvrir le rapport d'échec et répondre quand même. Haiku est le seul à avoir enfreint D4.
 
-- **Corrigé : le plan fictif s'appelait `P9`.** Depuis, le dépôt a un vrai P9, et ses repères de
-  commit, présents dans le clone, faisaient voir S1 comme déjà faite. La fixture passe en `P99`.
-- **Corrigé : l'attendu de B datait d'avant la décision du 2026-09-24**, selon laquelle une première
-  reprise garde le modèle de l'index. La fixture B passe S1 en Opus `high`, et l'attendu (session-high /
-  opus) est inchangé.
-- **Ouvert : les options de la fixture C n'ont pas de partie « · débloque … »**, alors que le format de
-  question l'exige. Le texte pousse donc à en ajouter une, ce qui pénalise les deux modèles. À
-  corriger avant la prochaine mesure, et à rejouer sur les deux modèles.
-- **Ouvert : les fixtures déclarent `Workflow : v0.40.0`.** Le script le signale, et les deux modèles
-  en parlent dans leur réponse. Ce bruit ne fait échouer aucun critère.
+## Défauts de l'instrument trouvés en route (tous corrigés)
+
+- **Plan fictif `P9`** : le dépôt a eu depuis un vrai P9, et ses repères de commit, présents dans le
+  clone, faisaient voir S1 comme déjà faite. Passé en `P99`.
+- **Attendu de B antérieur à la décision du 2026-09-24**, selon laquelle une première reprise garde
+  le modèle de l'index : S1 de la fixture B passe en Opus `high`, l'attendu reste inchangé.
+- **Options de la fixture C sans « · débloque … »**, alors que le format de question l'exige : le
+  texte poussait les deux modèles à en inventer une. Complétées, ici et dans les lignes attendues.
+- **Critère `s1Seule` jugé sur tout le texte** : annoncer en prose que S2 (`session-high`, `opus`)
+  partira au message suivant, ce que D4 demande, comptait comme un lancement. Il est désormais jugé
+  sur les seuls blocs `Agent({…})`. Un essai Haiku de la mesure retenue en était victime.
+- **Ouvert, sans effet sur la note** : les fixtures déclarent `Workflow : v0.40.0`. Le script le
+  signale et les deux modèles en parlent.
 
 ## Reproduire
 
