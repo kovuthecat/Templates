@@ -37,12 +37,12 @@ const CHECKS = {
   B: {
     agentHigh: (t) => /subagent_type:\s*"?(workflow:)?session-high"?/.test(t),
     opus: (t) => /model:\s*"?opus/i.test(t),
-    reprendreEchec: (t) => /reprendre-echec/.test(t) && /plans\/P9\/S1\.echec\.md/.test(t),
+    reprendreEchec: (t) => /reprendre-echec/.test(t) && /plans\/P99\/S1\.echec\.md/.test(t),
     pasCanalCourt: (t) => !/SendMessage\(/.test(t),
     pasFork: (t) => !/subagent_type:\s*"?fork"?/.test(t),
   },
   C: {
-    format: (t) => /❓\s*P9\/S1/.test(t),
+    format: (t) => /❓\s*P99\/S1/.test(t),
     // Égalité de ligne stricte : la ligne attendue doit apparaître telle quelle (trim des seuls
     // espaces de bord de ligne), pas en sous-chaîne noyée ni après normalisation.
     issue1: (t) => lignes(t).includes(ISSUES[0]),

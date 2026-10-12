@@ -25,15 +25,15 @@ mkdir -p "$BASE/cas"
 
 for c in A B C; do
   d="$BASE/cas/base-$c"; rm -rf "$d"; cp -r "$BASE/clone" "$d"
-  rm -rf "$d/plans/P9"; mkdir -p "$d/plans/P9"
+  rm -rf "$d/plans/P99"; mkdir -p "$d/plans/P99"
   for k in 1 2; do
-    printf '# P9 · S%s\n\nCANARI-S%s : ce fichier ne doit jamais être ouvert par l orchestrateur.\n' "$k" "$k" > "$d/plans/P9/S$k.md"
+    printf '# P99 · S%s\n\nCANARI-S%s : ce fichier ne doit jamais être ouvert par l orchestrateur.\n' "$k" "$k" > "$d/plans/P99/S$k.md"
   done
 done
 
 # A — vague parallèle à efforts mêlés, lignes « en clair »
-cat > "$BASE/cas/base-A/plans/P9/index.md" <<'EOF'
-# Plan P9 — Réservations : validation des dates
+cat > "$BASE/cas/base-A/plans/P99/index.md" <<'EOF'
+# Plan P99 — Réservations : validation des dates
 
 ## Objectif d'ensemble
 Refuser côté formulaire les réservations aux dates incohérentes.
@@ -56,10 +56,13 @@ EOF
 # B et C — base moteur (fixture existante du dépôt), échec exécution sur S1
 F="$RACINE/tests/fixtures/plans"
 for c in B C; do
-  sed 's/^# Plan P<n> — Fixture moteur (S10)/# Plan P9 — Fixture/; s/Workflow : v0.39.0/Workflow : v0.40.0/' \
-    "$F/moteur-base/index.md" > "$BASE/cas/base-$c/plans/P9/index.md"
+  sed 's/^# Plan P<n> — Fixture moteur (S10)/# Plan P99 — Fixture/; s/Workflow : v0.39.0/Workflow : v0.40.0/' \
+    "$F/moteur-base/index.md" > "$BASE/cas/base-$c/plans/P99/index.md"
 done
-cat > "$BASE/cas/base-B/plans/P9/S1.echec.md" <<'EOF'
+# B — 1re reprise = modèle de l index inchangé (décision du 2026-09-24) : S1 en Opus high pour que
+# la reprise attendue reste session-high / opus.
+sed -i 's/^\(| \[S1\](S1.md) .*\)| Sonnet | medium |/\1| Opus | high |/' "$BASE/cas/base-B/plans/P99/index.md"
+cat > "$BASE/cas/base-B/plans/P99/S1.echec.md" <<'EOF'
 # S1 — échec du 2026-09-22
 
 Nature : exécution
@@ -68,7 +71,7 @@ Blocage : relancer le build après correction du type de retour de parseDate dan
 Auto : non
 EOF
 # Cas C — les trois lignes `## Issues` au format posé par S2/T5 : `N. <option> — <coût> · débloque <…>`.
-cat > "$BASE/cas/base-C/plans/P9/S1.echec.md" <<'EOF'
+cat > "$BASE/cas/base-C/plans/P99/S1.echec.md" <<'EOF'
 # S1 — échec du 2026-09-22
 
 Nature : exécution
@@ -94,7 +97,7 @@ echo "Vérification (prochaine-action.mjs) — un autre résultat que ci-dessous
 FAIL=0
 for c in A B C; do
   echo "== $c"
-  sortie="$(cd "$BASE/cas/base-$c" && node plugin/bin/prochaine-action.mjs P9)"
+  sortie="$(cd "$BASE/cas/base-$c" && node plugin/bin/prochaine-action.mjs P99)"
   echo "$sortie"
   case "$c" in
     A) echo "$sortie" | grep -q '^lancer' || { echo "ATTENDU : lancer — obtenu ci-dessus"; FAIL=1; } ;;

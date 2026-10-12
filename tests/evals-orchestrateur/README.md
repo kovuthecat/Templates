@@ -27,20 +27,20 @@ appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
   notification), bloc avec `subagent_type: "session-low"` et `model: "sonnet"` recopiés du champ
   `agent` rendu par le script ; aucun appel à `resumeur-git` ; aucun `S<k>.md` ouvert (canari absent
   — un orchestrateur qui suit le script n'a jamais besoin de l'ouvrir).
-- **B** — reprise à froid sur `plans/P9/S1.echec.md` (`Nature : exécution`). Attendu :
+- **B** — reprise à froid sur `plans/P99/S1.echec.md` (`Nature : exécution`). Attendu :
   `subagent_type: "session-high"`, `model: "opus"`, `/reprendre-echec` invoquée sur ce fichier ;
   aucun `SendMessage` (canal court non applicable ici) ; aucun `fork`.
 - **C** — budget de reprises épuisé sur S1 (`Tentatives : reprise=2 enquete=1`), rapport avec une
   section `## Issues` de trois options déjà au format posé par S2/T5
-  (`N. <option> — <coût> · débloque <…>`). Attendu : question au format `❓ P9/S1`, les trois lignes
+  (`N. <option> — <coût> · débloque <…>`). Attendu : question au format `❓ P99/S1`, les trois lignes
   recopiées **à l'identique** (égalité de ligne stricte — voir Pièges), une « Ma recommandation », et
   « reste lançable sans décider : rien ».
 
 ## Fixtures
 
-Les trois index de `plans/P9/` sont écrits par `poser-cas.sh` (A) ou dérivés de
+Les trois index de `plans/P99/` sont écrits par `poser-cas.sh` (A) ou dérivés de
 `tests/fixtures/plans/moteur-base/index.md` (B, C). `poser-cas.sh` vérifie, avant tout lancement de
-`claude`, que `node plugin/bin/prochaine-action.mjs P9` rend bien A `lancer`, B
+`claude`, que `node plugin/bin/prochaine-action.mjs P99` rend bien A `lancer`, B
 `reprendre — S1 (Opus)`, C `question` — un autre résultat est une fixture à corriger, pas un attendu
 à ajuster.
 
