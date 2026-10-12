@@ -23,6 +23,12 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
   - Constat pour S3 (outillage instancié) : Prettier sur poste Windows (`core.autocrlf=true`) signale
     tout fichier en CRLF — `"endOfLine": "auto"` (Interface-OE : 124 faux écarts sur 151, `95e9910`)
 
+## Génération 5.5 (`docs/decisions/2026-10-12-generation-5-5.md`)
+
+- [ ] Fin du chantier : Haiku `medium` partout, `modelSettings` en retard signalés → plan P18 (`plans/P18/index.md`)
+  - Haiku medium partout, réglages de modèle en retard signalés · → plans/P18/S1.md
+  - Publication 0.64.0 · → plans/P18/S2.md
+
 ## Backlog de revue (non bloquant)
 
 - **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
