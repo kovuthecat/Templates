@@ -1697,6 +1697,97 @@ cas('sync-workflow : une marketplace à jour, une autre en retard → sortie 3 s
   return null;
 });
 
+// ── Dérive conservée, obsolète modifié, manifeste illisible, binaires (P19/S2/T2) ──
+function syncMaj(version, fichiers) {
+  const source = dossierJetable('workflow-maj-source-');
+  mkdirSync(join(source, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, '.claude-plugin', 'plugin.json'), JSON.stringify({ version }));
+  for (const [nom, contenu] of Object.entries(fichiers)) writeFileSync(join(source, nom), contenu);
+  return source;
+}
+function lancerSync(source, projet, config, extra = []) {
+  return lancer(SYNC_WORKFLOW, ['--source', source, '--projet', projet, ...extra], projet, { CLAUDE_CONFIG_DIR: config });
+}
+
+cas('sync-workflow : dérive locale — signalée et contenu intact aux 2ᵉ ET 3ᵉ passages', () => {
+  const source = syncMaj('1.0.0', { 'CLAUDE-BASE.md': '# base\n' });
+  const projet = dossierJetable('workflow-maj-projet-');
+  const config = dossierJetable('workflow-maj-config-');
+  const cible = join(projet, '.claude/workflow/CLAUDE-BASE.md');
+  let r = lancerSync(source, projet, config);
+  if (r.code !== 0) return `passage 1: code ${r.code}: ${r.sortie}`;
+  writeFileSync(cible, '# base modifiée localement\n');
+  for (const n of [2, 3]) {
+    r = lancerSync(source, projet, config);
+    if (r.code !== 0) return `passage ${n}: code ${r.code}: ${r.sortie}`;
+    if (!/DÉRIVE\s+\.claude\/workflow\/CLAUDE-BASE\.md/.test(r.sortie)) return `passage ${n}: DÉRIVE absente: ${r.sortie}`;
+    if (readFileSync(cible, 'utf8') !== '# base modifiée localement\n') return `passage ${n}: contenu local écrasé`;
+  }
+  return null;
+});
+
+cas('sync-workflow : obsolète modifié localement — gardé et signalé aux deux passages, supprimé par --force', () => {
+  const projet = dossierJetable('workflow-maj-projet-');
+  const config = dossierJetable('workflow-maj-config-');
+  const s1 = syncMaj('1.0.0', { 'CLAUDE-BASE.md': '# base\n', 'WORKFLOW.md': '# wf\n' });
+  let r = lancerSync(s1, projet, config);
+  if (r.code !== 0) return `sync initial: ${r.sortie}`;
+  const cible = join(projet, '.claude/workflow/WORKFLOW.md');
+  writeFileSync(cible, '# wf local\n');
+  const s2 = syncMaj('1.0.1', { 'CLAUDE-BASE.md': '# base\n' });
+  for (const n of [1, 2]) {
+    r = lancerSync(s2, projet, config);
+    if (r.code !== 0) return `passage ${n}: code ${r.code}: ${r.sortie}`;
+    if (!/DÉRIVE\s+\.claude\/workflow\/WORKFLOW\.md/.test(r.sortie)) return `passage ${n}: DÉRIVE absente: ${r.sortie}`;
+    if (!existsSync(cible) || readFileSync(cible, 'utf8') !== '# wf local\n') return `passage ${n}: obsolète modifié perdu`;
+  }
+  r = lancerSync(s2, projet, config, ['--force']);
+  if (r.code !== 0) return `--force: code ${r.code}: ${r.sortie}`;
+  if (existsSync(cible)) return '--force devait supprimer l\'obsolète';
+  return null;
+});
+
+cas('sync-workflow : obsolète propre — supprimé', () => {
+  const projet = dossierJetable('workflow-maj-projet-');
+  const config = dossierJetable('workflow-maj-config-');
+  let r = lancerSync(syncMaj('1.0.0', { 'CLAUDE-BASE.md': '# b\n', 'WORKFLOW.md': '# wf\n' }), projet, config);
+  if (r.code !== 0) return `sync initial: ${r.sortie}`;
+  r = lancerSync(syncMaj('1.0.1', { 'CLAUDE-BASE.md': '# b\n' }), projet, config);
+  if (r.code !== 0) return `code ${r.code}: ${r.sortie}`;
+  if (existsSync(join(projet, '.claude/workflow/WORKFLOW.md'))) return 'obsolète propre non supprimé';
+  return null;
+});
+
+cas('sync-workflow : manifeste illisible → sortie 2, nommé, arbre inchangé', () => {
+  const source = syncMaj('1.0.0', { 'CLAUDE-BASE.md': '# b\n' });
+  const projet = dossierJetable('workflow-maj-projet-');
+  const config = dossierJetable('workflow-maj-config-');
+  mkdirSync(join(projet, '.claude/workflow'), { recursive: true });
+  writeFileSync(join(projet, '.claude/workflow/manifest.json'), '{');
+  const r = lancerSync(source, projet, config);
+  if (r.code !== 2) return `code ${r.code} attendu 2: ${r.sortie}`;
+  if (!/manifest\.json/.test(r.sortie) || !/illisible/.test(r.sortie)) return `message incomplet: ${r.sortie}`;
+  if (existsSync(join(projet, '.claude/workflow/CLAUDE-BASE.md'))) return 'fichier écrit malgré le manifeste illisible';
+  if (readFileSync(join(projet, '.claude/workflow/manifest.json'), 'utf8') !== '{') return 'manifeste modifié';
+  return null;
+});
+
+cas('sync-workflow : binaires (extension .pdf, octet NUL sans extension) copiés octet pour octet', () => {
+  const pdf = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x0d, 0x0a, 0xff, 0xfe, 0x00, 0x80]);
+  const nul = Buffer.from([0x41, 0x0d, 0x0a, 0x00, 0xc3, 0x28, 0x0d, 0x0a]);
+  const source = syncMaj('1.0.0', { 'CLAUDE-BASE.md': '# b\n' });
+  mkdirSync(join(source, 'templates'), { recursive: true });
+  writeFileSync(join(source, 'templates', 'doc.pdf'), pdf);
+  writeFileSync(join(source, 'templates', 'brut'), nul);
+  const projet = dossierJetable('workflow-maj-projet-');
+  const config = dossierJetable('workflow-maj-config-');
+  const r = lancerSync(source, projet, config);
+  if (r.code !== 0) return `code ${r.code}: ${r.sortie}`;
+  if (!readFileSync(join(projet, '.claude/workflow/templates/doc.pdf')).equals(pdf)) return '.pdf altéré';
+  if (!readFileSync(join(projet, '.claude/workflow/templates/brut')).equals(nul)) return 'fichier à octet NUL altéré';
+  return null;
+});
+
 // ── Allow en retard sur le gabarit (P17/S2/T3) ──
 // Le gabarit est le VRAI plugin/templates/project-settings.json : une copie figée laisserait passer
 // un socle mal calculé.

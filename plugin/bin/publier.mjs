@@ -109,7 +109,11 @@ function scannerCheminsPersonnels(racine, fichiers) {
   for (const f of fichiers) {
     if (BINAIRES.test(f)) continue;
     let txt;
-    try { txt = readFileSync(join(racine, f), 'utf8'); } catch { continue; } // illisible en utf8 → pas du texte
+    try {
+      const buf = readFileSync(join(racine, f));
+      if (buf.subarray(0, 8192).includes(0)) continue; // octet NUL → binaire
+      txt = buf.toString('utf8');
+    } catch { continue; } // illisible → pas du texte
     const lignes = txt.split('\n');
     for (let i = 0; i < lignes.length; i++) {
       if (CHEMIN_PERSONNEL.test(lignes[i])) hits.push(`${f}:${i + 1}`);

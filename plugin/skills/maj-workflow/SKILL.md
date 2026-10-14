@@ -82,7 +82,7 @@ options chiffrées :
 2. **Écraser** — la modification est un accident ou obsolète : `--force` l'écrasera à l'Étape 4.
 
 Le moteur **préserve** les dérives par défaut : sans `--force`, un fichier modifié localement n'est
-pas touché. Le défaut protège le travail, il ne l'efface pas.
+pas touché. Le défaut protège le travail, il ne l'efface pas. Un fichier obsolète (sorti du payload) modifié localement est signalé DÉRIVE comme les autres, gardé, et `--force` le supprime.
 
 ## Étape 3b — Ligne `SETTINGS  allow en retard`
 

@@ -85,7 +85,11 @@ const SUBSTITUTIONS = [
   [MARQUEUR,              '.claude/workflow'],
 ];
 
-const BINAIRES = /\.(png|jpg|jpeg|gif|ico|woff2?|zip)$/i;
+// Binaire = extension connue OU octet NUL dans les 8 premiers Ko (rattrape le reste).
+const BINAIRES = /\.(png|jpg|jpeg|gif|ico|woff2?|zip|pdf|webp|avif|bmp|tiff?|ttf|otf|eot|mp3|mp4|webm|wav|ogg|gz|tar|7z|wasm)$/i;
+function estBinaire(chemin, buf) {
+  return BINAIRES.test(chemin) || buf.subarray(0, 8192).includes(0);
+}
 
 function normaliser(txt) {
   // CRLF → LF avant hash ET avant écriture : sans ça, le même contenu donne deux hashes selon
@@ -101,6 +105,11 @@ function substituer(txt) {
 
 function hash(contenu) {
   return createHash('sha256').update(contenu).digest('hex').slice(0, 16);
+}
+
+// Hash d'un fichier du projet, comme le hash enregistré : binaire tel quel, texte normalisé.
+function hashDisque(chemin, binaire) {
+  return hash(binaire ? readFileSync(chemin) : Buffer.from(normaliser(readFileSync(chemin, 'utf8')), 'utf8'));
 }
 
 function fichiersDe(racine, sousChemin, sauf = []) {
@@ -294,9 +303,16 @@ const versionSource = (() => {
 })();
 
 const cheminManifeste = join(projet, '.claude/workflow/manifest.json');
-const ancien = existsSync(cheminManifeste)
-  ? JSON.parse(readFileSync(cheminManifeste, 'utf8'))
-  : { version: null, fichiers: {} };
+let ancien = { version: null, fichiers: {} };
+if (existsSync(cheminManifeste)) {
+  try { ancien = JSON.parse(readFileSync(cheminManifeste, 'utf8')); }
+  catch (e) {
+    // Jamais traité comme un manifeste vide : toute dérive locale serait alors écrasée en silence.
+    console.error(`sync-workflow: ${cheminManifeste} illisible (${e.message}) — rien écrit. Le restaurer depuis git, ou relancer avec --force en sachant que toute dérive locale sera écrasée.`);
+    if (!force) process.exit(2);
+    ancien = { version: null, fichiers: {} };
+  }
+}
 
 const paires = construirePlan(source);
 const nouveauxHashes = {};
@@ -306,15 +322,15 @@ let inchanges = 0;
 
 for (const { src, dst, brut: sansSubstitution } of paires) {
   const brut = readFileSync(join(source, src));
-  const estBinaire = BINAIRES.test(src);
-  const contenu = estBinaire ? brut
+  const binaire = estBinaire(src, brut);
+  const contenu = binaire ? brut
     : Buffer.from(sansSubstitution ? normaliser(brut.toString('utf8')) : substituer(normaliser(brut.toString('utf8'))), 'utf8');
   const h = hash(contenu);
   nouveauxHashes[dst] = h;
 
   const cible = join(projet, dst);
   const existe = existsSync(cible);
-  const hActuel = existe ? hash(estBinaire ? readFileSync(cible) : Buffer.from(normaliser(readFileSync(cible, 'utf8')), 'utf8')) : null;
+  const hActuel = existe ? hashDisque(cible, binaire) : null;
 
   if (hActuel === h) { inchanges++; continue; }
 
@@ -322,13 +338,22 @@ for (const { src, dst, brut: sansSubstitution } of paires) {
   // connaissait) ou simplement une source plus récente ?
   const hConnu = ancien.fichiers?.[dst] ?? null;
   const modifieLocalement = existe && hConnu !== null && hActuel !== hConnu;
-  if (modifieLocalement && !force) { derives.push(dst); continue; }
+  if (modifieLocalement && !force) { derives.push(dst); nouveauxHashes[dst] = hConnu; continue; }
 
   aEcrire.push({ cible, contenu, dst, nouveau: !existe });
 }
 
 // Fichiers gérés autrefois, disparus du payload : à retirer du projet.
-const obsoletes = Object.keys(ancien.fichiers ?? {}).filter((f) => !(f in nouveauxHashes));
+// Un obsolète modifié localement est gardé et signalé DÉRIVE (sauf --force), avec son hash connu.
+const obsoletes = [];
+for (const f of Object.keys(ancien.fichiers ?? {})) {
+  if (f in nouveauxHashes) continue;
+  const p = join(projet, f);
+  if (!force && existsSync(p) && hashDisque(p, estBinaire(f, readFileSync(p))) !== ancien.fichiers[f]) {
+    derives.push(f);
+    nouveauxHashes[f] = ancien.fichiers[f];
+  } else obsoletes.push(f);
+}
 
 // ── Rapport ──────────────────────────────────────────────────────────────────
 const enRetard = ancien.version !== versionSource;
@@ -369,12 +394,9 @@ if (cachesPerimes.length > 0 && !ignorerCache) {
 for (const { cible, contenu } of aEcrire) { poser(cible); writeFileSync(cible, contenu); }
 for (const o of obsoletes) { const p = join(projet, o); if (existsSync(p)) rmSync(p); }
 
-// Les dérives conservées gardent leur hash réel : le manifeste décrit ce qui est SUR LE DISQUE,
-// sinon la prochaine passe croirait le fichier sain.
-for (const d of derives) {
-  const p = join(projet, d);
-  nouveauxHashes[d] = hash(Buffer.from(normaliser(readFileSync(p, 'utf8')), 'utf8'));
-}
+// Les dérives gardent leur hash CONNU (posé plus haut), pas celui du disque : /maj-workflow
+// n'offre que Remonter ou Écraser, donc la dérive doit revenir à chaque passage tant qu'elle n'est
+// pas tranchée. Enregistrer le hash du disque la ferait passer pour saine au passage suivant.
 
 poser(cheminManifeste);
 writeFileSync(cheminManifeste, JSON.stringify({
