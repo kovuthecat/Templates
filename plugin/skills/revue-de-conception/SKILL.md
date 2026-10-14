@@ -1,8 +1,8 @@
 ---
 name: revue-de-conception
 description: Revue a posteriori d'un projet ou d'une zone — constat de l'écart entre l'intention écrite et le code réel, puis interview de recalage avec l'utilisateur pour arrêter l'objectif, avant d'en tirer les écarts. À dérouler quand les correctifs et les ajouts se sont empilés, à un jalon, ou avant d'ouvrir un gros chantier sur une zone ancienne. Ne modifie pas de code.
-allowed-tools: Read, Glob, Grep, Agent, WebFetch, WebSearch, Write, Edit
-disallowed-tools: Bash, PowerShell
+allowed-tools: Read, Glob, Grep, Agent, WebFetch, WebSearch, Write, Edit, Bash(git add:*), Bash(git commit:*), Bash(git push:*)
+disallowed-tools: PowerShell
 model: opus
 ---
 
@@ -202,8 +202,10 @@ Gabarit exact du rapport : annexe `references/gabarit-rapport.md`.
 
 - **Aucune modification de code** — Plan Mode (Shift+Tab) pour les Étapes 0 à 5, à quitter avant
   l'Étape 6, qui écrit seulement le rapport et, si l'objectif a bougé, `PROJECT_BRIEF.md` et une
-  décision. Le frontmatter **pré-autorise** les outils listés (`allowed-tools`) et **retire** `Bash`
-  et `PowerShell` (`disallowed-tools`) — pour le seul tour qui invoque la skill : les deux se
+  décision. Le frontmatter **pré-autorise** les outils listés (`allowed-tools`) et **retire** `PowerShell`
+  (`disallowed-tools`). `Bash` n'y sert qu'à `git add`, `git commit` et `git push` (le commit du
+  rapport et de la décision) : consigne, pas restriction — `allowed-tools` pré-autorise sans
+  restreindre (https://code.claude.com/docs/en/skills). Pour le seul tour qui invoque la skill : les deux se
   réinitialisent au message suivant (doc Claude Code, Skills, vérifiée le 2026-09-15). Sur une
   session qui dure, le garde-fou est le **Plan Mode** ; « ne rien lancer, ne rien vérifier » reste
   une règle tenue à la main, pas une impossibilité.

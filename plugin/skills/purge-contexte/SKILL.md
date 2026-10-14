@@ -77,4 +77,4 @@ Ce fichier ne contient que des items **N2 EN ATTENTE** (cf. `/verif-visuelle`) �
 
 1. Recompter les lignes de chaque fichier traité → sous le plafond.
 2. Résumer en 3 lignes : ce qui a été déplacé, où, et ce qui reste au-dessus du plafond s'il y a lieu.
-3. Commit dédié : `docs: archive context files under line caps` (ne pas le mélanger à une tâche de code).
+3. Commit dédié : `docs: archive context files under line caps` (ne pas le mélanger à une tâche de code), puis `git push` : le hook Stop refuse une fin de tour avec des commits d'avance.
