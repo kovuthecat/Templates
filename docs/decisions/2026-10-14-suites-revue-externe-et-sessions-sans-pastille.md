@@ -73,7 +73,9 @@
 
 - **Plan 1 — fondations** : points 1 à 6 ; 19 ; 20 (scénarios : nominal, échec puis reprise,
   interruption puis relance, revue incomplète — et mesure de référence) ; sonde du 9 ; purge de
-  `DECISIONS.md` (161 lignes pour 150).
+  `DECISIONS.md` (162 lignes pour 150) ; **dans le dépôt source, `SessionStart` signale un plugin
+  installé plus ancien que `plugin/.claude-plugin/plugin.json`** (constat du 2026-10-14 : poste
+  resté en 0.55.0 pendant que le dépôt passait à 0.65.0, sans aucun signal).
 - **Plan 2 — simplification** : points 7 (avec 15 et 14), 8, 9 (suite), 11 → 10a → 10b, 12, 13,
   16, 17, 18, 21 (retrait), 22, sessions sans pastille (ci-dessous), puis remesure.
   Écrit après le plan 1, sur la mesure et le résultat de la sonde.
