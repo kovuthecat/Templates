@@ -5,9 +5,9 @@ name: plugin
 # qui n'avait pas de filet (cf. aec3852, manifeste invalide poussé sans validation).
 on:
   push:
-    paths: ['plugin/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tests/**', '.github/workflows/plugin.yml']
   pull_request:
-    paths: ['plugin/**', '.github/workflows/plugin.yml']
+    paths: ['plugin/**', 'tests/**', '.github/workflows/plugin.yml']
   workflow_dispatch:
 
 jobs:
@@ -32,8 +32,23 @@ jobs:
             node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" || exit 1
           done
 
+      - name: Suites de tests déterministes
+        # Ni réseau ni `claude` connecté : chaque suite rejoue ses cas sur des dépôts git jetables.
+        # Sans elles, un push qui casse un comportement (hook, script, renvoi, preuve N0) passait
+        # vert. Un cas qui ne tourne que sous Windows s'annonce `SKIP <nom> — Windows seulement`.
+        run: |
+          node tests/tester-hooks.mjs
+          node tests/tester-scripts.mjs
+          node tests/tester-renvois.mjs
+          node tests/tester-preuves.mjs
+
       - name: Installer la CLI
         run: npm install -g @anthropic-ai/claude-code
+
+      - name: Suite des mods
+        # Après l'installation de la CLI : `plugin validate` s'exécute hors ligne, sans compte
+        # connecté. C'est la seule suite qui exige le binaire `claude`.
+        run: node tests/tester-mods.mjs
 
       - name: Valider le manifeste
         # --strict : un champ mal orthographié est un warning par défaut, une erreur ici.

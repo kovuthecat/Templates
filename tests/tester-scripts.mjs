@@ -2465,8 +2465,12 @@ cas('publier : --sans-tests seul → code 1, « Rien publié »', () => {
 });
 
 cas('publier : --dry-run --sans-tests → aucune suite lancée, dossier temporaire vide', () => {
+  // Copie de plugin/ hors de tout dépôt : le contrôle de synchro (git fetch, retard sur origin/main)
+  // dépend de l'état du dépôt réel — en CI, un checkout superficiel le fait échouer à tort.
+  const copie = dossierJetable('workflow-publier-copie-ok-');
+  cpSync(join(RACINE, 'plugin'), join(copie, 'plugin'), { recursive: true });
   const tmp = dossierJetable('workflow-publier-sanstests-');
-  const { code, sortie } = lancer(PUBLIER, ['--dry-run', '--sans-tests'], RACINE, envTmp(tmp));
+  const { code, sortie } = lancer(join(copie, 'plugin', 'bin', 'publier.mjs'), ['--dry-run', '--sans-tests'], copie, envTmp(tmp));
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (/^(OK|FAIL) /m.test(sortie)) return `une suite a tourné (ligne OK/FAIL): ${sortie}`;
   if (!/payload propre/.test(sortie)) return `« payload propre » absent: ${sortie}`;
