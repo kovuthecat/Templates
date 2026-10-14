@@ -2262,6 +2262,165 @@ cas('T3 : preuve-n0 sur clone superficiel → ni valide ni invalide, motif « hi
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — P19/S3 T4 : compteurs sur tout l'historique, clés sans accent, prémisse
+// vérifiée une fois. Anti-raccourci (S3.md) : les `.echec.md` sont SUPPRIMÉS PAR UN COMMIT, comme au
+// PASS réel — un fichier supprimé hors commit ne prouverait rien.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const REVUE_COMPLETE = 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n';
+
+function planMoteurJetable(prefixe) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+  return cwd;
+}
+
+function commitTout(cwd, message) {
+  git(cwd, 'add', '-A');
+  git(cwd, 'commit', '-q', '-m', message);
+}
+
+const ecrireEchec = (cwd, session, lignes) =>
+  writeFileSync(join(cwd, 'plans', 'P9', `${session}.echec.md`), [...lignes, ''].join('\n'));
+
+for (const cle of ['Prémisse', 'PRÉMISSE', 'prémisse', 'Premisse']) {
+  cas(`T4 : « ${cle} : réfutée » (accent/casse de la clé) → branche exécution, jamais verifier-premisse`, () => {
+    const cwd = planMoteurJetable('workflow-pa-cle-');
+    ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', `${cle} : réfutée · la fonction ne renvoie jamais null`]);
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!action || action.action !== 'reprendre') return `reprendre attendu (branche exécution), reçu: ${sortie}`;
+    return null;
+  });
+}
+
+cas('T4 : .echec.md commité avec reprise=2 puis recommité avec reprise=0 → question budget', () => {
+  const cwd = planMoteurJetable('workflow-pa-reprise-remise-');
+  initDepot(cwd);
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=2 enquete=0']);
+  commitTout(cwd, 'S1 en échec, deux reprises');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0']);
+  commitTout(cwd, 'compteur remis à zéro par une reprise');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question' || action.options?.source !== 'budget-epuise') return `question budget-epuise attendue, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T4 : .echec.md reprise=2 supprimé par un commit puis recréé à reprise=0 → question budget', () => {
+  const cwd = planMoteurJetable('workflow-pa-reprise-supprimee-');
+  initDepot(cwd);
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=2 enquete=0']);
+  commitTout(cwd, 'S1 en échec, deux reprises');
+  git(cwd, 'rm', '-q', 'plans/P9/S1.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S1 résolue (PASS)');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0']);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question' || action.options?.source !== 'budget-epuise') return `question budget-epuise attendue, reçu: ${sortie}`;
+  return null;
+});
+
+/** Plan à trois sessions Opus, S1 et S2 faites (commits de tâche + revues complètes), S3 à échouer. */
+function planOpusTrois(prefixe) {
+  const cwd = planMoteurJetable(prefixe);
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  let texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n').replaceAll('| Sonnet |', '| Opus |');
+  const ligneS2 = '| [S2](S2.md) | T3 | Deuxième tâche | Opus | medium | — | S1 | `src/b.mjs` | [ ] |';
+  if (!texte.includes(ligneS2)) throw new Error('fixture moteur-base : ligne S2 introuvable');
+  texte = texte.replace(ligneS2, `${ligneS2}\n| [S3](S3.md) | T4 | Troisième tâche | Opus | high | — | S2 | \`src/c.mjs\` | [ ] |`);
+  texte += '- **Vague 3** : S3 (après S2).\n  *Pourquoi maintenant* : fixture.\n  - **S3** — fixture.\n';
+  writeFileSync(chemin, texte);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S2.revue.md'), REVUE_COMPLETE);
+  initDepot(cwd);
+  commitTout(cwd, 'S1 et S2\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2\nPlan: P9/S2/T3');
+  return cwd;
+}
+
+cas('T4 : enquêtes de S1 et S2 (rapports supprimés par commit) comptées au budget du plan → S3 : question budget enquête', () => {
+  const cwd = planOpusTrois('workflow-pa-enquetes-plan-');
+  for (const s of ['S1', 'S2']) {
+    ecrireEchec(cwd, s, ['Nature : exécution', 'Tentatives : reprise=0 enquete=1']);
+    commitTout(cwd, `${s} en échec, enquêtée`);
+    git(cwd, 'rm', '-q', `plans/P9/${s}.echec.md`);
+    git(cwd, 'commit', '-q', '-m', `${s} résolue (PASS)`);
+  }
+  ecrireEchec(cwd, 'S3', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0']); // pas de Blocage → enquête demandée
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question' || action.options?.source !== 'budget-epuise') return `question budget-epuise attendue, reçu: ${sortie}`;
+  if (!/enquête/.test(action.motif)) return `motif attendu citant l'enquête, reçu: ${action.motif}`;
+  return null;
+});
+
+cas('T4 : témoin — une seule enquête passée sur le plan (S1 supprimée) → S3 est enquêtée normalement', () => {
+  const cwd = planOpusTrois('workflow-pa-enquetes-temoin-');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=1']);
+  commitTout(cwd, 'S1 en échec, enquêtée');
+  git(cwd, 'rm', '-q', 'plans/P9/S1.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S1 résolue (PASS)');
+  ecrireEchec(cwd, 'S3', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0']);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'enqueter') return `enqueter attendu (1 enquête sur 2 autorisées), reçu: ${sortie}`;
+  return null;
+});
+
+cas('T4 : S1 enquêtée puis supprimée, S3 en échec avec enquete=1 → budget atteint (question, enquête)', () => {
+  const cwd = planOpusTrois('workflow-pa-enquetes-spec-');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=1']);
+  commitTout(cwd, 'S1 en échec, enquêtée');
+  git(cwd, 'rm', '-q', 'plans/P9/S1.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S1 résolue (PASS)');
+  ecrireEchec(cwd, 'S3', ['Nature : exécution', 'Tentatives : reprise=0 enquete=1']);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question' || !/enquête/.test(action.motif)) return `question budget enquête attendue, reçu: ${sortie}`;
+  return null;
+});
+
+for (const [valeur, casAttendu, motifAttendu] of [
+  ["confirmee · le fichier n'existe pas (verificateur-premisse)", 'premisse-confirmee', null],
+  ['indecidable · comportement non vérifiable par lecture (verificateur-premisse)', 'premisse-indecidable', /comportement non vérifiable par lecture/],
+  ['peut-être', 'premisse-illisible', null],
+]) {
+  cas(`T4 : « Premisse : ${valeur.split(' ')[0]} » → question etape6, cas ${casAttendu}, jamais une revérification`, () => {
+    const cwd = planMoteurJetable('workflow-pa-premisse-ecrite-');
+    ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', `Premisse : ${valeur}`]);
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
+    if (action.options?.source !== 'etape6' || action.options?.cas !== casAttendu) return `source etape6 / cas ${casAttendu} attendus, reçu: ${sortie}`;
+    if (motifAttendu && !motifAttendu.test(action.motif)) return `motif citant la preuve attendu, reçu: ${action.motif}`;
+    return null;
+  });
+}
+
+cas('T4 : ligne Premisse retirée après un commit qui la portait → question cas premisse-deja-verifiee', () => {
+  const cwd = planMoteurJetable('workflow-pa-premisse-retiree-');
+  initDepot(cwd);
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', 'Premisse : confirmee · vérifiée (verificateur-premisse)']);
+  commitTout(cwd, 'prémisse vérifiée, consignée');
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0']);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question' || action.options?.cas !== 'premisse-deja-verifiee') return `cas premisse-deja-verifiee attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T4 : témoin — prémisse jamais vérifiée (aucune ligne, aucun commit qui en porte) → verifier-premisse', () => {
+  const cwd = planMoteurJetable('workflow-pa-premisse-neuve-');
+  initDepot(cwd);
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0']);
+  commitTout(cwd, 'S1 en échec sur prémisse');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'verifier-premisse') return `verifier-premisse attendu, reçu: ${sortie}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {

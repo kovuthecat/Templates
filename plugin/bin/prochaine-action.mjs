@@ -16,10 +16,17 @@
 //   node plugin/bin/prochaine-action.mjs P<n> --etat [--json] → seulement l'état dérivé (diagnostic)
 //   node .claude/workflow/bin/prochaine-action.mjs P<n> [--json]   (projet vendoré)
 //
-// LECTURE SEULE. L'état se dérive des seuls fichiers commités : la table et l'ordonnancement de
-// `plans/P<n>/index.md`, les lignes mécaniques de `plans/P<n>/S<k>.echec.md`, la première ligne de
-// `plans/P<n>/S<k>.revue.md`, `git log` (repères `Plan: P<n>/S<k>/T<m>`), `.claude/wave.lock`,
-// l'avance/retard sur l'amont. Jamais un état deviné : un index illisible rend une erreur nommée.
+// LECTURE SEULE. L'état se dérive de deux sources, et d'elles seules :
+//   - l'ARBRE DE TRAVAIL (commité ou non — le code lit le disque, pour de bonnes raisons : `[x]` d'une
+//     vague verrouillée, rapport d'échec pas encore commité) : la table, l'ordonnancement et les
+//     statuts `[x]` de `plans/P<n>/index.md`, les lignes mécaniques de `plans/P<n>/S<k>.echec.md`,
+//     les lignes `Bloquant :` / `Couverture :` / `Reprises :` de `plans/P<n>/S<k>.revue.md`,
+//     `.claude/wave.lock` ;
+//   - GIT : les commits de tâche (repères `Plan: P<n>/S<k>/T<m>`), les versions commitées des
+//     `.echec.md` (compteurs, ligne `Premisse :`, y compris supprimés au PASS), une revue ajoutée puis
+//     supprimée, l'avance/retard sur l'amont, l'historique partiel (clone `--depth`).
+// Jamais un état deviné : un index illisible rend une erreur nommée ; un historique partiel qu'on ne
+// peut pas compléter rend une `question` (source `historique-partiel`) sans rien conclure.
 //
 // SORTIE : sans --json, une ligne lisible puis les champs de l'action ; avec --json, l'objet. Code 0
 // si l'index a pu être lu (quel que soit l'état des sessions qu'il décrit), 2 si l'index est
@@ -342,25 +349,62 @@ function normaliserNature(brut) {
   return { nature: 'exécution', inconnue: brut };
 }
 
-function lireEchec(chemin) {
+/** Valeur de la première ligne `<clé> : <valeur>` du texte, clé comparée sans casse ni accents
+ * (même normalisation que les valeurs, `normaliserSimple`) — `Prémisse`, `PREMISSE` et `premisse`
+ * sont la même clé (T4, P19/S3 : une graphie recopiée à la main ne doit pas faire boucler le moteur).
+ * `null` si la ligne manque. */
+function valeurDeCle(texte, nom) {
+  const cible = normaliserSimple(nom);
+  for (const ligne of texte.split('\n')) {
+    const i = ligne.indexOf(':');
+    if (i < 0) continue;
+    if (normaliserSimple(ligne.slice(0, i)) === cible) return ligne.slice(i + 1).trim();
+  }
+  return null;
+}
+
+/** `{ reprise, enquete }` écrits dans la ligne `Tentatives :` d'une version du rapport. Reprises et
+ * enquêtes lues séparément : un séparateur inhabituel entre les deux (« · » au lieu d'un espace,
+ * constat 2026-09-24 : « reprise=1 · enquete=0 » lu 0/0) ne doit plus faire perdre l'un ou l'autre. */
+function lireTentatives(texte) {
+  const brut = valeurDeCle(texte, 'Tentatives');
+  const repriseM = brut && /reprise\s*=\s*(\d+)/i.exec(brut);
+  const enqueteM = brut && /enqu[eê]te\s*=\s*(\d+)/i.exec(brut);
+  return { reprise: repriseM ? Number(repriseM[1]) : 0, enquete: enqueteM ? Number(enqueteM[1]) : 0 };
+}
+
+/** Toutes les versions **commitées** d'un fichier (y compris avant sa suppression au PASS), texte
+ * normalisé en `\n`. `chemin` relatif à la racine du dépôt. Une version absente au commit
+ * (suppression) est ignorée. Opérations locales : le délai de `git()` suffit (T4, P19/S3). */
+function versionsCommitees(chemin) {
+  const hashes = (git('log', '--format=%H', '--', chemin) || '').split('\n').filter(Boolean);
+  const textes = [];
+  for (const h of hashes) {
+    const texte = git('show', `${h}:${chemin}`);
+    if (texte !== null) textes.push(texte.replace(/\r\n/g, '\n'));
+  }
+  return textes;
+}
+
+function maxTentatives(textes) {
+  return textes.map(lireTentatives).reduce(
+    (max, v) => ({ reprise: Math.max(max.reprise, v.reprise), enquete: Math.max(max.enquete, v.enquete) }),
+    { reprise: 0, enquete: 0 },
+  );
+}
+
+function lireEchec(chemin, relatif) {
   const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
-  const valeur = (nom) => {
-    const m = new RegExp(`^${nom}\\s*:\\s*(.*)$`, 'mi').exec(texte);
-    return m ? m[1].trim() : null;
-  };
+  const valeur = (nom) => valeurDeCle(texte, nom);
+  const anterieures = relatif ? versionsCommitees(relatif) : [];
 
   const { nature, inconnue: natureInconnue } = normaliserNature(valeur('Nature'));
 
-  // Reprises et enquêtes lues séparément : un séparateur inhabituel entre les deux (« · » au lieu
-  // d'un espace, constat 2026-09-24 : « reprise=1 · enquete=0 » lu 0/0) ne doit plus faire perdre
-  // l'un ou l'autre compte.
-  const tentativesBrut = valeur('Tentatives');
-  const repriseM = tentativesBrut && /reprise\s*=\s*(\d+)/i.exec(tentativesBrut);
-  const enqueteM = tentativesBrut && /enqu[eê]te\s*=\s*(\d+)/i.exec(tentativesBrut);
-  const tentatives = {
-    reprise: repriseM ? Number(repriseM[1]) : 0,
-    enquete: enqueteM ? Number(enqueteM[1]) : 0,
-  };
+  // Compteurs = le MAXIMUM sur l'arbre de travail et sur toutes les versions commitées du rapport
+  // (T4, P19/S3) : une reprise qui remet `reprise=0`, ou qui supprime puis recrée le fichier, ne
+  // remet plus le budget à zéro. Revers assumé : une reprise qui OUBLIE d'incrémenter reste non
+  // comptée — le correctif complet (le moteur écrit lui-même le compteur) est le point 10b du plan 2.
+  const tentatives = maxTentatives([texte, ...anterieures]);
 
   const blocage = valeur('Blocage'); // absente ⇒ démarrage à froid (pas de canal court)
   const mesure = valeur('Mesure'); // optionnelle : seulement une prémisse mesurée et commitée
@@ -386,7 +430,14 @@ function lireEchec(chemin) {
   // Une prémisse réfutée par `verificateur-premisse` (§9c) : l'orchestrateur ajoute cette ligne au
   // rapport avant de rappeler le script (T5, P10/S2) — casse et accents libres.
   const premisseBrut = valeur('Premisse');
-  const premisseRefutee = premisseBrut ? normaliserSimple(premisseBrut).startsWith('refutee') : false;
+  const premisseSimple = premisseBrut === null ? null : normaliserSimple(premisseBrut);
+  const premisseStatut = premisseSimple === null
+    ? null
+    : (['refutee', 'confirmee', 'indecidable'].find((v) => premisseSimple.startsWith(v)) ?? 'illisible');
+  const premisseRefutee = premisseStatut === 'refutee';
+  // Une ligne `Premisse :` présente dans une version commitée antérieure : la vérification a déjà eu
+  // lieu, même si la ligne a été retirée depuis — jamais revérifiée (T4, P19/S3).
+  const premisseDejaVerifiee = anterieures.some((v) => valeurDeCle(v, 'Premisse') !== null);
 
   return {
     nature,
@@ -397,6 +448,9 @@ function lireEchec(chemin) {
     auto,
     avertissementAuto,
     premisseRefutee,
+    premisseStatut,
+    premisseBrut,
+    premisseDejaVerifiee,
     demarrageAFroid: !blocage,
   };
 }
@@ -413,9 +467,11 @@ function lireRevue(chemin, texte = readFileSync(chemin, 'utf8').replace(/\r\n/g,
 
 // ── Moteur (S10) — table « la nature décide » de remediation.md, reprise telle quelle ────────────────
 // Budget (WORKFLOW.md §9c) : 2 reprises + 1 enquête par session, 2 enquêtes par plan. Vit dans les
-// lignes mécaniques d'un .echec.md (survit à une orchestration interrompue) ; le total « par plan »
-// se dérive en sommant les sessions actuellement en échec de ce plan — un .echec.md disparaît au
-// PASS (reprendre-echec Étape 5), donc c'est tout ce que les fichiers commités peuvent encore dire.
+// lignes mécaniques d'un .echec.md (survit à une orchestration interrompue). Un .echec.md disparaît
+// au PASS (reprendre-echec Étape 5) : les compteurs se lisent donc sur TOUT l'historique git du
+// rapport (maximum des valeurs écrites, `lireEchec`), et le total « par plan » somme les maxima de
+// tous les `S*.echec.md` ayant existé (`enquetesDuPlan`). Revers assumé : une reprise qui oublie
+// d'incrémenter `Tentatives :` reste non comptée — le moteur n'écrit pas encore le compteur (10b, plan 2).
 
 const UN_CRAN_AU_DESSUS = { Haiku: 'Sonnet', Sonnet: 'Opus' };
 
@@ -622,6 +678,18 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
       }
       // Commit cité introuvable : la mesure ne prouve plus rien, retomber sur « sans Mesure ».
     }
+    // `verifier-premisse` une fois par session (T4, P19/S3) : le résultat de la vérification est écrit
+    // dans le rapport (`Premisse : confirmee|indecidable|refutee · <preuve>`) et jamais revérifié.
+    // `refutee` est déjà aiguillée vers `exécution` plus haut.
+    const q = (cas, motif) => ({
+      action: 'question',
+      motif: `${motif} sur ${session.session}`,
+      options: { source: 'etape6', cas },
+    });
+    if (e.premisseStatut === 'confirmee') return q('premisse-confirmee', `prémisse confirmée par verificateur-premisse (${e.premisseBrut})`);
+    if (e.premisseStatut === 'indecidable') return q('premisse-indecidable', `prémisse invérifiable par lecture (${e.premisseBrut})`);
+    if (e.premisseStatut === 'illisible') return q('premisse-illisible', `ligne \`Premisse :\` non reconnue ("${e.premisseBrut}") — refutee, confirmee ou indecidable attendus`);
+    if (e.premisseDejaVerifiee) return q('premisse-deja-verifiee', 'prémisse déjà vérifiée (ligne `Premisse :` présente dans une version commitée du rapport, retirée depuis)');
     // Chemin complété par l'appelant (prochaineAction), qui seul connaît le plan.
     return { action: 'verifier-premisse', session: session.session };
   }
@@ -724,9 +792,9 @@ function prochaineAction(sortie) {
     });
   };
   const bloques = [];
-  const enqueteTotalPlan = sortie.sessions
-    .filter((s) => s.etat === 'echec')
-    .reduce((acc, s) => acc + (s.echec?.tentatives.enquete ?? 0), 0);
+  // Enquêtes du plan = somme, sur tous les `S*.echec.md` ayant existé (présents ou supprimés au PASS),
+  // du maximum d'`enquete` de chacun (T4, P19/S3) — calculée à l'assemblage, depuis git.
+  const enqueteTotalPlan = sortie.enquetesPlan ?? 0;
 
   for (const vague of vagues) {
     const membres = vague.sessions
@@ -973,7 +1041,7 @@ for (const s of index.sessions) {
   }
 
   s.preuve = index.preuveN0 && s.etat === 'faite' ? verifierPreuve(RACINE, `${plan}/${s.session}`) : null;
-  s.echec = s.etat === 'echec' ? lireEchec(cheminEchec) : null;
+  s.echec = s.etat === 'echec' ? lireEchec(cheminEchec, `plans/${plan}/${s.session}.echec.md`) : null;
   // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
   // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
   // fichier n'existe plus (T6, P10/S2).
@@ -988,6 +1056,26 @@ for (const s of index.sessions) {
   }
 }
 
+/** Somme, sur tous les `plans/P<n>/S<k>.echec.md` ayant existé dans l'historique ou présents dans
+ * l'arbre de travail, du maximum d'`enquete` de chacun (T4, P19/S3). */
+function enquetesDuPlan() {
+  const prefixe = `plans/${plan}/`;
+  const motif = new RegExp(`^${prefixe}S\\d+\\.echec\\.md$`);
+  const chemins = new Set(
+    (git('log', '--format=', '--name-only', '--', prefixe) || '').split('\n').map((l) => l.trim()).filter((l) => motif.test(l)),
+  );
+  for (const s of index.sessions) {
+    if (existsSync(join(dossierPlan, `${s.session}.echec.md`))) chemins.add(`${prefixe}${s.session}.echec.md`);
+  }
+  let total = 0;
+  for (const chemin of chemins) {
+    const textes = versionsCommitees(chemin);
+    if (existsSync(join(RACINE, chemin))) textes.push(readFileSync(join(RACINE, chemin), 'utf8').replace(/\r\n/g, '\n'));
+    total += maxTentatives(textes).enquete;
+  }
+  return total;
+}
+
 // Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : `waveLock` vrai par défaut,
 // même refus que sous un vrai `.claude/wave.lock` (plugin/hooks/lib.mjs `vagueParallele`).
 const racineActuelle = racineDepot();
@@ -997,6 +1085,7 @@ const sortie = {
   clos: index.clos,
   preuveN0: index.preuveN0,
   remediationOpus: index.remediationOpus,
+  enquetesPlan: enquetesDuPlan(),
   depot: {
     waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
     amont: etatAmont(),

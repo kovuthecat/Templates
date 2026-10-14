@@ -44,8 +44,10 @@ arrêter le plan. Même procédure, trois différences :
 **Une tentative, ici comme en manuel** — ne pas boucler pour éviter de rendre un mauvais verdict.
 Ce qui a changé le 2026-09-13, c'est ce qui suit la tentative : `FAIL` n'est plus un cul-de-sac
 humain, c'est une entrée de l'action `enqueter` tant que le budget de la session le permet
-(`Tentatives :` du rapport). Le comptage appartient à l'orchestrateur, pas à cette skill : rendre
-le verdict juste suffit.
+(`Tentatives :` du rapport). Le budget lui-même est calculé par le moteur : il prend le **maximum**
+des valeurs écrites dans `Tentatives :` sur l'arbre de travail et sur toutes les versions commitées
+du rapport. La session de reprise ou d'enquête **incrémente** donc `Tentatives :` dans le rapport
+qu'elle met à jour (étapes 3 et 5 ci-dessous) — une reprise qui l'oublie n'est pas comptée.
 
 ## Mode enquête
 

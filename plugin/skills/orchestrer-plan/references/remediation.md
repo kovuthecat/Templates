@@ -15,7 +15,7 @@ est recalculé, ce tableau ne fait que nommer l'action rendue (T5, P10/S2) :
 | --- | --- |
 | `environnement` | `reprendre`, même modèle |
 | `exécution` | `reprendre` (escalade : voir la table d'escalade ci-dessous) ou `enqueter` |
-| `prémisse` | `verifier-premisse` (ou `question` si une mesure commitée la prouve déjà) |
+| `prémisse` | `verifier-premisse` (ou `question` si une mesure commitée la prouve déjà, ou si le résultat d'une vérification est déjà écrit) |
 | `filtre` | `question` — jamais repris à l'identique |
 | `interruption` | `relancer-interrompue` — hors budget, avant tout `pousser` |
 
@@ -53,10 +53,18 @@ Agent introuvable : repli `subagent_type: "workflow:verificateur-premisse"` ; en
 - **`REFUTEE`** → ajouter au `.echec.md` la ligne `Premisse : refutee · <preuve>` (la preuve rendue
   par `verificateur-premisse`, telle quelle), committer, puis rappeler le script — qui traite
   désormais la session comme `exécution` (T5, P10/S2) — + incident (§9b, nature `prémisse`).
-- **`CONFIRMEE`** → `question` (Étape 3 de `SKILL.md`), motif `etape6`.
-- **`INDECIDABLE`** → `question`, motif « prémisse invérifiable par lecture : <l'affirmation> ».
-- **`INDECIDABLE · comportementale`** → `question`, « à sonder » + option **exploration ouverte**
-  (C6) parmi les issues, éligible `Auto : oui` au même titre qu'une issue d'enquête.
+- **`CONFIRMEE`** → ajouter au `.echec.md` la ligne `Premisse : confirmee · <preuve>`, committer,
+  **puis** poser la `question` (Étape 3 de `SKILL.md`), motif `etape6`.
+- **`INDECIDABLE`** → ajouter la ligne `Premisse : indecidable · <preuve>`, committer, **puis**
+  `question`, motif « prémisse invérifiable par lecture : <l'affirmation> ».
+- **`INDECIDABLE · comportementale`** → même ligne `Premisse : indecidable · <preuve>`, puis
+  `question`, « à sonder » + option **exploration ouverte** (C6) parmi les issues, éligible
+  `Auto : oui` au même titre qu'une issue d'enquête.
+
+Les trois issues écrivent la ligne avant de poser la question, comme `REFUTEE` : c'est la seule
+trace qui dit au moteur qu'une vérification a déjà eu lieu. Il ne revérifie jamais une prémisse dont
+le résultat est écrit (cas `premisse-confirmee`, `premisse-indecidable`, `premisse-illisible` ;
+`premisse-deja-verifiee` si la ligne a été retirée après un commit qui la portait).
 
 ## `reprendre` — canal court d'abord
 
