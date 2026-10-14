@@ -9,10 +9,13 @@
 // l'automatise et rend le garde-fou de sécurité impossible à contourner.
 //
 // USAGE
-//   node publier.mjs [--dry-run]
+//   node publier.mjs [--dry-run [--sans-tests]]
 //
 //   --dry-run   fait tout sauf le push : construit le payload temporaire, scanne, affiche ce qui
 //               serait poussé, puis nettoie. Aucune écriture réseau.
+//   --sans-tests  (seulement avec --dry-run) saute les quatre suites de tests (hooks, renvois,
+//               scripts, preuves) : la N0 de ce dépôt les lance déjà chacune une fois (P19/S5).
+//               Seul, il est refusé : une publication réelle teste toujours tout.
 //
 // Après une publication réussie, met à jour le plugin local du poste (`claude plugin update
 // workflow@templates --scope local`) et vérifie `claude plugin list` — voir mettreAJourPluginLocal.
@@ -71,9 +74,14 @@ const RACINE_PAYLOAD = dirname(ICI);
 const dryRun = process.argv.includes('--dry-run');
 // Un argument inconnu (`--help` compris) n'est jamais une publication : il publiait pour de bon
 // (incident 2026-10-05-publier-argument-inconnu).
-const inconnus = process.argv.slice(2).filter(a => a !== '--dry-run');
+const sansTests = process.argv.includes('--sans-tests');
+const inconnus = process.argv.slice(2).filter(a => a !== '--dry-run' && a !== '--sans-tests');
 if (inconnus.length) {
-  console.error(`publier : argument inconnu ${inconnus.join(' ')} — usage : node publier.mjs [--dry-run]. Rien publié.`);
+  console.error(`publier : argument inconnu ${inconnus.join(' ')} — usage : node publier.mjs [--dry-run [--sans-tests]]. Rien publié.`);
+  process.exit(1);
+}
+if (sansTests && !dryRun) {
+  console.error('publier : --sans-tests exige --dry-run (une publication réelle teste toujours tout). Rien publié.');
   process.exit(1);
 }
 
@@ -276,8 +284,14 @@ function installerMods() {
   }
 }
 
-let tmp;
-try {
+// Corps de la publication. Rend un code de sortie à appliquer (échec, ou --dry-run terminé), ou
+// `undefined` quand la publication a réussi et que la suite (plugin local, mods) doit tourner.
+// Aucune sortie après la création du dossier temporaire ne passe par `process.exit` : il sauterait
+// le `finally` et laisserait une copie de `plugin/` derrière chaque passage (P19/S5).
+function publierPayload() {
+  let tmp;
+  try {
+  if (!sansTests) {
   // Avant tout le reste, --dry-run compris : les hooks doivent tenir avant qu'on publie quoi que
   // ce soit qui les embarque.
   testerHooks();
@@ -295,6 +309,7 @@ try {
       process.exit(1);
     }
   }
+  }
 
   // Avant toute construction : le dépôt qui produit le payload doit être à jour (le push est --force).
   verifierSynchroSource();
@@ -311,7 +326,7 @@ try {
   if (hits.length > 0) {
     console.error('publier: chemin(s) personnel(s) détecté(s) dans le payload — publication annulée, rien poussé');
     for (const h of hits) console.error(`  ${h}`);
-    process.exit(1);
+    return 1;
   }
 
   console.log(`publier: payload propre — ${fichiers.length} fichiers, version ${version}`);
@@ -324,7 +339,7 @@ try {
     console.log(`  Plugin workflow — marketplace templates (v${version})`);
     console.log(`publier: aurait posé et poussé le tag ${tag} (--force) sur le commit publié`);
     console.log('publier: puis aurait lancé `claude plugin update workflow@templates --scope local`, vérifié `claude plugin list`, et installé les mods (installer-mods.mjs)');
-    process.exit(0);
+    return 0;
   }
 
   // ── git init + commit unique ──────────────────────────────────────────────
@@ -354,22 +369,29 @@ try {
 
   if (shaDistant !== sha) {
     console.error(`publier: SHA distant (${shaDistant || '(vide)'}) ≠ SHA poussé (${sha}) — vérifier manuellement`);
-    process.exit(1);
+    return 1;
   }
 
   const tagsDistants = git(['ls-remote', '--tags', DEPOT_PUBLIC]).toString();
   if (!tagsDistants.includes(`refs/tags/${tag}`)) {
     console.error(`publier: tag ${tag} absent de ${DEPOT_PUBLIC} après push — vérifier manuellement`);
-    process.exit(1);
+    return 1;
   }
 
   console.log(`publier: OK — v${version} · ${fichiers.length} fichiers · ${sha} confirmé sur ${DEPOT_PUBLIC} · tag ${tag} posé`);
-} finally {
+  return undefined;
+  } finally {
   // Nettoyage systématique, y compris en cas d'échec du push ou du garde-fou.
   if (tmp) rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
-// Hors du try : on n'arrive ici qu'après une publication réussie (tout échec et --dry-run sortent
-// avant), et le dossier temporaire est déjà nettoyé quand mettreAJourPluginLocal() sort en 3.
-mettreAJourPluginLocal();
-installerMods();
+const sortie = publierPayload();
+if (sortie !== undefined) {
+  process.exitCode = sortie;
+} else {
+  // On n'arrive ici qu'après une publication réussie (tout échec et --dry-run rendent un code),
+  // et le dossier temporaire est déjà nettoyé quand mettreAJourPluginLocal() sort en 3.
+  mettreAJourPluginLocal();
+  installerMods();
+}

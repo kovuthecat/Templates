@@ -18,7 +18,7 @@
 // Sortie : une ligne OK/FAIL par cas ; exit 1 si un cas échoue, 0 sinon.
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -2444,6 +2444,47 @@ cas('T5 : témoin — la même revue avec « Couverture : complète » → S1 re
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'lancer' || action.sessions[0]?.session !== 'S2') return `lancer S2 attendu, reçu: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// publier.mjs — --sans-tests et dossier temporaire (P19/S5/T9)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Pas de cas `--dry-run` seul : il relancerait cette suite, donc elle-même, sans fin.
+
+const PUBLIER = join(BIN, 'publier.mjs');
+const envTmp = (d) => ({ TMPDIR: d, TEMP: d, TMP: d });
+
+cas('publier : --sans-tests seul → code 1, « Rien publié »', () => {
+  const tmp = dossierJetable('workflow-publier-seul-');
+  const { code, sortie } = lancer(PUBLIER, ['--sans-tests'], RACINE, envTmp(tmp));
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/Rien publié/.test(sortie)) return `« Rien publié » absent: ${sortie}`;
+  if (readdirSync(tmp).length) return 'dossier temporaire non vide après un refus';
+  return null;
+});
+
+cas('publier : --dry-run --sans-tests → aucune suite lancée, dossier temporaire vide', () => {
+  const tmp = dossierJetable('workflow-publier-sanstests-');
+  const { code, sortie } = lancer(PUBLIER, ['--dry-run', '--sans-tests'], RACINE, envTmp(tmp));
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (/^(OK|FAIL) /m.test(sortie)) return `une suite a tourné (ligne OK/FAIL): ${sortie}`;
+  if (!/payload propre/.test(sortie)) return `« payload propre » absent: ${sortie}`;
+  const restes = readdirSync(tmp);
+  if (restes.length) return `dossier temporaire non nettoyé: ${restes.join(', ')}`;
+  return null;
+});
+
+cas('publier : échec dans le try (chemin personnel planté) → code 1, dossier temporaire vide', () => {
+  const copie = dossierJetable('workflow-publier-copie-');
+  cpSync(join(RACINE, 'plugin'), join(copie, 'plugin'), { recursive: true });
+  writeFileSync(join(copie, 'plugin', 'plante.md'), 'chemin : C:' + String.fromCharCode(92) + 'Users' + String.fromCharCode(92) + 'Zed\n');
+  const tmp = dossierJetable('workflow-publier-echec-');
+  const { code, sortie } = lancer(join(copie, 'plugin', 'bin', 'publier.mjs'), ['--dry-run', '--sans-tests'], copie, envTmp(tmp));
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/personnel\(s\) détecté/.test(sortie)) return `refus du scan absent: ${sortie}`;
+  const restes = readdirSync(tmp);
+  if (restes.length) return `dossier temporaire non nettoyé: ${restes.join(', ')}`;
   return null;
 });
 
