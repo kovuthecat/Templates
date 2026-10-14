@@ -24,7 +24,7 @@ sessions ont tourné sur un autre.
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1 | Purge de DECISIONS.md | Haiku | medium | — | — | `DECISIONS.md` · `docs/decisions/archives.md` | [ ] | — |
+| [S1](S1.md) | T1 | Purge de DECISIONS.md | Haiku | medium | — | — | `DECISIONS.md` · `docs/decisions/archives.md` | [x] 2026-10-14 | — |
 | [S2](S2.md) | T2 | /maj-workflow n'écrase plus une dérive | Sonnet | medium | — | S1 | `plugin/bin/sync-workflow.mjs` · `plugin/bin/publier.mjs` · `plugin/skills/maj-workflow/SKILL.md` · `tests/tester-scripts.mjs` | [ ] | — |
 | [S3](S3.md) | T3-T5 | Moteur : historique partiel, compteurs depuis git, revue sans couverture | Sonnet | high | — | S2 | `plugin/bin/prochaine-action.mjs` · `plugin/bin/preuve-n0.mjs` · `plugin/skills/reprendre-echec/SKILL.md` · `plugin/skills/orchestrer-plan/references/remediation.md` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [ ] | — |
 | [S4](S4.md) | T6-T8 | Garde-fou git, skills qui poussent, plugin en retard signalé | Sonnet | medium | — | S3 | `plugin/hooks/pretooluse-git.mjs` · `plugin/hooks/sessionstart-contexte.mjs` · `plugin/skills/purge-contexte/SKILL.md` · `plugin/skills/revue-de-conception/SKILL.md` · `tests/tester-hooks.mjs` | [ ] | — |
