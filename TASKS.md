@@ -23,6 +23,15 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
   - Constat pour S3 (outillage instancié) : Prettier sur poste Windows (`core.autocrlf=true`) signale
     tout fichier en CRLF — `"endOfLine": "auto"` (Interface-OE : 124 faux écarts sur 151, `95e9910`)
 
+## Suites de la revue externe — plan 1, P19 (`plans/P19/index.md`)
+- Purge de DECISIONS.md · → plans/P19/S1.md
+- /maj-workflow n'écrase plus une dérive · → plans/P19/S2.md
+- Moteur : historique partiel, compteurs depuis git, revue sans couverture · → plans/P19/S3.md
+- Garde-fou git, skills qui poussent, plugin en retard signalé · → plans/P19/S4.md
+- N0 sans doublon, tests en CI · → plans/P19/S5.md
+- Scénarios de bout en bout et mesure de référence · → plans/P19/S6.md
+- Publication 0.66.0 · → plans/P19/S7.md
+
 ## Backlog de revue (non bloquant)
 
 - **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
