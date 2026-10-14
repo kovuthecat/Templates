@@ -187,6 +187,48 @@ try {
   }
 } catch { /* manifeste illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
 
+// Lignes de version : aussi écrites dans `systemMessage` (affiché à l'utilisateur d'après la doc des
+// hooks, champ commun « Warning message shown to the user »), alors que `additionalContext` ne va
+// qu'au modèle — le poste est resté en 0.55.0 face à une 0.65.0 sans que l'utilisateur voie rien
+// (constat du 2026-10-14 : le hook 0.55.0 joué à la main émet bien la ligne, mais en
+// `additionalContext` seulement).
+const lignesVersion = [];
+
+// Entrées `workflow@templates` de `installed_plugins.json` qui visent CE dépôt avec une version plus
+// ancienne que la source. Chemins comparés sans tenir compte de la casse SEULEMENT pour un chemin à
+// lettre de lecteur (Windows) : sur Linux, deux casses sont deux dossiers. Plusieurs entrées pour le
+// même dépôt (une par casse) : celle en retard est un DOUBLON, que `plugin update` ne met pas à jour
+// (il n'agit que sur l'entrée de la casse courante) — le remède la retire. Aucun processus lancé,
+// muet sur toute erreur de lecture.
+function signalerEntreesEnRetard(racineSource, cheminPluginSource) {
+  try {
+    const versionSource = JSON.parse(readFileSync(cheminPluginSource, 'utf8')).version;
+    const config = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+    const plugins = JSON.parse(readFileSync(join(config, 'plugins', 'installed_plugins.json'), 'utf8')).plugins || {};
+    const norm = (p) => {
+      const n = String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+      return /^[A-Za-z]:\//.test(n) ? n.toLowerCase() : n;
+    };
+    const racine = norm(racineSource);
+    const entrees = Object.entries(plugins)
+      .filter(([cle, liste]) => cle.startsWith('workflow@templates') && Array.isArray(liste))
+      .flatMap(([, liste]) => liste)
+      .filter((x) => x.scope === 'local' && x.projectPath && norm(x.projectPath) === racine && x.version);
+    for (const x of entrees) {
+      if (!versionSuperieure(versionSource, x.version)) continue;
+      const l = entrees.length > 1
+        ? `**Entrée en doublon et en retard : workflow@templates v${x.version}** (projectPath ` +
+          `\`${x.projectPath}\`, source v${versionSource}) — \`claude plugin update\` ne la met pas à ` +
+          'jour. La retirer : supprimer cette entrée de `installed_plugins.json` (aucune casse du ' +
+          'dossier ne la fait atteindre par `plugin uninstall`).'
+        : `**Plugin installé v${x.version}, source v${versionSource}** (projectPath ` +
+          `\`${x.projectPath}\`) : \`claude plugin update workflow@templates --scope local\`.`;
+      lignes.push(l);
+      lignesVersion.push(l);
+    }
+  } catch { /* fichier absent, illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
+}
+
 // Plugin CHARGÉ contre la copie de travail, dans le DÉPÔT SOURCE seulement (pas de manifeste vendoré,
 // et `plugin/.claude-plugin/plugin.json` présent — CE dépôt). Un incident du 2026-09-22 (rejoué le
 // 2026-09-23 sur Templates, le 2026-09-24 sur DrumsTraining) : le plugin local installé au cache
@@ -212,12 +254,13 @@ try {
       const versionChargee = JSON.parse(readFileSync(cheminPluginCharge, 'utf8')).version;
       const versionSource = JSON.parse(readFileSync(cheminPluginSource, 'utf8')).version;
       if (versionChargee && versionSource && versionChargee !== versionSource) {
-        lignes.push(
-          `**Plugin chargé v${versionChargee}, source v${versionSource}** : ` +
-          '`claude plugin update workflow@templates --scope local`.'
-        );
+        const l = `**Plugin chargé v${versionChargee}, source v${versionSource}** : ` +
+          '`claude plugin update workflow@templates --scope local`.';
+        lignes.push(l);
+        lignesVersion.push(l);
       }
     }
+    signalerEntreesEnRetard(racineSource, cheminPluginSource);
   }
 } catch { /* plugin.json illisible ou JSON invalide : contrôle désactivé, jamais de faux positif */ }
 
@@ -298,4 +341,5 @@ repondre({
     hookEventName: 'SessionStart',
     additionalContext: blocs.join('\n\n'),
   },
+  ...(lignesVersion.length ? { systemMessage: lignesVersion.join('\n') } : {}),
 });

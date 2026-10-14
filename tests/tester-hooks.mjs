@@ -722,6 +722,66 @@ cas('sessionstart-contexte : mods en place à la bonne version → silence', () 
   return s.includes('Mods non installés') ? `signal à tort: ${s}` : null;
 });
 
+// P19/S4/T8 — entrées `workflow@templates` en retard sur la source, doublon de casse compris.
+// Dépôt source de test : `plugin/.claude-plugin/plugin.json` en 9.0.0 (le hook joué est celui de CE
+// dépôt, dont la version est autre : seules les lignes « Plugin installé »/« Entrée en doublon » comptent).
+function depotSourceV9() {
+  const repo = creerDepot();
+  mkdirSync(join(repo, 'plugin', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(repo, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'workflow', version: '9.0.0' }));
+  return repo;
+}
+const entreesWf = (...paires) => ({ 'workflow@templates': paires.map(([projectPath, version]) => ({ scope: 'local', projectPath, version })) });
+const sortieHook = (repo, config) => {
+  const brut = hookMods(repo, config);
+  return brut ? JSON.parse(brut) : {};
+};
+const contexteDe = (json) => json.hookSpecificOutput?.additionalContext ?? '';
+const swapCasse = (p) => p.replace(/[a-z]/gi, (c) => (c === c.toLowerCase() ? c.toUpperCase() : c.toLowerCase()));
+const SIGNAL_RETARD = /Plugin installé v|Entrée en doublon/;
+
+cas('sessionstart-contexte : entrée workflow à jour → aucune ligne de retard', () => {
+  const repo = depotSourceV9();
+  const ctx = contexteDe(sortieHook(repo, configAvec(entreesWf([repo, '9.0.0']))));
+  return SIGNAL_RETARD.test(ctx) ? `signal à tort: ${ctx}` : null;
+});
+
+cas('sessionstart-contexte : entrée workflow plus ancienne → ligne avec les deux versions, aussi en systemMessage', () => {
+  const repo = depotSourceV9();
+  const json = sortieHook(repo, configAvec(entreesWf([repo, '8.0.0'])));
+  if (!/Plugin installé v8\.0\.0, source v9\.0\.0/.test(contexteDe(json))) return `ligne absente, reçu: ${contexteDe(json) || '(vide)'}`;
+  return /Plugin installé v8\.0\.0, source v9\.0\.0/.test(json.systemMessage ?? '') ? null : 'absente du systemMessage';
+});
+
+if (process.platform === 'win32') {
+  cas('sessionstart-contexte : deux entrées à la casse près, l’une en retard → doublon nommé, sans plugin update', () => {
+    const repo = depotSourceV9();
+    const autreCasse = swapCasse(repo);
+    // anti-raccourci : l'une des deux entrées EST la racine du dépôt de test, l'autre n'en diffère que par la casse
+    if (autreCasse === repo || autreCasse.toLowerCase() !== repo.toLowerCase()) return 'cas mal construit';
+    const ctx = contexteDe(sortieHook(repo, configAvec(entreesWf([repo, '9.0.0'], [autreCasse, '8.0.0']))));
+    const ligne = ctx.split(/\r?\n/).find((l) => l.includes('Entrée en doublon')) ?? '';
+    if (!ligne) return `doublon absent, reçu: ${ctx}`;
+    if (!ligne.includes(autreCasse) || !ligne.includes('v8.0.0')) return `chemin ou version non nommés: ${ligne}`;
+    return /plugin update workflow@templates --scope local/.test(ligne) ? 'remède = plugin update' : null;
+  });
+} else {
+  console.log('SKIP sessionstart-contexte : doublon de casse (chemin à lettre de lecteur : Windows seulement)');
+  cas('sessionstart-contexte : deux chemins sans lettre de lecteur, casse différente → aucun doublon', () => {
+    const repo = depotSourceV9();
+    const autreCasse = swapCasse(repo);
+    if (autreCasse === repo) return 'cas mal construit';
+    const ctx = contexteDe(sortieHook(repo, configAvec(entreesWf([repo, '9.0.0'], [autreCasse, '8.0.0']))));
+    return SIGNAL_RETARD.test(ctx) ? `signal à tort: ${ctx}` : null;
+  });
+}
+
+cas('sessionstart-contexte : installed_plugins.json invalide (dépôt source) → aucune ligne, pas d’erreur', () => {
+  const repo = depotSourceV9();
+  const ctx = contexteDe(sortieHook(repo, configAvec('{pas du json')));
+  return SIGNAL_RETARD.test(ctx) ? `signal à tort: ${ctx}` : null;
+});
+
 cas('sessionstart-contexte : mods absents mais session cloud → silence', () => {
   const repo = depotAvecMod();
   const s = hookMods(repo, configAvec({}), { CLAUDE_CODE_REMOTE: 'true' });
