@@ -150,6 +150,11 @@ Conséquences · Impact IA) — pas recopié ici, ce registre est relu à chaque
 - 2026-10-12 — **Génération 5.5** — clés `modelSettings` en `claude-*-5-5` ; Haiku `medium` (plus
   `low`) ; orchestrateur en Haiku · medium (banc 18/20 contre 20/20 Sonnet, 14× moins cher) ;
   `/maj-workflow` signale les clés manquantes → [détail](docs/decisions/2026-10-12-generation-5-5.md)
+- 2026-10-14 — **Suites de la revue externe ; sessions sans pastille** — revue du 2026-10-13
+  retenue en deux plans (fondations + mesure, puis simplification) ; parallèle retiré ; voie
+  express bornée par script ; `pastille` supprimée : N1 en sous-agent, N2 non bloquant, choix
+  relayés par écrit à la même session (`SendMessage`) ; « une règle en retire une » = orientation →
+  [détail](docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md)
 
 ## Archives
 
