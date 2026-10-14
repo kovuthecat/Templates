@@ -1,0 +1,5 @@
+{
+  "commandes": [
+    { "nom": "tests", "cmd": "node test.mjs" }
+  ]
+}
