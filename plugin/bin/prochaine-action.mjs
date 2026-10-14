@@ -461,7 +461,9 @@ function lireRevue(chemin, texte = readFileSync(chemin, 'utf8').replace(/\r\n/g,
   const reprises = Number(/^Reprises\s*:\s*(\d+)$/m.exec(texte)?.[1] ?? 0);
   const dependances = /^Dépendances\s*:\s*(.+)$/m.exec(texte)?.[1].trim();
   return { bloquant: m ? Number(m[1]) : null,
-    couverture: m ? (couverture ?? 'complète') : 'invalide', // anciennes revues : pas de champ Couverture
+    // Sans `Couverture :` la revue est à refaire, même avec `Bloquant :` (T5, P19/S3) : une
+    // relecture écrite sur une ligne, au format de la réponse du relecteur, ne passe plus pour complète.
+    couverture: m && couverture ? couverture : 'invalide',
     reprises, dependances: dependances === 'libres' ? 'libres' : 'bloquées' };
 }
 

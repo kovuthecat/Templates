@@ -2421,6 +2421,32 @@ cas('T4 : témoin — prémisse jamais vérifiée (aucune ligne, aucun commit qu
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs — P19/S3 T5 : une relecture sans `Couverture :` est à refaire.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+cas("T5 : S1.revue.md avec « Bloquant : 0 » sans « Couverture : » → relire, la session n'est pas tenue pour relue", () => {
+  const cwd = planMoteurJetable('workflow-pa-revue-sans-couverture-');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\n');
+  initDepot(cwd);
+  commitTout(cwd, 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'relire' || action.sessions[0]?.session !== 'S1') return `relire S1 attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T5 : témoin — la même revue avec « Couverture : complète » → S1 relue, lancer S2', () => {
+  const cwd = planMoteurJetable('workflow-pa-revue-avec-couverture-');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\n');
+  initDepot(cwd);
+  commitTout(cwd, 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer' || action.sessions[0]?.session !== 'S2') return `lancer S2 attendu, reçu: ${sortie}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {
