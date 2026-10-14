@@ -21,7 +21,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { verifierPreuve } from '../plugin/bin/preuve-n0.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -81,6 +82,11 @@ function lancer(script, args, cwd, env = undefined) {
 
 function git(cwd, ...args) {
   execFileSync('git', args, { cwd, stdio: 'pipe' });
+}
+
+/** Sortie texte d'une commande git (les cas qui comparent un état). */
+function gitSortie(cwd, ...args) {
+  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
 function initDepot(cwd) {
@@ -2193,6 +2199,66 @@ cas('tester-mods : aucun binaire lançable → sortie 1 nommée, jamais un saut 
     { CLAUDE_CODE_EXECPATH: join(poste.config, 'inexistant', 'claude') });
   if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
   if (!/aucun binaire claude lançable/.test(sortie)) return `échec « aucun binaire » attendu: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs / preuve-n0.mjs — P19/S3 T3 : historique partiel (clone `--depth`).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Dépôt complet : S1 faite par ses commits de tâche (loin de la pointe), revue déposée → la bonne
+ * action est `lancer` S2. Sur un clone qui a perdu ces commits, S1 paraîtrait à lancer. */
+function depotPlanComplet() {
+  const src = dossierJetable('workflow-pa-complet-');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(src, 'plans', 'P9'), { recursive: true });
+  writeFileSync(join(src, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n');
+  initDepot(src);
+  git(src, 'add', '-A');
+  git(src, 'commit', '-q', '-m', 'S1\n\nPlan: P9/S1/T1\nPlan: P9/S1/T2');
+  for (let i = 0; i < 3; i++) git(src, 'commit', '--allow-empty', '-q', '-m', `bruit ${i}`);
+  return src;
+}
+
+function cloneSuperficiel(src, { garderOrigin }) {
+  const dst = dossierJetable('workflow-pa-clone-');
+  git(dst, 'clone', '-q', '--depth', '1', pathToFileURL(src).href, '.');
+  if (!garderOrigin) git(dst, 'remote', 'remove', 'origin');
+  return dst;
+}
+
+cas('T3 : témoin — dépôt complet → lancer S2 (S1 faite par ses commits de tâche)', () => {
+  const { code, action, sortie } = lancerJson(['P9', '--json'], depotPlanComplet());
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer' || action.sessions[0]?.session !== 'S2') return `lancer S2 attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T3 : clone --depth 1 sans origin → question historique-partiel, jamais une action devinée', () => {
+  const cwd = cloneSuperficiel(depotPlanComplet(), { garderOrigin: false });
+  if (gitSortie(cwd, 'rev-parse', '--is-shallow-repository') !== 'true') return 'le clone de test devait être superficiel';
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
+  if (action.options?.source !== 'historique-partiel') return `source historique-partiel attendue, reçu: ${sortie}`;
+  if (!action.motif.includes('git fetch --unshallow')) return `motif sans la commande de remède: ${action.motif}`;
+  if (!/rien conclu/.test(action.motif)) return `motif sans « rien conclu » sur l'état du plan: ${action.motif}`;
+  return null;
+});
+
+cas('T3 : clone --depth 1 avec origin → fetch --unshallow réussi, même action que sur le dépôt complet', () => {
+  const cwd = cloneSuperficiel(depotPlanComplet(), { garderOrigin: true });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer' || action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (comme le dépôt complet), reçu: ${sortie}`;
+  if (gitSortie(cwd, 'rev-parse', '--is-shallow-repository') !== 'false') return "le moteur n'a pas complété l'historique";
+  return null;
+});
+
+cas('T3 : preuve-n0 sur clone superficiel → ni valide ni invalide, motif « historique partiel »', () => {
+  const cwd = cloneSuperficiel(depotPlanComplet(), { garderOrigin: false });
+  const r = verifierPreuve(cwd, 'P9/S1');
+  if (r.ok === true || r.ok === false) return `ok ne doit être ni vrai ni faux, reçu ${JSON.stringify(r)}`;
+  if (!/historique partiel/.test(r.motif)) return `motif « historique partiel » attendu, reçu ${JSON.stringify(r)}`;
   return null;
 });
 

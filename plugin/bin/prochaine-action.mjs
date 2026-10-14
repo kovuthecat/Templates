@@ -256,6 +256,51 @@ function parseTaches(champ) {
   return [...nums].sort((a, b) => a - b);
 }
 
+// ── Historique partiel (T3, P19/S3) ──────────────────────────────────────────────────────────────
+// Une session cloud clone avec une profondeur limitée : les commits de tâche anciens deviennent
+// invisibles. Le moteur tente `git fetch --unshallow` ; s'il échoue, il rend une `question` et ne
+// conclut rien sur l'état du plan.
+// Délai de l'appel dédié : le helper `git()` (8 s, erreur rendue `null`) tuerait un vrai fetch sur le
+// réseau d'une session cloud — chaque appel rendrait alors la question. Au moins 120 s.
+const DELAI_UNSHALLOW_MS = 180000;
+
+function historiquePartiel() {
+  return git('rev-parse', '--is-shallow-repository') === 'true';
+}
+
+/** `null` si le fetch a réussi, sinon le texte de l'erreur de git (stderr conservé pour le motif). */
+function completerHistorique() {
+  try {
+    execFileSync('git', ['fetch', '--unshallow'], {
+      cwd: RACINE,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      timeout: DELAI_UNSHALLOW_MS,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    });
+    return null;
+  } catch (e) {
+    const brut = e.killed ? `délai de ${DELAI_UNSHALLOW_MS / 1000} s dépassé` : String(e.stderr || e.message || '').trim();
+    return brut.replace(/\s+/g, ' ').slice(0, 300) || 'erreur git inconnue';
+  }
+}
+
+/** `null` si l'historique est complet (ou a pu être complété) ; sinon la `question` à rendre. */
+function verifierHistoriqueComplet() {
+  if (!historiquePartiel()) return null;
+  const erreurFetch = completerHistorique();
+  if (erreurFetch === null && !historiquePartiel()) return null;
+  const detail = erreurFetch ?? 'le dépôt reste superficiel après le fetch';
+  return {
+    action: 'question',
+    motif:
+      `historique git partiel (clone superficiel) : \`git fetch --unshallow\` a échoué (${detail}). ` +
+      "Le moteur n'a rien conclu sur l'état du plan — lancer `git fetch --unshallow` à la main, puis relancer.",
+    options: { source: 'historique-partiel', erreur: detail },
+  };
+}
+
 function refsCommitees() {
   const messages = git('log', '--format=%B') || '';
   const refs = new Set();
@@ -899,6 +944,14 @@ const index = lireIndex(dossierPlan);
 if (index.erreur) {
   console.error(`prochaine-action: ${index.erreur}`);
   process.exit(2);
+}
+
+// Historique partiel (T3, P19/S3) : avant toute lecture de l'historique. Un clone `--depth` a perdu
+// les commits de tâche plus anciens — lu comme complet, il ferait relancer une session déjà faite.
+const questionPartiel = verifierHistoriqueComplet();
+if (questionPartiel) {
+  process.stdout.write((json ? JSON.stringify(questionPartiel, null, 2) : formaterTexte(questionPartiel)) + '\n');
+  process.exit(0);
 }
 
 const refs = refsCommitees();

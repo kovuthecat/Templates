@@ -59,6 +59,14 @@ export function nonSuivis(cwd) {
 
 export function verifierPreuve(cwd, session) {
   const chemin = `plans/${session}.n0.json`;
+  // Historique partiel (clone `--depth`, T3 P19/S3) : le dernier commit de tâche et le commit de la
+  // preuve peuvent être hors de portée — ni « valide » ni « invalide », jamais un verdict deviné.
+  // Pas de fetch ici : compléter l'historique est l'affaire du moteur, pas de la vérification.
+  let partiel = false;
+  try { partiel = git(cwd, 'rev-parse', '--is-shallow-repository').trim() === 'true'; } catch { /* pas un dépôt : traité plus bas */ }
+  if (partiel) {
+    return { ok: null, partiel: true, motif: 'historique partiel : preuve N0 non vérifiable — lancer `git fetch --unshallow`' };
+  }
   try {
     if (!existsSync(join(cwd, chemin))) return { ok: false, motif: 'preuve N0 absente' };
     const preuve = JSON.parse(readFileSync(join(cwd, chemin), 'utf8'));
