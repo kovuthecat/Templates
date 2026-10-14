@@ -371,7 +371,11 @@ for (const [valeur, attendue] of [['requise', 'valider-n0'], ['non requise', nul
     const cwd = dossierJetable('workflow-pa-n0-');
     cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
     const index = join(cwd, 'plans', 'P9', 'index.md');
-    writeFileSync(index, readFileSync(index, 'utf8').replace('Workflow : v0.39.0\n', `Workflow : v0.39.0\nPreuve N0 : ${valeur}\n`));
+    // Fin de ligne normalisée : sur un checkout CRLF (autocrlf), le `\n` du motif ne matchait rien et
+    // le témoin `requise` tournait sans sa ligne `Preuve N0` (faux vert / faux rouge selon le cas).
+    const texte = readFileSync(index, 'utf8').replace(/\r\n/g, '\n');
+    if (!texte.includes('Workflow : v0.39.0\n')) throw new Error('fixture moteur-base : ligne Workflow introuvable');
+    writeFileSync(index, texte.replace('Workflow : v0.39.0\n', `Workflow : v0.39.0\nPreuve N0 : ${valeur}\n`));
     writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n');
     initDepot(cwd);
     writeFileSync(join(cwd, 'a.txt'), 'x\n');
