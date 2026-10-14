@@ -165,6 +165,42 @@ function estBloque(sortie) {
     return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
   });
 
+  // P19/S4/T6 — `git add` analysé argument par argument ; `--amend` n'exempte plus `-a`.
+  // Dépôt à part : le fichier à crochets doit exister sur le disque pour prouver la règle
+  // « joker qui désigne un chemin littéral existant » (sans lui, le cas passerait par un autre refus).
+  {
+    const depotAdd = creerDepot();
+    mkdirSync(join(depotAdd, 'app', '[id]'), { recursive: true });
+    writeFileSync(join(depotAdd, 'app', '[id]', 'page.tsx'), 'x\n');
+    const jouer = (commande, cwd = depotAdd) =>
+      lancerHook('pretooluse-git.mjs', { cwd, tool_name: 'Bash', tool_input: { command: commande } });
+
+    for (const commande of [
+      'git add src/a.ts .', 'git add -- .', 'git add ./', 'git add :/', 'git add -u', 'git add -Av',
+      "git add '*.md'", 'git add *', 'git stage .', 'git commit -am msg --amend',
+      'git commit --amend -a -m x',
+    ]) {
+      cas(`pretooluse-git : refusé — ${commande}`, () => {
+        const s = jouer(commande);
+        return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+      });
+    }
+    for (const commande of [
+      'git add app/[id]/page.tsx', 'git add plans/P19/', 'git add f.txt g.txt',
+      'git commit --amend -m x', 'git commit -m "fix: git add . refusé"',
+    ]) {
+      cas(`pretooluse-git : accepté — ${commande}`, () => {
+        const s = jouer(commande);
+        return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
+      });
+    }
+    // Même commande, dépôt SANS le fichier à crochets : la règle repose bien sur l'existence.
+    cas("pretooluse-git : refusé — git add app/[id]/page.tsx si le fichier n'existe pas", () => {
+      const s = jouer('git add app/[id]/page.tsx', repo);
+      return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+    });
+  }
+
   mkdirSync(join(repo, '.claude'), { recursive: true });
   writeFileSync(join(repo, '.claude', 'wave.lock'), '');
 

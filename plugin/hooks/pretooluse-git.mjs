@@ -8,6 +8,8 @@
 // `git -c user.name=x commit`) : sans ce préfixe dans le motif, ces variantes passaient sous la
 // regex (T2, P10/S1) — un simple `-C .` suffisait à contourner le refus sous verrou.
 
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   lireEntree, repertoireProjet, vagueParallele, racineIntrouvable, repondre, riendafaire,
 } from './lib.mjs';
@@ -36,11 +38,65 @@ function refuser(raison) {
 // ci-dessous voient la sous-commande RÉELLE, quelle que soit l'option globale qui la précède.
 const OPTIONS_GLOBALES = String.raw`(?:\s+-(?:C|c)\s+\S+)*`;
 
-if (new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+add\s+(-A\b|--all\b|\.(?:\s|$))`).test(commande)) {
-  refuser(
-    "WORKFLOW.md §4b : staging global interdit. Stage explicitement les fichiers de la tâche " +
-    '(`git add <fichier> <fichier>`) — jamais `git add -A`, `--all` ni `.`.'
-  );
+// Découpe la commande en segments de mots, guillemets RETIRÉS (non vidés : `git add '*.md'` doit
+// rester un joker). Séparateurs de commande (`;` `&` `|` retour à la ligne) hors guillemets. Les
+// heredocs et here-strings sont du texte, pas des arguments : réduits avant la découpe.
+function segmentsDeMots(cmd) {
+  const brut = cmd
+    .replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\b/g, '<<TEXTE')
+    .replace(/@'[\s\S]*?'@|@"[\s\S]*?"@/g, "''");
+  const segments = [];
+  let mots = [], mot = '', actif = false, guillemet = null;
+  const finMot = () => { if (actif) mots.push(mot); mot = ''; actif = false; };
+  const finSegment = () => { finMot(); if (mots.length) segments.push(mots); mots = []; };
+  for (let i = 0; i < brut.length; i++) {
+    const c = brut[i];
+    if (guillemet) {
+      if (c === guillemet) guillemet = null;
+      else if (c === '\\' && guillemet === '"' && i + 1 < brut.length) mot += brut[++i];
+      else mot += c;
+    } else if (c === '"' || c === "'") { guillemet = c; actif = true; }
+    else if (/\s/.test(c) && c !== '\n') finMot();
+    else if (c === '\n' || c === ';' || c === '&' || c === '|') finSegment();
+    else { mot += c; actif = true; }
+  }
+  finSegment();
+  return segments;
+}
+
+// `git [-C x | -c k=v]… add|stage <args>` : la forme refusée, ou null. Chaque argument est jugé seul,
+// quelle que soit sa position (`git add src/a.ts .` passait sous l'ancien motif, qui exigeait `.`
+// juste après `add`).
+function stagingGlobal(mots, cwd) {
+  if (mots[0] !== 'git') return null;
+  let i = 1, dossier = cwd;
+  while (i < mots.length && (mots[i] === '-C' || mots[i] === '-c') && i + 1 < mots.length) {
+    if (mots[i] === '-C') dossier = resolve(dossier, mots[i + 1]);
+    i += 2;
+  }
+  if (mots[i] !== 'add' && mots[i] !== 'stage') return null;
+  let options = true;
+  for (const arg of mots.slice(i + 1)) {
+    if (options && arg === '--') { options = false; continue; }
+    if (options && arg.startsWith('-')) {
+      if (arg === '--update' || arg === '--all') return arg;
+      if (/^-[a-zA-Z]+$/.test(arg) && /[Au]/.test(arg)) return arg;
+      continue;
+    }
+    if (arg === '.' || arg === './' || arg === '.\\' || arg.startsWith(':')) return arg;
+    if (/[*?[]/.test(arg) && !existsSync(resolve(dossier, arg))) return arg;
+  }
+  return null;
+}
+
+for (const mots of segmentsDeMots(commande ?? '')) {
+  const forme = stagingGlobal(mots, cwd);
+  if (forme) {
+    refuser(
+      `WORKFLOW.md §4b : staging global interdit (\`${forme}\`). Stage explicitement les fichiers de ` +
+      'la tâche (`git add <fichier> <fichier>`) — jamais `git add -A`, `--all`, `-u`, `.`, `:/` ni un joker.'
+    );
+  }
 }
 
 // Le texte cité n'est pas une option : message de commit (`-m "… commit -a …"`), heredoc bash,
@@ -60,7 +116,7 @@ function commitAvecToutStager(cmd) {
   const motif = new RegExp(String.raw`\bgit${OPTIONS_GLOBALES}\s+commit\b`, 'g');
   for (const m of neutre.matchAll(motif)) {
     const segment = neutre.slice(m.index + m[0].length).split(/[;&|\n]/)[0];
-    if (/\s-[a-zA-Z]*a[a-zA-Z]*\b|\s--all\b/.test(segment) && !/--amend/.test(segment)) return true;
+    if (/\s-[a-zA-Z]*a[a-zA-Z]*\b|\s--all\b/.test(segment)) return true;
   }
   return false;
 }
