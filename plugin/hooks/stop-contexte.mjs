@@ -1,6 +1,8 @@
 // Hook Stop — garde-fou de fin de session.
 // Quatre vérifications mécaniques (cf. WORKFLOW.md §7, C3) :
 //   1. du code a été modifié mais aucun fichier de suivi ne l'a été → /fin-de-tache non déroulée ;
+//      Exception — voie express : un commit de la session portant `Express : <cause>` dispense de suivi
+//      les fichiers qu'il a livrés (P20/S9/T13) ; ses bornes sont refusées au commit, pas ici ;
 //   2. une session de plan a commité du code sans laisser trace de sa revue — aucun commit n'a
 //      ajouté S<k>.revue.md (git seul juge, plus de repère `Revues:`) → revue jamais lancée ;
 //   3. gate de push (C3) : commits d'avance sur l'amont, fichier suivi modifié non commité, ou
@@ -30,7 +32,7 @@ import {
   lireEntree, repertoireProjet, estUnDepot, fichiersModifies, fichiersSuivisModifies,
   depassements, estFichierDeSuivi, lirePlafonds, repondre, riendafaire,
   racineIntrouvable, repereSession, revuesManquantes, estSessionPlanifiee,
-  git, etatAmont, aUnRemote, brancheCourante,
+  git, etatAmont, aUnRemote, brancheCourante, commitsExpress,
 } from './lib.mjs';
 
 const entree = await lireEntree();
@@ -52,10 +54,30 @@ if (!sansRacine) {
   const code = modifies.filter((f) => !estFichierDeSuivi(f, fichiersDeSuivi));
   const suivi = modifies.filter((f) => estFichierDeSuivi(f, fichiersDeSuivi));
 
-  if (code.length > 0 && suivi.length === 0) {
-    const apercu = code.slice(0, 5).join(', ') + (code.length > 5 ? `, … (${code.length} au total)` : '');
+  // Repère HEAD de la session (SessionStart) : sert à la voie express (règle 1) et au contrôle des
+  // revues (règle 2).
+  let repereHead = null;
+  let debutSession = null;
+  try {
+    const { chemin } = repereSession(entree, cwd, 'head');
+    if (existsSync(chemin)) {
+      repereHead = readFileSync(chemin, 'utf8').trim();
+      debutSession = statSync(chemin).mtimeMs;
+    }
+  } catch { /* repère illisible : contrôle désactivé, jamais de faux positif */ }
+
+  // Voie express (P20/S9/T13) : un commit de la session portant `Express : <cause>` tient lieu de
+  // fichier de suivi pour les fichiers qu'il a livrés (ce qui en reste modifié : formatage après coup,
+  // retouche). Un autre fichier de code modifié, lui, reste à consigner. Les bornes de la voie
+  // (150 lignes, 8 fichiers, dépendances, zone de plan ouvert) sont refusées AU COMMIT, par
+  // `pretooluse-git.mjs` ; ici on n'accepte que la mention.
+  const express = commitsExpress(cwd, repereHead);
+  const codeSansExpress = express ? code.filter((f) => !express.fichiers.includes(f)) : code;
+
+  if (codeSansExpress.length > 0 && suivi.length === 0) {
+    const apercu = codeSansExpress.slice(0, 5).join(', ') + (codeSansExpress.length > 5 ? `, … (${codeSansExpress.length} au total)` : '');
     problemes.push(
-      `**Fin de session non consignée.** ${code.length} fichier(s) modifié(s) (${apercu}) ` +
+      `**Fin de session non consignée.** ${codeSansExpress.length} fichier(s) modifié(s) (${apercu}) ` +
       `sans qu'aucun fichier de suivi (statut dans plans/, STATUS.md, VALIDATION.md) ne soit touché. ` +
       `Déroule la skill /fin-de-tache avant de rendre la main.`
     );
@@ -68,16 +90,6 @@ if (!sansRacine) {
   // (docs/decisions/2026-09-07-revue-orpheline.md). Sans ce contrôle, un plan entier se clôt sans
   // qu'aucune relecture n'ait été déposée. La seule absence légitime est celle du tri de clôture, qui
   // verse la revue dans TASKS.md puis la supprime — elle se déclare par un repère `Revues:`.
-  let repereHead = null;
-  let debutSession = null;
-  try {
-    const { chemin } = repereSession(entree, cwd, 'head');
-    if (existsSync(chemin)) {
-      repereHead = readFileSync(chemin, 'utf8').trim();
-      debutSession = statSync(chemin).mtimeMs;
-    }
-  } catch { /* repère illisible : contrôle désactivé, jamais de faux positif */ }
-
   for (const ref of revuesManquantes(cwd, repereHead, debutSession)) {
     problemes.push(
       `**Revue de session absente ou incomplète — ${ref}.** Des commits de cette session portent du code sous ` +

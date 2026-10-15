@@ -212,6 +212,300 @@ function estBloque(sortie) {
 
 }
 
+// ── pretooluse-git.mjs : voie express (P20/S9/T13) ───────────────────────────────────────────────
+// Anti-raccourci : le diff compté est celui du commit À VENIR (index, plus les `git add` de la même
+// commande), jamais l'arbre de travail non indexé. Tous les cas de seuil STAGENT réellement : un
+// compteur qui lirait `git diff` (non indexé) les ferait passer ou échouer à tort.
+{
+  const lignes = (n, prefixe = 'ligne') => Array.from({ length: n }, (_, i) => `${prefixe} ${i}`).join('\n') + '\n';
+  const poser = (repo, chemin, n) => {
+    mkdirSync(dirname(join(repo, chemin)), { recursive: true });
+    writeFileSync(join(repo, chemin), lignes(n));
+  };
+  const stager = (repo, ...chemins) => execFileSync('git', ['add', ...chemins], { cwd: repo, stdio: 'pipe' });
+  const valider = (repo, message) => {
+    execFileSync('git', ['commit', '-q', '-m', message], { cwd: repo, stdio: 'pipe' });
+  };
+  const EXPRESS = 'git commit -m "fix: petit correctif" -m "Express : cause connue, une ligne"';
+  const jouer = (repo, commande) =>
+    lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: commande } });
+  const accepte = (repo, commande) => {
+    const s = jouer(repo, commande);
+    return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
+  };
+  const refuse = (repo, commande, ...motifs) => {
+    const s = jouer(repo, commande);
+    if (!estRefus(s)) return `attendu un refus, reçu: ${s || '(vide)'}`;
+    for (const m of motifs) if (!s.includes(m)) return `refus sans « ${m} » : ${s}`;
+    return null;
+  };
+  const planOuvert = (repo, { zone = '`src/`', statut = '[ ]', clos = false } = {}) => {
+    mkdirSync(join(repo, 'plans', 'P1'), { recursive: true });
+    writeFileSync(join(repo, 'plans', 'P1', 'index.md'), [
+      '# Plan P1 — x', '', 'Workflow : v1', clos ? 'Clos : 2026-10-15' : '', '',
+      '| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |',
+      '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+      `| [S1](S1.md) | T1 | Un | Sonnet | high | — | — | ${zone} | ${statut} |`,
+      '', '## Ordonnancement', '- **Vague 1** : S1.', '',
+    ].join('\n'));
+  };
+
+  cas('express : petit diff indexé → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'src/a.js', 10);
+    stager(repo, 'src/a.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas('express : 150 lignes (la limite) → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 150);
+    stager(repo, 'lib/a.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas('express : 151 lignes → refusé, avec la limite et les deux issues', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    return refuse(repo, EXPRESS, '151 lignes', 'limite 150', 'réduire', 'plan');
+  });
+
+  cas('express : lignes ajoutées + supprimées comptées ensemble (100 + 100 > 150)', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 100);
+    stager(repo, 'lib/a.js');
+    valider(repo, 'base');
+    writeFileSync(join(repo, 'lib', 'a.js'), lignes(100, 'autre'));
+    stager(repo, 'lib/a.js');
+    return refuse(repo, EXPRESS, '200 lignes');
+  });
+
+  cas('express : 8 fichiers (la limite) → accepté', () => {
+    const repo = creerDepot();
+    const noms = Array.from({ length: 8 }, (_, i) => `lib/f${i}.js`);
+    for (const n of noms) poser(repo, n, 2);
+    stager(repo, ...noms);
+    return accepte(repo, EXPRESS);
+  });
+
+  cas('express : 9 fichiers → refusé', () => {
+    const repo = creerDepot();
+    const noms = Array.from({ length: 9 }, (_, i) => `lib/f${i}.js`);
+    for (const n of noms) poser(repo, n, 2);
+    stager(repo, ...noms);
+    return refuse(repo, EXPRESS, '9 fichiers', 'limite 8');
+  });
+
+  for (const chemin of ['package.json', 'package-lock.json', 'app/Cargo.toml', 'requirements-dev.txt', 'yarn.lock']) {
+    cas(`express : ${chemin} (dépendances) → refusé`, () => {
+      const repo = creerDepot();
+      poser(repo, chemin, 2);
+      stager(repo, chemin);
+      return refuse(repo, EXPRESS, 'dépendances', chemin);
+    });
+  }
+
+  cas('express : .claude/n0.json → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, '.claude/n0.json', 2);
+    stager(repo, '.claude/n0.json');
+    return refuse(repo, EXPRESS, '.claude/n0.json');
+  });
+
+  cas("express : fichier d'une zone de plan ouvert (répertoire) → refusé", () => {
+    const repo = creerDepot();
+    planOuvert(repo, { zone: '`src/`' });
+    poser(repo, 'src/a.js', 3);
+    stager(repo, 'src/a.js');
+    return refuse(repo, EXPRESS, 'zone', 'src/a.js');
+  });
+
+  cas("express : fichier d'une zone de plan ouvert (fichier exact, 2e entrée) → refusé", () => {
+    const repo = creerDepot();
+    planOuvert(repo, { zone: '`lib/x.js` · `lib/a.js`' });
+    poser(repo, 'lib/a.js', 3);
+    stager(repo, 'lib/a.js');
+    return refuse(repo, EXPRESS, 'zone');
+  });
+
+  cas("express : zone d'un plan clos → accepté", () => {
+    const repo = creerDepot();
+    planOuvert(repo, { zone: '`src/`', clos: true });
+    poser(repo, 'src/a.js', 3);
+    stager(repo, 'src/a.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas("express : zone d'une session cochée [x] → accepté", () => {
+    const repo = creerDepot();
+    planOuvert(repo, { zone: '`src/`', statut: '[x]' });
+    poser(repo, 'src/a.js', 3);
+    stager(repo, 'src/a.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas("express : fichier hors de la zone du plan ouvert (préfixe voisin `src2/`) → accepté", () => {
+    const repo = creerDepot();
+    planOuvert(repo, { zone: '`src/`' });
+    poser(repo, 'src2/a.js', 3);
+    stager(repo, 'src2/a.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  // Anti-raccourci : l'arbre de travail non indexé ne compte pas.
+  cas('express : gros fichier NON indexé, petit diff indexé → accepté (on compte l\'index)', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/gros.js', 500); // jamais ajouté
+    poser(repo, 'lib/petit.js', 5);
+    stager(repo, 'lib/petit.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas('express : gros fichier tracé modifié et non indexé, petit diff indexé → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/gros.js', 10);
+    stager(repo, 'lib/gros.js');
+    valider(repo, 'base');
+    writeFileSync(join(repo, 'lib', 'gros.js'), lignes(400, 'refait'));
+    poser(repo, 'lib/petit.js', 5);
+    stager(repo, 'lib/petit.js');
+    return accepte(repo, EXPRESS);
+  });
+
+  cas('express : `git add` puis commit dans la MÊME commande — l\'ajout à venir est compté (151 lignes) → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/gros.js', 151); // rien d'indexé au moment du hook
+    return refuse(repo, `git add lib/gros.js && ${EXPRESS}`, '151 lignes');
+  });
+
+  cas('express : `git add` puis commit dans la même commande, petit fichier → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/petit.js', 4);
+    poser(repo, 'lib/gros.js', 500); // jamais ajouté : hors du commit
+    return accepte(repo, `git add lib/petit.js && ${EXPRESS}`);
+  });
+
+  cas('express : `git add` du manifeste dans la même commande → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, 'package.json', 2);
+    return refuse(repo, `git add package.json && ${EXPRESS}`, 'dépendances');
+  });
+
+  cas('express : `git commit <chemin>` — le contenu de ce chemin compte, pas l\'index → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 10);
+    stager(repo, 'lib/a.js');
+    valider(repo, 'base');
+    writeFileSync(join(repo, 'lib', 'a.js'), lignes(200, 'refait'));
+    return refuse(repo, `${EXPRESS} lib/a.js`, '210 lignes');
+  });
+
+  cas('express : message en heredoc, 151 lignes → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    return refuse(repo, "git commit -m \"$(cat <<'EOF'\nfix: gros\n\nExpress : cause\nEOF\n)\"", '151 lignes');
+  });
+
+  cas('express : message en fichier (-F), 151 lignes → refusé', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    writeFileSync(join(repo, 'msg.txt'), 'fix: gros\n\nExpress : cause\n');
+    return refuse(repo, 'git commit -q -F msg.txt', '151 lignes');
+  });
+
+  cas('express : sans la mention, un gros commit n\'est pas du ressort de ce hook → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    return accepte(repo, 'git commit -m "feat: gros"');
+  });
+
+  cas('express : « Express : » en milieu de phrase n\'est pas une mention → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    return accepte(repo, 'git commit -m "docs: la voie Express : définie ailleurs"');
+  });
+
+  cas('express : mention sans cause (`Express :` vide) → pas une mention → accepté', () => {
+    const repo = creerDepot();
+    poser(repo, 'lib/a.js', 151);
+    stager(repo, 'lib/a.js');
+    return accepte(repo, 'git commit -m "x" -m "Express :"');
+  });
+
+  cas('express : rien d\'indexé → accepté (git dira lui-même « rien à committer »)', () => {
+    const repo = creerDepot();
+    return accepte(repo, EXPRESS);
+  });
+}
+
+// ── stop-contexte.mjs : la mention `Express :` tient lieu de fichier de suivi (P20/S9/T13) ─────
+{
+  // Repère HEAD de la session, comme SessionStart le pose : seuls les commits d'APRÈS comptent.
+  const poserRepere = (repo, sessionId) => {
+    const { dossier, chemin } = repereSession({ session_id: sessionId }, repo, 'head');
+    mkdirSync(dossier, { recursive: true });
+    writeFileSync(chemin, execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim());
+  };
+  const livrer = (repo, message) => {
+    writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
+    execFileSync('git', ['add', 'src.js'], { cwd: repo, stdio: 'pipe' });
+    execFileSync('git', ['commit', '-q', '-m', 'fix: x', '-m', message], { cwd: repo, stdio: 'pipe' });
+  };
+
+  cas('stop (express) : commit express puis retouche du même fichier, sans fichier de suivi → passe', () => {
+    const repo = creerDepot();
+    const id = randomUUID();
+    poserRepere(repo, id);
+    livrer(repo, 'Express : cause connue');
+    writeFileSync(join(repo, 'src.js'), 'console.log(2);\n');
+    const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: id });
+    return s === '' ? null : `attendu vide (passe), reçu: ${s}`;
+  });
+
+  cas('stop (express) : même montage SANS la mention → bloque (anti-raccourci)', () => {
+    const repo = creerDepot();
+    const id = randomUUID();
+    poserRepere(repo, id);
+    livrer(repo, 'Corps ordinaire');
+    writeFileSync(join(repo, 'src.js'), 'console.log(2);\n');
+    const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: id });
+    return estBloque(s) ? null : `attendu un blocage, reçu: ${s || '(vide)'}`;
+  });
+
+  cas('stop (express) : un AUTRE fichier de code modifié reste à consigner → bloque', () => {
+    const repo = creerDepot();
+    const id = randomUUID();
+    poserRepere(repo, id);
+    livrer(repo, 'Express : cause connue');
+    writeFileSync(join(repo, 'autre.js'), 'console.log(3);\n');
+    const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: id });
+    return estBloque(s) && s.includes('autre.js') && !s.includes('src.js') ? null : `attendu un blocage sur autre.js seul, reçu: ${s || '(vide)'}`;
+  });
+
+  cas("stop (express) : commit express d'AVANT la session (avant le repère) → ne dispense pas", () => {
+    const repo = creerDepot();
+    const id = randomUUID();
+    livrer(repo, 'Express : cause ancienne');
+    poserRepere(repo, id); // la session commence après
+    writeFileSync(join(repo, 'src.js'), 'console.log(2);\n');
+    const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: id });
+    return estBloque(s) ? null : `attendu un blocage, reçu: ${s || '(vide)'}`;
+  });
+
+  cas('stop (express) : sans repère de session, le commit HEAD express suffit', () => {
+    const repo = creerDepot();
+    livrer(repo, 'Express : cause connue');
+    writeFileSync(join(repo, 'src.js'), 'console.log(2);\n');
+    const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
+    return s === '' ? null : `attendu vide (passe), reçu: ${s}`;
+  });
+}
+
 // ── pretooluse-git.mjs : racine introuvable → commit et push refusés par défaut ─────
 // Garde-fou de l'incident du 2026-09-24 (worktree lié dont le `.git` a été déplacé).
 {

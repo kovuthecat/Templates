@@ -350,7 +350,7 @@ export function familleModele(valeur) {
 }
 
 /** Table BRUTE de toutes les sessions déclarées dans `plans/P<n>/index.md`, cochées ou non :
- *  `[{plan, session, modele, effort, statutBrut, statut, clos}]`. Partagée par `sessionsOuvertes` (qui filtre
+ *  `[{plan, session, modele, effort, statutBrut, statut, zone, clos}]`. Partagée par `sessionsOuvertes` (qui filtre
  *  sur `[ ]`) et `revuesManquantes` (qui a besoin de l'Effort d'une session quel que soit son
  *  statut — une session `low` reste exemptée de revue même une fois cochée, T2/P10/S1) : une seule
  *  lecture de la table, jamais deux parseurs à tenir synchronisés.
@@ -395,6 +395,7 @@ function toutesLesSessions(cwd) {
         effort: l.effort,
         statutBrut: l.statutBrut,
         statut: l.statut,
+        zone: l.zone,
         clos: lu.aLigneClos,
       });
     }
@@ -426,6 +427,81 @@ export function prochaineSession(cwd) {
   if (ouvertes.length === 0) return null;
   const plus = Math.max(...ouvertes.map((s) => Number(s.plan.slice(1))));
   return ouvertes.find((s) => s.plan === `P${plus}`) ?? null;
+}
+
+// ── Voie express (P20/S9/T13) ────────────────────────────────────────────────────────────────────
+// Un commit dont le message porte une ligne `Express : <cause en une ligne>` tient lieu de fichier
+// de suivi (hook Stop) ; le hook git le REFUSE au moment du commit quand le diff indexé sort des
+// bornes ci-dessous (décision du 2026-10-14, § Voie express). Seuils et listes : ceux de la décision.
+
+export const LIMITES_EXPRESS = { lignes: 150, fichiers: 8 };
+
+/** Cause d'une mention `Express : <cause>` dans un texte (message de commit, ou la commande qui le
+ *  porte : `-m "Express : …"`, heredoc, here-string), ou `null`. La mention commence une ligne — ou un
+ *  message cité (`-m "…"`) — : `fix: voir Express : x` n'en est pas une. */
+export function causeExpress(texte) {
+  const m = /(?:^|\n|["'])[ \t]*Express[ \t]*:[ \t]*(\S[^\n]*)/.exec(String(texte ?? ''));
+  if (!m) return null;
+  const cause = m[1].replace(/["'\s]+$/, '').trim();
+  return cause || null;
+}
+
+const MANIFESTES = new Set([
+  'package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml',
+  'bun.lock', 'bun.lockb', 'deno.json', 'deno.lock',
+  'pyproject.toml', 'poetry.lock', 'pipfile', 'pipfile.lock', 'uv.lock', 'setup.py',
+  'cargo.toml', 'cargo.lock', 'go.mod', 'go.sum', 'gemfile', 'gemfile.lock',
+  'composer.json', 'composer.lock', 'pom.xml', 'build.gradle', 'build.gradle.kts',
+  'settings.gradle', 'settings.gradle.kts', 'gradle.lockfile', 'packages.config',
+  'packages.lock.json', 'directory.packages.props', 'mix.exs', 'mix.lock',
+  'pubspec.yaml', 'pubspec.lock', 'podfile', 'podfile.lock', 'package.swift', 'package.resolved',
+]);
+
+/** Manifeste ou lockfile de dépendances ? (par nom de fichier, quel que soit le dossier) */
+export function estManifesteDependances(chemin) {
+  const base = String(chemin).replaceAll('\\', '/').split('/').pop().toLowerCase();
+  return MANIFESTES.has(base) || /^requirements[\w.-]*\.txt$/.test(base) || /\.(?:cs|fs|vb)proj$/.test(base);
+}
+
+/** Zones « modifiées » des sessions NON cochées des plans SANS `Clos :` — la réunion des colonnes
+ *  « Zone modifiée » lues par le lecteur d'index (`lire-index.mjs`). Un chemin entre backticks par
+ *  entrée ; `—` ou une zone sans backtick n'en donne aucune. Tolérant : tout échec → `[]`. */
+export function zonesOuvertes(cwd) {
+  const zones = new Set();
+  for (const s of toutesLesSessions(cwd)) {
+    if (s.clos || s.statut === 'fait' || s.statut === 'fait-bloquant') continue;
+    for (const m of String(s.zone ?? '').matchAll(/`([^`]+)`/g)) {
+      const z = m[1].trim().replaceAll('\\', '/').replace(/^\.\//, '').replace(/\/\*{1,2}$/, '/');
+      if (z && !/[*?<>{}]/.test(z)) zones.add(z);
+    }
+  }
+  return [...zones];
+}
+
+/** Le fichier est-il couvert par une zone (fichier exact, ou répertoire qui le contient) ? */
+export function dansUneZone(fichier, zones) {
+  const f = String(fichier).replaceAll('\\', '/').replace(/^\.\//, '');
+  return zones.find((z) => (z.endsWith('/') ? f.startsWith(z) : f === z || f.startsWith(`${z}/`))) ?? null;
+}
+
+/** Cause express de la session : première mention `Express :` dans `depuis..HEAD` (repère HEAD du
+ *  SessionStart), à défaut de repère dans le seul commit HEAD. Rend `{ cause, fichiers }` — les
+ *  fichiers de TOUS les commits express — ou `null`. Ne lève jamais. */
+export function commitsExpress(cwd, depuis) {
+  const shas = (git(cwd, 'log', '--format=%H', depuis ? `${depuis}..HEAD` : '-1') || '')
+    .split('\n').map((l) => l.trim()).filter(Boolean);
+  let cause = null;
+  const fichiers = new Set();
+  for (const sha of shas) {
+    const c = causeExpress((git(cwd, 'log', '-1', '--format=%B', sha) || '')
+      .split('\n').filter((l) => /^\s*Express\s*:/.test(l)).join('\n'));
+    if (!c) continue;
+    cause ??= c;
+    for (const f of (git(cwd, 'diff-tree', '--no-commit-id', '--name-only', '-r', '--root', sha) || '').split('\n')) {
+      if (f.trim()) fichiers.add(f.trim().replaceAll('\\', '/'));
+    }
+  }
+  return cause ? { cause, fichiers: [...fichiers] } : null;
 }
 
 /** Session lancée par une tâche planifiée ? Le transcript porte, en tête, un enregistrement

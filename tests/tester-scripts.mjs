@@ -4914,6 +4914,113 @@ cas('T12 : relecteur-session.md — les exemptions low et .md/données ne valent
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// bilan-express.mjs — P20/S9/T13 : fiabilité de la voie express, sur un historique fabriqué
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const BILAN_EXPRESS = join(BIN, 'bilan-express.mjs');
+
+/** Dépôt jetable dont l'historique est fabriqué : `n` commits express, puis les `suites` (messages de
+ * commits postérieurs, `{ci}` remplacé par le sha court du i-ème express). Rend { cwd, shas }. */
+function historiqueExpress(n, suites = []) {
+  const cwd = dossierJetable('workflow-bilan-express-');
+  initDepot(cwd);
+  writeFileSync(join(cwd, 'base.txt'), 'base\n');
+  git(cwd, 'add', 'base.txt');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  const shas = [];
+  for (let i = 0; i < n; i++) {
+    writeFileSync(join(cwd, `e${i}.txt`), `${i}\n`);
+    git(cwd, 'add', `e${i}.txt`);
+    git(cwd, 'commit', '-q', '-m', `fix: petit ${i}`, '-m', `Express : cause ${i}`);
+    shas.push(gitSortie(cwd, 'rev-parse', '--short=7', 'HEAD'));
+  }
+  suites.forEach((msg, k) => {
+    writeFileSync(join(cwd, `s${k}.txt`), `${k}\n`);
+    git(cwd, 'add', `s${k}.txt`);
+    git(cwd, 'commit', '-q', '-m', msg.replace(/\{c(\d+)\}/g, (_, i) => shas[Number(i)]));
+  });
+  return { cwd, shas };
+}
+const bilanExpress = (cwd, ...opts) => {
+  const r = lancer(BILAN_EXPRESS, [...opts, '--json'], cwd);
+  return r.code === 0 ? { ...JSON.parse(r.sortie) } : { erreur: `code ${r.code} : ${r.sortie}` };
+};
+
+cas('bilan-express : 10 express dont 2 rattrapés (correction citant le sha, bloquant de relecture) → resserrer', () => {
+  const { cwd } = historiqueExpress(10, ['fix: corrige {c2}', 'revue: S1 relue, 1 bloquant sur {c5}']);
+  const b = bilanExpress(cwd);
+  if (b.erreur) return b.erreur;
+  if (b.express !== 10 || b.rattrapes !== 2) return `10 express / 2 rattrapés attendus, reçu ${b.express}/${b.rattrapes}`;
+  if (b.verdict !== 'resserrer') return `verdict « resserrer » attendu, reçu ${b.verdict}`;
+  const types = b.commits.filter((c) => c.rattrape).map((c) => c.signaux[0].type).join();
+  if (types !== 'correction,bloquant') return `signaux correction,bloquant attendus, reçu ${types}`;
+  return null;
+});
+
+cas('bilan-express : 20 express dont aucun rattrapé → élargir', () => {
+  const { cwd } = historiqueExpress(20, ['feat: autre chose, sans lien']);
+  const b = bilanExpress(cwd);
+  if (b.erreur) return b.erreur;
+  if (b.express !== 20 || b.rattrapes !== 0 || b.verdict !== 'élargir') return `20/0/élargir attendus, reçu ${b.express}/${b.rattrapes}/${b.verdict}`;
+  return null;
+});
+
+cas('bilan-express : un seul rattrapé sur 10 (exactement 1 sur 10) → maintenir, pas resserrer', () => {
+  const { cwd } = historiqueExpress(10, ['fix: N0 rouge sur {c0}']);
+  const b = bilanExpress(cwd);
+  if (b.verdict !== 'maintenir') return `verdict « maintenir » attendu (le seuil est « plus de 1 sur 10 »), reçu ${b.verdict}`;
+  if (b.commits[0].signaux[0]?.type !== 'n0-rouge') return `signal n0-rouge attendu, reçu ${JSON.stringify(b.commits[0].signaux)}`;
+  return null;
+});
+
+cas('bilan-express : 19 express sans rattrapé → maintenir (élargir exige 20)', () => {
+  const b = bilanExpress(historiqueExpress(19).cwd);
+  return b.verdict === 'maintenir' ? null : `verdict « maintenir » attendu, reçu ${b.verdict}`;
+});
+
+cas('bilan-express : moins de 10 express → insuffisant, même avec des rattrapés', () => {
+  const { cwd } = historiqueExpress(5, ['fix: corrige {c0}', 'fix: corrige {c1}']);
+  const b = bilanExpress(cwd);
+  if (b.verdict !== 'insuffisant') return `verdict « insuffisant » attendu, reçu ${b.verdict}`;
+  if (b.rattrapes !== 2) return `2 rattrapés comptés quand même, reçu ${b.rattrapes}`;
+  return null;
+});
+
+cas('bilan-express : un commit qui ne cite pas le sha ne rattrape rien (aucun lien deviné)', () => {
+  const { cwd } = historiqueExpress(10, ['fix: corrige le bug de e2.txt', 'revue: S1 relue, 3 bloquant(s)']);
+  const b = bilanExpress(cwd);
+  return b.rattrapes === 0 ? null : `0 rattrapé attendu, reçu ${b.rattrapes}`;
+});
+
+cas('bilan-express : fenêtre = les 20 derniers express ; les anciens rattrapés sortent du bilan', () => {
+  // 25 express ; le 1er (hors fenêtre) est corrigé : sur les 20 derniers, aucun rattrapé → élargir.
+  const { cwd } = historiqueExpress(25, ['fix: corrige {c0}']);
+  const b = bilanExpress(cwd);
+  if (b.express !== 20 || b.rattrapes !== 0 || b.verdict !== 'élargir') return `20/0/élargir attendus, reçu ${b.express}/${b.rattrapes}/${b.verdict}`;
+  return null;
+});
+
+cas('bilan-express : une revue .revue.md à bloquant qui cite le sha rattrape ; sans bloquant, non', () => {
+  const { cwd, shas } = historiqueExpress(10);
+  mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P1', 'S1.revue.md'), `Bloquant : 1\n- ${shas[3]} : régression\n`);
+  writeFileSync(join(cwd, 'plans', 'P1', 'S2.revue.md'), `Bloquant : 0\n- ${shas[4]} : rien\n`);
+  const b = bilanExpress(cwd);
+  const rattrapes = b.commits.filter((c) => c.rattrape).map((c) => c.sha);
+  return rattrapes.join() === shas[3] ? null : `seul ${shas[3]} attendu rattrapé, reçu ${rattrapes}`;
+});
+
+cas('bilan-express : lecture seule — ni arbre ni historique modifiés ; sortie lisible et hors dépôt → code 2', () => {
+  const { cwd } = historiqueExpress(10, ['fix: corrige {c1}']);
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD') + gitSortie(cwd, 'status', '--porcelain');
+  const lisible = lancer(BILAN_EXPRESS, [], cwd);
+  if (lisible.code !== 0 || !lisible.sortie.includes('Verdict : ') || !lisible.sortie.includes('Rattrapés : 1')) return `sortie lisible attendue, reçu: ${lisible.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') + gitSortie(cwd, 'status', '--porcelain') !== avant) return 'le script a modifié le dépôt';
+  const hors = lancer(BILAN_EXPRESS, [], dossierJetable('workflow-bilan-hors-depot-'));
+  return hors.code === 2 ? null : `code 2 attendu hors dépôt, reçu ${hors.code}`;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {
