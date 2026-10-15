@@ -23,6 +23,10 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifierPreuve } from '../plugin/bin/preuve-n0.mjs';
+import { analyserIndex, lireIndexTexte } from '../plugin/bin/lire-index.mjs';
+import { sessionsOuvertes } from '../plugin/hooks/lib.mjs';
+import * as lecteurGardeFous from '../plugin/mods/garde-fous/hooks/lire-index.mjs';
+import * as lecteurAffichage from '../plugin/mods/affichage/hooks/lire-index.mjs';
 import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
 import { settingsProjet, COMMANDE_STACK } from './scenarios/projet/poser.mjs';
 
@@ -34,6 +38,7 @@ const N0 = join(BIN, 'n0.mjs');
 const PROCHAINE_ACTION = join(BIN, 'prochaine-action.mjs');
 const BRIEF_A_JOUR = join(BIN, 'brief-a-jour.mjs');
 
+const COPIES_LECTEUR = { 'garde-fous': lecteurGardeFous, affichage: lecteurAffichage };
 const dossiersTemporaires = [];
 let echecs = 0;
 
@@ -247,12 +252,11 @@ cas('prochaine-action : fixture copiée de plans/P5/index.md → 9 sessions, 5 v
 });
 
 cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, aucun état deviné', () => {
-  // Anti-raccourci (S7/T15) : cette fixture est une COPIE du squelette-index.md modifié (ligne
-  // `Workflow : v<x>` + colonne « Message de commit » ajoutée après Statut, C4/C7) — les assertions
-  // ci-dessous sur `workflow` et sur les sessions/vagues prouvent que le parseur lit le NOUVEAU
-  // format, pas seulement qu'il continue de lire l'ancien.
+  // Anti-raccourci (S7/T15, P20/S4) : l'index posé est le VRAI squelette de /nouveau-plan, lu à
+  // l'exécution (plus de copie figée : elle avait dérivé) — les assertions sur `workflow` et sur les
+  // sessions/vagues prouvent que le lecteur lit le format courant.
   const cwd = dossierJetable('workflow-pa-squelette-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   const json = JSON.parse(sortie);
@@ -273,7 +277,7 @@ cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, a
 
 cas('prochaine-action : .echec.md complet → état "echec", cinq lignes mécaniques lues telles quelles', () => {
   const cwd = dossierJetable('workflow-pa-echec-complet-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   writeFileSync(
     join(cwd, 'plans', 'P0', 'S1.echec.md'),
     [
@@ -306,7 +310,7 @@ cas('prochaine-action : .echec.md complet → état "echec", cinq lignes mécani
 
 cas('prochaine-action : .echec.md sans Tentatives ni Blocage → défauts du gabarit appliqués', () => {
   const cwd = dossierJetable('workflow-pa-echec-partiel-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   writeFileSync(
     join(cwd, 'plans', 'P0', 'S1.echec.md'),
     ['# S1 — échec du 2026-09-17', '', 'Nature : environnement', '', '## Tâche visée', '<t>', ''].join('\n'),
@@ -326,7 +330,7 @@ cas('prochaine-action : .echec.md sans Tentatives ni Blocage → défauts du gab
 
 cas('prochaine-action : session non cochée mais toutes ses tâches commitées → « faite »', () => {
   const cwd = dossierJetable('workflow-pa-commits-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   initDepot(cwd);
   writeFileSync(join(cwd, 'a.txt'), 'x\n');
   git(cwd, 'add', '.');
@@ -343,7 +347,7 @@ cas('prochaine-action : session non cochée mais toutes ses tâches commitées �
 
 cas('prochaine-action : racine connue → dépôt.racineIntrouvable faux', () => {
   const cwd = dossierJetable('workflow-pa-racine-connue-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   initDepot(cwd);
   writeFileSync(join(cwd, 'a.txt'), 'x\n');
   git(cwd, 'add', '.');
@@ -1067,6 +1071,139 @@ function extraireGabaritEchec() {
   return m[1];
 }
 
+/** Le vrai squelette de `plans/P<n>/index.md` (bloc ```md de `nouveau-plan/references/squelette-index.md`,
+ * lu à l'exécution), commentaires `<!-- -->` retirés — P20/S4/T6 : la copie figée
+ * `tests/fixtures/plans/squelette/index.md` avait dérivé (elle avait perdu `Preuve N0 :`) et a disparu. */
+function squeletteReel() {
+  return extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-index.md'))
+    .replace(/<!--[\s\S]*?-->\n?/g, '');
+}
+
+/** Pose le vrai squelette comme `plans/<plan>/index.md` de `cwd`. */
+function poserSqueletteReel(cwd, plan = 'P0') {
+  mkdirSync(join(cwd, 'plans', plan), { recursive: true });
+  writeFileSync(join(cwd, 'plans', plan, 'index.md'), squeletteReel());
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// lire-index.mjs — P20/S4/T6 : UN lecteur d'index, confronté au VRAI squelette de /nouveau-plan.
+// Anti-raccourci : le test de concordance ouvre `squelette-index.md` lui-même (jamais une copie : la
+// copie `tests/fixtures/plans/squelette/index.md` avait dérivé et perdu `Preuve N0 :`).
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const LECTEUR_MODS = ['garde-fous', 'affichage'];
+
+cas('lire-index (7c) : le vrai squelette-index.md → en-têtes, sessions, vagues et lignes en clair attendus', () => {
+  const bloc = squeletteReel();
+  if (/<!--/.test(bloc)) return 'les commentaires <!-- --> du squelette auraient dû être retirés par squeletteReel()';
+  const idx = analyserIndex(bloc);
+  if (idx.workflow !== '<x>') return `Workflow attendu "<x>", reçu ${JSON.stringify(idx.workflow)}`;
+  if (idx.preuveN0 !== 'requise') return `Preuve N0 attendue "requise" (ligne du squelette), reçu ${JSON.stringify(idx.preuveN0)}`;
+  if (idx.remediationOpus !== 0 || idx.clos !== null || idx.aLigneClos) return `Remédiation/Clos : 0 / null / faux attendus (lignes facultatives absentes), reçu ${JSON.stringify([idx.remediationOpus, idx.clos, idx.aLigneClos])}`;
+  if (idx.sessions.map((s) => s.session).join() !== 'S1,S2') return `sessions S1,S2 attendues, reçu ${idx.sessions.map((s) => s.session)}`;
+  const [s1, s2] = idx.sessions;
+  if (s1.taches !== 'T1-T3' || s1.modele !== 'Haiku' || s1.effort !== 'medium' || s1.dependDe !== '—') return `S1 mal lue : ${JSON.stringify(s1)}`;
+  if (s2.modele !== 'Sonnet' || s2.effort !== 'high' || s2.dependDe !== 'S1') return `S2 mal lue : ${JSON.stringify(s2)}`;
+  if (idx.sessions.some((s) => s.statut !== 'a-faire' || s.coche || s.statutBrut !== '[ ]')) return `statut "a-faire" attendu partout : ${JSON.stringify(idx.sessions.map((s) => [s.statut, s.statutBrut]))}`;
+  if (idx.vagues.map((v) => v.numero).join() !== '1,2,3') return `vagues 1,2,3 attendues, reçu ${idx.vagues.map((v) => v.numero)}`;
+  if (idx.vagues[0].sessions.join() !== 'S1,S3' || idx.vagues[1].sessions.join() !== 'S2,S4') return `membres de vagues mal lus : ${JSON.stringify(idx.vagues.map((v) => v.sessions))}`;
+  if (!idx.vagues[2].cloture || idx.vagues[2].sessions.length !== 0) return `vague 3 attendue clôture sans session : ${JSON.stringify(idx.vagues[2])}`;
+  if (idx.lignesEnClair.map((l) => l.session).join() !== 'S1,S3,S2,S4') return `lignes en clair S1,S3,S2,S4 attendues, reçu ${JSON.stringify(idx.lignesEnClair)}`;
+  return null;
+});
+
+cas('lire-index : en-tête de vague `**Vague 2 (après S1)** :` lu pareil par le moteur, le vérificateur et la copie des mods', () => {
+  const cwd = dossierJetable('workflow-lire-index-parenthese-');
+  mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 1;\n');
+  const index = [
+    '# P1', '', 'Workflow : v0.66.0', '', '## Sessions',
+    '| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| [S1](S1.md) | T1 | Un | Sonnet | high | — | — | `src/a.mjs` | [ ] | — |',
+    '| [S2](S2.md) | T2 | Deux | Sonnet | high | — | S1 | `src/b.mjs` | [ ] | — |',
+    '', '## Ordonnancement',
+    '- **Vague 1** : S1.',
+    '- **Vague 2 (après S1)** : S2.',
+    '',
+  ].join('\n');
+  writeFileSync(join(cwd, 'plans', 'P1', 'index.md'), index);
+  const tache = (chemin) => `## T1 — x\n### Objectif\nx\n### Lire / Modifier\n- Modifier : \`${chemin}\` (créer)\n### Validation\n- N0 auto : \`node n0.mjs\`\n`;
+  writeFileSync(join(cwd, 'plans', 'P1', 'S1.md'), tache('src/a.mjs').replace(' (créer)', ''));
+  writeFileSync(join(cwd, 'plans', 'P1', 'S2.md'), tache('src/b.mjs'));
+
+  // 1. le lecteur lui-même, source et copies de mods : même structure
+  const reference = JSON.stringify(analyserIndex(index).vagues);
+  const v2 = analyserIndex(index).vagues[1];
+  if (!v2 || v2.numero !== 2 || v2.sessions.join() !== 'S2') return `lecteur : vague 2 attendue [S2], reçu ${JSON.stringify(analyserIndex(index).vagues)}`;
+  for (const mod of LECTEUR_MODS) {
+    const copie = JSON.stringify(COPIES_LECTEUR[mod].analyserIndex(index).vagues);
+    if (copie !== reference) return `copie du mod ${mod} : vagues différentes de la source (${copie} ≠ ${reference})`;
+  }
+  // 2. le moteur
+  const moteur = lancer(PROCHAINE_ACTION, ['P1', '--etat'], cwd);
+  if (moteur.code !== 0) return `moteur : code ${moteur.code}, sortie: ${moteur.sortie}`;
+  const vaguesMoteur = JSON.parse(moteur.sortie).vagues;
+  if (JSON.stringify(vaguesMoteur.map((v) => [v.numero, v.sessions])) !== JSON.stringify([[1, ['S1']], [2, ['S2']]])) return `moteur : vagues mal lues ${JSON.stringify(vaguesMoteur)}`;
+  // 3. le vérificateur : S2 est dans la vague 2, la dépendance S1 est antérieure — aucun écart de vague
+  const verif = lancer(join(BIN, 'verifier-plan.mjs'), ['P1', '--extension', '--json'], cwd);
+  const ecartsVague = JSON.parse(verif.sortie).erreurs.filter((e) => e.controle === 4);
+  if (ecartsVague.length > 0) return `vérificateur : écarts de vague alors que l'en-tête est lu par le moteur : ${JSON.stringify(ecartsVague)}`;
+  return null;
+});
+
+cas('lire-index : statut normalisé, sessions incomplètes signalées, jamais refusées (tolérance)', () => {
+  const idx = analyserIndex([
+    'Workflow : v1', 'Preuve N0 : non requise', 'Remédiation Opus : 2', 'Clos : 2026-10-15', '',
+    '| [S1](S1.md) | T1 | a | Sonnet | `High` | — | — | z | [ ] |',
+    '| [S2](S2.md) | T2 | a | Sonnet | high | — | — | z | [x] |',
+    '| [S3](S3.md) | T3 | a | Sonnet | high | — | — | z | [x]! |',
+    '| [S4](S4.md) | T4 | a | Sonnet | high | — | — | z | [~] |',
+    '| [S5](S5.md) | T5 | trop court |',
+    '## Ordonnancement',
+    '- **Vague 1 — parallélisable** : S1 (gate) · S2',
+    '- **Vague 2** (après S1) : S3',
+  ].join('\n'));
+  if (idx.sessions.map((s) => s.statut).join() !== 'a-faire,fait,fait-bloquant,autre') return `statuts : ${idx.sessions.map((s) => s.statut)}`;
+  if (idx.sessions[0].effort !== 'high') return `effort normalisé attendu "high", reçu ${idx.sessions[0].effort}`;
+  if (!idx.sessions[2].bloquantNonTrie || idx.sessions[3].coche) return 'bloquantNonTrie / coche mal posés';
+  if (idx.sessionsIncompletes.join() !== 'S5') return `ligne incomplète S5 attendue, reçu ${idx.sessionsIncompletes}`;
+  if (idx.preuveN0 !== 'non requise' || idx.remediationOpus !== 2 || idx.clos !== '2026-10-15' || !idx.aLigneClos) return `en-têtes mal lus : ${JSON.stringify([idx.preuveN0, idx.remediationOpus, idx.clos])}`;
+  if (idx.vagues.length !== 2 || idx.vagues[0].sessions.join() !== 'S1,S2' || idx.vagues[1].sessions.join() !== 'S3') return `vagues tolérantes attendues [S1,S2] puis [S3] (parenthèse entre ** et :), reçu ${JSON.stringify(idx.vagues)}`;
+  if (analyserIndex('rien de tout cela').sessions.length !== 0) return 'un texte sans table doit rendre zéro session, sans lever';
+  if (!lireIndexTexte('rien de tout cela').erreur) return 'lireIndexTexte doit rendre une erreur nommée pour un texte sans session';
+  return null;
+});
+
+cas('hooks/lib.mjs : sessionsOuvertes passe par le lecteur — [ ] ouvert, [x] [x]! [~] non, plan `Clos :` fermé', () => {
+  const cwd = dossierJetable('workflow-lire-index-hooks-');
+  const index = (clos) => [
+    '# P1', 'Workflow : v1', clos ? 'Clos : 2026-10-15' : '', '',
+    '| [S1](S1.md) | T1 | a | Sonnet | High | — | — | z | [ ] |',
+    '| [S2](S2.md) | T2 | a | Opus | high | — | — | z | [x] |',
+    '| [S3](S3.md) | T3 | a | Haiku | low | — | — | z | [x]! |',
+    '| [S4](S4.md) | T4 | a | Haiku | low | — | — | z | [~] |',
+    '| [S5](S5.md) | T5 | a | Haiku | low | — | — | z | [ ] |',
+    '## Ordonnancement', '- **Vague 1** : S1 · S2 · S3 · S4 · S5', '',
+  ].join('\n');
+  mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+  mkdirSync(join(cwd, 'plans', 'P2'), { recursive: true });
+  writeFileSync(join(cwd, 'plans', 'P1', 'index.md'), index(false));
+  writeFileSync(join(cwd, 'plans', 'P2', 'index.md'), index(true));
+  initDepot(cwd);
+  const ouvertes = sessionsOuvertes(cwd).map((s) => `${s.plan}/${s.session}:${s.effort}`).join();
+  if (ouvertes !== 'P1/S1:high,P1/S5:low') return `ouvertes attendues P1/S1:high,P1/S5:low (P2 clos, [x] [x]! [~] exclus), reçu ${ouvertes}`;
+  return null;
+});
+
+cas('prochaine-action : plus de lecteur d\'index ni de racineDepot recopiés (un seul module, un seul hook)', () => {
+  const src = readFileSync(PROCHAINE_ACTION, 'utf8');
+  if (!/from '\.\/lire-index\.mjs'/.test(src)) return 'le moteur doit importer ./lire-index.mjs';
+  if (/function worktreeLie|function racineDepot/.test(src)) return 'worktreeLie/racineDepot ne doivent plus être recopiés dans le moteur (import de ../hooks/lib.mjs)';
+  return null;
+});
+
 cas('T4 (a) : squelette-index.md extrait à l\'exécution → chaque session de la table appartient à une vague', () => {
   const cwd = dossierJetable('workflow-pa-vrai-squelette-index-');
   const bloc = extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-index.md'));
@@ -1109,7 +1246,7 @@ cas(
 
 cas("T4 (c) : gabarit reprendre-echec/SKILL.md rempli de valeurs réelles → nature, tentatives et Auto bien lus", () => {
   const cwd = dossierJetable('workflow-pa-gabarit-echec-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   const gabarit = extraireGabaritEchec()
     .replace(/^Nature\s*:.*$/m, 'Nature : exécution')
     .replace(/^Tentatives\s*:.*$/m, 'Tentatives : reprise=1 enquete=0')
@@ -1146,7 +1283,7 @@ cas('T4 (d) : Nature : `prémisse` (entre backticks) → verifier-premisse', () 
 
 cas("T4 (e) : Tentatives : reprise=1 · enquete=0 (séparateur ·) → budget 1 reprise déjà consommée", () => {
   const cwd = dossierJetable('workflow-pa-tentatives-separateur-');
-  cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
+  poserSqueletteReel(cwd, 'P0');
   writeFileSync(
     join(cwd, 'plans', 'P0', 'S1.echec.md'),
     ['Nature : exécution', 'Tentatives : reprise=1 · enquete=0', 'Blocage : relancer', ''].join('\n'),
@@ -2257,6 +2394,72 @@ cas('tester-mods : aucun binaire lançable → sortie 1 nommée, jamais un saut 
     { CLAUDE_CODE_EXECPATH: join(poste.config, 'inexistant', 'claude') });
   if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
   if (!/aucun binaire claude lançable/.test(sortie)) return `échec « aucun binaire » attendu: ${sortie}`;
+  return null;
+});
+
+// ── tester-mods : copies du lecteur d'index (P20/S4/T6) ───────────────────────────────────────────
+/** Racine factice avec `plugin/bin/lire-index.mjs` = `source` et, pour chaque mod de `copies`, un
+ * `hooks/lire-index.mjs` (absent si la valeur est `null`). */
+function racineAvecCopies(source, copies) {
+  const r = racineMods('2.0.0', { 'garde-fous': '2.0.0', affichage: '2.0.0' });
+  mkdirSync(join(r, 'plugin', 'bin'), { recursive: true });
+  writeFileSync(join(r, 'plugin', 'bin', 'lire-index.mjs'), source);
+  for (const [mod, contenu] of Object.entries(copies)) {
+    if (contenu === null) continue;
+    mkdirSync(join(r, 'plugin', 'mods', mod, 'hooks'), { recursive: true });
+    writeFileSync(join(r, 'plugin', 'mods', mod, 'hooks', 'lire-index.mjs'), contenu);
+  }
+  return r;
+}
+
+const SOURCE_FACTICE = '// lecteur factice\nexport const x = 1;\n';
+
+cas('tester-mods : copies identiques à la source (CRLF compris) → 0', () => {
+  const r = racineAvecCopies(SOURCE_FACTICE, { 'garde-fous': SOURCE_FACTICE, affichage: SOURCE_FACTICE.replace(/\n/g, '\r\n') });
+  const { code, sortie } = lancerTesterMods(r);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if ((sortie.match(/lire-index\.mjs identique/g) ?? []).length !== 2) return `deux « identique » attendus: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods : copie qui diffère de la source → sortie 1 nommant le mod', () => {
+  const r = racineAvecCopies(SOURCE_FACTICE, { 'garde-fous': SOURCE_FACTICE, affichage: SOURCE_FACTICE + '// édité à la main\n' });
+  const { code, sortie } = lancerTesterMods(r);
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/FAIL affichage : hooks\/lire-index\.mjs diffère/.test(sortie)) return `écart nommant affichage attendu: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods : copie absente d\'un mod qui doit en avoir une → sortie 1', () => {
+  const r = racineAvecCopies(SOURCE_FACTICE, { 'garde-fous': null, affichage: SOURCE_FACTICE });
+  const { code, sortie } = lancerTesterMods(r);
+  if (code !== 1) return `code ${code} attendu 1, sortie: ${sortie}`;
+  if (!/FAIL garde-fous : hooks\/lire-index\.mjs absent/.test(sortie)) return `absence nommée attendue: ${sortie}`;
+  return null;
+});
+
+cas('tester-mods --regenerer-copies : réécrit les copies depuis la source, puis rien à signaler', () => {
+  const r = racineAvecCopies(SOURCE_FACTICE, { 'garde-fous': 'périmé\n', affichage: null });
+  mkdirSync(join(r, 'plugin', 'mods', 'affichage', 'hooks'), { recursive: true });
+  const regen = lancer(TESTER_MODS, ['--racine', r, '--regenerer-copies'], RACINE);
+  if (regen.code !== 0) return `régénération : code ${regen.code}, sortie: ${regen.sortie}`;
+  for (const mod of ['garde-fous', 'affichage']) {
+    const copie = readFileSync(join(r, 'plugin', 'mods', mod, 'hooks', 'lire-index.mjs'), 'utf8');
+    if (copie !== SOURCE_FACTICE) return `copie ${mod} ≠ source après régénération`;
+  }
+  const { code, sortie } = lancerTesterMods(r);
+  if (code !== 0) return `contrôle après régénération : code ${code}, sortie: ${sortie}`;
+  return null;
+});
+
+cas('mods livrés : les copies réelles du lecteur d\'index sont identiques à plugin/bin/lire-index.mjs', () => {
+  const norme = (p) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+  const source = norme(join(BIN, 'lire-index.mjs'));
+  for (const mod of LECTEUR_MODS) {
+    const copie = join(RACINE, 'plugin', 'mods', mod, 'hooks', 'lire-index.mjs');
+    if (!existsSync(copie)) return `copie absente : ${copie}`;
+    if (norme(copie) !== source) return `copie ${mod} ≠ source — node tests/tester-mods.mjs --regenerer-copies`;
+  }
   return null;
 });
 

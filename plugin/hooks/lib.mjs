@@ -6,6 +6,7 @@ import { readFileSync, existsSync, readdirSync, mkdirSync, writeFileSync, openSy
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, join, resolve } from 'node:path';
+import { analyserIndex } from '../bin/lire-index.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 
@@ -349,15 +350,14 @@ export function familleModele(valeur) {
 }
 
 /** Table BRUTE de toutes les sessions déclarées dans `plans/P<n>/index.md`, cochées ou non :
- *  `[{plan, session, modele, effort, statutBrut}]`. Partagée par `sessionsOuvertes` (qui filtre
+ *  `[{plan, session, modele, effort, statutBrut, statut, clos}]`. Partagée par `sessionsOuvertes` (qui filtre
  *  sur `[ ]`) et `revuesManquantes` (qui a besoin de l'Effort d'une session quel que soit son
  *  statut — une session `low` reste exemptée de revue même une fois cochée, T2/P10/S1) : une seule
  *  lecture de la table, jamais deux parseurs à tenir synchronisés.
  *
- *  Colonnes attendues : Session, Tâches, Titre, Modèle, Effort, Env., Dépend de, Zone, Statut ;
- *  une ligne qui n'a pas cette forme est ignorée. `effort` normalisé comme dans
- *  `plugin/bin/prochaine-action.mjs` (emphase markdown retirée, minuscules) — les deux scripts
- *  doivent lire le même effort pour la même cellule.
+ *  Lecture déléguée à `bin/lire-index.mjs`, le lecteur unique : une ligne qui n'a pas la forme du
+ *  squelette (neuf colonnes, Session en tête) est ignorée ; `effort` normalisé par lui (emphase
+ *  markdown retirée, minuscules) comme pour le moteur et le vérificateur.
  *
  *  Tolérant de bout en bout : racine introuvable, dossier absent, table mal formée, fichier
  *  illisible → tableau vide. Ce qui s'appuie dessus signale un écart, il n'invente jamais une
@@ -384,20 +384,18 @@ function toutesLesSessions(cwd) {
     } catch {
       continue;
     }
-    const clos = /^Clos\s*:/m.test(contenu);
-    for (const ligne of contenu.split('\n')) {
-      if (!ligne.trim().startsWith('|')) continue;
-      const cellules = ligne.split('|').slice(1, -1).map((c) => c.trim());
-      if (cellules.length < 9) continue;
-      const session = /\b(S\d+)\b/.exec(cellules[0]);
-      if (!session) continue;
+    // Le lecteur unique (`bin/lire-index.mjs`, vendoré à côté de hooks/) : même table, mêmes colonnes
+    // par position, même statut que le moteur et le vérificateur.
+    const lu = analyserIndex(contenu);
+    for (const l of lu.sessions) {
       out.push({
         plan,
-        session: session[1],
-        modele: cellules[3],
-        effort: cellules[4].replace(/[`*]/g, '').trim().toLowerCase(),
-        statutBrut: cellules[8],
-        clos,
+        session: l.session,
+        modele: l.modele,
+        effort: l.effort,
+        statutBrut: l.statutBrut,
+        statut: l.statut,
+        clos: lu.aLigneClos,
       });
     }
   }
@@ -415,7 +413,7 @@ export function sessionsOuvertes(cwd) {
   return toutesLesSessions(cwd)
     // `[ ]` = reste à faire. `[x]`, `[x]!` (revue à bloquant, §4a), `[~]`, l'en-tête et le
     // séparateur sont hors sujet. Un plan `Clos :` n'a plus rien à faire, abandons compris.
-    .filter((s) => !s.clos && /\[\s\]/.test(s.statutBrut))
+    .filter((s) => !s.clos && s.statut === 'a-faire')
     .map(({ plan, session, modele, effort }) => ({ plan, session, modele, effort }));
 }
 

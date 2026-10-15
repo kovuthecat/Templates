@@ -1,4 +1,4 @@
-// Index de fixture : la forme de plans/P<n>/index.md que lit O1 (colonne Modele par son en-tete).
+// Index de fixture : la forme de plans/P<n>/index.md que lit O1 (colonne Modele lue par position, comme le moteur).
 export const INDEX_FIXTURE = `# Plan P99 - fixture
 
 ## Sessions

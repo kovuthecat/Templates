@@ -12,18 +12,23 @@
 //   1. sa version == celle de `plugin/.claude-plugin/plugin.json` ;
 //   2. il figure dans `plugin/.claude-plugin/marketplace.json` (source `./mods/<mod>`) ;
 //   3. `<bin> plugin validate <mod>/.claude-plugin/plugin.json` sort 0 ;
-//   4. `<bin> plugin test <mod>` sort 0.
+//   4. `<bin> plugin test <mod>` sort 0 ;
+//   5. (P20/S4) sa copie du lecteur d'index, `hooks/lire-index.mjs`, est IDENTIQUE à
+//      `plugin/bin/lire-index.mjs` — un mod est un plugin séparé, il ne peut pas importer `plugin/bin`,
+//      donc la copie est générée (`--regenerer-copies`) et jamais éditée à la main. `garde-fous` et
+//      `affichage` doivent en avoir une ; toute autre copie trouvée est contrôlée de même.
 // `<bin>` = `CLAUDE_CODE_EXECPATH` s'il est défini, sinon `claude`. Aucun binaire lançable → échec
 // nommé : jamais un saut silencieux. Aucun mod trouvé → échec aussi (un mauvais chemin ne doit pas
 // passer pour « tout va bien »).
 //
 // USAGE
 //   node tests/tester-mods.mjs [--racine <dossier>]   (--racine : pour les tests de ce contrôle lui-même)
+//   node tests/tester-mods.mjs --regenerer-copies      réécrit les copies du lecteur d'index, puis s'arrête
 //
 // Sortie : une ligne OK/FAIL par contrôle ; exit 1 au moindre écart, 0 sinon.
 
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -59,6 +64,25 @@ if (mods.length === 0) {
   process.exit(1);
 }
 
+// ── Copies du lecteur d'index (P20/S4) ───────────────────────────────────────
+// Octet pour octet, fins de ligne normalisées (une copie écrite sous Windows peut être en CRLF).
+const SOURCE_LECTEUR = join(PLUGIN, 'bin', 'lire-index.mjs');
+const MODS_AVEC_COPIE = ['garde-fous', 'affichage'];
+const lireNormalise = (p) => readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
+const copieDe = (mod) => join(MODS, mod, 'hooks', 'lire-index.mjs');
+
+if (process.argv.includes('--regenerer-copies')) {
+  if (!existsSync(SOURCE_LECTEUR)) { console.log(`FAIL source absente : ${SOURCE_LECTEUR}`); process.exit(1); }
+  const source = lireNormalise(SOURCE_LECTEUR);
+  for (const mod of MODS_AVEC_COPIE) {
+    if (!mods.includes(mod)) { console.log(`FAIL mod ${mod} introuvable sous ${MODS}`); process.exit(1); }
+    mkdirSync(dirname(copieDe(mod)), { recursive: true });
+    writeFileSync(copieDe(mod), source);
+    console.log(`copie écrite : ${copieDe(mod)}`);
+  }
+  process.exit(0);
+}
+
 const versionWorkflow = json(join(PLUGIN, '.claude-plugin', 'plugin.json')).version;
 const marketplace = json(join(PLUGIN, '.claude-plugin', 'marketplace.json'));
 
@@ -67,6 +91,16 @@ try { claude(['--version']); }
 catch (e) { binaireLancable = false; ko(`aucun binaire claude lançable (${binaire}) — validate et test impossibles : ${dernieres(e)}`); }
 
 for (const mod of mods) {
+  // 5. copie du lecteur d'index
+  const copie = copieDe(mod);
+  const doitAvoir = MODS_AVEC_COPIE.includes(mod);
+  if (existsSync(copie) || doitAvoir) {
+    if (!existsSync(SOURCE_LECTEUR)) ko(`${mod} : source du lecteur d'index absente (${SOURCE_LECTEUR})`);
+    else if (!existsSync(copie)) ko(`${mod} : hooks/lire-index.mjs absent — \`node tests/tester-mods.mjs --regenerer-copies\``);
+    else if (lireNormalise(copie) === lireNormalise(SOURCE_LECTEUR)) ok(`${mod} : lire-index.mjs identique à plugin/bin/lire-index.mjs`);
+    else ko(`${mod} : hooks/lire-index.mjs diffère de plugin/bin/lire-index.mjs — copie générée, jamais éditée : \`node tests/tester-mods.mjs --regenerer-copies\``);
+  }
+
   let manifeste;
   try { manifeste = json(join(MODS, mod, '.claude-plugin', 'plugin.json')); }
   catch (e) { ko(`${mod} : plugin.json illisible (${e.message})`); continue; }

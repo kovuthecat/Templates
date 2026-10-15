@@ -1,4 +1,5 @@
 import type { Register } from 'claude-code'
+import { analyserIndex } from './lire-index.mjs'
 
 // Garde-fous du workflow (porte de la preuve P13, mods O1 et O3). Silencieux : aucune ecriture,
 // aucun refus ; une lecture qui echoue laisse l'evenement inchange.
@@ -25,31 +26,15 @@ async function lireTexte($: any, chemin: string): Promise<string | undefined> {
   }
 }
 
-function cellules(ligne: string): string[] {
-  return ligne.trim().split('|').slice(1, -1).map((c) => c.trim())
-}
-
-// Colonne Modele reperee par son en-tete, repli sur la 4e cellule.
+// Modele lu par POSITION (4e cellule de la table), comme le moteur : le lecteur unique de l'index
+// (`./lire-index.mjs`, copie generee de `plugin/bin/lire-index.mjs`), plus de repere par en-tete.
 async function modeleDeIndex($: any, plan: string, session: string): Promise<string | undefined> {
   const texte = await lireTexte($, `${await racine($)}/plans/${plan}/index.md`)
   if (texte === undefined) return undefined
-  const lignes = texte.split(/\r?\n/).filter((l) => l.trim().startsWith('|'))
-  let colonne = 3
-  for (const l of lignes) {
-    const i = cellules(l).findIndex((c) => /^mod[eè]le$/i.test(c.replace(/[`*]/g, '')))
-    if (i >= 0) {
-      colonne = i
-      break
-    }
-  }
-  const motif = new RegExp(`\\b${session}\\b`)
-  for (const l of lignes) {
-    const c = cellules(l)
-    if (c.length <= colonne || !motif.test(c[0] ?? '')) continue
-    const valeur = (c[colonne] ?? '').replace(/[`*]/g, '').trim().toLowerCase()
-    return MODELES.includes(valeur) ? valeur : undefined
-  }
-  return undefined
+  const ligne = analyserIndex(texte).sessions.find((s: { session: string }) => s.session === session)
+  if (!ligne) return undefined
+  const valeur = String(ligne.modele ?? '').replace(/[`*]/g, '').trim().toLowerCase()
+  return MODELES.includes(valeur) ? valeur : undefined
 }
 
 export const register: Register = (on, options) => {

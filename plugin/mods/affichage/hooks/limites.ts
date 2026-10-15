@@ -1,4 +1,5 @@
 import type { Bandeau, Fenetre, FenetreBandeau } from '../types'
+import { analyserIndex } from './lire-index.mjs'
 
 // Logique pure de l'affichage : aucun `$`, aucune horloge, aucun fuseau lus ici. L'heure courante et
 // le fuseau (`Decalage`) sont injectes par l'appelant, pour que les tests ne dependent pas de la machine.
@@ -87,8 +88,9 @@ export function planDepuisPrompt(prompt: string | undefined): { plan: string; se
   return trouve ? { plan: trouve[1], session: trouve[2] } : undefined
 }
 
-// Un index sans ligne `Clos :` est un plan ouvert.
-export const planEstOuvert = (texteIndex: string): boolean => !texteIndex.split(/\r?\n/).some((l) => /^Clos\s*:/.test(l.trim()))
+// Un index sans ligne `Clos :` est un plan ouvert. Lu par le lecteur unique de l'index
+// (`./lire-index.mjs`, copie generee de `plugin/bin/lire-index.mjs`).
+export const planEstOuvert = (texteIndex: string): boolean => !analyserIndex(texteIndex).aLigneClos
 
 // Plans candidats (noms de dossiers de plans/), du plus grand numero au plus petit.
 export function plansParNumero(noms: readonly string[]): string[] {

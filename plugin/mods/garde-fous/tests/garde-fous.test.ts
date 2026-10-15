@@ -94,6 +94,14 @@ describe('O1 filet de modele', () => {
     expect(m.spawns[0].model).toBeUndefined()
   })
 
+  test('colonne lue par position : l en-tete n entre pas en jeu (comme le moteur)', async ($, on) => {
+    const m = monde(on, {
+      [`${RACINE}/plans/P1/index.md`]: INDEX_FIXTURE.replace('| Modèle |', '| Autre nom |'),
+    })
+    await $.agent.spawn(spawn('plans/P1/S2.md') as any)
+    expect(m.spawns[0].model).toBe('opus')
+  })
+
   test('o1: false : inchange', { options: { o1: false } }, async ($, on) => {
     const m = monde(on, INDEX)
     await $.agent.spawn(spawn('plans/P1/S1.md') as any)

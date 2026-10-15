@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { analyserIndex } from './lire-index.mjs';
 
 const racine = process.cwd();
 const plan = process.argv.find(x => /^P\d+$/.test(x));
@@ -18,15 +19,13 @@ try {
   // Fins de ligne CRLF (plan réécrit sous Windows) ramenées à LF : sans quoi `$` ne correspond plus
   // en fin de ligne et chaque déclaration est rejetée (incident trames-consultation 2026-09-29).
   const index = readFileSync(resolve(racine, 'plans', plan, 'index.md'), 'utf8').replace(/\r\n/g, '\n');
+  // Lecture de l'index : le module partagé (`lire-index.mjs`), le même que le moteur et les hooks.
+  const lu = analyserIndex(index);
   const sessions = [];
-  for (const ligne of index.split('\n')) {
-    if (!ligne.trim().startsWith('|')) continue;
-    const c = ligne.split('|').slice(1, -1).map(x => x.trim());
-    const id = /\bS\d+\b/.exec(c[0] ?? '')?.[0];
-    if (!id) continue;
-    if (c.length < 9) { signaler(id, 0, 'table de session incomplète'); continue; }
-    if (sessions.some(s => s.id === id)) signaler(id, 0, 'session dupliquée');
-    sessions.push({ id, terminee: /\[x\]/.test(c[8]), dependances: c[6].match(/S\d+/g) ?? [], fichiers: [] });
+  for (const id of lu.sessionsIncompletes) signaler(id, 0, 'table de session incomplète');
+  for (const l of lu.sessions) {
+    if (sessions.some(s => s.id === l.session)) signaler(l.session, 0, 'session dupliquée');
+    sessions.push({ id: l.session, terminee: l.coche, dependances: l.dependDe.match(/S\d+/g) ?? [], fichiers: [] });
   }
   if (sessions.length === 0) throw new Error('aucune session reconnue');
   if (!/^Workflow\s*:\s*v\S+/m.test(index)) signaler(plan, 7, 'Workflow : v absent');
@@ -34,7 +33,7 @@ try {
   // `.claude/n0.json` doit dire la même chose (commandes → requise ; `sansCommande` → non requise).
   let sansCommande = null; // motif de n0.json, si le projet est déclaré sans commande
   if (!extension) {
-    const declaree = /^Preuve N0\s*:\s*(non requise|requise)\s*$/m.exec(index)?.[1];
+    const declaree = lu.preuveN0 ?? undefined;
     let n0 = null;
     try { n0 = JSON.parse(readFileSync(resolve(racine, '.claude', 'n0.json'), 'utf8')); } catch { /* absent ou illisible */ }
     const motif = typeof n0?.sansCommande === 'string' ? n0.sansCommande.trim() : '';
@@ -47,23 +46,20 @@ try {
     else if (declaree === 'non requise' && etat !== 'sansCommande') signaler(plan, 7, "`non requise` exige `.claude/n0.json` avec `sansCommande`");
     else if (declaree === 'non requise') sansCommande = motif;
   }
-  const ordonnancement = /^## Ordonnancement\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(index)?.[1] ?? '';
   const vagues = [];
-  for (const ligne of ordonnancement.split('\n')) {
-    const m = /^(?:-\s*)?\*\*Vague\s+(\d+)(?:\s*—\s*([^*]+))?\*\*\s*:\s*(.+)/.exec(ligne.trim());
-    if (!m) continue;
-    const ids = m[3].replace(/\([^)]*\)/g, '').match(/S\d+/g) ?? [];
-    vagues.push({ numero: Number(m[1]), ids });
+  for (const v of lu.vagues) {
+    const ids = v.sessions;
+    vagues.push({ numero: v.numero, ids });
     // « parallélisable » n'a plus de sens (les vagues s'exécutent une session après l'autre) : lu et
     // ignoré dans un plan existant (`--extension`), signalé dans un plan neuf.
-    if (!extension && m[2]?.includes('parallélisable')) {
-      avertissements.push(`Vague ${m[1]} : « parallélisable » est ignoré — les sessions s'exécutent l'une après l'autre`);
+    if (!extension && v.label?.includes('parallélisable')) {
+      avertissements.push(`Vague ${v.numero} : « parallélisable » est ignoré — les sessions s'exécutent l'une après l'autre`);
     }
     for (const id of ids) {
       const s = sessions.find(s => s.id === id);
       if (!s) { signaler(id, 4, 'session de vague inconnue'); continue; }
       if (s.vague !== undefined) signaler(id, 4, 'session dans plusieurs vagues');
-      s.vague = Number(m[1]);
+      s.vague = v.numero;
     }
   }
   if (!vagues.length) signaler(plan, 4, 'ordonnancement absent ou non reconnu');

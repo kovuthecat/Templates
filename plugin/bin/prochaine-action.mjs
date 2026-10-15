@@ -45,9 +45,11 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join, dirname, basename, resolve } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifierPreuve } from './preuve-n0.mjs';
+import { lireIndexTexte, normaliserSimple } from './lire-index.mjs';
+import { racineDepot as racineDepotDuHook } from '../hooks/lib.mjs';
 
 const RACINE = process.cwd();
 
@@ -76,29 +78,11 @@ function git(...a) {
   }
 }
 
-// Copie de `plugin/hooks/lib.mjs` `racineDepot`/`worktreeLie` (bin/ est vendoré sans hooks/, donc
-// dupliquée, pas importée — les deux logiques doivent être tenues synchronisées à la main). `null`
-// si la racine ne peut pas être établie avec certitude (worktree lié d'un dépôt à `.git` déplacé,
-// sonde du 2026-09-24, plans/P10/S1.md) — jamais une racine devinée.
-function worktreeLie() {
-  const propre = git('rev-parse', '--path-format=absolute', '--git-dir');
-  const commun = git('rev-parse', '--path-format=absolute', '--git-common-dir');
-  return Boolean(propre && commun && resolve(propre) !== resolve(commun));
-}
-
-function racineDepot() {
-  // Pas un dépôt du tout : comportement historique inchangé (rend RACINE) — le cas ambigu que
-  // cette fonction refuse par défaut est un dépôt existant dont la racine ne peut pas être établie,
-  // jamais l'absence de dépôt.
-  if (git('rev-parse', '--is-inside-work-tree') !== 'true') return RACINE;
-  if (!worktreeLie()) {
-    return git('rev-parse', '--path-format=absolute', '--show-toplevel');
-  }
-  const commun = git('rev-parse', '--path-format=absolute', '--git-common-dir');
-  if (!commun) return null;
-  if (basename(commun) === '.git') return dirname(commun);
-  return null; // worktree lié d'un dépôt à `.git` déplacé : `git worktree list` n'y est pas fiable
-}
+// `racineDepot` : celle de `plugin/hooks/lib.mjs` (bin/ et hooks/ sont vendorés côte à côte,
+// `sync-workflow.mjs`) — plus de copie à tenir synchronisée à la main (P20/S4/T6). `null` si la racine ne
+// peut pas être établie avec certitude (worktree lié d'un dépôt à `.git` déplacé, sonde du 2026-09-24,
+// plans/P10/S1.md) — jamais une racine devinée.
+const racineDepot = () => racineDepotDuHook(RACINE);
 
 /** Rebase en cours (fusion ou apply) : jamais résolu depuis un script, toujours une `question`
  * (T5, P10/S2). `--path-format=absolute` : même convention que `racineDepot`, insensible au cwd. */
@@ -129,124 +113,25 @@ function etatAmont() {
   return { amont, retard, avance };
 }
 
-// ── Parseur d'index (table + ordonnancement) ──────────────────────────────────────────────────────
+// ── Lecture de l'index : un seul lecteur, `./lire-index.mjs` (P20/S4/T6) ──────────────────────────
+// Le moteur n'a plus son propre parseur : table, ordonnancement, en-têtes (`Workflow :`, `Preuve N0 :`,
+// `Remédiation Opus :`, `Clos :`) viennent du module que lisent aussi le vérificateur et les hooks.
 function erreur(motif) {
   return { erreur: `index illisible : ${motif}` };
-}
-
-/** Minuscules, accents retirés (NFD), backticks/`*` retirés, espaces de bord retirés — la forme sur
- * laquelle on compare une valeur écrite à la main (nature entre backticks, séparateur inhabituel) à
- * un mot attendu, sans exiger l'orthographe exacte (T4, P10/S2). */
-function normaliserSimple(s) {
-  return String(s || '')
-    .replace(/[`*]/g, '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
 }
 
 function lireIndex(dossierPlan) {
   const chemin = join(dossierPlan, 'index.md');
   if (!existsSync(chemin)) return erreur(`${chemin} absent`);
-
   let texte;
   try {
-    texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+    texte = readFileSync(chemin, 'utf8');
   } catch (e) {
     return erreur(`${chemin} : ${e.message}`);
   }
-  const lignes = texte.split('\n');
-
-  const ligneWorkflow = lignes.find((l) => /^Workflow\s*:/.test(l.trim()));
-  const workflow = ligneWorkflow ? (/Workflow\s*:\s*v?(\S+)/.exec(ligneWorkflow)?.[1] ?? null) : null;
-
-  // Deux lignes facultatives, hors table (T6, P10/S2) : `Remédiation Opus :`, écrite par
-  // l'orchestrateur — survit à la suppression des `.echec.md` au PASS, contrairement à un total
-  // recalculé sur les rapports présents ; `Clos :`, posée par `fin-de-plan.md`.
-  const ligneRemediationOpus = lignes.find((l) => /^Rem[ée]diation\s+Opus\s*:/i.test(l.trim()));
-  const remediationOpus = ligneRemediationOpus
-    ? Number(/:\s*(\d+)/.exec(ligneRemediationOpus)?.[1] ?? 0)
-    : 0;
-  const ligneClos = lignes.find((l) => /^Clos\s*:/.test(l.trim()));
-  const clos = ligneClos ? (/:\s*(\S+)/.exec(ligneClos)?.[1] ?? null) : null;
-
-  // Table des sessions : colonnes fixées par le squelette (nouveau-plan/references/squelette-index.md).
-  const sessions = [];
-  for (const ligneBrute of lignes) {
-    const l = ligneBrute.trim();
-    if (!l.startsWith('|')) continue;
-    const cellules = l.split('|').slice(1, -1).map((c) => c.trim());
-    if (cellules.length < 9) continue;
-    const idSession = /\bS(\d+)\b/.exec(cellules[0]);
-    if (!idSession) continue; // en-tête ou ligne de séparateur (---)
-    const statut = /\[( |x)\](!)?/.exec(cellules[8]);
-    sessions.push({
-      session: `S${idSession[1]}`,
-      taches: cellules[1],
-      titre: cellules[2],
-      modele: cellules[3],
-      effort: cellules[4].replace(/[`*]/g, '').trim().toLowerCase(),
-      env: cellules[5],
-      dependDe: cellules[6],
-      zone: cellules[7],
-      statutBrut: cellules[8],
-      coche: statut ? statut[1] === 'x' : false,
-      bloquantNonTrie: statut ? Boolean(statut[2]) : false,
-      pastille: false, // complété plus bas, depuis l'ordonnancement
-    });
-  }
-  if (sessions.length === 0) return erreur(`aucune session reconnue dans la table (${chemin})`);
-
-  // Ordonnancement : vagues (numéro, label, sessions membres) + marqueur `pastille` par session.
-  const vagues = [];
-  let dansOrdonnancement = false;
-  for (const ligneBrute of lignes) {
-    const l = ligneBrute.trim();
-    if (/^##\s+Ordonnancement/.test(l)) {
-      dansOrdonnancement = true;
-      continue;
-    }
-    if (dansOrdonnancement && /^##\s+/.test(l)) {
-      dansOrdonnancement = false;
-      continue;
-    }
-    if (!dansOrdonnancement) continue;
-
-    // Tiret initial facultatif, parenthèse facultative entre `**` et `:` (ancien format de la ligne
-    // d'extension — incident MYO du 2026-09-22 : une vague jamais lancée faute de tiret ou de
-    // ponctuation au bon endroit, T4/P10/S2).
-    const enteteVague = /^(?:-\s*)?\*\*Vague\s+(\d+)(?:\s*—\s*([^*]+?))?\*\*\s*(?:\([^)]*\)\s*)?:\s*(.+)$/.exec(l);
-    if (enteteVague) {
-      const labelBrut = enteteVague[2] ? enteteVague[2].trim() : null;
-      const labelNormalise = (labelBrut || '').toLowerCase();
-      // Toutes les parenthèses retirées avant de chercher les membres `S\d+` — sinon un membre après
-      // la première parenthèse (date d'ajout, commentaire) est perdu (constat 2026-09-24).
-      const membres = enteteVague[3].replace(/\([^)]*\)/g, '');
-      vagues.push({
-        numero: Number(enteteVague[1]),
-        label: labelBrut,
-        validationHumaine: labelNormalise.includes('validation-humaine'),
-        repriseManuelle: labelNormalise.includes('reprise-manuelle'),
-        cloture: labelNormalise.includes('clôture'),
-        // « validée » (accents/casse libres) acquitte explicitement une validation-humaine (T5, P10/S2).
-        validee: normaliserSimple(labelBrut || '').includes('validee'),
-        gateLegacy: labelNormalise.includes('gate'), // ancien mot : signalé, jamais interprété
-        sessions: [...membres.matchAll(/S\d+/g)].map((m) => m[0]),
-      });
-      continue;
-    }
-
-    // Ligne « en clair » d'une session : `  - **S<k>** — <texte>`. Seul le mot `pastille` y compte ici.
-    const sousLigne = /^-\s*\*\*(S\d+)\*\*\s*[—-]\s*(.*)$/.exec(l);
-    if (sousLigne && /\bpastille\b/.test(sousLigne[2])) {
-      const s = sessions.find((x) => x.session === sousLigne[1]);
-      if (s) s.pastille = true;
-    }
-  }
-  if (vagues.length === 0) return erreur(`aucune vague reconnue sous « ## Ordonnancement » (${chemin})`);
-
-  return { workflow, sessions, vagues, remediationOpus, clos, preuveN0: /^Preuve N0\s*:\s*requise\s*$/m.test(texte) };
+  const index = lireIndexTexte(texte, chemin);
+  if (index.erreur) return index;
+  return { ...index, preuveN0: index.preuveN0 === 'requise' };
 }
 
 // ── Tâches d'une session, commitées ou non ────────────────────────────────────────────────────────
