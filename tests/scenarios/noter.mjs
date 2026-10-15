@@ -69,6 +69,15 @@ const VERDICT = /^\s*VERDICT:\s*(PASS|FAIL|ENQUETE|DECISION|QUESTION)\b(?!\s*\|)
 /** Le `MOTIF:` d'un verdict (jusqu'au `RAPPORT:` ou à la fin de la ligne). */
 const MOTIF = /MOTIF:\s*(.*?)(?:\s*[·|]\s*RAPPORT:|$)/m;
 
+/** Les gestes qu'une sortie de `prochaine-action.mjs --appliquer` énumère avant l'action finale. */
+const GESTE_APPLIQUE = /^appliqué — /;
+
+/** Première ligne de la dernière action d'une sortie du moteur : la première ligne non vide qui n'est pas un
+ * geste appliqué. Sans `--appliquer` : la première ligne, comme avant. Chaîne vide si rien d'autre que des gestes. */
+export function premiereLigneDeLaDerniereAction(texte) {
+  return String(texte ?? '').split('\n').map((x) => x.trim()).find((x) => x !== '' && !GESTE_APPLIQUE.test(x)) ?? '';
+}
+
 /** Lecture PURE d'un flux `stream-json` : lancements d'agents (avec leur verdict), appels du moteur,
  * questions rendues à l'utilisateur, relances inutiles. Aucun accès disque : testée sur des flux
  * enregistrés (tests/fixtures/scenarios/). */
@@ -149,15 +158,18 @@ export function lireFlux(evenements, pose = {}) {
     if (faites.has(l.session) || dejaPasse) relancesInutiles.push(`${l.session}@${l.ordre}`);
   }
 
-  // ── Dernier appel du moteur par le modèle lui-même : la PREMIÈRE ligne de son résultat — `<action> — …`
-  //    (`fini`, `pousser`, `cloturer` nus), inchangée depuis que le moteur rend aussi son texte final.
+  // ── Dernier appel du moteur par le modèle lui-même : la PREMIÈRE ligne de la DERNIÈRE action de son résultat
+  //    — `<action> — …` (`fini`, `pousser`, `cloturer` nus), inchangée depuis que le moteur rend aussi son texte
+  //    final. Sous `--appliquer` (P20/S7), un appel enchaîne des gestes : une ligne `appliqué — <geste>` par geste,
+  //    PUIS l'action finale. Ces lignes ne sont jamais l'action : la dernière action commence à la première
+  //    ligne qui n'en est pas une, après la dernière d'entre elles (sortie coupée avant l'action : aucune).
   let moteurDernierAppelModele = null;
   const dernier = appelsMoteur.at(-1);
   if (dernier) {
     for (const e of evenements) {
       for (const c of e.type === 'user' ? (Array.isArray(e.message?.content) ? e.message.content : []) : []) {
         if (c.type === 'tool_result' && c.tool_use_id === dernier.id) {
-          moteurDernierAppelModele = texteResultat(c).split('\n').map((x) => x.trim()).find(Boolean) ?? '';
+          moteurDernierAppelModele = premiereLigneDeLaDerniereAction(texteResultat(c));
         }
       }
     }

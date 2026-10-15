@@ -18,7 +18,7 @@
 // Sortie : une ligne OK/FAIL par cas ; exit 1 si un cas échoue, 0 sinon.
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, chmodSync, rmSync, cpSync, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -3903,6 +3903,645 @@ cas('P20/T9 témoin : sans le mot `pastille`, le même plan se lance sans averti
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// prochaine-action.mjs --appliquer — P20/S7/T11 : le moteur écrit et committe.
+// Chaque cas part d'un dépôt jetable (fixture `moteur-appliquer`), joue l'appel, et vérifie l'état APRÈS :
+// le fichier, la ligne, ET le commit (message, repère `Plan:`, fichiers) — une ligne cochée dont personne
+// n'a committé l'écriture est exactement l'état qui transformait une interruption en question humaine.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const FICHIER_DE = { S1: 'src/a.mjs', S2: 'src/b.mjs' };
+const N0_VERT = { commandes: [{ nom: 'ok', cmd: 'node ok.mjs' }] };
+const N0_ROUGE = { commandes: [{ nom: 'ko', cmd: 'node ko.mjs' }] };
+const REVUE_DEUX_BLOQUANTS = REVUE_COMPLETE.replace('Bloquant : 0', 'Bloquant : 2');
+
+function commitTache(cwd, ref) {
+  const [s, t] = ref.split('/');
+  appendFileSync(join(cwd, FICHIER_DE[s]), `// ${ref}\n`);
+  git(cwd, 'add', '--', FICHIER_DE[s]);
+  git(cwd, 'commit', '-q', '-m', `${s} ${t}\n\nPlan: P9/${s}/${t}`);
+}
+
+/** Dépôt jetable du plan `moteur-appliquer` (P9), branche `main`. `taches` : repères `S<k>/T<m>` commités dans l'ordre ;
+ * `n0` : `.claude/n0.json` (commité avec le dépôt initial) ; `origin` : dépôt nu local et amont `origin/main`. */
+function planAppliquer(prefixe, { taches = [], transformer = null, n0 = null, origin = false } = {}) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', 'moteur-appliquer'), join(cwd, 'plans', 'P9'), { recursive: true });
+  if (transformer) {
+    const chemin = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(chemin, transformer(readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n')));
+  }
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  for (const f of Object.values(FICHIER_DE)) writeFileSync(join(cwd, f), 'export const x = 1;\n');
+  writeFileSync(join(cwd, '.gitignore'), '.claude/n0/\n');
+  if (n0) {
+    mkdirSync(join(cwd, '.claude'), { recursive: true });
+    writeFileSync(join(cwd, '.claude', 'n0.json'), JSON.stringify(n0));
+    writeFileSync(join(cwd, 'ok.mjs'), 'process.exit(0);\n');
+    writeFileSync(join(cwd, 'ko.mjs'), 'process.exit(1);\n');
+  }
+  initDepot(cwd);
+  commitTout(cwd, 'init');
+  git(cwd, 'branch', '-M', 'main');
+  let bare = null;
+  if (origin) {
+    bare = dossierJetable('workflow-pa-origin-');
+    git(bare, 'init', '--bare', '-q');
+    git(cwd, 'remote', 'add', 'origin', bare);
+    git(cwd, 'push', '-q', '-u', 'origin', 'main');
+  }
+  for (const ref of taches) commitTache(cwd, ref);
+  return { cwd, bare };
+}
+
+const appliquerJson = (cwd, extra = []) => {
+  const r = lancerJson(['P9', '--json', '--appliquer', ...extra], cwd);
+  return { ...r, appliques: r.action?.appliques ?? [] };
+};
+const ligneIndex = (cwd, id) => readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n').split('\n').find((l) => l.startsWith(`| [${id}]`));
+const messageDe = (cwd, rev = 'HEAD') => gitSortie(cwd, 'log', '-1', '--format=%B', rev).replace(/\r\n/g, '\n').trim();
+const fichiersDe = (cwd, rev = 'HEAD') => gitSortie(cwd, 'show', '--name-only', '--format=', rev).split('\n').map((l) => l.trim()).filter(Boolean);
+const sujetsDepuis = (cwd, base) => gitSortie(cwd, 'log', '--format=%s', `${base}..HEAD`).split('\n').filter(Boolean);
+const depotPropre = (cwd) => gitSortie(cwd, 'status', '--porcelain', '--untracked-files=all') === '';
+const sansRebase = (cwd) => !existsSync(join(cwd, '.git', 'rebase-merge')) && !existsSync(join(cwd, '.git', 'rebase-apply'));
+const SANS_DATE = '\\d{4}-\\d{2}-\\d{2}';
+
+cas('T11 sans --appliquer : lecture seule — HEAD, statut et index identiques, même sur un état qui appelle des gestes (témoin : --appliquer, lui, écrit)', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-lecture-', { taches: ['S1/T1', 'S1/T2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE);
+  const avant = { head: gitSortie(cwd, 'rev-parse', 'HEAD'), statut: gitSortie(cwd, 'status', '--porcelain', '--untracked-files=all'), index: ligneIndex(cwd, 'S1') };
+  for (const args of [['P9'], ['P9', '--json'], ['P9', '--etat']]) {
+    const r = lancer(PROCHAINE_ACTION, args, cwd);
+    if (r.code !== 0) return `code ${r.code} attendu 0 (${args.join(' ')}): ${r.sortie}`;
+    if (/^appliqué — /m.test(r.sortie)) return `aucune ligne « appliqué — » attendue sans --appliquer (${args.join(' ')})`;
+  }
+  const apres = { head: gitSortie(cwd, 'rev-parse', 'HEAD'), statut: gitSortie(cwd, 'status', '--porcelain', '--untracked-files=all'), index: ligneIndex(cwd, 'S1') };
+  if (JSON.stringify(avant) !== JSON.stringify(apres)) return `l'arbre a changé sans --appliquer : ${JSON.stringify(avant)} → ${JSON.stringify(apres)}`;
+  if (!avant.statut.includes('S1.revue.md')) return 'la revue devait rester non suivie';
+  const { action, sortie } = appliquerJson(cwd);
+  if (!action) return `--appliquer devait rendre une action: ${sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') === avant.head) return "témoin : --appliquer devait committer (la revue et la coche) — sans cela le cas ne prouve rien";
+  return null;
+});
+
+cas('T11 options sans --appliquer, verdict ou option inconnus → code 2, jamais ignorés en silence', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-usage-');
+  const a = lancer(PROCHAINE_ACTION, ['P9', '--valider-vague', '1'], cwd);
+  if (a.code !== 2 || !/demandent --appliquer/.test(a.sortie)) return `code 2 « demandent --appliquer » attendu, reçu ${a.code}: ${a.sortie}`;
+  const b = lancer(PROCHAINE_ACTION, ['P9', '--appliquer', '--premisse', 'PEUT-ETRE', 'preuve'], cwd);
+  if (b.code !== 2 || !/verdict "PEUT-ETRE" inconnu/.test(b.sortie)) return `code 2 « verdict inconnu » attendu, reçu ${b.code}: ${b.sortie}`;
+  const c = lancer(PROCHAINE_ACTION, ['P9', '--appliquer', '--interruption', 'S1'], cwd);
+  if (c.code !== 2 || !/vont ensemble/.test(c.sortie)) return `code 2 « vont ensemble » attendu, reçu ${c.code}: ${c.sortie}`;
+  return null;
+});
+
+// ── Cocher `[x]` ────────────────────────────────────────────────────────────────────────────────────
+
+cas('T11 geste cocher : tâches commitées → `[x] <date>` ET un commit `plan(P9): S1 faite` (repère Plan: P9/S1, index.md seul), arbre propre, puis relire', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-cocher-', { taches: ['S1/T1', 'S1/T2'] });
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, action, appliques, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!new RegExp(`\\| \\[x\\] ${SANS_DATE} \\|`).test(ligneIndex(cwd, 'S1'))) return `S1 devait être cochée avec sa date: ${ligneIndex(cwd, 'S1')}`;
+  if (!ligneIndex(cwd, 'S2').includes('| [ ] |')) return `S2 ne devait pas être touchée: ${ligneIndex(cwd, 'S2')}`;
+  if (messageDe(cwd) !== 'plan(P9): S1 faite\n\nPlan: P9/S1') return `message de commit inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (sujetsDepuis(cwd, avant).length !== 1) return `un seul commit attendu, reçu ${sujetsDepuis(cwd, avant)}`;
+  if (!depotPropre(cwd)) return `arbre sale après l'appel: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (action?.action !== 'relire') return `relire attendu (S1 faite, revue absente), reçu: ${sortie}`;
+  if (!appliques.some((l) => /^S1 cochée \[x\]/.test(l))) return `journal sans « S1 cochée »: ${JSON.stringify(appliques)}`;
+  return null;
+});
+
+cas('T11 sortie texte : les lignes `appliqué — …` ouvrent la sortie, la première ligne qui n\'en est pas une est celle de l\'action', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-texte-', { taches: ['S1/T1', 'S1/T2'] });
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P9', '--appliquer'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const lignes = sortie.split('\n');
+  if (!lignes[0].startsWith('appliqué — S1 cochée [x]')) return `première ligne « appliqué — S1 cochée » attendue, reçu: ${lignes[0]}`;
+  const premiereAction = lignes.find((l) => l.trim() !== '' && !l.startsWith('appliqué — '));
+  if (premiereAction !== 'relire — vague 1 : S1') return `première ligne de l'action attendue « relire — vague 1 : S1 », reçu: ${premiereAction}`;
+  return null;
+});
+
+cas('T11 geste cocher refusé : preuve N0 requise et absente → pas de coche (`valider-n0` d\'abord) ; mode lecture : rien n\'est fabriqué', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-cocher-sans-preuve-', {
+    taches: ['S1/T1', 'S1/T2'], n0: N0_ROUGE, transformer: (t) => t.replace('Preuve N0 : non requise', 'Preuve N0 : requise'),
+  });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'valider-n0') return `valider-n0 attendu sans preuve, reçu: ${sortie}`;
+  if (!ligneIndex(cwd, 'S1').includes('| [ ] |')) return 'la lecture seule ne devait rien cocher';
+  return null;
+});
+
+// ── valider-n0 ─────────────────────────────────────────────────────────────────────────────────────
+
+cas('T11 geste valider-n0 vert : N0 --session joué par le moteur, preuve committée (`test(P9): preuve N0 de S1`, Plan: P9/S1), vérifiée, PUIS la coche', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-n0-vert-', {
+    taches: ['S1/T1', 'S1/T2'], n0: N0_VERT, transformer: (t) => t.replace('Preuve N0 : non requise', 'Preuve N0 : requise'),
+  });
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, action, appliques, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets.join(' | ') !== 'test(P9): preuve N0 de S1 | plan(P9): S1 faite') return `commits attendus « preuve » puis « coche », reçu: ${sujets.join(' | ')}`;
+  const preuve = gitSortie(cwd, 'log', '--format=%H', '-1', '--', 'plans/P9/S1.n0.json');
+  if (messageDe(cwd, preuve) !== 'test(P9): preuve N0 de S1\n\nPlan: P9/S1') return `message de la preuve inattendu: ${JSON.stringify(messageDe(cwd, preuve))}`;
+  if (fichiersDe(cwd, preuve).join() !== 'plans/P9/S1.n0.json') return `le commit de preuve ne doit contenir que la preuve: ${fichiersDe(cwd, preuve)}`;
+  const v = verifierPreuve(cwd, 'P9/S1');
+  if (v.ok !== true) return `preuve devait être valide, reçu ${JSON.stringify(v)}`;
+  if (!new RegExp(`\\| \\[x\\] ${SANS_DATE} \\|`).test(ligneIndex(cwd, 'S1'))) return `S1 devait être cochée: ${ligneIndex(cwd, 'S1')}`;
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (action?.action !== 'relire') return `relire attendu, reçu: ${sortie}`;
+  if (!appliques.some((l) => /^N0 de S1 vert/.test(l))) return `journal sans « N0 de S1 vert »: ${JSON.stringify(appliques)}`;
+  return null;
+});
+
+cas('T11 geste valider-n0 rouge : action rendue avec le motif, AUCUNE preuve committée ni laissée sur le disque, aucune coche', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-n0-rouge-', {
+    taches: ['S1/T1', 'S1/T2'], n0: N0_ROUGE, transformer: (t) => t.replace('Preuve N0 : non requise', 'Preuve N0 : requise'),
+  });
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, action, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'valider-n0') return `valider-n0 attendu (N0 rouge), reçu: ${sortie}`;
+  if (!/N0 rouge \(code 1\)/.test(action.avertissement ?? '')) return `avertissement « N0 rouge (code 1) » attendu, reçu ${JSON.stringify(action.avertissement)}`;
+  if (!action.texte.includes('Avertissement : N0 rouge')) return `l'avertissement doit figurer dans le texte:\n${action.texte}`;
+  if (existsSync(join(cwd, 'plans', 'P9', 'S1.n0.json'))) return 'une preuve en échec a été laissée sur le disque';
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== avant) return `aucun commit attendu, reçu ${sujetsDepuis(cwd, avant)}`;
+  if (!ligneIndex(cwd, 'S1').includes('| [ ] |')) return `S1 ne devait pas être cochée: ${ligneIndex(cwd, 'S1')}`;
+  return null;
+});
+
+// ── Revues ─────────────────────────────────────────────────────────────────────────────────────────
+
+cas('T11 geste revue : `.revue.md` déposée non commitée → `revue(P9): S1 relue, 0 bloquant(s)` (Plan: P9/S1, ce fichier seul), puis coche, puis lancer S2', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-revue-', { taches: ['S1/T1', 'S1/T2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE);
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, action, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets.join(' | ') !== 'revue(P9): S1 relue, 0 bloquant(s) | plan(P9): S1 faite') return `commits attendus « revue » puis « coche », reçu: ${sujets.join(' | ')}`;
+  const commitRevue = gitSortie(cwd, 'log', '--format=%H', '-1', '--', 'plans/P9/S1.revue.md');
+  if (messageDe(cwd, commitRevue) !== 'revue(P9): S1 relue, 0 bloquant(s)\n\nPlan: P9/S1') return `message de revue inattendu: ${JSON.stringify(messageDe(cwd, commitRevue))}`;
+  if (fichiersDe(cwd, commitRevue).join() !== 'plans/P9/S1.revue.md') return `le commit de revue ne doit contenir que la revue: ${fichiersDe(cwd, commitRevue)}`;
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (action?.action !== 'lancer' || action.sessions.map((s) => s.session).join() !== 'S2') return `lancer S2 attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T11 geste `[x]!` : revue à 2 bloquants → commit de revue « 2 bloquant(s) », puis `[x]!` committé (date conservée), le reste de la ligne intact', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-bloquant-', { taches: ['S1/T1', 'S1/T2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_DEUX_BLOQUANTS);
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets.join(' | ') !== 'revue(P9): S1 relue, 2 bloquant(s) | plan(P9): S1 faite | plan(P9): S1 passe à [x]! (revue : 2 bloquant(s))') return `trois commits attendus, reçu: ${sujets.join(' | ')}`;
+  if (!new RegExp(`\\| \\[x\\]! ${SANS_DATE} \\|`).test(ligneIndex(cwd, 'S1'))) return `S1 devait porter « [x]! <date> »: ${ligneIndex(cwd, 'S1')}`;
+  if (messageDe(cwd) !== 'plan(P9): S1 passe à [x]! (revue : 2 bloquant(s))\n\nPlan: P9/S1') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  // Anti-régression : une revue RANGÉE (supprimée par un commit) à bloquants ne remet pas `[x]!` après le versement.
+  git(cwd, 'rm', '-q', 'plans/P9/S1.revue.md');
+  writeFileSync(join(cwd, 'plans', 'P9', 'index.md'), readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace('[x]!', '[x]'));
+  git(cwd, 'add', 'plans/P9/index.md');
+  git(cwd, 'commit', '-q', '-m', 'versement de la revue de S1');
+  const apres = appliquerJson(cwd);
+  if (/\[x\]!/.test(ligneIndex(cwd, 'S1'))) return `une revue rangée ne doit pas rouvrir « [x]! »: ${ligneIndex(cwd, 'S1')} (${apres.sortie})`;
+  return null;
+});
+
+// ── Prélude : reprise des écritures laissées par un appel interrompu ──────────────────────────────────
+
+cas('T11 prélude : `[x]` écrit sans commit (appel interrompu) → commit de reprise, arbre propre, jamais une question', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-reprise-', { taches: ['S1/T1', 'S1/T2'] });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace(/(\| \[S1\][^\n]*)\| \[ \] \|/, '$1| [x] 2026-10-15 |'));
+  if (!gitSortie(cwd, 'status', '--porcelain').includes('index.md')) return "l'index devait être modifié et non commité";
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const { code, action, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const sujets = sujetsDepuis(cwd, avant);
+  if (sujets.join(' | ') !== 'chore(P9): écritures du moteur reprises après interruption') return `un seul commit de reprise attendu, reçu: ${sujets.join(' | ')}`;
+  if (messageDe(cwd) !== 'chore(P9): écritures du moteur reprises après interruption\n\nPlan: P9') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (!/^écritures en attente reprises/.test(action?.appliques?.[0] ?? '')) return `journal sans la reprise: ${JSON.stringify(action?.appliques)}`;
+  if (action?.action === 'question') return `aucune question attendue, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T11 prélude : une écriture ou un commit qui échoue (hook pre-commit) → question `ecriture-echec` ; le hook levé, l\'appel suivant reprend l\'écriture non commitée', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-hook-', { taches: ['S1/T1', 'S1/T2'] });
+  const hook = join(cwd, '.git', 'hooks', 'pre-commit');
+  mkdirSync(dirname(hook), { recursive: true });
+  writeFileSync(hook, '#!/bin/sh\necho "refus du hook de test" >&2\nexit 1\n');
+  chmodSync(hook, 0o755);
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const premier = appliquerJson(cwd);
+  const v = verifierQuestion(premier, {
+    source: 'ecriture-echec', entete: 'P9', question: 'Une écriture du moteur a échoué (git commit) : que fait-on ?',
+    options: [], reste: 'rien', contient: ['refus du hook de test', 'Régler la cause'],
+  });
+  if (v) return v;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== avant) return 'aucun commit ne devait aboutir sous un hook qui refuse';
+  rmSync(hook);
+  const second = appliquerJson(cwd);
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets[0] !== 'chore(P9): écritures du moteur reprises après interruption') return `la reprise de l'écriture non commitée est attendue en premier, reçu: ${sujets.join(' | ')} (${second.sortie})`;
+  if (!depotPropre(cwd)) return `arbre sale après la reprise: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (second.action?.action !== 'relire') return `relire attendu une fois le hook levé, reçu: ${second.sortie}`;
+  return null;
+});
+
+// ── Enchaînement borné ────────────────────────────────────────────────────────────────────────────
+
+cas('T11 enchaînement : borne atteinte → question `boucle-appliquer` (jamais une boucle infinie), les gestes déjà faits restent commités ; sans borne, la suite aboutit', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-borne-', { taches: ['S1/T1', 'S1/T2', 'S2/T3'] });
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd, ['--tours-max', '1']);
+  const v = verifierQuestion(r, {
+    source: 'boucle-appliquer', entete: 'P9',
+    question: 'Le moteur a enchaîné 1 gestes sans atteindre une action pour un agent ou pour toi : que fait-on ?',
+    options: [
+      "1. Relancer le moteur (`--appliquer`) : chaque appel repart de l'état du disque — débloque le plan si la cause était passagère",
+      "2. Lire l'état (`prochaine-action.mjs P<n> --etat`) et déposer un incident du workflow (§9b, nature `orchestration`) si le moteur tourne en rond — débloque le plan une fois le défaut corrigé",
+    ],
+    reste: 'rien',
+  });
+  if (v) return v;
+  if (sujetsDepuis(cwd, avant).length !== 1) return `un seul geste avant la borne attendu, reçu: ${sujetsDepuis(cwd, avant)}`;
+  const suite = appliquerJson(cwd);
+  if (suite.action?.action === 'question') return `sans borne, la suite devait aboutir: ${suite.sortie}`;
+  if (sujetsDepuis(cwd, avant).length !== 2) return `deux gestes en tout attendus (S1 puis S2 cochées), reçu: ${sujetsDepuis(cwd, avant)}`;
+  return null;
+});
+
+// ── pousser ────────────────────────────────────────────────────────────────────────────────────────
+
+cas('T11 geste pousser : commits locaux → `git pull --rebase` puis `git push` ; origin/main égale HEAD ; relire ensuite', () => {
+  const { cwd, bare } = planAppliquer('workflow-pa-app-pousser-', { taches: ['S1/T1', 'S1/T2'], origin: true });
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') === gitSortie(bare, 'rev-parse', 'main')) return "le témoin demande des commits non poussés avant l'appel";
+  const { code, action, appliques, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return `origin/main devait égaler HEAD (la coche comprise): ${sortie}`;
+  if (!appliques.some((l) => /^poussé/.test(l))) return `journal sans « poussé »: ${JSON.stringify(appliques)}`;
+  if (action?.action !== 'relire') return `relire attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('T11 geste pousser : conflit au pull --rebase → `rebase --abort`, question `rebase` (abandonné), aucun rebase en cours, commits locaux intacts', () => {
+  const { cwd, bare } = planAppliquer('workflow-pa-app-conflit-', { taches: ['S1/T1', 'S1/T2'], origin: true });
+  const distant = dossierJetable('workflow-pa-app-distant-');
+  git(distant, 'clone', '-q', '-b', 'main', bare, '.');
+  git(distant, 'config', 'user.email', 'distant@local');
+  git(distant, 'config', 'user.name', 'Distant');
+  appendFileSync(join(distant, 'src', 'a.mjs'), '// distant\n');
+  git(distant, 'add', '-A');
+  git(distant, 'commit', '-q', '-m', 'distant');
+  git(distant, 'push', '-q');
+  const r = appliquerJson(cwd);
+  const v = verifierQuestion(r, {
+    source: 'rebase', entete: 'P9',
+    question: 'Le rebase de tes commits sur ceux du dépôt distant a rencontré un conflit et a été abandonné : que fait-on ?',
+    options: ['1. Réconcilier à la main (`git pull --rebase`, régler les conflits, `git rebase --continue`), puis relancer — débloque le plan'],
+    reste: 'rien',
+  });
+  if (v) return v;
+  if (!/conflit et a été abandonné \(git rebase --abort\)/.test(r.action.motif)) return `motif « conflit … abandonné » attendu, reçu: ${r.action.motif}`;
+  if (!sansRebase(cwd)) return 'un rebase est resté en cours : `rebase --abort` n\'a pas été joué';
+  const sujets = gitSortie(cwd, 'log', '--format=%s').split('\n');
+  if (!sujets.includes('S1 T1') || !sujets.includes('S1 T2')) return `les commits locaux devaient rester: ${sujets}`;
+  if (sujets.includes('distant')) return 'le commit distant ne devait pas être intégré (rebase abandonné)';
+  if (gitSortie(cwd, 'status', '--porcelain', '--untracked-files=no') !== '') return `arbre sale après l'abandon: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  return null;
+});
+
+// ── Remédiation Opus ──────────────────────────────────────────────────────────────────────────────
+
+const enOpus = (t) => t.replaceAll('| Sonnet |', '| Opus |');
+const echecExecution = ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : réécrire la gate de S1'];
+
+cas('T11 Remédiation Opus : reprise Opus rendue → ligne CRÉÉE à 1 sous les en-têtes et commit `remédiation Opus n°1 (S1)` ; rappel : même action, compteur et HEAD inchangés', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-opus-', { transformer: enOpus });
+  ecrireEchec(cwd, 'S1', echecExecution);
+  commitTout(cwd, 'S1 en échec');
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const un = appliquerJson(cwd);
+  if (un.action?.action !== 'reprendre' || un.action.modele !== 'Opus') return `reprendre Opus attendu, reçu: ${un.sortie}`;
+  const texte = readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n');
+  if (!/^Preuve N0 : non requise\nRemédiation Opus : 1$/m.test(texte)) return `ligne « Remédiation Opus : 1 » attendue sous « Preuve N0 », reçu:\n${texte.split('\n').slice(0, 12).join('\n')}`;
+  if (messageDe(cwd) !== 'plan(P9): remédiation Opus n°1 (S1)\n\nPlan: P9/S1') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (sujetsDepuis(cwd, avant).length !== 1) return `un seul commit attendu: ${sujetsDepuis(cwd, avant)}`;
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const deux = appliquerJson(cwd);
+  if (deux.action?.action !== 'reprendre' || deux.action.modele !== 'Opus') return `la même passe doit être rendue au rappel (jamais budget-opus), reçu: ${deux.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== head) return 'aucun commit de plus au rappel : la passe est déjà consignée';
+  if (/Remédiation Opus : [2-9]/.test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8'))) return 'le compteur ne doit pas être incrémenté deux fois pour la même passe';
+  // La passe a eu lieu et a échoué : le rapport change → une 2e passe Opus est refusée (budget-opus).
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : réécrire la gate de S1']);
+  commitTout(cwd, 'S1 : la reprise Opus a échoué');
+  const trois = appliquerJson(cwd);
+  if (trois.action?.action !== 'question' || trois.action.options?.source !== 'budget-opus') return `question budget-opus attendue après une passe consommée, reçu: ${trois.sortie}`;
+  return null;
+});
+
+cas('T11 Remédiation Opus : ligne existante `0` → INCRÉMENTÉE à 1 ; une session Sonnet n\'y touche pas', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-opus-incr-', {
+    transformer: (t) => enOpus(t).replace('Preuve N0 : non requise', 'Preuve N0 : non requise\nRemédiation Opus : 0'),
+  });
+  ecrireEchec(cwd, 'S1', echecExecution);
+  commitTout(cwd, 'S1 en échec');
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'reprendre') return `reprendre attendu, reçu: ${r.sortie}`;
+  const texte = readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8');
+  if ((texte.match(/^Remédiation Opus/gm) ?? []).length !== 1 || !/^Remédiation Opus : 1\s*$/m.test(texte)) return `une seule ligne « Remédiation Opus : 1 » attendue, reçu:\n${texte.split('\n').slice(0, 8).join('\n')}`;
+  const sonnet = planAppliquer('workflow-pa-app-opus-sonnet-');
+  ecrireEchec(sonnet.cwd, 'S1', echecExecution);
+  commitTout(sonnet.cwd, 'S1 en échec');
+  const avant = gitSortie(sonnet.cwd, 'rev-parse', 'HEAD');
+  const s = appliquerJson(sonnet.cwd);
+  if (s.action?.action !== 'reprendre' || s.action.modele !== 'Sonnet') return `reprendre Sonnet attendu, reçu: ${s.sortie}`;
+  if (gitSortie(sonnet.cwd, 'rev-parse', 'HEAD') !== avant || /Remédiation Opus/.test(readFileSync(join(sonnet.cwd, 'plans', 'P9', 'index.md'), 'utf8'))) return 'aucune passe Opus : ni commit ni ligne Remédiation Opus attendus';
+  return null;
+});
+
+// ── Prémisse, interruption, validation de vague ───────────────────────────────────────────────────
+
+cas('T11 --premisse : la ligne `Premisse :` est écrite (et committée) dans le rapport en attente de vérification, puis le moteur traite la session en `exécution`', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-premisse-');
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', 'Blocage : la fonction ne renvoie jamais null']);
+  commitTout(cwd, 'S1 en échec de prémisse');
+  const temoin = lancerJson(['P9', '--json'], cwd);
+  if (temoin.action?.action !== 'verifier-premisse') return `témoin : verifier-premisse attendu, reçu: ${temoin.sortie}`;
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd, ['--premisse', 'REFUTEE', 'la fonction renvoie null ligne 12']);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  const rapport = readFileSync(join(cwd, 'plans', 'P9', 'S1.echec.md'), 'utf8').replace(/\r\n/g, '\n');
+  if (!rapport.endsWith('Premisse : refutee · la fonction renvoie null ligne 12\n')) return `ligne Premisse attendue en fin de rapport, reçu:\n${rapport}`;
+  if (messageDe(cwd) !== 'chore(P9): S1 prémisse refutee écrite au rapport\n\nPlan: P9/S1') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/S1.echec.md') return `le commit ne doit contenir que le rapport: ${fichiersDe(cwd)}`;
+  if (sujetsDepuis(cwd, avant).length !== 1 || !depotPropre(cwd)) return `un commit et un arbre propre attendus: ${sujetsDepuis(cwd, avant)}`;
+  if (r.action?.action !== 'reprendre' || r.action.session !== 'S1') return `reprendre S1 (prémisse réfutée → exécution) attendu, reçu: ${r.sortie}`;
+  // Sans vérification en attente, l'option est signalée, jamais écrite.
+  const { cwd: autre } = planAppliquer('workflow-pa-app-premisse-vide-');
+  const v = appliquerJson(autre, ['--premisse', 'CONFIRMEE', 'x']);
+  if (!/`--premisse` ignoré/.test(v.action?.avertissement ?? '')) return `avertissement « --premisse ignoré » attendu, reçu ${JSON.stringify(v.action?.avertissement)}`;
+  return null;
+});
+
+cas('T11 --interruption : `.echec.md` de nature interruption (agent, tâche en cours), commité seul ; Tentatives recopiées si le rapport existait ; le moteur rend relancer-interrompue', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-interruption-', { taches: ['S1/T1'] });
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd, ['--interruption', 'S1', '--agent', 'a1b2c3d4']);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  const rapport = readFileSync(join(cwd, 'plans', 'P9', 'S1.echec.md'), 'utf8').replace(/\r\n/g, '\n');
+  for (const l of ['Nature : interruption', 'Tentatives : reprise=0 enquete=0', 'Blocage : coupure par quota pendant T2', 'Agent : a1b2c3d4']) {
+    if (!rapport.split('\n').includes(l)) return `ligne « ${l} » absente du rapport:\n${rapport}`;
+  }
+  if (messageDe(cwd) !== 'chore(P9): S1 coupée par un quota, interruption consignée\n\nPlan: P9/S1') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/S1.echec.md') return `le commit ne doit contenir que le rapport: ${fichiersDe(cwd)}`;
+  if (sujetsDepuis(cwd, avant).length !== 1 || !depotPropre(cwd)) return `un commit et un arbre propre attendus: ${sujetsDepuis(cwd, avant)}`;
+  if (r.action?.action !== 'relancer-interrompue' || r.action.session !== 'S1') return `relancer-interrompue S1 attendu, reçu: ${r.sortie}`;
+  // Un rapport existant : ses compteurs sont recopiés.
+  const b = planAppliquer('workflow-pa-app-interruption-tentatives-', { taches: ['S1/T1'] });
+  ecrireEchec(b.cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=1 enquete=1', 'Blocage : x']);
+  commitTout(b.cwd, 'S1 en échec');
+  appliquerJson(b.cwd, ['--interruption', 'S1', '--agent', 'zzz']);
+  if (!readFileSync(join(b.cwd, 'plans', 'P9', 'S1.echec.md'), 'utf8').includes('Tentatives : reprise=1 enquete=1')) return 'Tentatives : reprise=1 enquete=1 devait être recopiée du rapport existant';
+  return null;
+});
+
+cas('T11 --valider-vague : `· validée` dans l\'en-tête de la vague, commit `vague 1 validée` ; sans l\'option, validation-humaine reste rendue ; vague déjà validée : aucune écriture', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-validee-', {
+    taches: ['S1/T1', 'S1/T2'], transformer: (t) => t.replace('- **Vague 1** :', '- **Vague 1 — validation-humaine** :'),
+  });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE);
+  const sans = appliquerJson(cwd);
+  if (sans.action?.action !== 'validation-humaine' || sans.action.vague !== 1) return `validation-humaine vague 1 attendu, reçu: ${sans.sortie}`;
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd, ['--valider-vague', '1']);
+  if (!/^- \*\*Vague 1 — validation-humaine · validée\*\* :/m.test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n'))) return `en-tête « validation-humaine · validée » attendu, reçu:\n${readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8')}`;
+  if (messageDe(cwd) !== 'plan(P9): vague 1 validée\n\nPlan: P9') return `message inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu après la validation, reçu: ${r.sortie}`;
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const encore = appliquerJson(cwd, ['--valider-vague', '1']);
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== head || !encore.appliques.some((l) => /déjà validée/.test(l))) return `vague déjà validée : aucune écriture, « déjà validée » au journal, reçu ${JSON.stringify(encore.appliques)}`;
+  if (sujetsDepuis(cwd, avant).length < 1) return 'un commit de validation attendu';
+  return null;
+});
+
+// ── Rapport d'échec et question consommés ─────────────────────────────────────────────────────────
+
+cas('T11 geste rapport résolu : `.echec.md` commité puis tâches commitées depuis → supprimé PAR UN COMMIT, puis coche ; témoin : lecture seule rend reprendre', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-echec-resolu-');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : x']);
+  commitTout(cwd, 'S1 en échec');
+  commitTache(cwd, 'S1/T1');
+  commitTache(cwd, 'S1/T2');
+  const temoin = lancerJson(['P9', '--json'], cwd);
+  if (temoin.action?.action !== 'reprendre') return `témoin : la lecture seule rend reprendre (le rapport est encore là), reçu: ${temoin.sortie}`;
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (existsSync(join(cwd, 'plans', 'P9', 'S1.echec.md'))) return 'le rapport devait être supprimé du disque';
+  if (gitSortie(cwd, 'ls-tree', '-r', '--name-only', 'HEAD').includes('S1.echec.md')) return 'le rapport devait être supprimé du dernier commit (suppression committée, pas seulement du disque)';
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets.join(' | ') !== "chore(P9): S1 reprise réussie, rapport d'échec supprimé | plan(P9): S1 faite") return `commits attendus « suppression » puis « coche », reçu: ${sujets.join(' | ')}`;
+  const commitSuppr = gitSortie(cwd, 'log', '--format=%H', '-1', '--diff-filter=D', '--', 'plans/P9/S1.echec.md');
+  if (messageDe(cwd, commitSuppr) !== "chore(P9): S1 reprise réussie, rapport d'échec supprimé\n\nPlan: P9/S1") return `message inattendu: ${JSON.stringify(messageDe(cwd, commitSuppr))}`;
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (r.action?.action !== 'relire') return `relire attendu, reçu: ${r.sortie}`;
+  return null;
+});
+
+cas('T11 rapport d\'échec NON résolu : réécrit après les tâches (non commité) ou commité après elles → conservé, reprise rendue', () => {
+  const a = planAppliquer('workflow-pa-app-echec-sale-', { taches: ['S1/T1'] });
+  ecrireEchec(a.cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : x']);
+  commitTout(a.cwd, 'S1 en échec après T1');
+  commitTache(a.cwd, 'S1/T2'); // une tâche depuis…
+  ecrireEchec(a.cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : y']); // …mais la reprise a réécrit son rapport, sans le committer
+  const r = appliquerJson(a.cwd);
+  if (!existsSync(join(a.cwd, 'plans', 'P9', 'S1.echec.md'))) return 'un rapport modifié non commité ne doit pas être supprimé';
+  const sujets = gitSortie(a.cwd, 'log', '--format=%s').split('\n');
+  if (sujets.some((s) => /rapport d'échec supprimé/.test(s))) return `aucune suppression attendue: ${sujets}`;
+  if (r.action?.action !== 'reprendre') return `reprendre attendu (rapport réécrit, état échec), reçu: ${r.sortie}`;
+  const b = planAppliquer('workflow-pa-app-echec-apres-', { taches: ['S1/T1', 'S1/T2'] });
+  ecrireEchec(b.cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : x']);
+  commitTout(b.cwd, 'S1 en échec après ses tâches'); // le rapport est le DERNIER commit : aucune tâche depuis
+  const r2 = appliquerJson(b.cwd);
+  if (!existsSync(join(b.cwd, 'plans', 'P9', 'S1.echec.md')) || r2.action?.action !== 'reprendre') return `rapport commité après les tâches : conservé et reprendre rendu, reçu: ${r2.sortie}`;
+  return null;
+});
+
+cas("T11 geste rapport obsolète : session COCHÉE ([x] ou [x]!) dont le rapport d'échec est resté, propre et commité → supprimé par un commit ; un rapport de session non cochée reste", () => {
+  for (const statut of ['[x] 2026-10-15', '[x]!']) {
+    const { cwd } = planAppliquer('workflow-pa-app-echec-obsolete-', {
+      taches: ['S1/T1', 'S1/T2'],
+      transformer: (t) => t.replace(/(\| \[S1\][^\n]*)\| \[ \] \|/, `$1| ${statut} |`),
+    });
+    ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=2', 'Blocage : accepté sans la preuve zéro-refus']);
+    commitTout(cwd, 'S1 acceptée malgré son rapport');
+    const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+    const r = appliquerJson(cwd);
+    if (r.code !== 0) return `${statut} : code ${r.code} attendu 0, sortie: ${r.sortie}`;
+    if (gitSortie(cwd, 'ls-tree', '-r', '--name-only', 'HEAD').includes('S1.echec.md')) return `${statut} : le rapport obsolète devait être supprimé du dernier commit`;
+    if (messageDe(cwd) !== "chore(P9): S1 cochée, rapport d'échec obsolète supprimé\n\nPlan: P9/S1" || sujetsDepuis(cwd, avant).length !== 1) return `${statut} : un commit « rapport d'échec obsolète » attendu, reçu: ${sujetsDepuis(cwd, avant)}`;
+    if (!depotPropre(cwd)) return `${statut} : arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+    // Le budget survit au rapport : les compteurs se lisent dans l'historique git.
+    if (!gitSortie(cwd, 'log', '-p', '--format=', '--', 'plans/P9/S1.echec.md').includes('enquete=2')) return `${statut} : l'historique doit garder le rapport`;
+  }
+  const { cwd } = planAppliquer('workflow-pa-app-echec-vivant-', { taches: ['S1/T1'] });
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : x']);
+  commitTout(cwd, 'S1 en échec');
+  const r = appliquerJson(cwd);
+  if (!existsSync(join(cwd, 'plans', 'P9', 'S1.echec.md')) || r.action?.action !== 'reprendre') return `session non cochée : rapport conservé, reprendre rendu, reçu: ${r.sortie}`;
+  return null;
+});
+
+cas('T11 prélude : suppression du rapport interrompue entre `git rm` et le commit (ou fichier effacé sans git) → reprise par un commit, arbre propre, jamais une question', () => {
+  for (const [nom, supprimer] of [['git rm stagé', (cwd) => git(cwd, 'rm', '-q', 'plans/P9/S1.echec.md')], ['effacé du disque', (cwd) => rmSync(join(cwd, 'plans', 'P9', 'S1.echec.md'))]]) {
+    const { cwd } = planAppliquer('workflow-pa-app-suppr-interrompue-');
+    ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : x']);
+    commitTout(cwd, 'S1 en échec');
+    commitTache(cwd, 'S1/T1');
+    commitTache(cwd, 'S1/T2');
+    supprimer(cwd);
+    const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+    const r = appliquerJson(cwd);
+    if (r.code !== 0) return `${nom} : code ${r.code} attendu 0, sortie: ${r.sortie}`;
+    if (messageDe(cwd, sujetsDepuis(cwd, avant).length > 1 ? `HEAD~${sujetsDepuis(cwd, avant).length - 1}` : 'HEAD') !== 'chore(P9): écritures du moteur reprises après interruption\n\nPlan: P9') return `${nom} : commit de reprise attendu en premier, reçu: ${sujetsDepuis(cwd, avant).join(' | ')}`;
+    if (gitSortie(cwd, 'ls-tree', '-r', '--name-only', 'HEAD').includes('S1.echec.md')) return `${nom} : la suppression devait être committée`;
+    if (!depotPropre(cwd) || r.action?.action === 'question') return `${nom} : arbre propre et aucune question attendus: ${r.sortie}`;
+  }
+  return null;
+});
+
+cas('T11 prélude : preuve N0 verte laissée non commitée (appel coupé après N0) → committée, puis la coche ; preuve EN ÉCHEC laissée → jamais committée', () => {
+  const requise = (t) => t.replace('Preuve N0 : non requise', 'Preuve N0 : requise');
+  const { cwd } = planAppliquer('workflow-pa-app-preuve-orpheline-', { taches: ['S1/T1', 'S1/T2'], n0: N0_VERT, transformer: requise });
+  const n0 = lancer(N0, ['--session', 'P9/S1'], cwd);
+  if (n0.code !== 0) return `N0 manuel devait être vert, reçu ${n0.code}: ${n0.sortie}`;
+  if (!gitSortie(cwd, 'status', '--porcelain', '--untracked-files=all').includes('S1.n0.json')) return 'la preuve devait être non commitée';
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd);
+  const sujets = sujetsDepuis(cwd, avant).reverse();
+  if (sujets.join(' | ') !== 'chore(P9): écritures du moteur reprises après interruption | plan(P9): S1 faite') return `reprise de la preuve puis coche attendues, reçu: ${sujets.join(' | ')} (${r.sortie})`;
+  if (verifierPreuve(cwd, 'P9/S1').ok !== true) return `la preuve reprise devait être valide: ${JSON.stringify(verifierPreuve(cwd, 'P9/S1'))}`;
+  const rouge = planAppliquer('workflow-pa-app-preuve-fail-', { taches: ['S1/T1', 'S1/T2'], n0: N0_ROUGE, transformer: requise });
+  lancer(N0, ['--session', 'P9/S1'], rouge.cwd); // N0 rouge : écrit une preuve `FAIL`
+  const avantRouge = gitSortie(rouge.cwd, 'rev-parse', 'HEAD');
+  appliquerJson(rouge.cwd);
+  if (gitSortie(rouge.cwd, 'ls-tree', '-r', '--name-only', 'HEAD').includes('S1.n0.json')) return 'une preuve en échec ne doit jamais être committée par la reprise';
+  if (sujetsDepuis(rouge.cwd, avantRouge).some((s) => /écritures du moteur reprises/.test(s))) return `aucune reprise attendue pour une preuve FAIL: ${sujetsDepuis(rouge.cwd, avantRouge)}`;
+  return null;
+});
+
+cas('T11 geste question consommée : `.question.md` commité puis tâche commitée depuis → supprimé par un commit ; sans tâche depuis, la question reste en attente', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-question-', { taches: ['S1/T1'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.question.md'), questionRemplie({ reponse: 'fois2' }));
+  commitTout(cwd, 'question de S1');
+  const attente = appliquerJson(cwd);
+  if (attente.action?.action !== 'transmettre') return `témoin : transmettre attendu (réponse écrite, rien commité depuis), reçu: ${attente.sortie}`;
+  if (!existsSync(join(cwd, 'plans', 'P9', 'S1.question.md'))) return 'sans tâche depuis, la question ne doit pas être supprimée';
+  commitTache(cwd, 'S1/T2');
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd);
+  if (existsSync(join(cwd, 'plans', 'P9', 'S1.question.md')) || gitSortie(cwd, 'ls-tree', '-r', '--name-only', 'HEAD').includes('S1.question.md')) return 'la question consommée devait être supprimée par un commit';
+  const commitSuppr = gitSortie(cwd, 'log', '--format=%H', '-1', '--diff-filter=D', '--', 'plans/P9/S1.question.md');
+  if (messageDe(cwd, commitSuppr) !== 'chore(P9): S1 question consommée, fichier supprimé\n\nPlan: P9/S1') return `message inattendu: ${JSON.stringify(messageDe(cwd, commitSuppr))}`;
+  if (sujetsDepuis(cwd, avant).length < 1 || !depotPropre(cwd)) return `un commit au moins et un arbre propre attendus: ${sujetsDepuis(cwd, avant)}`;
+  if (r.action?.action !== 'relire') return `relire attendu (S1 faite), reçu: ${r.sortie}`;
+  return null;
+});
+
+// ── Clôture : points 1-3 et 5, 4 et 6 rendus ─────────────────────────────────────────────────────
+
+/** Plan terminé : S1 et S2 commitées, revues complètes déposées ; un premier appel les committe et coche. */
+function planACloturer(prefixe, options = {}) {
+  const p = planAppliquer(prefixe, { taches: ['S1/T1', 'S1/T2', 'S2/T3'], ...options });
+  writeFileSync(join(p.cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE);
+  writeFileSync(join(p.cwd, 'plans', 'P9', 'S2.revue.md'), REVUE_COMPLETE);
+  return p;
+}
+
+cas('T11 clôture : points 1-3 faits (incident committé, `.claude/vague/` nettoyé, revues committées), `cloturer` rendu avec le reste (point 4, point 6) ; pas de `Clos :`', () => {
+  const { cwd } = planACloturer('workflow-pa-app-cloture-');
+  mkdirSync(join(cwd, 'docs', 'workflow', 'incidents'), { recursive: true });
+  writeFileSync(join(cwd, 'docs', 'workflow', 'incidents', '2026-10-15-mon-incident.md'), '# incident\nPlan : P9\n');
+  mkdirSync(join(cwd, '.claude', 'vague'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', 'vague', 'sortie.txt'), 'transitoire\n');
+  const { code, action, appliques, sortie } = appliquerJson(cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'cloturer') return `cloturer attendu, reçu: ${sortie}`;
+  if (action.reste.revues.join() !== 'plans/P9/S1.revue.md,plans/P9/S2.revue.md') return `revues à trier attendues, reçu ${JSON.stringify(action.reste)}`;
+  if (existsSync(join(cwd, '.claude', 'vague'))) return 'point 2 : `.claude/vague/` devait être nettoyé';
+  const sujets = gitSortie(cwd, 'log', '--format=%s').split('\n');
+  for (const attendu of ['incident(workflow): mon-incident', 'revue(P9): S1 relue, 0 bloquant(s)', 'revue(P9): S2 relue, 0 bloquant(s)', 'plan(P9): S1 faite', 'plan(P9): S2 faite']) {
+    if (!sujets.includes(attendu)) return `commit « ${attendu} » attendu, reçu: ${sujets.join(' | ')}`;
+  }
+  if (!depotPropre(cwd)) return `arbre sale: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (/^Clos\s*:/m.test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8'))) return 'aucun `Clos :` avant le jugement (points 4 et 6)';
+  for (const m of ['Le moteur a fait les points 1, 2 et 3', 'point 4 : verser dans TASKS.md puis supprimer', 'plans/P9/S1.revue.md, plans/P9/S2.revue.md', 'point 6 : ranger le contexte', '--appliquer --cloture-faite']) {
+    if (!action.texte.includes(m)) return `le texte devait contenir « ${m} »:\n${action.texte}`;
+  }
+  if (!appliques.some((l) => /^incident mon-incident committé/.test(l)) || !appliques.some((l) => /marqueurs transitoires/.test(l))) return `journal incomplet: ${JSON.stringify(appliques)}`;
+  return null;
+});
+
+cas('T11 clôture : `--cloture-faite` refusé tant qu\'il reste une revue ou un `[x]!` ; accepté une fois triés → `Clos :` committé, plan rendu `fini` DANS LE MÊME APPEL', () => {
+  const { cwd } = planACloturer('workflow-pa-app-clos-');
+  appliquerJson(cwd); // revues committées, sessions cochées
+  const refus = appliquerJson(cwd, ['--cloture-faite']);
+  if (refus.action?.action !== 'cloturer' || !/--cloture-faite` refusé/.test(refus.action.avertissement ?? '')) return `cloturer + avertissement de refus attendus, reçu: ${refus.sortie}`;
+  if (/^Clos\s*:/m.test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8'))) return 'aucun Clos avec des revues non triées';
+  // Le jugement (points 4 et 6) : les revues rangées dans un commit de l'orchestrateur.
+  git(cwd, 'rm', '-q', 'plans/P9/S1.revue.md', 'plans/P9/S2.revue.md');
+  git(cwd, 'commit', '-q', '-m', 'clôture : revues versées au backlog');
+  const sans = appliquerJson(cwd);
+  if (sans.action?.action !== 'cloturer' || !sans.action.texte.includes('point 4 : aucune revue à trier')) return `cloturer (point 6 reste) attendu sans l'option, reçu: ${sans.sortie}`;
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const r = appliquerJson(cwd, ['--cloture-faite']);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (r.action?.action !== 'fini') return `fini attendu dans le même appel, reçu: ${r.sortie}`;
+  if (!new RegExp(`^Clos : ${SANS_DATE}$`, 'm').test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n'))) return 'ligne « Clos : <date> » attendue dans l\'index';
+  if (!new RegExp('^plan\\(P9\\): clos le \\d{4}-\\d{2}-\\d{2}\\n\\nPlan: P9$').test(messageDe(cwd))) return `message de clôture inattendu: ${JSON.stringify(messageDe(cwd))}`;
+  if (fichiersDe(cwd).join() !== 'plans/P9/index.md') return `le commit ne doit contenir que l'index: ${fichiersDe(cwd)}`;
+  if (!depotPropre(cwd) || sujetsDepuis(cwd, avant).length !== 1) return `un commit et un arbre propre attendus: ${sujetsDepuis(cwd, avant)}`;
+  if (!r.action.texte.startsWith('fini\nPlan P9 — rapport final (2 session(s))')) return `rapport final attendu dans le texte:\n${r.action.texte}`;
+  // Un plan clos : rien à écrire.
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const encore = appliquerJson(cwd);
+  if (encore.action?.action !== 'fini' || encore.appliques.length !== 0 || gitSortie(cwd, 'rev-parse', 'HEAD') !== head) return `plan clos : fini sans écriture attendu, reçu: ${encore.sortie}`;
+  return null;
+});
+
+cas('T11 clôture : le push de clôture part dans le même appel (origin/main == HEAD, `Clos :` compris)', () => {
+  const { cwd, bare } = planACloturer('workflow-pa-app-clos-push-', { origin: true });
+  appliquerJson(cwd);
+  git(cwd, 'rm', '-q', 'plans/P9/S1.revue.md', 'plans/P9/S2.revue.md');
+  git(cwd, 'commit', '-q', '-m', 'clôture : revues versées au backlog');
+  const r = appliquerJson(cwd, ['--cloture-faite']);
+  if (r.action?.action !== 'fini') return `fini attendu, reçu: ${r.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return `origin/main devait égaler HEAD après la clôture: ${r.sortie}`;
+  if (!gitSortie(bare, 'show', 'main:plans/P9/index.md').includes('Clos : ')) return "le `Clos :` devait être dans ce qui est poussé";
+  return null;
+});
+
+cas('T11 `[x]!` à la clôture : `cloturer` liste la session à repasser, `--cloture-faite` refusé', () => {
+  const { cwd } = planAppliquer('workflow-pa-app-clos-bloquant-', { taches: ['S1/T1', 'S1/T2', 'S2/T3'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_DEUX_BLOQUANTS);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S2.revue.md'), REVUE_COMPLETE);
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'cloturer' || r.action.reste.bloquants.join() !== 'S1') return `cloturer avec [x]! S1 attendu, reçu: ${r.sortie}`;
+  if (!r.action.texte.includes('`[x]!` à repasser à `[x]` : S1')) return `le texte devait nommer S1 en [x]!:\n${r.action.texte}`;
+  return null;
+});
+
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {
@@ -4133,6 +4772,35 @@ cas("P20/T10 noter H1 : une édition de l'index dont la zone cite docs/mot.txt, 
 cas('P20/T10 noter H1 : aucune question posée, aucun SendMessage → indéterminée (une mesure, pas un échec de la session)', () => {
   const h = h1De([]);
   if (h.issue !== 'indéterminée') return `H1 indéterminée attendue, reçu ${JSON.stringify(h)}`;
+  return null;
+});
+
+// ── noter.mjs : la dernière action d'une sortie enchaînée ─────────────────────────────────────────
+
+// `flux-nominal-appliquer.jsonl` : FABRIQUÉ à partir de `flux-nominal.jsonl` (S5) — mêmes événements, les deux appels du moteur
+// portent `--appliquer` et le dernier rend une sortie enchaînée (trois gestes appliqués, puis `fini` et son rapport). Aucun
+// passage réel ici : la skill d'orchestration ne passe à `--appliquer` qu'en S12, S13 le mesure.
+
+cas('T11 noter : sortie enchaînée (`appliqué — …` puis `fini`) → le dernier appel du moteur rend `fini` (première ligne de la DERNIÈRE action)', () => {
+  const f = lireFlux(lireFluxFixture('flux-nominal-appliquer.jsonl'));
+  if (f.appelsMoteur.length !== 2) return `deux appels du moteur attendus (lancer, puis --appliquer), reçu ${f.appelsMoteur.length}`;
+  if (f.moteurDernierAppelModele !== 'fini') return `« fini » attendu (première ligne de la dernière action), reçu: ${JSON.stringify(f.moteurDernierAppelModele)}`;
+  if (f.lancements.length !== 1 || f.lancements[0].verdict !== 'PASS') return `un lancement PASS attendu, reçu ${JSON.stringify(f.lancements.map((l) => [l.desc, l.verdict]))}`;
+  return null;
+});
+
+cas('T11 noter : une sortie enchaînée qui finit sur une AUTRE action que `fini` n\'est pas `fini` ; les lignes appliquées ne sont jamais lues comme l\'action', () => {
+  const evenements = JSON.parse(JSON.stringify(lireFluxFixture('flux-nominal-appliquer.jsonl')));
+  const i = evenements.findLastIndex((e) => e.type === 'user' && JSON.stringify(e).includes('appliqué — '));
+  const c = evenements[i].message.content.find((x) => x.type === 'tool_result');
+  c.content = "appliqué — S1 cochée [x] 2026-10-15 (abc1234)\nappliqué — poussé (pull --rebase, push)\nrelire — vague 1 : S1\n   Relecture de S1 (effort high).\n";
+  const f = lireFlux(evenements);
+  if (f.moteurDernierAppelModele !== 'relire — vague 1 : S1') return `« relire — vague 1 : S1 » attendu, reçu: ${JSON.stringify(f.moteurDernierAppelModele)}`;
+  if (/^fini\b/.test(f.moteurDernierAppelModele)) return 'une action qui n\'est pas `fini` ne doit pas valoir `fini`';
+  // Une sortie qui ne porte QUE des lignes appliquées (appel coupé avant l'action) : aucune action lue.
+  c.content = 'appliqué — S1 cochée [x] 2026-10-15 (abc1234)\n';
+  const g = lireFlux(evenements);
+  if (g.moteurDernierAppelModele !== '') return `aucune action lue attendue (chaîne vide), reçu: ${JSON.stringify(g.moteurDernierAppelModele)}`;
   return null;
 });
 

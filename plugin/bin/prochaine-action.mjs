@@ -15,8 +15,10 @@
 //   node plugin/bin/prochaine-action.mjs P<n> [--json]        → une action (ce que fait l'orchestrateur)
 //   node plugin/bin/prochaine-action.mjs P<n> --etat [--json] → seulement l'état dérivé (diagnostic)
 //   node .claude/workflow/bin/prochaine-action.mjs P<n> [--json]   (projet vendoré)
+//   node plugin/bin/prochaine-action.mjs P<n> --appliquer [--json] → les gestes MÉCANIQUES, puis l'action
+//        qui demande un agent ou un humain (P20/S7/T11, ci-dessous « --appliquer »)
 //
-// LECTURE SEULE. L'état se dérive de deux sources, et d'elles seules :
+// LECTURE SEULE (sauf `--appliquer`). L'état se dérive de deux sources, et d'elles seules :
 //   - l'ARBRE DE TRAVAIL (commité ou non — le code lit le disque, pour de bonnes raisons : rapport
 //     d'échec pas encore commité) : la table, l'ordonnancement et les statuts `[x]` de
 //     `plans/P<n>/index.md`, les lignes mécaniques de `plans/P<n>/S<k>.echec.md`, les lignes
@@ -55,9 +57,35 @@
 // même décision). Recoupement, zone illisible ou `git status` en échec → `question` source
 // `arbre-sale`, motifs : fichiers touchés dans une zone, « zone illisible : <segment> », « arbre
 // invérifiable ».
+//
+// `--appliquer` (P20/S7/T11, point 10b de la revue externe du 2026-10-13) : le moteur FAIT les gestes
+// mécaniques que l'orchestrateur faisait à la main — et en oubliait (mesure de référence, constat C) —
+// puis rend l'action qui demande un agent ou un humain. Sans `--appliquer`, rien n'est écrit : les mods
+// et `noter.mjs` lisent le moteur sans le modifier.
+//   Gestes : cocher `[x]` une session dont les tâches sont commitées et la preuve N0 valide ; `[x]` →
+//   `[x]!` quand sa `.revue.md` porte `Bloquant : n > 0` ; committer une `.revue.md` déposée ;
+//   `valider-n0` (N0 `--session`, preuve committée si vert, jamais fabriquée) ; `pousser` (conflit →
+//   `rebase --abort`, question `rebase`) ; supprimer, par un commit, le `.echec.md` ou le `.question.md`
+//   d'une session qui a repris et commité une tâche depuis (ou le `.echec.md` resté chez une session cochée) ;
+//   incrémenter ou créer `Remédiation Opus :` à
+//   la première passe Opus rendue ; clôture, points 1-3 et 5 de `fin-de-plan.md`.
+//   Options : `--premisse <verdict> <preuve>` (écrit la ligne `Premisse :` du rapport en attente de
+//   vérification) · `--interruption S<k> --agent <id>` (`.echec.md` de coupure par quota) ·
+//   `--valider-vague <w>` (`· validée`, après le « oui » de l'utilisateur) · `--cloture-faite` (les
+//   points 4 et 6 de `fin-de-plan.md`, jugement, sont faits : le moteur pose `Clos :`, pousse, rend `fini`) ·
+//   `--tours-max <n>` (diagnostic : borne de l'enchaînement, par défaut sessions × 4).
+//   D'ABORD, à chaque appel : les écritures laissées non commitées par un appel interrompu (`index.md`,
+//   `.echec.md`, `.question.md`, `*.n0.json` du plan ; une `.revue.md` avec son message de revue) sont
+//   committées — un arrêt entre écriture et commit ne laisse jamais un arbre sale à une question humaine.
+//   Chaque geste est UN commit (staging explicite des seuls fichiers touchés, jamais `--no-verify`),
+//   dernière ligne `Plan: P<n>[/S<k>]`. Le moteur se rappelle lui-même après chaque geste : un plan qui
+//   finit rend `fini` dans le même appel. Sortie : une ligne `appliqué — <geste>` par geste (aucune
+//   autre ligne n'en commence), puis l'action finale et son `texte` ; avec `--json`, l'action et
+//   `appliques: [...]`. Une écriture ou un push qui échoue → `question` source `ecriture-echec` ; plus de
+//   gestes que la borne → `question` source `boucle-appliquer` (jamais une boucle infinie).
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifierPreuve } from './preuve-n0.mjs';
@@ -70,11 +98,42 @@ const args = process.argv.slice(2);
 const plan = args.find((a) => /^P\d+$/.test(a));
 const etat = args.includes('--etat');
 const json = args.includes('--json');
+const appliquer = args.includes('--appliquer') && !etat;
 
 if (!plan) {
   console.error('prochaine-action: indiquer un plan (ex. P6)');
   process.exit(2);
 }
+
+// Options de `--appliquer` : une option sans `--appliquer` est une erreur d'usage, jamais ignorée en silence.
+const VERDICTS_PREMISSE = ['refutee', 'confirmee', 'indecidable'];
+function erreurUsage(motif) {
+  console.error(`prochaine-action: ${motif}`);
+  process.exit(2);
+}
+function valeursOption(nom, n) {
+  const i = args.indexOf(nom);
+  if (i < 0) return null;
+  const valeurs = args.slice(i + 1, i + 1 + n);
+  if (valeurs.length < n || valeurs.some((v) => v.startsWith('--'))) erreurUsage(`${nom} attend ${n} valeur(s)`);
+  return valeurs;
+}
+const optPremisse = valeursOption('--premisse', 2);
+const optInterruption = valeursOption('--interruption', 1)?.[0] ?? null;
+const optAgent = valeursOption('--agent', 1)?.[0] ?? null;
+const optValiderVague = valeursOption('--valider-vague', 1)?.[0] ?? null;
+const optToursMax = valeursOption('--tours-max', 1)?.[0] ?? null;
+const optClotureFaite = args.includes('--cloture-faite');
+if (!appliquer && (optPremisse || optInterruption || optAgent || optValiderVague || optToursMax || optClotureFaite)) {
+  erreurUsage('--premisse, --interruption, --agent, --valider-vague, --tours-max et --cloture-faite demandent --appliquer');
+}
+if (optPremisse && !VERDICTS_PREMISSE.some((v) => normaliserSimple(optPremisse[0]).startsWith(v))) {
+  erreurUsage(`--premisse : verdict "${optPremisse[0]}" inconnu (refutee, confirmee ou indecidable attendus)`);
+}
+if (Boolean(optInterruption) !== Boolean(optAgent)) erreurUsage('--interruption S<k> et --agent <identifiant> vont ensemble');
+if (optInterruption && !/^S\d+$/.test(optInterruption)) erreurUsage(`--interruption attend S<k>, reçu "${optInterruption}"`);
+if (optValiderVague !== null && !/^\d+$/.test(optValiderVague)) erreurUsage(`--valider-vague attend un numéro de vague, reçu "${optValiderVague}"`);
+if (optToursMax !== null && !/^[1-9]\d*$/.test(optToursMax)) erreurUsage(`--tours-max attend un entier ≥ 1, reçu "${optToursMax}"`);
 
 // ── git, best-effort, jamais bloquant (style maison : plugin/bin/collecter-incidents.mjs) ────────
 /** Sortie brute de git, espaces de tête compris — `git status --porcelain` commence par un espace pour un
@@ -534,8 +593,8 @@ function cheminsDeZone(cellule) {
  * repli `?? dossier/` (chaque fichier d'un dossier non suivi compte individuellement, D1). `null` si
  * `git` échoue — jamais un arbre deviné. Renommage/copie (code X ou Y = R/C) : le chemin d'origine
  * (champ `-z` suivant) compte aussi. */
-function fichiersSales() {
-  const sortie = gitBrut('status', '--porcelain', '-z', '--untracked-files=all');
+function fichiersSales(pathspec = []) {
+  const sortie = gitBrut('status', '--porcelain', '-z', '--untracked-files=all', ...(pathspec.length > 0 ? ['--', ...pathspec] : []));
   if (sortie === null) return null;
   const bruts = sortie.split('\0').filter((s) => s.length > 0);
   const fichiers = [];
@@ -1207,7 +1266,7 @@ const ARBRE_SALE_ZONE = [
 
 /** Sources dont la question vise le plan entier, pas une session : rien ne reste lançable sans
  * décider, et l'en-tête de la question ne porte pas de `S<k>`. */
-const SOURCES_PLAN = ['rebase', 'racine-introuvable', 'historique-partiel', 'session-hors-vague'];
+const SOURCES_PLAN = ['rebase', 'racine-introuvable', 'historique-partiel', 'session-hors-vague', 'boucle-appliquer', 'ecriture-echec'];
 
 /** `{ question, options, graines, rapport }` pour une `question` du moteur, ou `null` si la source est
  * inconnue (l'appelant rend alors l'option unique « mettre à jour le workflow »). `options` : listes
@@ -1220,7 +1279,31 @@ function definirQuestion(action, sortie) {
   const ids = o.sessions ?? [];
   const nomsIds = ids.join(', ');
   switch (o.source) {
+    case 'boucle-appliquer':
+      return {
+        question: `Le moteur a enchaîné ${o.tours} gestes sans atteindre une action pour un agent ou pour toi : que fait-on ?`,
+        options: [
+          "Relancer le moteur (`--appliquer`) : chaque appel repart de l'état du disque — débloque le plan si la cause était passagère",
+          "Lire l'état (`prochaine-action.mjs P<n> --etat`) et déposer un incident du workflow (§9b, nature `orchestration`) si le moteur tourne en rond — débloque le plan une fois le défaut corrigé",
+        ],
+        graines: [],
+      };
+    case 'ecriture-echec':
+      return {
+        question: `Une écriture du moteur a échoué (${o.geste}) : que fait-on ?`,
+        options: [
+          `Régler la cause (${o.detail}), puis relancer — l'état est celui du disque, rien n'est à défaire — débloque le plan`,
+        ],
+        graines: [],
+      };
     case 'rebase':
+      if (o.abandonne) {
+        return {
+          question: 'Le rebase de tes commits sur ceux du dépôt distant a rencontré un conflit et a été abandonné : que fait-on ?',
+          options: ['Réconcilier à la main (`git pull --rebase`, régler les conflits, `git rebase --continue`), puis relancer — débloque le plan'],
+          graines: [],
+        };
+      }
       return {
         question: 'Un rebase est en cours : comment le résoudre avant de reprendre le plan ?',
         options: ['Résoudre le rebase à la main (`git rebase --abort`, ou `--continue` une fois les conflits réglés), puis relancer — débloque le plan'],
@@ -1596,6 +1679,16 @@ function texteSimple(action, sortie) {
       break;
     case 'cloturer':
       l.push('   Toutes les sessions sont faites : dérouler la clôture du plan (`fin-de-tache/references/fin-de-plan.md`).');
+      if (action.reste) {
+        const r = action.reste;
+        l.push('   Le moteur a fait les points 1, 2 et 3 (rien de non commité côté revues et incidents, marqueurs nettoyés). Reste, à toi :');
+        l.push(r.revues.length > 0 || r.bloquants.length > 0
+          ? `   - point 4 : verser dans TASKS.md puis supprimer, dans le même commit, ${r.revues.length > 0 ? r.revues.join(', ') : 'aucune revue'} ; \`[x]!\` à repasser à \`[x]\` : ${r.bloquants.length > 0 ? r.bloquants.join(', ') : 'aucun'}`
+          : '   - point 4 : aucune revue à trier, aucun `[x]!`');
+        l.push('   - point 6 : ranger le contexte (`PROJECT_BRIEF.md`, `TASKS.md`, `STATUS.md`, points N2 dans `VALIDATION.md`)');
+        if (r.sales.length > 0) l.push(`   - fichiers encore non commités (à rattacher à leur session, jamais balayés dans un commit fourre-tout) : ${r.sales.join(', ')}`);
+        l.push(`   Puis rappeler : \`${action.rappel}\` — le moteur pose \`Clos : <date>\` (point 5), pousse (point 7) et rend le rapport final.`);
+      }
       break;
     case 'validation-humaine': {
       const v = sortie?.vagues.find((x) => x.numero === action.vague);
@@ -1664,65 +1757,11 @@ function lignesAppelAgent(action) {
 
 // ── Assemblage ─────────────────────────────────────────────────────────────────────────────────────
 const dossierPlan = join(RACINE, 'plans', plan);
-const index = lireIndex(dossierPlan);
-if (index.erreur) {
-  console.error(`prochaine-action: ${index.erreur}`);
-  process.exit(2);
-}
-
-// Historique partiel (T3, P19/S3) : avant toute lecture de l'historique. Un clone `--depth` a perdu
-// les commits de tâche plus anciens — lu comme complet, il ferait relancer une session déjà faite.
-const questionPartiel = verifierHistoriqueComplet();
-if (questionPartiel) {
-  questionPartiel.texte = redigerTexte(questionPartiel, null, { vagues: new Map() });
-  process.stdout.write((json ? JSON.stringify(questionPartiel, null, 2) : formaterTexte(questionPartiel)) + '\n');
-  process.exit(0);
-}
-
-const refs = refsCommitees();
-for (const s of index.sessions) {
-  const cheminEchec = join(dossierPlan, `${s.session}.echec.md`);
-  const cheminRevue = join(dossierPlan, `${s.session}.revue.md`);
-
-  const taches = parseTaches(s.taches).map((n) => `${plan}/${s.session}/T${n}`);
-  const toutesCommitees = taches.length > 0 && taches.every((ref) => refs.has(ref));
-
-  // `en-attente` (P20/S6) avant `echec` et avant « toutes les tâches commitées » : le WIP commité avant
-  // la question porte un repère `Plan:` de tâche sans que la session ait fini ; un `.echec.md` plus
-  // ancien (reprise arrêtée sur un choix) ne prime pas non plus. Une session cochée l'emporte.
-  const cheminQuestion = join(dossierPlan, `${s.session}.question.md`);
-  if (s.coche) {
-    s.etat = 'faite';
-  } else if (existsSync(cheminQuestion) && !questionConsommee(`plans/${plan}/${s.session}.question.md`, s.session)) {
-    s.etat = 'en-attente';
-  } else if (existsSync(cheminEchec)) {
-    s.etat = 'echec';
-  } else if (toutesCommitees) {
-    s.etat = 'faite';
-  } else {
-    s.etat = 'a-lancer';
-  }
-
-  s.preuve = index.preuveN0 && s.etat === 'faite' ? verifierPreuve(RACINE, `${plan}/${s.session}`) : null;
-  s.echec = s.etat === 'echec' ? lireEchec(cheminEchec, `plans/${plan}/${s.session}.echec.md`) : null;
-  s.question = s.etat === 'en-attente' ? lireQuestion(cheminQuestion, `plans/${plan}/${s.session}.question.md`) : null;
-  // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
-  // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
-  // fichier n'existe plus (T6, P10/S2).
-  if (existsSync(cheminRevue)) {
-    s.revue = lireRevue(cheminRevue);
-  } else if (ajouteParUnCommit(`plans/${plan}/${s.session}.revue.md`)) {
-    const derniere = git('log', '-1', '--diff-filter=AM', '--format=%H', '--', `plans/${plan}/${s.session}.revue.md`);
-    const texte = derniere ? git('show', `${derniere}:plans/${plan}/${s.session}.revue.md`) : null;
-    s.revue = texte ? lireRevue(cheminRevue, texte) : null;
-  } else {
-    s.revue = null;
-  }
-}
+const INDEX_REL = `plans/${plan}/index.md`;
 
 /** Somme, sur tous les `plans/P<n>/S<k>.echec.md` ayant existé dans l'historique ou présents dans
  * l'arbre de travail, du maximum d'`enquete` de chacun (T4, P19/S3). */
-function enquetesDuPlan() {
+function enquetesDuPlan(index) {
   const prefixe = `plans/${plan}/`;
   const motif = new RegExp(`^${prefixe}S\\d+\\.echec\\.md$`);
   const chemins = new Set(
@@ -1740,40 +1779,663 @@ function enquetesDuPlan() {
   return total;
 }
 
-// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : le moteur ne conclut rien, il pose
-// une question (plugin/hooks/lib.mjs `racineIntrouvable`, même refus par défaut côté hook).
-const racineActuelle = racineDepot();
-const sortie = {
-  plan,
-  workflow: index.workflow,
-  clos: index.clos,
-  preuveN0: index.preuveN0,
-  remediationOpus: index.remediationOpus,
-  enquetesPlan: enquetesDuPlan(),
-  depot: {
-    racineIntrouvable: racineActuelle === null,
-    amont: etatAmont(),
-    rebase: rebaseEnCours(),
-    arbreSale: arbreTrackedSale(),
-  },
-  vagues: index.vagues,
-  sessions: index.sessions,
+/** `{ erreur }` (index illisible) | `{ partiel }` (la `question` d'historique partiel) | `{ sortie, index }` :
+ * l'état du plan, lu sur le disque et dans git. Une fois en lecture seule ; sous `--appliquer`, après
+ * chaque geste (le moteur se rappelle lui-même). */
+function assembler() {
+  const index = lireIndex(dossierPlan);
+  if (index.erreur) return { erreur: index.erreur };
+
+  // Historique partiel (T3, P19/S3) : avant toute lecture de l'historique. Un clone `--depth` a perdu
+  // les commits de tâche plus anciens — lu comme complet, il ferait relancer une session déjà faite.
+  const partiel = verifierHistoriqueComplet();
+  if (partiel) return { partiel };
+
+  const refs = refsCommitees();
+  for (const s of index.sessions) {
+    const cheminEchec = join(dossierPlan, `${s.session}.echec.md`);
+    const cheminRevue = join(dossierPlan, `${s.session}.revue.md`);
+
+    const taches = parseTaches(s.taches).map((n) => `${plan}/${s.session}/T${n}`);
+    const toutesCommitees = taches.length > 0 && taches.every((ref) => refs.has(ref));
+
+    // `en-attente` (P20/S6) avant `echec` et avant « toutes les tâches commitées » : le WIP commité avant
+    // la question porte un repère `Plan:` de tâche sans que la session ait fini ; un `.echec.md` plus
+    // ancien (reprise arrêtée sur un choix) ne prime pas non plus. Une session cochée l'emporte.
+    const cheminQuestion = join(dossierPlan, `${s.session}.question.md`);
+    if (s.coche) {
+      s.etat = 'faite';
+    } else if (existsSync(cheminQuestion) && !questionConsommee(`plans/${plan}/${s.session}.question.md`, s.session)) {
+      s.etat = 'en-attente';
+    } else if (existsSync(cheminEchec)) {
+      s.etat = 'echec';
+    } else if (toutesCommitees) {
+      s.etat = 'faite';
+    } else {
+      s.etat = 'a-lancer';
+    }
+
+    s.preuve = index.preuveN0 && s.etat === 'faite' ? verifierPreuve(RACINE, `${plan}/${s.session}`) : null;
+    s.echec = s.etat === 'echec' ? lireEchec(cheminEchec, `plans/${plan}/${s.session}.echec.md`) : null;
+    s.question = s.etat === 'en-attente' ? lireQuestion(cheminQuestion, `plans/${plan}/${s.session}.question.md`) : null;
+    // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
+    // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
+    // fichier n'existe plus (T6, P10/S2).
+    if (existsSync(cheminRevue)) {
+      s.revue = lireRevue(cheminRevue);
+    } else if (ajouteParUnCommit(`plans/${plan}/${s.session}.revue.md`)) {
+      const derniere = git('log', '-1', '--diff-filter=AM', '--format=%H', '--', `plans/${plan}/${s.session}.revue.md`);
+      const texte = derniere ? git('show', `${derniere}:plans/${plan}/${s.session}.revue.md`) : null;
+      s.revue = texte ? lireRevue(cheminRevue, texte) : null;
+    } else {
+      s.revue = null;
+    }
+  }
+
+  // Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : le moteur ne conclut rien, il pose
+  // une question (plugin/hooks/lib.mjs `racineIntrouvable`, même refus par défaut côté hook).
+  const racineActuelle = racineDepot();
+  const sortie = {
+    plan,
+    workflow: index.workflow,
+    clos: index.clos,
+    preuveN0: index.preuveN0,
+    remediationOpus: index.remediationOpus,
+    enquetesPlan: enquetesDuPlan(index),
+    depot: {
+      racineIntrouvable: racineActuelle === null,
+      amont: etatAmont(),
+      rebase: rebaseEnCours(),
+      arbreSale: arbreTrackedSale(),
+    },
+    vagues: index.vagues,
+    sessions: index.sessions,
+  };
+  return { sortie, index };
+}
+
+/** L'avertissement de version, puis le `texte` final — rédigé en dernier : il porte aussi l'avertissement.
+ * `sortie` `null` : historique partiel, aucun état lu. */
+function completerAction(action, sortie) {
+  if (!sortie) {
+    action.texte = redigerTexte(action, null, { vagues: new Map() });
+    return action;
+  }
+  const avertissement = avertissementVersion(sortie);
+  if (avertissement) {
+    // Ne pas écraser un avertissement déjà posé (modèle inconnu, D2) : les deux comptent.
+    action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
+  }
+  action.texte = redigerTexte(action, sortie, lireProse(readFileSync(join(dossierPlan, 'index.md'), 'utf8')));
+  return action;
+}
+
+/** Marque d'une ligne de geste appliqué : aucune autre ligne de la sortie n'en commence — `noter.mjs` lit la
+ * première ligne de la DERNIÈRE action, après ces lignes. */
+const MARQUE_APPLIQUE = 'appliqué — ';
+
+function ecrireSortie(action, appliques) {
+  if (json) {
+    process.stdout.write(JSON.stringify(appliquer ? { ...action, appliques } : action, null, 2) + '\n');
+    return;
+  }
+  const lignes = appliquer ? appliques.map((a) => `${MARQUE_APPLIQUE}${a.replace(/\s+/g, ' ')}`) : [];
+  process.stdout.write([...lignes, formaterTexte(action)].join('\n') + '\n');
+}
+
+// ── `--appliquer` : les gestes mécaniques (P20/S7/T11) ────────────────────────────────────────────────
+// Un geste = une écriture + UN commit (staging explicite des seuls fichiers touchés, dernière ligne
+// `Plan:`, jamais `--no-verify` : les hooks du dépôt s'appliquent au moteur comme à tout le monde).
+
+/** Un geste qui n'a pas pu s'écrire (commit refusé par un hook, identité absente, push rejeté…) : le moteur
+ * s'arrête sur une `question` plutôt que de laisser croire que le plan avance. */
+class EchecEcriture extends Error {
+  constructor(geste, detail) {
+    super(`${geste} : ${detail}`);
+    this.geste = geste;
+    this.detail = detail;
+  }
+}
+
+const DELAI_GIT_MS = 60000;
+const DELAI_RESEAU_MS = 180000;
+const DELAI_N0_MS = 30 * 60 * 1000;
+
+/** git qui ÉCRIT : le moindre échec lève `EchecEcriture` avec le texte de git (jamais un `null` à deviner). */
+function gitStrict(a, delai = DELAI_GIT_MS) {
+  try {
+    return execFileSync('git', a, {
+      cwd: RACINE,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+      timeout: delai,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    }).trim();
+  } catch (e) {
+    // Le texte de git seulement (jamais `e.message` : il recopie la ligne de commande, message de commit compris).
+    const brut = e.killed ? `délai de ${delai / 1000} s dépassé` : `${e.stderr ?? ''} ${e.stdout ?? ''}`;
+    throw new EchecEcriture(`git ${a[0]}`, brut.replace(/\s+/g, ' ').trim().slice(0, 300) || `code de sortie ${e.status ?? '?'}`);
+  }
+}
+
+/** Committe EXACTEMENT `chemins` (relatifs à la racine) : `git commit -- <chemins>` ne prend jamais ce
+ * qu'un autre outil a déjà mis dans l'index. Un chemin absent du disque est une suppression (`git rm
+ * --cached`, sans effet s'il est déjà retiré de l'index). Rend le hash court, ou `null` si rien n'a changé. */
+function committer(chemins, sujet, repere) {
+  for (const c of chemins) {
+    if (existsSync(join(RACINE, c))) gitStrict(['add', '-A', '--', c]);
+    else gitStrict(['rm', '-q', '--cached', '--ignore-unmatch', '--', c]);
+  }
+  // `git diff --cached --quiet` : code 0 = rien à committer (gitBrut rend alors une chaîne), 1 = des changements (null).
+  if (gitBrut('diff', '--cached', '--quiet', '--', ...chemins) !== null) return null;
+  gitStrict(['commit', '-q', '-m', `${sujet}\n\nPlan: ${repere}`, '--', ...chemins]);
+  return gitStrict(['rev-parse', '--short', 'HEAD']);
+}
+
+function supprimerEtCommitter(relatif, sujet, repere) {
+  gitStrict(['rm', '-q', '--', relatif]);
+  return committer([relatif], sujet, repere);
+}
+
+const aujourdhui = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-if (etat) {
-  process.stdout.write(JSON.stringify(sortie, null, 2) + '\n');
+/** Réécrit `index.md` (fins de ligne d'origine conservées) ; `false` si le transformateur n'a rien changé. */
+function modifierIndex(transformer) {
+  const chemin = join(dossierPlan, 'index.md');
+  const brut = readFileSync(chemin, 'utf8');
+  const crlf = brut.includes('\r\n');
+  const texte = brut.replace(/\r\n/g, '\n');
+  const nouveau = transformer(texte);
+  if (nouveau === texte) return false;
+  writeFileSync(chemin, crlf ? nouveau.replace(/\n/g, '\r\n') : nouveau);
+  return true;
+}
+
+/** Applique `f` à la cellule « Statut » (9e colonne) de la ligne de table de `id`. */
+function surStatutDeSession(texte, id, f) {
+  return texte.split('\n').map((ligne) => {
+    if (!ligne.trim().startsWith('|')) return ligne;
+    const parts = ligne.split('|'); // '' + cellules + ''
+    if (parts.length < 11) return ligne;
+    const m = /\bS(\d+)\b/.exec(parts[1]);
+    if (!m || `S${m[1]}` !== id) return ligne;
+    parts[9] = ` ${f(parts[9].trim())} `;
+    return parts.join('|');
+  }).join('\n');
+}
+
+/** Pose ou remplace une ligne d'en-tête (`Remédiation Opus :`, `Clos :`) : sous la dernière ligne d'en-tête
+ * existante (`Workflow :`, `Preuve N0 :`…), sinon avant la première section `##`. */
+function poserLigneEnTete(texte, motif, ligne) {
+  const lignes = texte.split('\n');
+  const i = lignes.findIndex((l) => motif.test(l.trim()));
+  if (i >= 0) {
+    lignes[i] = ligne;
+    return lignes.join('\n');
+  }
+  let dernier = -1;
+  lignes.forEach((l, k) => { if (/^(Workflow|Preuve N0|Rem[ée]diation Opus|Clos)\s*:/.test(l.trim())) dernier = k; });
+  if (dernier >= 0) lignes.splice(dernier + 1, 0, ligne);
+  else {
+    const titre = lignes.findIndex((l) => /^##\s/.test(l));
+    if (titre >= 0) lignes.splice(titre, 0, ligne, '');
+    else lignes.push(ligne);
+  }
+  return lignes.join('\n');
+}
+
+const MOTIF_OPUS = /^Rem[ée]diation\s+Opus\s*:/i;
+const MOTIF_CLOS = /^Clos\s*:/;
+
+// ── Prélude : reprendre les écritures laissées par un appel interrompu ──────────────────────────────────
+const MOTIF_REVUE = new RegExp(`^plans/${plan}/(S\\d+)\\.revue\\.md$`);
+const MOTIF_ECRITURES_PLAN = new RegExp(`^plans/${plan}/(index\\.md|S\\d+\\.(echec|question)\\.md|S\\d+\\.n0\\.json)$`);
+
+/** Une preuve N0 en échec laissée sur le disque n'est jamais committée par la reprise (le geste `valider-n0`
+ * ne committe qu'une preuve verte, la reprise ne doit pas faire autrement). */
+function preuveEnEchec(relatif) {
+  try {
+    return JSON.parse(readFileSync(join(RACINE, relatif), 'utf8')).resultat !== 'PASS';
+  } catch {
+    return true;
+  }
+}
+
+function reprendreEcrituresEnAttente(decrire) {
+  const sales = fichiersSales([`plans/${plan}/`]);
+  if (sales === null) throw new EchecEcriture('git status', 'arbre invérifiable');
+  // Les revues d'abord, chacune avec son message : c'est ce qu'écrit `relire` (le relecteur ne committe plus la sienne).
+  const autres = [];
+  for (const f of sales.sort()) {
+    const m = MOTIF_REVUE.exec(f);
+    if (!m) {
+      if (MOTIF_ECRITURES_PLAN.test(f) && existsSyncOuSuivi(f) && !(f.endsWith('.n0.json') && existsSync(join(RACINE, f)) && preuveEnEchec(f))) autres.push(f);
+      continue;
+    }
+    if (!existsSync(join(RACINE, f))) continue; // suppression non commitée : le tri de clôture est à l'orchestrateur
+    const revue = lireRevue(join(RACINE, f));
+    if (revue.bloquant === null) { autres.push(f); continue; } // illisible : reprise générique, jamais un « 0 bloquant » deviné
+    const hash = committer([f], `revue(${plan}): ${m[1]} relue, ${revue.bloquant} bloquant(s)`, `${plan}/${m[1]}`);
+    if (hash) decrire(`revue de ${m[1]} committée (${hash}) : revue(${plan}): ${m[1]} relue, ${revue.bloquant} bloquant(s)`);
+  }
+  if (autres.length > 0) {
+    const hash = committer(autres, `chore(${plan}): écritures du moteur reprises après interruption`, plan);
+    if (hash) decrire(`écritures en attente reprises (${hash}) : ${autres.map((f) => f.slice(`plans/${plan}/`.length)).join(', ')}`);
+  }
+}
+
+/** Fichier présent sur le disque, ou dans le dernier commit : une suppression non commitée compte, qu'elle soit
+ * déjà dans l'index (`git rm` interrompu avant le commit) ou seulement sur le disque. */
+const existsSyncOuSuivi = (relatif) => existsSync(join(RACINE, relatif)) || git('cat-file', '-e', `HEAD:${relatif}`) !== null;
+
+// ── Gestes déduits de l'état (idempotents : une interruption se répare au tour suivant) ─────────────────
+/** Le premier geste mécanique que l'état appelle : `{ cle, faire }` ou `null`. `faire` écrit, committe, et
+ * rend la phrase du journal. Une seule écriture par geste, jamais deux commits dans un geste. */
+function gesteEtat(sortie) {
+  // 1. Un rapport ou une question dont la session a repris le travail depuis : supprimé par un commit.
+  for (const s of sortie.sessions) {
+    const id = s.session;
+    const relQuestion = `plans/${plan}/${id}.question.md`;
+    if (existsSync(join(RACINE, relQuestion)) && questionConsommee(relQuestion, id)) {
+      return {
+        cle: `question:${id}`,
+        faire: () => {
+          const hash = supprimerEtCommitter(relQuestion, `chore(${plan}): ${id} question consommée, fichier supprimé`, `${plan}/${id}`);
+          return `${id} : question consommée, ${relQuestion} supprimé (${hash})`;
+        },
+      };
+    }
+    const relEchec = `plans/${plan}/${id}.echec.md`;
+    // Même règle que la question : propre, committé, et un commit de TÂCHE depuis. Jamais pendant une attente
+    // de réponse (le WIP commité avant la question porte aussi un repère de tâche).
+    if (s.etat !== 'en-attente' && existsSync(join(RACINE, relEchec)) && questionConsommee(relEchec, id)) {
+      return {
+        cle: `echec:${id}`,
+        faire: () => {
+          const hash = supprimerEtCommitter(relEchec, `chore(${plan}): ${id} reprise réussie, rapport d'échec supprimé`, `${plan}/${id}`);
+          return `${id} : reprise réussie, ${relEchec} supprimé (${hash})`;
+        },
+      };
+    }
+    // Une session COCHÉE dont le rapport d'échec est resté (acceptée par l'utilisateur malgré l'échec, ou reprise
+    // à la main) : la coche vient après l'échec, le rapport est obsolète — et un `.echec.md` encore présent fait
+    // refuser la clôture (`fin-de-plan.md`, point 1). Propre et committé seulement : un rapport en cours
+    // d'écriture n'est jamais supprimé. L'historique garde le rapport, et les compteurs de budget avec lui.
+    if (s.coche && existsSync(join(RACINE, relEchec)) && git('status', '--porcelain', '--', relEchec) === '' && git('log', '-1', '--format=%H', '--', relEchec)) {
+      return {
+        cle: `echec-obsolete:${id}`,
+        faire: () => {
+          const hash = supprimerEtCommitter(relEchec, `chore(${plan}): ${id} cochée, rapport d'échec obsolète supprimé`, `${plan}/${id}`);
+          return `${id} : cochée, ${relEchec} obsolète supprimé (${hash})`;
+        },
+      };
+    }
+  }
+  // 2. Cocher `[x]` : tâches commitées (état `faite`) et preuve N0 valide — jamais une preuve inconnue ou périmée.
+  for (const s of sortie.sessions) {
+    if (s.etat !== 'faite' || s.coche) continue;
+    if (s.preuve !== null && s.preuve.ok !== true) continue;
+    return {
+      cle: `cocher:${s.session}`,
+      faire: () => {
+        const date = aujourdhui();
+        if (!modifierIndex((t) => surStatutDeSession(t, s.session, (c) => (c.includes('[ ]') ? c.replace('[ ]', `[x] ${date}`) : c)))) {
+          throw new EchecEcriture('cocher', `la ligne de ${s.session} n'a pas de case « [ ] » à cocher dans ${INDEX_REL}`);
+        }
+        const hash = committer([INDEX_REL], `plan(${plan}): ${s.session} faite`, `${plan}/${s.session}`);
+        return `${s.session} cochée [x] ${date} (${hash})`;
+      },
+    };
+  }
+  // 3. `[x]` → `[x]!` : une revue PRÉSENTE à `Bloquant : n > 0` (une revue rangée au tri de clôture ne
+  // rouvre rien — le versement vient de repasser la session à `[x]`).
+  for (const s of sortie.sessions) {
+    if (!s.coche || s.bloquantNonTrie || !(s.revue?.bloquant > 0)) continue;
+    if (!existsSync(join(dossierPlan, `${s.session}.revue.md`))) continue;
+    return {
+      cle: `bloquant:${s.session}`,
+      faire: () => {
+        if (!modifierIndex((t) => surStatutDeSession(t, s.session, (c) => c.replace(/\[x\](?!!)/, '[x]!')))) {
+          throw new EchecEcriture('[x]!', `la ligne de ${s.session} n'a pas de « [x] » à passer à « [x]! » dans ${INDEX_REL}`);
+        }
+        const hash = committer([INDEX_REL], `plan(${plan}): ${s.session} passe à [x]! (revue : ${s.revue.bloquant} bloquant(s))`, `${plan}/${s.session}`);
+        return `${s.session} passée à [x]! (${s.revue.bloquant} bloquant(s)) (${hash})`;
+      },
+    };
+  }
+  return null;
+}
+
+// ── Options à effet d'écriture ─────────────────────────────────────────────────────────────────────────
+function ecrireInterruption(sortie, id, agent) {
+  const s = sortie.sessions.find((x) => x.session === id);
+  if (!s) erreurUsage(`--interruption : ${id} absente de plans/${plan}/index.md`);
+  const rel = `plans/${plan}/${id}.echec.md`;
+  const abs = join(RACINE, rel);
+  // `Tentatives :` recopiées du fichier s'il existait déjà, sinon à zéro : une coupure par quota n'en consomme aucune.
+  const { reprise, enquete } = existsSync(abs) ? lireTentatives(readFileSync(abs, 'utf8').replace(/\r\n/g, '\n')) : { reprise: 0, enquete: 0 };
+  const refs = refsCommitees();
+  const enCours = parseTaches(s.taches).map((n) => `T${n}`).find((t) => !refs.has(`${plan}/${id}/${t}`)) ?? null;
+  writeFileSync(abs, [
+    `# ${id} — interruption du ${aujourdhui()}`,
+    '',
+    'Nature : interruption',
+    `Tentatives : reprise=${reprise} enquete=${enquete}`,
+    `Blocage : coupure par quota${enCours ? ` pendant ${enCours}` : ''}`,
+    `Agent : ${une(agent)}`,
+    '',
+  ].join('\n'));
+  const hash = committer([rel], `chore(${plan}): ${id} coupée par un quota, interruption consignée`, `${plan}/${id}`);
+  return `interruption de ${id} consignée dans ${rel} (${hash ?? 'inchangé'})`;
+}
+
+function validerVague(index, numero) {
+  const v = index.vagues.find((x) => x.numero === Number(numero));
+  if (!v) erreurUsage(`--valider-vague : la vague ${numero} n'existe pas dans plans/${plan}/index.md`);
+  if (!v.validationHumaine) erreurUsage(`--valider-vague : la vague ${numero} n'est pas une validation-humaine`);
+  if (v.validee) return `vague ${numero} déjà validée — rien à écrire`;
+  const motif = new RegExp(`^(\\s*(?:-\\s*)?\\*\\*Vague\\s+${numero}\\b[^*]*?)(\\s*)(\\*\\*)`, 'm');
+  if (!modifierIndex((t) => t.replace(motif, '$1 · validée$3'))) {
+    throw new EchecEcriture('valider-vague', `l'en-tête de la vague ${numero} n'a pas pu être réécrit dans ${INDEX_REL}`);
+  }
+  const hash = committer([INDEX_REL], `plan(${plan}): vague ${numero} validée`, plan);
+  return `vague ${numero} validée : \`· validée\` ajouté à son en-tête (${hash})`;
+}
+
+function ecrirePremisse(action, verdict, preuve) {
+  const rel = action.chemin;
+  const abs = join(RACINE, rel);
+  const mot = VERDICTS_PREMISSE.find((v) => normaliserSimple(verdict).startsWith(v));
+  const texte = readFileSync(abs, 'utf8').replace(/\r\n/g, '\n');
+  writeFileSync(abs, `${texte.replace(/\n*$/, '\n')}Premisse : ${mot} · ${une(preuve)}\n`);
+  const hash = committer([rel], `chore(${plan}): ${action.session} prémisse ${mot} écrite au rapport`, `${plan}/${action.session}`);
+  return `${action.session} : ligne \`Premisse : ${mot}\` écrite dans ${rel} (${hash})`;
+}
+
+// ── Remédiation Opus : une passe consignée à sa première apparition, jamais deux fois pour la même ───────
+/** `{ id, valeur }` quand l'index porte déjà le compteur écrit pour une passe Opus RENDUE mais pas encore
+ * consommée : le rapport de la session est identique à celui du commit du compteur (l'agent n'a rien rendu).
+ * Sans ce test, un appel de plus — avant le lancement, ou après une coupure — verrait le compteur à 1 et
+ * rendrait `budget-opus` pour une passe qui n'a jamais eu lieu. */
+function passeOpusEnAttente(sortie) {
+  // Le dernier commit du moteur qui a touché le compteur (sujet reconnu ici : aucun accent passé en argument à git).
+  const motif = new RegExp(`^plan\\(${plan}\\): remédiation Opus n°(\\d+) \\((S\\d+)\\)$`);
+  let hash = null;
+  let m = null;
+  for (const ligne of (git('log', '-n', '30', '--format=%H%x09%s', '--', INDEX_REL) ?? '').split('\n')) {
+    const [h, ...sujet] = ligne.split('\t');
+    const trouve = motif.exec(sujet.join('\t'));
+    if (trouve) { hash = h; m = trouve; break; }
+  }
+  if (!hash || sortie.remediationOpus !== Number(m[1])) return null;
+  const s = sortie.sessions.find((x) => x.session === m[2]);
+  const rel = `plans/${plan}/${m[2]}.echec.md`;
+  if (!s || s.etat !== 'echec' || !existsSync(join(RACINE, rel))) return null;
+  if (gitBrut('diff', '--quiet', hash, '--', rel) === null) return null; // rapport modifié depuis : la passe a eu lieu
+  return { id: m[2], valeur: Number(m[1]) };
+}
+
+function consignerPasseOpus(action) {
+  let valeur = 0;
+  modifierIndex((t) => {
+    const ligne = t.split('\n').find((l) => MOTIF_OPUS.test(l.trim()));
+    valeur = ligne ? Number(/:\s*(\d+)/.exec(ligne)?.[1] ?? 0) + 1 : 1;
+    return poserLigneEnTete(t, MOTIF_OPUS, `Remédiation Opus : ${valeur}`);
+  });
+  const hash = committer([INDEX_REL], `plan(${plan}): remédiation Opus n°${valeur} (${action.session})`, `${plan}/${action.session}`);
+  return `Remédiation Opus : ${valeur} (${action.action} ${action.session} sur Opus) (${hash})`;
+}
+
+// ── N0, push, clôture ─────────────────────────────────────────────────────────────────────────────────
+/** `{ vert: true, hash }` (preuve committée) ou `{ vert: false, resume }` (rien committé, aucune preuve en échec
+ * laissée sur le disque) — jamais une preuve fabriquée. */
+function lancerN0(id) {
+  const n0 = join(dirname(fileURLToPath(import.meta.url)), 'n0.mjs');
+  const rel = `plans/${plan}/${id}.n0.json`;
+  const r = spawnSync(process.execPath, [n0, '--session', `${plan}/${id}`], {
+    cwd: RACINE,
+    encoding: 'utf8',
+    timeout: DELAI_N0_MS,
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    maxBuffer: 50 * 1024 * 1024,
+  });
+  let preuve = null;
+  try { preuve = JSON.parse(readFileSync(join(RACINE, rel), 'utf8')); } catch { /* absente ou illisible : pas de preuve */ }
+  if (r.status === 0 && preuve?.resultat === 'PASS' && preuve?.portee === 'complete') {
+    return { vert: true, hash: committer([rel], `test(${plan}): preuve N0 de ${id}`, `${plan}/${id}`) };
+  }
+  if (existsSync(join(RACINE, rel))) {
+    if (git('ls-files', '--', rel) === rel) gitBrut('checkout', '--', rel);
+    else rmSync(join(RACINE, rel), { force: true });
+  }
+  const sortieN0 = `${r.stdout ?? ''}\n${r.stderr ?? ''}`.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 3).join(' · ');
+  const code = r.error ? `échec de lancement : ${r.error.message}` : r.status === null ? `interrompu (${r.signal ?? 'délai'})` : `code ${r.status}`;
+  return { vert: false, resume: `N0 rouge (${code})${sortieN0 ? ` — ${sortieN0}` : ''}` };
+}
+
+/** `pull --rebase` puis `push`. Rend `null` (poussé) ou la `question` à rendre : conflit → `rebase --abort`
+ * (le dépôt revient à son état d'avant), question `rebase`. Tout autre échec → `EchecEcriture`. */
+function pousser() {
+  try {
+    gitStrict(['pull', '--rebase'], DELAI_RESEAU_MS);
+  } catch (e) {
+    if (e instanceof EchecEcriture && rebaseEnCours()) {
+      gitBrut('rebase', '--abort');
+      return {
+        action: 'question',
+        motif: `le rebase sur l'amont a rencontré un conflit et a été abandonné (git rebase --abort) : ${e.detail}`,
+        options: { source: 'rebase', abandonne: true },
+      };
+    }
+    throw e;
+  }
+  gitStrict(['push'], DELAI_RESEAU_MS);
+  return null;
+}
+
+/** Ce que la clôture laisse à l'orchestrateur : les revues à trier (point 4), les `[x]!` à repasser, le reste non commité. */
+function resteDeCloture(sortie) {
+  const revues = sortie.sessions.map((s) => `plans/${plan}/${s.session}.revue.md`).filter((p) => existsSync(join(RACINE, p)));
+  const bloquants = sortie.sessions.filter((s) => s.bloquantNonTrie).map((s) => s.session);
+  const brut = fichiersSales();
+  const sales = brut === null ? ["arbre invérifiable (`git status` a échoué)"] : brut.filter((f) => !f.startsWith('.claude/n0/'));
+  return { revues, bloquants, sales };
+}
+
+/** Points 1 et 2 de `fin-de-plan.md` (le 3 est fait par le prélude) : incidents non commités, marqueurs transitoires. */
+function ranger(decrire) {
+  for (const f of (fichiersSales(['docs/workflow/incidents/']) ?? []).filter((x) => x.endsWith('.md') && existsSync(join(RACINE, x))).sort()) {
+    const slug = f.split('/').pop().replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
+    const hash = committer([f], `incident(workflow): ${slug}`, plan);
+    if (hash) decrire(`incident ${slug} committé (${hash})`);
+  }
+  const vague = join(RACINE, '.claude', 'vague');
+  if (existsSync(vague)) {
+    rmSync(vague, { recursive: true, force: true });
+    decrire('marqueurs transitoires `.claude/vague/` nettoyés');
+  }
+}
+
+/** Chemin du script, tel qu'on le relance depuis la racine du dépôt (source : `plugin/bin/…`, vendoré : `.claude/workflow/bin/…`). */
+function cheminScript() {
+  const rel = relative(RACINE, fileURLToPath(import.meta.url)).replaceAll('\\', '/');
+  return rel.startsWith('..') || isAbsolute(rel) ? fileURLToPath(import.meta.url).replaceAll('\\', '/') : rel;
+}
+
+const questionEcriture = (e) => ({
+  action: 'question',
+  motif: `une écriture du moteur a échoué (${e.geste}) : ${e.detail}`,
+  options: { source: 'ecriture-echec', geste: e.geste, detail: e.detail },
+});
+
+/** L'enchaînement : prélude, puis — tant que l'état appelle un geste mécanique — le geste, puis le moteur se
+ * rappelle ; s'arrête sur la première action qui demande un agent ou un humain, ou sur `fini`. Rend
+ * `{ action, sortie, appliques }` (ou `{ erreur }` : index illisible). */
+function appliquerPlan() {
+  const appliques = [];
+  const decrire = (s) => appliques.push(s);
+  let sortie = null;
+  let tours = 0;
+  let toursMax = optToursMax === null ? null : Number(optToursMax);
+  let optionsFaites = false;
+  let premisseEcrite = false;
+  const dejaN0 = new Set();
+  const rendre = (action, avertissement = null) => {
+    if (avertissement) action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
+    if (optPremisse && !premisseEcrite) {
+      const w = '`--premisse` ignoré : aucune vérification de prémisse en attente';
+      action.avertissement = action.avertissement ? `${action.avertissement} · ${w}` : w;
+    }
+    return { action, sortie, appliques };
+  };
+  try {
+    reprendreEcrituresEnAttente(decrire);
+    for (;;) {
+      const r = assembler();
+      if (r.erreur) return { erreur: r.erreur };
+      if (r.partiel) return { action: r.partiel, sortie: null, appliques };
+      sortie = r.sortie;
+      if (toursMax === null) toursMax = Math.max(1, r.index.sessions.length * 4);
+      const borne = () => {
+        if (tours < toursMax) return null;
+        return {
+          action: 'question',
+          motif: `enchaînement interrompu : ${toursMax} gestes mécaniques sans atteindre une action pour un agent ou pour toi`,
+          options: { source: 'boucle-appliquer', tours: toursMax },
+        };
+      };
+
+      // Écritures demandées par l'orchestrateur, indépendantes de l'action : une fois, au premier tour.
+      if (!optionsFaites) {
+        optionsFaites = true;
+        if (optInterruption) { decrire(ecrireInterruption(sortie, optInterruption, optAgent)); continue; }
+        if (optValiderVague !== null) { decrire(validerVague(r.index, optValiderVague)); continue; }
+      }
+
+      const geste = gesteEtat(sortie);
+      if (geste) {
+        const q = borne();
+        if (q) return rendre(q);
+        decrire(geste.faire());
+        tours++;
+        continue;
+      }
+
+      const pendante = passeOpusEnAttente(sortie);
+      if (pendante) sortie.remediationOpus = pendante.valeur - 1; // la passe déjà consignée ne compte pas contre elle-même
+      const action = prochaineAction(sortie);
+
+      switch (action.action) {
+        case 'valider-n0': {
+          if (dejaN0.has(action.session)) {
+            return rendre(action, `N0 déjà rejoué dans cet appel et la preuve reste invalide (${action.motif ?? 'motif inconnu'})`);
+          }
+          const q = borne();
+          if (q) return rendre(q);
+          dejaN0.add(action.session);
+          const n0 = lancerN0(action.session);
+          if (!n0.vert) return rendre(action, n0.resume);
+          decrire(`N0 de ${action.session} vert, preuve plans/${plan}/${action.session}.n0.json committée (${n0.hash})`);
+          tours++;
+          continue;
+        }
+        case 'pousser': {
+          const q = borne();
+          if (q) return rendre(q);
+          const question = pousser();
+          if (question) return rendre(question);
+          decrire('poussé (pull --rebase, push)');
+          tours++;
+          continue;
+        }
+        case 'verifier-premisse': {
+          if (!optPremisse || premisseEcrite) return rendre(action);
+          const q = borne();
+          if (q) return rendre(q);
+          decrire(ecrirePremisse(action, optPremisse[0], optPremisse[1]));
+          premisseEcrite = true;
+          tours++;
+          continue;
+        }
+        case 'reprendre':
+        case 'enqueter': {
+          // Une passe Opus : consignée ICI, avant d'être rendue (jamais par l'orchestrateur, qui l'oubliait).
+          // Une reprise à froid après une question est hors budget (`question`), jamais comptée.
+          if (action.modele === 'Opus' && !action.question && !(pendante && pendante.id === action.session)) {
+            const q = borne();
+            if (q) return rendre(q);
+            decrire(consignerPasseOpus(action));
+            tours++;
+          }
+          return rendre(action);
+        }
+        case 'cloturer': {
+          ranger(decrire);
+          const reste = resteDeCloture(sortie);
+          const jugement = reste.revues.length > 0 || reste.bloquants.length > 0;
+          if (optClotureFaite && !jugement) {
+            const q = borne();
+            if (q) return rendre(q);
+            const date = aujourdhui();
+            modifierIndex((t) => poserLigneEnTete(t, MOTIF_CLOS, `Clos : ${date}`));
+            const hash = committer([INDEX_REL], `plan(${plan}): clos le ${date}`, plan);
+            decrire(`Clos : ${date} (${hash})`);
+            tours++;
+            // Point 7 : un seul push, celui de la clôture (un plan clos rend `fini` avant tout `pousser`).
+            const amont = etatAmont();
+            if (amont && amont.avance > 0 && !arbreTrackedSale()) {
+              const question = pousser();
+              if (question) return rendre(question);
+              decrire('poussé (pull --rebase, push)');
+            }
+            continue;
+          }
+          action.reste = reste;
+          action.rappel = `node ${cheminScript()} ${plan} --appliquer --cloture-faite`;
+          return rendre(action, optClotureFaite ? `\`--cloture-faite\` refusé : reste à trier (${[...reste.revues, ...reste.bloquants.map((b) => `${b} en [x]!`)].join(', ')})` : null);
+        }
+        default:
+          // lancer, reprendre/enqueter (ci-dessus), relire, transmettre, question, validation-humaine,
+          // relancer-interrompue, fini : un agent ou un humain, ou la fin.
+          return rendre(action);
+      }
+    }
+  } catch (e) {
+    if (e instanceof EchecEcriture) return { action: questionEcriture(e), sortie, appliques };
+    throw e;
+  }
+}
+
+// ── Sortie ───────────────────────────────────────────────────────────────────────────────────────────
+if (appliquer) {
+  const r = appliquerPlan();
+  if (r.erreur) {
+    console.error(`prochaine-action: ${r.erreur}`);
+    process.exit(2);
+  }
+  ecrireSortie(completerAction(r.action, r.sortie), r.appliques);
   process.exit(0);
 }
 
-const action = prochaineAction(sortie);
-const avertissement = avertissementVersion(sortie);
-if (avertissement) {
-  // Ne pas écraser un avertissement déjà posé (modèle inconnu, D2) : les deux comptent.
-  action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
+const assemblage = assembler();
+if (assemblage.erreur) {
+  console.error(`prochaine-action: ${assemblage.erreur}`);
+  process.exit(2);
+}
+if (assemblage.partiel) {
+  ecrireSortie(completerAction(assemblage.partiel, null), []);
+  process.exit(0);
 }
 
-// Le texte final, rédigé en dernier : il porte aussi l'avertissement de version posé ci-dessus.
-action.texte = redigerTexte(action, sortie, lireProse(readFileSync(join(dossierPlan, 'index.md'), 'utf8')));
+if (etat) {
+  process.stdout.write(JSON.stringify(assemblage.sortie, null, 2) + '\n');
+  process.exit(0);
+}
 
-process.stdout.write((json ? JSON.stringify(action, null, 2) : formaterTexte(action)) + '\n');
+ecrireSortie(completerAction(prochaineAction(assemblage.sortie), assemblage.sortie), []);
 process.exit(0);
