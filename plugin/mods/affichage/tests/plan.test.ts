@@ -44,7 +44,7 @@ describe('modelePlan sur des sorties reelles', () => {
     expect(m).toBeDefined()
     expect(m?.plan).toBe('P15')
     expect(m?.vague).toBe('2')
-    expect(m?.action).toBe('lancer — vague 2 (séquentiel) : S2')
+    expect(m?.action).toBe('lancer — vague 2 : S2')
     expect(m?.avertissement).toBe('index déclare Workflow : v0.54.0, plugin en v0.56.0')
     expect(m?.clos).toBe(false)
     expect(m?.sessions.map((s) => `${s.session}:${s.etat}:${s.courante}`)).toEqual([
@@ -90,7 +90,7 @@ describe('modelePlan sur des sorties reelles', () => {
 
   test('sans la sortie --etat : action seule, liste de sessions vide', () => {
     const m = modelePlan('P15', P15_ACTION, undefined)
-    expect(m?.action).toBe('lancer — vague 2 (séquentiel) : S2')
+    expect(m?.action).toBe('lancer — vague 2 : S2')
     expect(m?.sessions).toEqual([])
   })
 })
@@ -110,11 +110,11 @@ describe('plan absent ou sortie illisible', () => {
 })
 
 describe('texteAction', () => {
-  test('reprendre, enqueter, parallele', () => {
+  test('lancer, reprendre, enqueter', () => {
     expect(texteAction({ action: 'reprendre', session: 'S3', modele: 'Opus', option: 2 })).toBe('reprendre — S3 (Opus · option 2)')
     expect(texteAction({ action: 'enqueter', session: 'S3', modele: 'Opus' })).toBe('enqueter — S3 (Opus)')
-    expect(texteAction({ action: 'lancer', vague: 3, parallele: true, sessions: [{ session: 'S2' }, { session: 'S4' }] })).toBe(
-      'lancer — vague 3 (parallèle) : S2, S4',
+    expect(texteAction({ action: 'lancer', vague: 3, sessions: [{ session: 'S2' }, { session: 'S4' }] })).toBe(
+      'lancer — vague 3 : S2, S4',
     )
   })
 

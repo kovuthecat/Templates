@@ -17,11 +17,10 @@
 //   node .claude/workflow/bin/prochaine-action.mjs P<n> [--json]   (projet vendoré)
 //
 // LECTURE SEULE. L'état se dérive de deux sources, et d'elles seules :
-//   - l'ARBRE DE TRAVAIL (commité ou non — le code lit le disque, pour de bonnes raisons : `[x]` d'une
-//     vague verrouillée, rapport d'échec pas encore commité) : la table, l'ordonnancement et les
-//     statuts `[x]` de `plans/P<n>/index.md`, les lignes mécaniques de `plans/P<n>/S<k>.echec.md`,
-//     les lignes `Bloquant :` / `Couverture :` / `Reprises :` de `plans/P<n>/S<k>.revue.md`,
-//     `.claude/wave.lock` ;
+//   - l'ARBRE DE TRAVAIL (commité ou non — le code lit le disque, pour de bonnes raisons : rapport
+//     d'échec pas encore commité) : la table, l'ordonnancement et les statuts `[x]` de
+//     `plans/P<n>/index.md`, les lignes mécaniques de `plans/P<n>/S<k>.echec.md`, les lignes
+//     `Bloquant :` / `Couverture :` / `Reprises :` de `plans/P<n>/S<k>.revue.md` ;
 //   - GIT : les commits de tâche (repères `Plan: P<n>/S<k>/T<m>`), les versions commitées des
 //     `.echec.md` (compteurs, ligne `Premisse :`, y compris supprimés au PASS), une revue ajoutée puis
 //     supprimée, l'avance/retard sur l'amont, l'historique partiel (clone `--depth`).
@@ -226,7 +225,6 @@ function lireIndex(dossierPlan) {
       vagues.push({
         numero: Number(enteteVague[1]),
         label: labelBrut,
-        parallelisable: labelNormalise.includes('parallélisable'),
         validationHumaine: labelNormalise.includes('validation-humaine'),
         repriseManuelle: labelNormalise.includes('reprise-manuelle'),
         cloture: labelNormalise.includes('clôture'),
@@ -728,7 +726,7 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
 }
 
 /** Une action parmi celles de C2, dérivée de l'état déjà assemblé (`sortie`). Ordre des tests (T5,
- * P10/S2, incident ebm-msp 2026-09-24) : rebase, verrou, interruption, `pousser` (arbre propre
+ * P10/S2, incident ebm-msp 2026-09-24) : rebase, racine introuvable, interruption, `pousser` (arbre propre
  * seulement), le reste inchangé. */
 function prochaineAction(sortie) {
   if (sortie.depot.rebase) {
@@ -739,11 +737,11 @@ function prochaineAction(sortie) {
     };
   }
 
-  if (sortie.depot.waveLock) {
+  if (sortie.depot.racineIntrouvable) {
     return {
       action: 'question',
-      motif: 'vague interrompue sous verrou : diff non commité dans l\'arbre',
-      options: { source: 'wave-lock' },
+      motif: 'racine du dépôt introuvable (worktree lié d\'un dépôt à `.git` déplacé) : reprendre depuis l\'arbre principal',
+      options: { source: 'racine-introuvable' },
     };
   }
 
@@ -883,7 +881,6 @@ function prochaineAction(sortie) {
       return {
         action: 'lancer',
         vague: vague.numero,
-        parallele: vague.parallelisable,
         sessions: aLancer.map((s) => ({
           session: s.session,
           modele: s.modele,
@@ -952,7 +949,7 @@ function formaterTexte(action) {
   let ligne;
   switch (action.action) {
     case 'lancer':
-      ligne = `lancer — vague ${action.vague} (${action.parallele ? 'parallèle' : 'séquentiel'}) : ${
+      ligne = `lancer — vague ${action.vague} : ${
         action.sessions.map((s) => s.session).join(', ') || '—'
       }`;
       break;
@@ -1078,8 +1075,8 @@ function enquetesDuPlan() {
   return total;
 }
 
-// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : `waveLock` vrai par défaut,
-// même refus que sous un vrai `.claude/wave.lock` (plugin/hooks/lib.mjs `vagueParallele`).
+// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : le moteur ne conclut rien, il pose
+// une question (plugin/hooks/lib.mjs `racineIntrouvable`, même refus par défaut côté hook).
 const racineActuelle = racineDepot();
 const sortie = {
   plan,
@@ -1089,7 +1086,7 @@ const sortie = {
   remediationOpus: index.remediationOpus,
   enquetesPlan: enquetesDuPlan(),
   depot: {
-    waveLock: racineActuelle === null || existsSync(join(racineActuelle, '.claude', 'wave.lock')),
+    racineIntrouvable: racineActuelle === null,
     amont: etatAmont(),
     rebase: rebaseEnCours(),
     arbreSale: arbreTrackedSale(),

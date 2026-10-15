@@ -31,7 +31,7 @@ for c in A B C D; do
   done
 done
 
-# A — vague parallèle à efforts mêlés, lignes « en clair »
+# A — vague à efforts mêlés, lignes « en clair »
 cat > "$BASE/cas/base-A/plans/P99/index.md" <<'EOF'
 # Plan P99 — Réservations : validation des dates
 
@@ -47,7 +47,7 @@ Workflow : v0.40.0
 | [S2](S2.md) | T3 | Messages d'erreur | Opus | high | — | — | `src/messages.mjs` | [ ] |
 
 ## Ordonnancement
-- **Vague 1 — parallélisable** : S1 · S2.
+- **Vague 1** : S1 · S2.
   *Pourquoi maintenant* : les deux zones sont disjointes et rien d'autre n'en dépend encore.
   - **S1** — Le formulaire refusera une date de départ antérieure à la date d'arrivée.
   - **S2** — Le client lira pourquoi sa réservation est refusée, dans ses mots à lui.
@@ -111,15 +111,15 @@ Remédiation Opus : 0
 | [S8](S8.md) | T11 | Documentation | Haiku | low | — | S7 | \`docs/\` | [ ] |
 
 ## Ordonnancement
-- **Vague 1 — parallélisable** : S1 · S2.
+- **Vague 1** : S1 · S2.
   *Pourquoi maintenant* : rien ne dépend encore de rien.
   - **S1** — Une réservation porte ses dates, son tarif et son statut dans un seul enregistrement.
   - **S2** — Les tests disposent de vingt réservations types.
-- **Vague 2 — parallélisable** : S3 · S4 (après S1).
+- **Vague 2** : S3 · S4 (après S1).
   *Pourquoi maintenant* : le schéma existe.
   - **S3** — Le formulaire refusera une date de départ antérieure à la date d'arrivée.
   - **S4** — Le client lira pourquoi sa réservation est refusée.
-- **Vague 3 — parallélisable** : S5 · S6 (après S3).
+- **Vague 3** : S5 · S6 (après S3).
   *Pourquoi maintenant* : les dates sont fiables.
   - **S5** — Le gérant pourra exporter les réservations du mois.
   - **S6** — Le prix affiché tiendra compte de la saison et du nombre de nuits.

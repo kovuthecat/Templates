@@ -22,7 +22,7 @@ appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
 
 ## Les quatre cas
 
-- **A** — vague parallèle à efforts mêlés (fixture `Sonnet low` / `Opus high`), lignes « en clair »
+- **A** — vague à efforts mêlés (fixture `Sonnet low` / `Opus high`), lignes « en clair »
   du plan recopiées mot pour mot. Attendu : premier geste = lancement de **S1 seule** (D4 : la
   première session seule dans un message, les autres dans le message suivant, sans attendre sa
   notification), bloc avec `subagent_type: "session-low"` et `model: "sonnet"` recopiés du champ

@@ -19,7 +19,7 @@ Workflow : v<x>
 
 
 ## Ordonnancement
-- **Vague 1 — parallélisable** : S1 · S3 (zones disjointes, aucune dépendance).
+- **Vague 1** : S1 · S3 (aucune dépendance).
   *Pourquoi maintenant* : <ce que cette vague débloque pour la suite, une ligne>
   - **S1** — <en clair : ce que ça change, et à quoi on le verra. 1-2 phrases, sans jargon>
   - **S3** — <idem>

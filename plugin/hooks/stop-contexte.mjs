@@ -12,13 +12,11 @@
 // orchestrateur enchaîne des dizaines de tours, et le même rappel à chacun n'informait plus
 // personne, il polluait.
 //
-// Sous `.claude/wave.lock`, les vérifications 1 à 3 n'ont pas d'objet : les sessions d'une vague
-// parallèle laissent leur diff dans l'arbre sans committer (WORKFLOW.md §4b), et la revue ne peut
-// pas précéder des commits qui n'existent pas encore ; la règle de push elle-même est suspendue
-// (C3). Les signaler là était le fonctionnement normal relu comme un manquement, à chaque tour de
-// l'orchestrateur. Seuls les plafonds restent.
+// Racine du dépôt introuvable (worktree lié d'un dépôt à `.git` déplacé, `racineIntrouvable`) : les
+// vérifications 1 à 3 n'ont pas d'objet — commit et push y sont refusés par défaut
+// (`pretooluse-git.mjs`). Seuls les plafonds restent.
 //
-// Exemptions de la gate de push (C3) : pas de remote · vague en cours · remote injoignable (hors
+// Exemptions de la gate de push (C3) : pas de remote · racine introuvable · remote injoignable (hors
 // ligne, signalé en avertissement non bloquant, jamais un blocage).
 //
 // Session planifiée (lancée par une tâche planifiée — `estSessionPlanifiee`) : mêmes vérifications,
@@ -31,7 +29,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, rmSync, statSync } 
 import {
   lireEntree, repertoireProjet, estUnDepot, fichiersModifies, fichiersSuivisModifies,
   depassements, estFichierDeSuivi, lirePlafonds, repondre, riendafaire,
-  vagueParallele, repereSession, revuesManquantes, estSessionPlanifiee,
+  racineIntrouvable, repereSession, revuesManquantes, estSessionPlanifiee,
   git, etatAmont, aUnRemote, brancheCourante,
 } from './lib.mjs';
 
@@ -40,16 +38,16 @@ const cwd = repertoireProjet(entree);
 
 if (!estUnDepot(cwd)) riendafaire();
 
-const sousVerrou = vagueParallele(cwd);
+const sansRacine = racineIntrouvable(cwd);
 const planifiee = estSessionPlanifiee(entree.transcript_path);
 const problemes = [];
 // Avertissements non bloquants : jamais de blocage dessus (réseau injoignable — exemption C3),
-// seulement un signal. Ne peut être peuplé que hors vague (le contrôle de push y est suspendu).
+// seulement un signal. Ne peut être peuplé que racine connue (le contrôle de push est suspendu sans elle).
 const avertissements = [];
 
-if (!sousVerrou) {
+if (!sansRacine) {
   const { fichiersDeSuivi } = lirePlafonds();
-  // `.claude/` n'est ni du code ni du suivi (wave.lock, settings, launch.json) : hors comptage.
+  // `.claude/` n'est ni du code ni du suivi (settings, launch.json) : hors comptage.
   const modifies = fichiersModifies(cwd).filter((f) => !f.startsWith('.claude/'));
   const code = modifies.filter((f) => !estFichierDeSuivi(f, fichiersDeSuivi));
   const suivi = modifies.filter((f) => estFichierDeSuivi(f, fichiersDeSuivi));
@@ -207,17 +205,16 @@ const memoriser = () => {
   }
 };
 
-// Vague parallèle en cours : seuls les plafonds parviennent ici, et ils appartiennent à la fin de
-// plan (/fin-de-tache puis /purge-contexte), pas à la session courante — rappel non bloquant, une
-// fois. La condition est mécanique : ne pas la laisser à la charge du modèle, qui devrait sinon
-// plaider « c'est volontaire » en prose contre ce hook.
-if (sousVerrou) {
+// Racine introuvable : seuls les plafonds parviennent ici — rappel non bloquant, une fois. La
+// condition est mécanique : ne pas la laisser à la charge du modèle, qui devrait sinon plaider
+// « c'est volontaire » en prose contre ce hook.
+if (sansRacine) {
   if (dejaSignale === empreinte) riendafaire();
   memoriser();
   repondre({
     systemMessage:
-      `⚠ Vague parallèle en cours (\`.claude/wave.lock\`) — rappel NON bloquant :\n- ${problemes.join('\n- ')}\n` +
-      `À traiter en fin de plan, via /fin-de-tache puis /purge-contexte.${suffixeAvertissements}`,
+      `⚠ Racine du dépôt introuvable — rappel NON bloquant :\n- ${problemes.join('\n- ')}\n` +
+      `À traiter depuis l'arbre principal, via /fin-de-tache puis /purge-contexte.${suffixeAvertissements}`,
   });
 }
 
@@ -253,6 +250,6 @@ repondre({
   decision: 'block',
   reason:
     `Avant de rendre la main :\n- ${problemes.join('\n- ')}\n\n` +
-    `Si c'est volontaire (session d'exploration, vague parallèle en cours), dis-le explicitement ` +
+    `Si c'est volontaire (session d'exploration), dis-le explicitement ` +
     `et arrête-toi — ce garde-fou ne se redéclenchera pas.${suffixeAvertissements}`,
 });

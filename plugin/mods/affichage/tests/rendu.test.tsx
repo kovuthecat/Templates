@@ -233,7 +233,7 @@ describe('panneau plan', () => {
       const ui = await monter($, surface, 'plan')
       const lignes = await textes(ui)
       expect(lignes[0]).toBe('P1 · vague 2')
-      expect(lignes).toContain('Prochaine action : lancer — vague 2 (séquentiel) : S2')
+      expect(lignes).toContain('Prochaine action : lancer — vague 2 : S2')
       expect(lignes).toContain('⚠ index déclare Workflow : v0.54.0, plugin en v0.56.0')
       expect(lignes.filter((l) => /^[✓→○✗] S\d/.test(l))).toHaveLength(6)
       expect(lignes.find((l) => l.startsWith('→ S2'))).toBeDefined()

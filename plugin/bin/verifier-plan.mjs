@@ -11,6 +11,8 @@ const json = process.argv.includes('--json');
 const extension = process.argv.includes('--extension');
 const erreurs = [];
 const signaler = (session, controle, motif) => erreurs.push({ session, controle, motif });
+// Avertissements : jamais un écart, le plan reste valide.
+const avertissements = [];
 try {
   if (!plan) throw new Error('indiquer P<n>');
   // Fins de ligne CRLF (plan réécrit sous Windows) ramenées à LF : sans quoi `$` ne correspond plus
@@ -51,7 +53,12 @@ try {
     const m = /^(?:-\s*)?\*\*Vague\s+(\d+)(?:\s*—\s*([^*]+))?\*\*\s*:\s*(.+)/.exec(ligne.trim());
     if (!m) continue;
     const ids = m[3].replace(/\([^)]*\)/g, '').match(/S\d+/g) ?? [];
-    vagues.push({ numero: Number(m[1]), parallele: m[2]?.includes('parallélisable'), ids });
+    vagues.push({ numero: Number(m[1]), ids });
+    // « parallélisable » n'a plus de sens (les vagues s'exécutent une session après l'autre) : lu et
+    // ignoré dans un plan existant (`--extension`), signalé dans un plan neuf.
+    if (!extension && m[2]?.includes('parallélisable')) {
+      avertissements.push(`Vague ${m[1]} : « parallélisable » est ignoré — les sessions s'exécutent l'une après l'autre`);
+    }
     for (const id of ids) {
       const s = sessions.find(s => s.id === id);
       if (!s) { signaler(id, 4, 'session de vague inconnue'); continue; }
@@ -109,21 +116,16 @@ try {
     vus.add(s.id);
     return s.dependances.some(d => d === id || (sessions.find(x => x.id === d) && antecedent(sessions.find(x => x.id === d), id, new Set(vus))));
   };
-  const recoupe = (a, b) => a === b || a.startsWith(b.replace(/\/$/, '') + '/') || b.startsWith(a.replace(/\/$/, '') + '/');
   for (const s of sessions) for (const f of s.fichiers) {
     if (!existsSync(f.absolu) && !(f.modifier && f.creer) && !sessions.some(d => antecedent(s, d.id) && d.fichiers.some(g => g.modifier && g.creer && g.chemin === f.chemin))) {
       signaler(s.id, 1, `chemin absent sans création préalable : ${f.chemin}`);
     }
   }
-  for (const v of vagues.filter(v => v.parallele)) {
-    const membres = sessions.filter(s => v.ids.includes(s.id));
-    for (let i = 0; i < membres.length; i++) for (let j = i + 1; j < membres.length; j++) {
-      for (const a of membres[i].fichiers.filter(f => f.modifier)) for (const b of membres[j].fichiers.filter(f => f.modifier)) {
-        if (recoupe(a.chemin, b.chemin)) signaler(`${membres[i].id}/${membres[j].id}`, 2, `écritures communes : ${a.chemin} / ${b.chemin}`);
-      }
-    }
-  }
 } catch (e) { signaler(plan ?? 'plan', 0, e.message); }
-const resultat = { resultat: erreurs.length ? 'ECART' : 'RAS', erreurs };
-console.log(json ? JSON.stringify(resultat) : erreurs.length ? erreurs.map(e => `${e.session} · ${e.controle} — ${e.motif}`).join('\n') : 'RAS — contrôles mécaniques du plan');
+const resultat = { resultat: erreurs.length ? 'ECART' : 'RAS', erreurs, avertissements };
+const texteAvertissements = avertissements.map(a => `avertissement — ${a}`).join('\n');
+console.log(json ? JSON.stringify(resultat) : [
+  erreurs.length ? erreurs.map(e => `${e.session} · ${e.controle} — ${e.motif}`).join('\n') : 'RAS — contrôles mécaniques du plan',
+  texteAvertissements,
+].filter(Boolean).join('\n'));
 process.exit(erreurs.length ? 1 : 0);

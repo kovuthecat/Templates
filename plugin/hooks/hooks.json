@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|PowerShell|EnterWorktree",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",

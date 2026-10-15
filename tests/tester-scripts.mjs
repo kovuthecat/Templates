@@ -257,7 +257,7 @@ cas('prochaine-action : fixture du squelette → vagues et sessions reconnues, a
   if (json.workflow !== '<x>') return `Workflow attendu "<x>" (ligne ajoutée au squelette, C4), reçu ${JSON.stringify(json.workflow)}`;
   if (json.sessions.length !== 2) return `2 sessions attendues (S1, S2), reçu ${json.sessions.length}`;
   if (json.vagues.length !== 3) return `3 vagues attendues, reçu ${json.vagues.length}`;
-  if (!json.vagues[0].parallelisable) return 'vague 1 attendue parallélisable';
+  if ('parallelisable' in json.vagues[0]) return 'le champ parallelisable ne doit plus exister';
   if (!json.vagues[2].cloture) return 'vague 3 attendue clôture';
   if (json.sessions.some((s) => s.etat !== 'a-lancer')) {
     return `toutes les sessions du squelette sont à faire, reçu: ${JSON.stringify(json.sessions.map((s) => s.etat))}`;
@@ -339,19 +339,18 @@ cas('prochaine-action : session non cochée mais toutes ses tâches commitées �
   return null;
 });
 
-cas('prochaine-action : .claude/wave.lock présent → dépôt.waveLock vrai', () => {
-  const cwd = dossierJetable('workflow-pa-wavelock-');
+cas('prochaine-action : racine connue → dépôt.racineIntrouvable faux', () => {
+  const cwd = dossierJetable('workflow-pa-racine-connue-');
   cpSync(join(FIXTURES, 'plans', 'squelette'), join(cwd, 'plans', 'P0'), { recursive: true });
-  mkdirSync(join(cwd, '.claude'), { recursive: true });
-  writeFileSync(join(cwd, '.claude', 'wave.lock'), '');
-  initDepot(cwd); // pour que `git rev-parse --git-common-dir` résolve la racine du dépôt
+  initDepot(cwd);
   writeFileSync(join(cwd, 'a.txt'), 'x\n');
   git(cwd, 'add', '.');
   git(cwd, 'commit', '-q', '-m', 'init');
   const { code, sortie } = lancer(PROCHAINE_ACTION, ['P0', '--etat'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   const json = JSON.parse(sortie);
-  if (json.depot.waveLock !== true) return `waveLock attendu vrai, reçu ${JSON.stringify(json.depot)}`;
+  if (json.depot.racineIntrouvable !== false) return `racineIntrouvable attendu faux, reçu ${JSON.stringify(json.depot)}`;
+  if ('waveLock' in json.depot) return 'le champ waveLock ne doit plus exister';
   return null;
 });
 
@@ -636,22 +635,54 @@ cas('moteur : vague reprise-manuelle en échec → question, quelle que soit la 
   return null;
 });
 
-cas('moteur : .claude/wave.lock présent → question, vague interrompue', () => {
-  const cwd = dossierJetable('workflow-pa-moteur-wavelock-');
-  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
-  mkdirSync(join(cwd, '.claude'), { recursive: true });
-  writeFileSync(join(cwd, '.claude', 'wave.lock'), '');
-  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
-  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
-  if (!action || action.action !== 'question') return `action attendue "question", reçu: ${sortie}`;
-  if (!/verrou/.test(action.motif)) return `motif attendu à propos du verrou, reçu: ${action.motif}`;
+cas('moteur : vague « parallélisable » lue comme une vague ordinaire (mêmes actions)', () => {
+  // Fixture écrite « Vague 1 — parallélisable » ; la même sans le mot doit rendre exactement la même action.
+  const jouer = (retirerMot) => {
+    const cwd = dossierJetable('workflow-pa-parallelisable-');
+    cpSync(join(FIXTURES, 'plans', 'moteur-efforts-melanges'), join(cwd, 'plans', 'P9'), { recursive: true });
+    const index = join(cwd, 'plans', 'P9', 'index.md');
+    const texte = readFileSync(index, 'utf8');
+    if (!/Vague 1 — parallélisable/.test(texte)) return { erreur: 'la fixture doit porter « Vague 1 — parallélisable »' };
+    if (retirerMot) writeFileSync(index, texte.replace('Vague 1 — parallélisable', 'Vague 1'));
+    initEtCommitTout(cwd);
+    return lancerJson(['P9', '--json'], cwd);
+  };
+  const avec = jouer(false);
+  const sans = jouer(true);
+  if (avec.erreur) return avec.erreur;
+  if (avec.code !== 0 || sans.code !== 0) return `codes ${avec.code}/${sans.code} attendus 0`;
+  if (avec.action?.action !== 'lancer') return `action attendue "lancer", reçu: ${avec.sortie}`;
+  if ('parallele' in avec.action) return 'le champ parallele ne doit plus exister dans la sortie';
+  if (JSON.stringify(avec.action) !== JSON.stringify(sans.action)) {
+    return `actions différentes avec/sans le mot : ${avec.sortie} ≠ ${sans.sortie}`;
+  }
   return null;
 });
 
-// Reproduit I2 (docs/incidents/2026-09-24-synthese.md) : sur un dépôt à `.git` déplacé,
-// `prochaine-action` rendait `pousser` sous verrou — l'ancien `racineDepot` (`dirname(--git-common-dir)`)
-// résolvait hors de l'arbre et n'y voyait jamais `.claude/wave.lock` (T1, P10/S1).
-cas('moteur (gitfile) : wave.lock présent, un commit d\'avance sur origin → jamais "pousser"', () => {
+// Racine introuvable (worktree lié d'un dépôt à `.git` déplacé) : le moteur ne conclut rien et pose
+// une question (source `racine-introuvable`), comme le hook refuse commit et push (incident du 2026-09-24).
+cas('moteur : racine introuvable → question racine-introuvable', () => {
+  const gitdir = dossierJetable('workflow-pa-sansracine-gd-');
+  const arbre = dossierJetable('workflow-pa-sansracine-arbre-');
+  execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, arbre], { stdio: 'pipe' });
+  git(arbre, 'config', 'user.email', 'test@local');
+  git(arbre, 'config', 'user.name', 'Test');
+  cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(arbre, 'plans', 'P9'), { recursive: true });
+  git(arbre, 'add', '-A');
+  git(arbre, 'commit', '-q', '-m', 'init');
+  const lie = join(dirname(arbre), 'workflow-pa-sansracine-lie-' + Date.now());
+  dossiersTemporaires.push(lie);
+  execFileSync('git', ['-C', arbre, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], lie);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question", reçu: ${sortie}`;
+  if (action.options?.source !== 'racine-introuvable') return `source attendue "racine-introuvable", reçu: ${sortie}`;
+  return null;
+});
+
+// Reproduit I2 (docs/incidents/2026-09-24-synthese.md) : sur un dépôt à `.git` déplacé, le worktree lié
+// n'a pas de racine établie — le moteur y pose une question au lieu de rendre `pousser` (T1, P10/S1).
+cas('moteur (gitfile) : worktree lié, un commit d\'avance sur origin → jamais "pousser", racine-introuvable', () => {
   const gitdir = dossierJetable('workflow-pa-gitfile-gd-');
   const cwd = dossierJetable('workflow-pa-gitfile-arbre-');
   execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, cwd], { stdio: 'pipe' });
@@ -669,13 +700,20 @@ cas('moteur (gitfile) : wave.lock présent, un commit d\'avance sur origin → j
   writeFileSync(join(cwd, 'scratch.txt'), 'x\n');
   git(cwd, 'add', 'scratch.txt');
   git(cwd, 'commit', '-q', '-m', 'travail local non poussé'); // avance > 0 sur origin/main
-  mkdirSync(join(cwd, '.claude'), { recursive: true });
-  writeFileSync(join(cwd, '.claude', 'wave.lock'), '');
-  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+
+  // Témoin : dans l'arbre principal, la racine est connue — pas de question « racine-introuvable ».
+  const temoin = lancerJson(['P9', '--json'], cwd);
+  if (temoin.code !== 0) return `témoin : code ${temoin.code} attendu 0, sortie: ${temoin.sortie}`;
+  if (temoin.action?.options?.source === 'racine-introuvable') return `témoin : racine connue, pas de question racine-introuvable : ${temoin.sortie}`;
+
+  const lie = join(dirname(cwd), 'workflow-pa-gitfile-lie-' + Date.now());
+  dossiersTemporaires.push(lie);
+  execFileSync('git', ['-C', cwd, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], lie);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
-  if (action && action.action === 'pousser') return `action ne doit jamais être "pousser" sous wave.lock (gitfile) : ${sortie}`;
-  if (!action || action.action !== 'question') return `action attendue "question" (wave.lock détecté), reçu: ${sortie}`;
-  if (!/verrou/.test(action.motif)) return `motif attendu à propos du verrou, reçu: ${action.motif}`;
+  if (action && action.action === 'pousser') return `action ne doit jamais être "pousser" sans racine (gitfile) : ${sortie}`;
+  if (!action || action.action !== 'question') return `action attendue "question" (racine introuvable), reçu: ${sortie}`;
+  if (action.options?.source !== 'racine-introuvable') return `source attendue "racine-introuvable", reçu: ${sortie}`;
   return null;
 });
 

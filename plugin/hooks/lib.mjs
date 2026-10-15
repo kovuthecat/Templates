@@ -216,8 +216,8 @@ export function worktreeLie(cwd) {
 /** Racine de l'arbre de travail principal du dépôt — même appelé depuis un worktree lié, même
  *  quand `.git` y est un FICHIER (gitdir déplacé, cas de ~20 projets depuis le 2026-09-15,
  *  `docs/decisions/2026-09-24-revue-finale-et-regime-pro.md` point 1). `null` si elle ne peut pas
- *  être établie avec certitude — jamais une racine devinée : c'est `vagueParallele` qui traduit
- *  ce `null` en refus par défaut, pas cette fonction.
+ *  être établie avec certitude — jamais une racine devinée : ce sont les hooks qui traduisent
+ *  ce `null` en refus par défaut (`racineIntrouvable`), pas cette fonction.
  *
  *  - Hors worktree lié (arbre principal, `.git` dossier OU fichier) : `--show-toplevel` suffit,
  *    et résout correctement le cas du gitdir déplacé (contrairement à `dirname(--git-common-dir)`,
@@ -242,19 +242,11 @@ export function racineDepot(cwd) {
 }
 
 /** Vrai si `racineDepot` ne peut pas établir la racine (worktree lié d'un dépôt à `.git`
- *  déplacé) — utilisé par `pretooluse-git.mjs` pour distinguer ce cas, dans son message de refus,
- *  d'une vague parallèle ordinaire. */
+ *  déplacé) : une racine inconnue ne peut rien garantir, donc refus par défaut de commit et de push
+ *  (`pretooluse-git.mjs`, décision du 2026-09-24, point 1), hooks de fin et d'ouverture de session
+ *  muets sur ce qui suppose un dépôt lisible. */
 export function racineIntrouvable(cwd) {
   return racineDepot(cwd) === null;
-}
-
-/** `true` aussi bien sous `.claude/wave.lock` que lorsque la racine du dépôt est introuvable : une
- *  racine inconnue ne peut pas être vérifiée pour un verrou, donc refus par défaut — comme si le
- *  verrou était posé (décision du 2026-09-24, point 1). */
-export function vagueParallele(cwd) {
-  const racine = racineDepot(cwd);
-  if (racine === null) return true;
-  return existsSync(join(racine, '.claude', 'wave.lock'));
 }
 
 /** Marqueur temporaire propre à une session (garde anti-boucle du Stop, repère HEAD du

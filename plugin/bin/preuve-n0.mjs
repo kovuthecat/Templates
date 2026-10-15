@@ -8,7 +8,7 @@ import { join } from 'node:path';
 // `.claude/journal-modeles.jsonl` : écrit par le hook PostModelSwitch du workflow lui-même, jamais
 // commité ; compté, il périmait toute preuve au commit (`valider-n0` en boucle, P12 2026-10-05).
 const suivi = (p) => p.startsWith('plans/') || p.startsWith('.claude/n0/') ||
-  /^(STATUS|TASKS|DECISIONS|CHANGELOG)\.md$/.test(p) || p === '.claude/wave.lock' ||
+  /^(STATUS|TASKS|DECISIONS|CHANGELOG)\.md$/.test(p) ||
   p === '.claude/journal-modeles.jsonl';
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], maxBuffer: 50 * 1024 * 1024 });
 const sha = (s) => createHash('sha256').update(s).digest('hex');

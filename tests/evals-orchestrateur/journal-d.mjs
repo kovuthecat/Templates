@@ -23,8 +23,7 @@ const agent = (m, e) => `session-${e}`;
 function promptSession(k, modele, effort) {
   return `Lis ${racine}/plugin/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Ouvre plans/P99/${k}.md et exécute-le. Reste
-dans l'arbre de travail courant : n'ouvre AUCUN worktree. \`.claude/wave.lock\` présent → ni commit ni
-push, l'orchestrateur s'en charge en fin de vague. Mode orchestré : \`/fin-de-tache\`, section Mode
+dans l'arbre de travail courant : n'ouvre AUCUN worktree. Mode orchestré : \`/fin-de-tache\`, section Mode
 orchestré — ta dernière ligne est \`VERDICT:\`. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
 Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier
@@ -54,7 +53,7 @@ function sortieScript(action) {
 ${action}`;
 }
 
-function banniere(n, ks, parallele) {
+function banniere(n, ks) {
   const lignes = ks.map((k) => {
     const s = sessions[k];
     return `   ${k} · ${s.titre}
@@ -62,7 +61,7 @@ function banniere(n, ks, parallele) {
       Tâches ${s.taches.join('-')} · ${s.modele}/${s.effort}
       Fichiers touchés : \`${s.zone}\` · Dépend de : —`;
   }).join('\n\n');
-  return `▶ Vague ${n}/5 — ${ks.length} session(s)${parallele ? ' en parallèle' : ''}
+  return `▶ Vague ${n}/5 — ${ks.length} session(s)
    Pourquoi cette vague maintenant : les zones sont disjointes et la vague précédente est relue.
    Si une session échoue : je diagnostique, je reprends une fois, j'enquête si la reprise cale — je ne te sollicite que s'il y a un choix à faire.
 
@@ -120,13 +119,12 @@ blocs.push(`[Skill] workflow:orchestrer-plan P99
 ${(0x5f2c).toString(16)} plan(P99): réservations — huit sessions, cinq vagues`);
 
 // Vague 1
-blocs.push(sortieScript(`lancer — vague 1 (parallèle) : S1, S2
+blocs.push(sortieScript(`lancer — vague 1 : S1, S2
 vague: 1
-parallele: true
 sessions: [{"session":"S1","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S2","modele":"Haiku","effort":"low","agent":{"subagent_type":"session-low","model":"haiku"}}]
 S1 → subagent_type: session-medium · model: sonnet
 S2 → subagent_type: session-low · model: haiku`));
-blocs.push(banniere(1, ['S1', 'S2'], true));
+blocs.push(banniere(1, ['S1', 'S2']));
 blocs.push(appel('S1', 'Sonnet', 'medium'));
 blocs.push(appel('S2', 'Haiku', 'low'));
 blocs.push(bruitN0('S1'));
@@ -139,13 +137,12 @@ blocs.push(revue('S1'));
 blocs.push(pousser(1));
 
 // Vague 2
-blocs.push(sortieScript(`lancer — vague 2 (parallèle) : S3, S4
+blocs.push(sortieScript(`lancer — vague 2 : S3, S4
 vague: 2
-parallele: true
 sessions: [{"session":"S3","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S4","modele":"Opus","effort":"high","agent":{"subagent_type":"session-high","model":"opus"}}]
 S3 → subagent_type: session-medium · model: sonnet
 S4 → subagent_type: session-high · model: opus`));
-blocs.push(banniere(2, ['S3', 'S4'], true));
+blocs.push(banniere(2, ['S3', 'S4']));
 blocs.push(appel('S3', 'Sonnet', 'medium'));
 blocs.push(appel('S4', 'Opus', 'high'));
 blocs.push(bruitN0('S3'));
@@ -160,13 +157,12 @@ blocs.push(pousser(2));
 blocs.push(`[Utilisateur] Ça avance bien. Continue sans moi, je regarde demain.`);
 
 // Vague 3 : S5 passe, S6 échoue deux fois
-blocs.push(sortieScript(`lancer — vague 3 (parallèle) : S5, S6
+blocs.push(sortieScript(`lancer — vague 3 : S5, S6
 vague: 3
-parallele: true
 sessions: [{"session":"S5","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S6","modele":"Haiku","effort":"low","agent":{"subagent_type":"session-low","model":"haiku"}}]
 S5 → subagent_type: session-medium · model: sonnet
 S6 → subagent_type: session-low · model: haiku`));
-blocs.push(banniere(3, ['S5', 'S6'], true));
+blocs.push(banniere(3, ['S5', 'S6']));
 blocs.push(appel('S5', 'Sonnet', 'medium'));
 blocs.push(appel('S6', 'Haiku', 'low'));
 blocs.push(bruitN0('S5'));

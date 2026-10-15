@@ -44,7 +44,7 @@ export function texteAction(a: any): string {
   const sessions = noms(a?.sessions)
   switch (cle) {
     case 'lancer':
-      return `lancer — vague ${a.vague} (${a.parallele ? 'parallèle' : 'séquentiel'}) : ${sessions.join(', ') || '—'}`
+      return `lancer — vague ${a.vague} : ${sessions.join(', ') || '—'}`
     case 'verifier-premisse':
       return `verifier-premisse — ${a.session}`
     case 'reprendre':

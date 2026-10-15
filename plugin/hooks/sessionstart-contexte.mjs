@@ -9,7 +9,7 @@ import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import {
-  lireEntree, repertoireProjet, estUnDepot, git, depassements, vagueParallele, worktreeLie,
+  lireEntree, repertoireProjet, estUnDepot, git, depassements, racineIntrouvable,
   repereSession, repondre, riendafaire, racineDepot,
   recupererAmont, etatAmont, aUnRemote, brancheCourante, brancheParDefaut,
   familleModele, prochaineSession, derniereVersionPubliee, versionSuperieure,
@@ -63,29 +63,18 @@ if (reprise) {
     '**Avertissement** : CLAUDE-BASE.md introuvable à la racine du plugin (${CLAUDE_PLUGIN_ROOT}/CLAUDE-BASE.md).';
 }
 
-if (vagueParallele(cwd)) {
+if (racineIntrouvable(cwd)) {
   lignes.push(
-    '**Vague parallèle en cours** (`.claude/wave.lock`) : ne touche ni STATUS.md, ni TASKS.md, ' +
-    "ni plans/P*/index.md ; ni commit ni push (ils sont bloqués par hook)."
+    "**Racine du dépôt introuvable** (worktree lié d'un dépôt à `.git` déplacé) : ni commit ni push " +
+    "(ils sont bloqués par hook) — travaille depuis l'arbre principal."
   );
-  // Le PreToolUse ne voit que ce qui passe par un outil : une pastille lancée « avec worktree »
-  // crée l'arbre AVANT le premier tour, hors de sa portée. Ce contrôle-ci est le seul qui l'attrape,
-  // et il tombe au premier tour — pas après une session de travail perdue d'avance.
-  if (worktreeLie(cwd)) {
-    lignes.push(
-      "**STOP — session de vague ouverte dans un worktree.** Une vague partage un seul arbre de " +
-      "travail : le diff produit ici ne sera vu ni par l'orchestrateur ni par la consolidation, et " +
-      "le verrou interdit le commit qui permettrait de le rapatrier. Ne code pas : signale-le, et " +
-      "redemande la session dans l'arbre principal (pastille → « Démarrer localement »)."
-    );
-  }
 }
 
 // Retard sur l'amont, et branche d'atterrissage — les deux se constatent au démarrage, quand la
 // correction est encore gratuite. Un arbre en retard produit un conflit ou, sur un chemin qui pousse
 // en `--force`, écrase du travail déjà publié ; une branche autre que celle d'intégration produit du
-// travail que personne ne voit venir. Muet pendant une vague : ni pull ni push n'y sont permis.
-if (!vagueParallele(cwd) && aUnRemote(cwd)) {
+// travail que personne ne voit venir. Muet quand la racine est introuvable : ni pull ni push n'y sont permis.
+if (!racineIntrouvable(cwd) && aUnRemote(cwd)) {
   recupererAmont(cwd);
   const amont = etatAmont(cwd);
   if (amont && amont.retard > 0) {
@@ -125,9 +114,8 @@ if (!vagueParallele(cwd) && aUnRemote(cwd)) {
 // fait que **rappeler** : jusqu'ici rien ne vérifiait, et une session partie au hasard des réglages
 // de la veille ne se découvrait qu'au résultat. Le hook reçoit `model` — si la prochaine session du
 // plan en cours demande une autre famille, le dire maintenant, quand la correction est encore gratuite.
-// Muet pendant une vague (les sous-agents héritent du modèle de l'orchestrateur, pas du plan) et
-// dès qu'aucun plan ouvert ne déclare de modèle.
-if (!vagueParallele(cwd)) {
+// Muet quand la racine du dépôt est introuvable et dès qu'aucun plan ouvert ne déclare de modèle.
+if (!racineIntrouvable(cwd)) {
   const familleCourante = familleModele(entree.model);
   if (familleCourante) {
     // La prochaine session du plan le plus récent, pas toutes les sessions ouvertes : un vieux plan

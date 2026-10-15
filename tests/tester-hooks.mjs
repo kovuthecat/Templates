@@ -81,6 +81,15 @@ function creerDepotGitfile() {
   return { arbre, gitdir };
 }
 
+// Worktree lié d'un dépôt à `.git` déplacé : `racineDepot` y rend `null` (racine introuvable).
+function creerWorktreeSansRacine() {
+  const { arbre } = creerDepotGitfile();
+  const lie = join(dirname(arbre), 'workflow-hooks-lie-' + randomUUID());
+  execFileSync('git', ['-C', arbre, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
+  dossiersACommitter.push(lie);
+  return { arbre, lie };
+}
+
 function lancerHook(fichier, payload, env = {}) {
   return execFileSync('node', [join(HOOKS, fichier)], {
     input: JSON.stringify(payload),
@@ -160,7 +169,7 @@ function estBloque(sortie) {
     return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
   });
 
-  cas('pretooluse-git : git commit accepté sans wave.lock', () => {
+  cas('pretooluse-git : git commit accepté (racine connue)', () => {
     const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
     return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
   });
@@ -201,49 +210,52 @@ function estBloque(sortie) {
     });
   }
 
-  mkdirSync(join(repo, '.claude'), { recursive: true });
-  writeFileSync(join(repo, '.claude', 'wave.lock'), '');
+}
 
-  cas('pretooluse-git : git commit refusé sous wave.lock', () => {
-    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+// ── pretooluse-git.mjs : racine introuvable → commit et push refusés par défaut ─────
+// Garde-fou de l'incident du 2026-09-24 (worktree lié dont le `.git` a été déplacé).
+{
+  const { lie } = creerWorktreeSansRacine();
+  const jouer = (commande) =>
+    lancerHook('pretooluse-git.mjs', { cwd: lie, tool_name: 'Bash', tool_input: { command: commande } });
+
+  cas('pretooluse-git : racine introuvable : git commit refusé', () => {
+    const s = jouer('git commit -m "x"');
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 
-  cas('pretooluse-git : git push refusé sous wave.lock', () => {
-    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git push' } });
+  cas('pretooluse-git : racine introuvable : git push refusé', () => {
+    const s = jouer('git push');
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 
   // Options globales AVANT la sous-commande (T2, P10/S1) : sans le préfixe dans la regex, ces deux
-  // variantes contournaient le refus sous wave.lock.
-  cas('pretooluse-git : git -C . commit refusé sous wave.lock', () => {
-    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git -C . commit -m "x"' } });
+  // variantes contournaient le refus.
+  cas('pretooluse-git : racine introuvable : git -C . commit refusé', () => {
+    const s = jouer('git -C . commit -m "x"');
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 
-  cas('pretooluse-git : git -c user.name=x commit refusé sous wave.lock', () => {
-    const s = lancerHook('pretooluse-git.mjs', { cwd: repo, tool_name: 'Bash', tool_input: { command: 'git -c user.name=x commit -m "x"' } });
+  cas('pretooluse-git : racine introuvable : git -c user.name=x commit refusé', () => {
+    const s = jouer('git -c user.name=x commit -m "x"');
     return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
+  });
+
+  cas('pretooluse-git : racine introuvable : une commande git de lecture reste acceptée', () => {
+    const s = jouer('git status');
+    return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
   });
 }
 
 // ── pretooluse-git.mjs : racine juste sur un dépôt à `.git` déplacé (T1, P10/S1) ─────
-// Anti-raccourci : le verrou du test doit être à `<arbre>/.claude/wave.lock` — pas à côté du
-// gitdir — et le cas (b) prouve que le refus du cas (a) vient bien de LUI, pas d'un autre défaut.
+// Anti-raccourci : le cas (a) prouve que l'arbre principal d'un dépôt à `.git` déplacé reste
+// committable ; sans lui, le refus du cas (b) pourrait venir d'un défaut général du hook.
 {
   const { arbre, gitdir } = creerDepotGitfile();
 
-  cas('pretooluse-git (gitfile) : sans wave.lock → commit accepté', () => {
+  cas('pretooluse-git (gitfile) : arbre principal → commit accepté', () => {
     const s = lancerHook('pretooluse-git.mjs', { cwd: arbre, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
     return s === '' ? null : `attendu vide (accepté), reçu: ${s}`;
-  });
-
-  mkdirSync(join(arbre, '.claude'), { recursive: true });
-  writeFileSync(join(arbre, '.claude', 'wave.lock'), '');
-
-  cas('pretooluse-git (gitfile) : wave.lock dans l\'arbre → commit refusé', () => {
-    const s = lancerHook('pretooluse-git.mjs', { cwd: arbre, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
-    return estRefus(s) ? null : `attendu un refus, reçu: ${s || '(vide)'}`;
   });
 
   cas('racineDepot (gitfile) : rend l\'arbre, jamais dirname(gitdir)', () => {
@@ -255,7 +267,7 @@ function estBloque(sortie) {
   execFileSync('git', ['-C', arbre, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
   dossiersACommitter.push(lie);
 
-  cas('pretooluse-git (gitfile) : worktree lié, wave.lock dans l\'arbre principal → commit refusé', () => {
+  cas('pretooluse-git (gitfile) : worktree lié → commit refusé (racine introuvable)', () => {
     const s = lancerHook('pretooluse-git.mjs', { cwd: lie, tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
     return estRefus(s) ? null : `attendu un refus (racine introuvable ⇒ refus par défaut), reçu: ${s || '(vide)'}`;
   });
@@ -299,13 +311,11 @@ cas('stop-contexte : code + STATUS.md modifiés → passe', () => {
   return s === '' ? null : `attendu vide (passe), reçu: ${s}`;
 });
 
-cas('stop-contexte : sous wave.lock, diff non commité ne bloque pas', () => {
-  const repo = creerDepot();
-  mkdirSync(join(repo, '.claude'), { recursive: true });
-  writeFileSync(join(repo, '.claude', 'wave.lock'), '');
-  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
-  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
-  return s === '' ? null : `attendu vide (sous verrou, non bloquant), reçu: ${s}`;
+cas('stop-contexte : racine introuvable, diff non commité ne bloque pas', () => {
+  const { lie } = creerWorktreeSansRacine();
+  writeFileSync(join(lie, 'src.js'), 'console.log(1);\n');
+  const s = lancerHook('stop-contexte.mjs', { cwd: lie, session_id: randomUUID() });
+  return s === '' ? null : `attendu vide (racine introuvable, non bloquant), reçu: ${s}`;
 });
 
 // Session planifiée : transcript dont l'`enqueue <scheduled-task …>` est en tête (forme réelle, `content`
@@ -421,18 +431,6 @@ cas('stop-contexte : sans remote → muet sur le point de push', () => {
   const repo = creerDepot(); // pas de remote : exemption C3
   const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
   return s === '' ? null : `attendu vide (sans remote), reçu: ${s}`;
-});
-
-cas('stop-contexte : wave.lock avec remote et avance → muet sur le point de push', () => {
-  const repo = creerDepotAvecRemote();
-  const git = (...args) => execFileSync('git', args, { cwd: repo, stdio: 'pipe' });
-  writeFileSync(join(repo, 'src.js'), 'console.log(1);\n');
-  git('add', 'src.js');
-  git('commit', '-q', '-m', 'feat: x');
-  mkdirSync(join(repo, '.claude'), { recursive: true });
-  writeFileSync(join(repo, '.claude', 'wave.lock'), '');
-  const s = lancerHook('stop-contexte.mjs', { cwd: repo, session_id: randomUUID() });
-  return s === '' ? null : `attendu vide (sous verrou, non bloquant), reçu: ${s}`;
 });
 
 cas('stop-contexte : branche sans amont, absente du remote → bloque', () => {
