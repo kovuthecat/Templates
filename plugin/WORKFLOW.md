@@ -71,9 +71,7 @@ Défaut : `.claude/settings.json` du projet. Chaque `S<k>.md` porte **modèle + 
 | Effort, `thinking` | ✓ | selon modèle | ✗ |
 | Messages, images | ✓ | ✓ | ✗ |
 
-Seuls outils et modèle forcent une reconstruction complète (aucune échappatoire). Minimum cacheable : 512 tokens sur Opus 5.5, Sonnet 5.5 et Haiku 5.5 (contre 4 096 sur Haiku 4.5 — plus de falaise sur Haiku). Une entrée ne remonte que 20 positions. Conséquences : régler modèle **et** effort avant de lancer (§3) évite de repayer le préfixe ; `/compact` juste avant un changement **délibéré**, jamais avant une escalade (le résumé perdrait les impasses qui la justifient) ; chaque sous-agent part à froid, payé plein tarif — d'où le socle court. **Lancer une vague en décalé** : le cache ne se lit qu'après le streaming de la première réponse — sur 4 sessions, la part partagée passe d'environ 5,0× à 1,55× le prix d'entrée.
-
-**Quota Pro** : vagues séquentielles par défaut (déjà la règle §4b) — le parallèle concentre la dépense dans la même fenêtre de quota, à réserver aux zones vraiment disjointes.
+Seuls outils et modèle forcent une reconstruction complète (aucune échappatoire). Minimum cacheable : 512 tokens sur Opus 5.5, Sonnet 5.5 et Haiku 5.5 (contre 4 096 sur Haiku 4.5 — plus de falaise sur Haiku). Une entrée ne remonte que 20 positions. Conséquences : régler modèle **et** effort avant de lancer (§3) évite de repayer le préfixe ; `/compact` juste avant un changement **délibéré**, jamais avant une escalade (le résumé perdrait les impasses qui la justifient) ; chaque sous-agent part à froid, payé plein tarif — d'où le socle court.
 
 ## 4. Plans
 
@@ -95,8 +93,6 @@ Une correction qui **débloque un plan en cours** s'y ajoute (vague de remédiat
 | Jugement visuel en attente | `VALIDATION.md` |
 | Incident de workflow (§9b) | `docs/workflow/incidents/<date>-<slug>.md` |
 
-Qui coche `index.md` : un seul juge à la fois, décidé par `.claude/wave.lock` (§4b).
-
 | Statut | Veut dire |
 | --- | --- |
 | `[ ]` | pas lancée, ou sans verdict |
@@ -105,7 +101,7 @@ Qui coche `index.md` : un seul juge à la fois, décidé par `.claude/wave.lock`
 
 Verdict **auto-déclaré** par la session qui écrit le code ; la relecture (`relecteur-session`) arrive après. Qui **committe** `.revue.md` : l'**orchestrateur**, en mode orchestré (`/orchestrer-plan` Étape 2) ; la **session elle-même**, en chaînage manuel (`/fin-de-tache`, Relecture) — jamais les deux (§4b). Le **versement** d'un `[x]!` dans `TASKS.md` a lieu **à la clôture du plan** (`fin-de-plan.md`) — **ce versement le passe à `[x]`** ; un `[x]!` qui reste est un défaut non arbitré, jamais un oubli. Il ne relance pas le code ; il satisfait les dépendances seulement si la revue porte `Dépendances : libres`. Une revue interrompue est reprise une fois, puis signalée en question.
 
-### 4b. Commits, push et parallélisation — *domicile, les autres fichiers renvoient ici*
+### 4b. Commits et push — *domicile, les autres fichiers renvoient ici*
 
 **Chaque session committe son propre travail**, tâche par tâche, staging explicite, repère en dernière ligne (`docs/decisions/2026-08-24-commit-par-session.md`) :
 
@@ -118,14 +114,10 @@ Plan: P<n>/S<k>/T<m>
 
 **Fin de tour = arbre propre et poussé (C3)** : plus de push « groupé » de fin de vague/plan — un commit local n'existe pour aucune autre machine, cloud compris.
 
-- `Stop` refuse si commits d'avance sur l'amont ou fichiers suivis non commités (§7). Exemptions : pas de remote, `.claude/wave.lock`, remote injoignable (signalé, jamais bloquant), session planifiée (rappel seulement).
+- `Stop` refuse si commits d'avance sur l'amont ou fichiers suivis non commités (§7). Exemptions : pas de remote, remote injoignable (signalé, jamais bloquant), session planifiée (rappel seulement).
 - `git pull --rebase` avant de pousser ; conflit → **question**. Arrêt en cours de tâche/N0 rouge : en chaînage manuel, branche `wip/P<n>-S<k>` poussée avec `.echec.md`, jamais `main` ; en mode orchestré, `.echec.md` commité **sur la branche courante** — l'orchestrateur partage l'arbre de la session.
 - `main` impossible (cloud) : pousser la branche et la **nommer** en relance (`Commit : <sha> poussé sur <branche>`) — premier geste suivant : `git merge-base --is-ancestor <sha> HEAD`.
 - **`.revue.md` et `.echec.md` sont commités** ; le repère `Revues:` disparaît (git seul juge, §7) ; `[x]!` reste (§4a).
-
-**Sous `.claude/wave.lock`** : règle suspendue, `pretooluse-git.mjs` refuse commit/push/worktree. L'orchestrateur committe et pousse en fin de vague, guidé par `Zone modifiée` de l'`index.md` — où vivent aussi les **messages de commit** d'une vague verrouillée.
-
-**Parallélisme : option déclarée au cadrage, pas le défaut.** Séquentiel sinon — deux sessions lancées ensemble partagent un seul index git, chacune emporterait le travail de l'autre sans verrou.
 
 `git add -A`/`.`/`commit -a` refusés par hook. Fin de plan : `STATUS.md`/`TASKS.md`/`VALIDATION.md` à jour, un dernier push.
 
@@ -199,11 +191,11 @@ Cinq hooks (`${CLAUDE_PLUGIN_ROOT}/hooks/`, câblés dans `hooks.json`) applique
 
 | Hook | Événement | Ce qu'il fait |
 | --- | --- | --- |
-| `sessionstart-contexte.mjs` | SessionStart | Injecte `CLAUDE-BASE.md` (sauf reprise) ; signale retard sur `origin/main`, mauvaise branche, vague en cours, modèle hors plan, `STATUS.md` ≥3 commits de retard, plafonds dépassés, dossier synchronisé sans témoin, — **C4** — workflow vendoré en retard sur le dernier tag (`ls-remote --tags`, cache 24 h/3 s, muet hors ligne/à jour/sans manifeste), et, dans le dépôt source, un plugin **chargé** en retard sur le `plugin.json` de la copie de travail (poste pas rechargé après `publier.mjs`). Mémorise `HEAD` pour `Stop`. |
-| `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell/EnterWorktree) | Refuse `add -A`/`.`/`--all`, `commit -a` (options globales `git -C`/`git -c` tolérées avant la sous-commande) ; refuse commit/push/worktree sous `.claude/wave.lock`, et **par défaut** quand la racine du dépôt est introuvable (worktree lié d'un `.git` déplacé). |
+| `sessionstart-contexte.mjs` | SessionStart | Injecte `CLAUDE-BASE.md` (sauf reprise) ; signale retard sur `origin/main`, mauvaise branche, racine du dépôt introuvable, modèle hors plan, `STATUS.md` ≥3 commits de retard, plafonds dépassés, dossier synchronisé sans témoin, — **C4** — workflow vendoré en retard sur le dernier tag (`ls-remote --tags`, cache 24 h/3 s, muet hors ligne/à jour/sans manifeste), et, dans le dépôt source, un plugin **chargé** en retard sur le `plugin.json` de la copie de travail (poste pas rechargé après `publier.mjs`). Mémorise `HEAD` pour `Stop`. |
+| `pretooluse-git.mjs` | PreToolUse (Bash/PowerShell) | Refuse `add -A`/`.`/`--all`, `commit -a` (options globales `git -C`/`git -c` tolérées avant la sous-commande) ; refuse commit et push **par défaut** quand la racine du dépôt est introuvable (worktree lié d'un `.git` déplacé). |
 | `posttooluse-format.mjs` | PostToolUse (Edit/Write) | Prettier si configuré, silencieux sinon. |
 | `postmodelswitch-journal.mjs` | PostModelSwitch | Journalise chaque changement (`.claude/journal-modeles.jsonl`), jamais bloquant. |
-| `stop-contexte.mjs` | Stop | **Gate** (§9c) : refuse si code modifié sans suivi touché, session commitée sans `.revue.md` ajouté par un commit (repère `Revues:` disparu — §4a), plafond dépassé, ou — **C3** — commits d'avance/fichiers suivis non commités. Exemptions : pas de remote, `wave.lock`, remote injoignable (avertissement), session planifiée (rappel seulement), sessions `low` (C7 — jamais de revue attendue). Bloque une fois, rappelle si la liste change ; sous `wave.lock`, seuls les plafonds comptent. |
+| `stop-contexte.mjs` | Stop | **Gate** (§9c) : refuse si code modifié sans suivi touché, session commitée sans `.revue.md` ajouté par un commit (repère `Revues:` disparu — §4a), plafond dépassé, ou — **C3** — commits d'avance/fichiers suivis non commités. Exemptions : pas de remote, racine introuvable, remote injoignable (avertissement), session planifiée (rappel seulement), sessions `low` (C7 — jamais de revue attendue). Bloque une fois, rappelle si la liste change ; racine introuvable, seuls les plafonds comptent. |
 
 ### Plafonds de lignes
 

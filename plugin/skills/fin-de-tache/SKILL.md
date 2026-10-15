@@ -18,8 +18,7 @@ description: Checklist de fin de tâche et de fin de session — statuts, fichie
 
 Hors mode orchestré, ce qui suit s'applique tel quel.
 
-`.claude/wave.lock` existe ? détermine le mode — pas le bandeau `parallèle`. Qui committe/pousse,
-quand, et l'exception : `WORKFLOW.md` §4b (domicile). Où vit le statut d'une tâche : §4a (domicile)
+Qui committe/pousse, et quand : `WORKFLOW.md` §4b (domicile). Où vit le statut d'une tâche : §4a (domicile)
 — jamais recopié dans un `S<k>.md` ni dans `TASKS.md`.
 
 ## Après chaque tâche
@@ -36,7 +35,7 @@ quand, et l'exception : `WORKFLOW.md` §4b (domicile). Où vit le statut d'une t
    prochaine action — **toujours**, même sans fichier durable. **Écarts au plan** seulement si le
    bandeau a déclaré une `Latitude`. **Correctif localisé** posé (`WORKFLOW.md` §9a) : en tête du
    bilan.
-4. **Commit de la tâche** — sauf `.claude/wave.lock` (§4b). Staging explicite (jamais `-A`, `-a`,
+4. **Commit de la tâche** (§4b). Staging explicite (jamais `-A`, `-a`,
    `commit -a`), `S<k>.md` inclus, repère `Plan: P<n>/S<k>/T<m>` en dernière ligne. Une tâche sans
    fichier de code committe quand même son `S<k>.md`.
 5. **Rapport court** dans la conversation : le même contenu que le bilan, en trois lignes.
@@ -52,13 +51,8 @@ section « 8b », avant de committer.
 
 ## Fin de session
 
-`.claude/wave.lock` présent → ouvrir `references/vague-parallele.md` : c'est le verrou qui décide,
-pas le bandeau `parallèle`.
-
-Sinon :
-
 9. **Statut** : `index.md` du plan → `[x]`, avec la date, dans le commit du point 10 — cocher **sa
-   propre ligne**, et elle seule, si d'autres sessions de la vague restent à exécuter. Coche `[x]`.
+   propre ligne**, et elle seule. Coche `[x]`.
    Seul qui lit `Bloquant : n` (l'étape Relecture, point 13) pose `[x]!`.
 10. **Contexte** : `STATUS.md` à jour ; les autres fichiers **seulement si leur contenu change**.
 11. **N2** : `VALIDATION.md`, uniquement le jugement humain encore EN ATTENTE — supprimer ce qui
@@ -76,7 +70,7 @@ Sinon :
 14. **Push (C3)** : `git pull --rebase` puis `git push` — arbre propre et poussé avant de rendre la
     main. Branche `wip/`, cas cloud : `WORKFLOW.md` §4b (domicile). **En mode orchestré, jamais
     `wip/`** — cf. « Mode orchestré » en tête. Exemptions : pas de remote, remote injoignable
-    (signalé, non bloquant), `wave.lock` (couvert ci-dessus).
+    (signalé, non bloquant).
 
 Session suivante du plan prête, ou vague/plan à collecter → **bloc de relance obligatoire**, sans
 exception : ouvrir `references/bloc-de-relance.md`.

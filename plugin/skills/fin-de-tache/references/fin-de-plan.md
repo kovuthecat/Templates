@@ -15,8 +15,8 @@ session elle-même (`/fin-de-tache`, Relecture). Il ne reste que le rangement.
    signale un échec non résolu → ne pas clore le plan (`/reprendre-echec`). Un
    `docs/workflow/incidents/*.md` non commité se committe maintenant
    (`incident(workflow): <slug>`) — il part avec le push du point 7, jamais avant.
-2. **Nettoyer les marqueurs** : `.claude/wave.lock` s'il existe, et `.claude/vague/` (sorties brutes
-   et identifiants de session — transitoires).
+2. **Nettoyer les marqueurs** : `.claude/vague/` (sorties brutes et identifiants de session —
+   transitoires).
 3. **Vérifier que chaque `.revue.md` est commité** (`git ls-files plans/P<n>/*.revue.md`) ; celle qui
    ne l'est pas encore se committe maintenant (`revue(P<n>): S<k> relue, <n> bloquant(s)`, repère
    `Plan: P<n>/S<k>`) — une revue non commitée ici est un défaut de l'action `relire`, jamais un

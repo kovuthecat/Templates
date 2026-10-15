@@ -102,9 +102,7 @@ N2 (jugement) :
 ```
 
 Puis **consigner uniquement la partie N2 dans `VALIDATION.md`** (bloc par écran, cf. l'en-tête du
-fichier) — **sous `.claude/wave.lock`, le N2 va dans le `S<k>.md`, pas dans `VALIDATION.md`**
-(`plugin/skills/fin-de-tache/references/vague-parallele.md`, point 2). La partie N1 reste dans la
-réponse : soit l'utilisateur la déroule tout de suite, soit la session est rejouée depuis Desktop.
+fichier). La partie N1 reste dans la réponse : soit l'utilisateur la déroule tout de suite, soit la session est rejouée depuis Desktop.
 
 > Une session dont la validation N1 est structurante (nouvel écran, refonte de mise en page) gagne
 > à être lancée depuis Desktop. C'est ce que déclare la colonne **Env.** de l'`index.md` du plan.

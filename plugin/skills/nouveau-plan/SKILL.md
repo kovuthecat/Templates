@@ -178,17 +178,13 @@ Regrouper plusieurs tâches dans une même session si TOUT est vrai :
 - le lot reste raisonnable (~3-5 tâches courtes, ou 2 moyennes liées).
 
 **Séparer** dès qu'un de ces critères tombe, ou qu'une validation humaine (N2) s'intercale entre
-deux tâches, ou que la séparation **débloque une parallélisation**. Un changement de modèle ou
+deux tâches. Un changement de modèle ou
 d'effort, ou une tâche `high`/`xhigh`, ne sont plus des règles absolues de séparation : ce sont des
 **indices** qui pèsent dans le même arbitrage — le coût d'un redémarrage à froid peut l'emporter sur
 eux quand les lectures sont vraiment partagées.
 
-**Séquentiel par défaut.** Deux sessions sont **parallélisables** ssi aucune dépendance **et** zones
-modifiées disjointes (fichiers de « Modifier »), mais le parallèle reste une **option déclarée au
-cadrage**, pas le régime normal (`WORKFLOW.md` §4b) : une vague marquée « parallélisable » se
-justifie en une ligne dans son *Pourquoi maintenant* — le **gain d'horloge attendu**, pas « c'est
-possible ». La colonne « Zone modifiée » sert au contrôle de disjonction : y mettre les
-répertoires/fichiers réellement touchés, pas des généralités.
+La colonne « Zone modifiée » : y mettre les répertoires/fichiers réellement touchés, pas des
+généralités.
 
 **Une session dont la zone est « aucune » demande un soin particulier.** Vérification, mesure, audit :
 son livrable est une **conclusion**, pas un diff. Écrire alors dans le `S<k>.md` ce que le bilan devra
@@ -286,12 +282,6 @@ Trois éditions ponctuelles, rien de plus :
 
 L'« Objectif d'ensemble » ne bouge pas. S'il faut le récrire, ce n'était pas une extension (Étape 0).
 
-**La colonne « Message de commit » se remplit après l'Étape 4, pas ici** : son contenu (un message
-par tâche) n'existe qu'une fois chaque `S<k>.md` écrit. Une fois l'Étape 4 terminée, revenir sur
-l'index et reporter, pour chaque session d'une vague parallèle, le « Message de commit » de chacune
-de ses tâches tel qu'écrit dans son `S<k>.md` — `references/squelette-index.md` (colonne « Message
-de commit ») précise la forme.
-
 ## Étape 4 — Écrire un `plans/P<n>/S<k>.md` par session
 
 Le squelette du fichier est en annexe : **ouvrir `references/squelette-session.md`** (à côté de
@@ -303,7 +293,7 @@ décident de ce qu'on y met sont ci-dessous ; l'annexe ne porte que la forme.
 
 Principes :
 
-- **Le bandeau est auto-suffisant** : modèle, effort, environnement, mode parallèle — jamais besoin
+- **Le bandeau est auto-suffisant** : modèle, effort, environnement — jamais besoin
   de retourner à l'index pour lancer la session.
 - **« Lire » est un point de départ, pas un plafond** : la lecture reste ouverte, seule
   l'**écriture** est bornée (à la zone du plan) — `EXECUTANT.md`.

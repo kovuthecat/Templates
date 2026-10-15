@@ -21,7 +21,7 @@ constates que des écarts **falsifiables** entre ce que le plan déclare et ce q
 ## Contrôles restants
 
 Le parent fournit `Sortie de verifier-plan : RAS` : sinon demander ce contrôle avant de conclure.
-Le script contrôle les points 1, 2, 4, 7 et 12 (chemins, collisions, dépendances, champs, settings).
+Le script contrôle les points 1, 4, 7 et 12 (chemins, dépendances, champs, settings).
 Ne pas répéter ces lectures. Un format rejeté par le script se normalise, jamais un RAS inventé.
 
 3. **Validation pertinente** — les commandes et résultats attendus prouvent-ils l'objectif ?
@@ -36,10 +36,6 @@ Un test absent doit être justifié ; le script vérifie la présence, pas la pe
 8. **`Latitude` restreinte sans raison écrite** — le bandeau d'un `S<k>.md` qui restreint la
    `Latitude` par rapport au défaut (« moyens libres ; objectif, contrats publics et zone du plan
    fixes ») sans justification en une ligne à l'appui : écart.
-9. **Vague parallèle sans justification ni messages de commit** — une vague marquée
-   « parallélisable » sans son *Pourquoi maintenant* justifiant le **gain d'horloge attendu** (pas
-   juste « c'est possible »), ou sans les messages de commit par tâche dans l'index (colonne ou
-   sous-liste, C7) pour au moins une de ses sessions : écart.
 10. **Session `exploration` sans branche, budget ou réponse négative** — une session dont le bandeau
     porte `Régime : ouvert` sans branche jetable **nommée et poussée** (jamais `main`), sans budget
     écrit (tours ou temps), ou dont rien n'énonce ce qui compterait comme **réponse négative** :
@@ -72,7 +68,7 @@ et du dépôt inspectés, jamais de ces exemples.
 
 ```
 1. S2 · 1 — « Modifier : src/lib/parse.ts » — ce fichier n'existe pas et aucune étape ne le crée
-2. S2/S4 · 2 — vague 1 parallèle — les deux modifient `src/store/index.ts`
+2. S3 · 4 — « Dépend de : S5 » — S5 n'est pas dans une vague antérieure
 ```
 
 Aucun écart → une seule ligne : `RAS — <n> sessions, <m> tâches vérifiées.`

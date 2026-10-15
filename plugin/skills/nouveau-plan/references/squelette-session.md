@@ -6,7 +6,7 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
 ```md
 # P<n> · S<k> — <titre>   (rédigé par Opus)
 
-> **Modèle : <Sonnet/Haiku> · effort : <low|medium|high|xhigh> · Vague : <v> (parallèle : oui/non)**
+> **Modèle : <Sonnet/Haiku> · effort : <low|medium|high|xhigh> · Vague : <v>**
 > **Environnement : <Desktop (navigateur requis) | indifférent>** (`WORKFLOW.md` §6, N1)
 > **Régime : <fixé | ouvert>** — `fixé` : périmètre d'écriture fermé, livrable = commits sous gate
 > N0 (le défaut). `ouvert` (session `exploration`, C6) : **branche** jetable **nommée ET poussée**
@@ -115,5 +115,5 @@ retrouvable ensuite (`git log --grep`), et par lequel l'orchestrateur lit le ver
  modifiés · résumé · N0 · N1 · N2 à faire · prochaine action (`/fin-de-tache` point 3)>
 
 ## Fin de session
-Dérouler `/fin-de-tache` (mode selon « parallèle : oui/non » du bandeau).
+Dérouler `/fin-de-tache`.
 ```

@@ -62,12 +62,8 @@ culpabilité, c'est un endroit où regarder.
 Le parent te donne `P<n>` et la liste des `S<k>` de la vague (chacune avec son mode). Pour chaque
 session, délimite son diff ainsi :
 
-- **Cas normal** (la session a commité) : `git log --oneline --grep "P<n>/S<k>/"` donne ses
-  commits ; relis `git show` / `git diff <premier>^..<dernier>`.
-- **Cas vague verrouillée** (`.claude/wave.lock` présent — les sessions n'ont rien commité) : le
-  périmètre de chaque session est l'arbre de travail **restreint aux chemins que le parent t'a
-  donnés pour elle**. Sans ces chemins pour une session donnée, ne devine pas : dis-le pour cette
-  session-là et passe à la suivante — un blocage sur une session n'arrête pas la vague.
+La session a commité : `git log --oneline --grep "P<n>/S<k>/"` donne ses commits ; relis
+`git show` / `git diff <premier>^..<dernier>`.
 
 **Le périmètre, c'est le code.** Un commit qui ne touche que de la documentation (`docs/`, `plans/`,
 `*.md`) ne se relit pas. Un fichier de données (`data/**`, fixtures, JSON/CSV dont le diff tient sur

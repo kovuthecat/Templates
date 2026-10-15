@@ -149,8 +149,7 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
    C'est la **seule** source des règles : `PROJECT_BRIEF.md`, `ARCHITECTURE.md` et
    `DESIGN_SPEC.md` y renvoient sans les recopier. Aucune règle retirée en B2 n'est écrite.
 
-6. Ajouter `.claude/wave.lock` et `.claude/n0/` au `.gitignore` (marqueurs/journal locaux, jamais
-   versionnés) — **jamais** `*.revue.md` ni `*.echec.md` : ces deux-là sont commités (C3).
+6. Ajouter `.claude/n0/` au `.gitignore` (journal local, jamais versionné) — **jamais** `*.revue.md` ni `*.echec.md` : ces deux-là sont commités (C3).
 
 7. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).

@@ -30,23 +30,18 @@ Preuve N0 : requise
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1-T3 | … | Haiku | medium | — | — | `<fichiers réellement modifiés>` | [ ] | `<type(scope): message>` (vague parallèle) ou `—` |
+| [S1](S1.md) | T1-T3 | … | Haiku | medium | — | — | `<fichiers réellement modifiés>` | [ ] | — |
 | [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `<répertoire ou fichiers, jamais une généralité>` | [ ] | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 <!-- Vocabulaire complet : WORKFLOW.md §4a — ne pas inventer d'autre marque ici. -->
-<!-- Colonne « Message de commit » : remplie uniquement pour les sessions d'une vague parallèle
-     (C7), et seulement après l'Étape 4 (SKILL.md) — un retour sur l'index une fois chaque S<k>.md
-     écrit, un message par tâche repris tel quel de son S<k>.md — le message de commit par tâche
-     qu'une session sous `.claude/wave.lock` ne peut pas committer elle-même y vit, l'orchestrateur
-     le recopie en fin de vague verrouillée (WORKFLOW.md §4b). Une sous-liste sous la session, dans
-     l'Ordonnancement, est une forme équivalente si elle est plus lisible ici — à condition que le
-     tableau ci-dessus garde ses neuf premières colonnes dans cet ordre (`prochaine-action.mjs` les
-     lit par position). -->
+<!-- Colonne « Message de commit » : laissée à `—`, le message de commit de chaque tâche vit dans son
+     `S<k>.md`. Le tableau garde ses neuf premières colonnes dans cet ordre (`prochaine-action.mjs`
+     les lit par position). -->
 
 
 ## Ordonnancement
-- **Vague 1 — parallélisable** : S1 · S3 (zones disjointes, aucune dépendance).
+- **Vague 1** : S1 · S3 (aucune dépendance).
   *Pourquoi maintenant* : <ce que cette vague débloque pour la suite, une ligne>
   - **S1** — <en clair : ce que ça change, et à quoi on le verra. 1-2 phrases, sans jargon>
   - **S3** — <idem>

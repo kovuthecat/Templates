@@ -72,19 +72,16 @@ Index avec `Preuve N0 : requise` : avant le dernier commit de tâche, lancer N0 
 `--session P<n>/S<k>` et committer `plans/P<n>/S<k>.n0.json` avec les fichiers validés.
 Un test ciblé sert au diagnostic, jamais de preuve complète. Si des entrées changent après N0,
 le relancer ; les fichiers de suivi `plans/`, STATUS/TASKS/DECISIONS/CHANGELOG sont exclus.
-Sous verrou : produire la preuve après stabilisation des écritures ; l'orchestrateur la committe.
 La preuve vérifie les fichiers Git non ignorés (liens et modes compris) ; pas les services externes.
 
 Index avec `Preuve N0 : non requise` (projet sans commande, `sansCommande` dans `.claude/n0.json`) :
 N0 sauté, aucune preuve à produire ; bilan `N0 : — (non requise : <motif de sansCommande>)`.
 
-Teste, dans l'ordre, **avant** d'agir :
+Teste **avant** d'agir :
 
-1. `.claude/wave.lock` existe ? → **ni commit ni push** : tes fichiers restent dans l'arbre,
-   l'orchestrateur committe en fin de vague (`WORKFLOW.md` §4b).
-2. Ton prompt exige une ligne `VERDICT:` ? → mode orchestré : `/fin-de-tache`, section « Mode
+1. Ton prompt exige une ligne `VERDICT:` ? → mode orchestré : `/fin-de-tache`, section « Mode
    orchestré ».
-3. Sinon : un commit par tâche, staging explicite, repère `Plan: P<n>/S<k>/T<m>` — commite aussi ta
+2. Sinon : un commit par tâche, staging explicite, repère `Plan: P<n>/S<k>/T<m>` — commite aussi ta
    propre `.revue.md` une fois déposée (`WORKFLOW.md` §4b). **Push en fin de session** — arbre
    propre et poussé avant de rendre la main, **y compris lancée en sous-agent par l'orchestrateur**
    (la voie normale, `WORKFLOW.md` §5b : ton verdict, ce sont tes commits). Dérouler `/fin-de-tache`

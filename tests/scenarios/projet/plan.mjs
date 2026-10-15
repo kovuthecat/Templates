@@ -108,7 +108,7 @@ export function sessionMd(scenario, k) {
   const s = PLANS[scenario].find((x) => x.k === k);
   return `# P1 · S${k} — ${titreSession(s.taches)}   (rédigé par Opus)
 
-> **Modèle : Haiku · effort : medium · Vague : ${s.vague} (parallèle : non)**
+> **Modèle : Haiku · effort : medium · Vague : ${s.vague}**
 > **Environnement : indifférent** (\`WORKFLOW.md\` §6, N1)
 > **Régime : fixé** — sur \`main\`, livrable = commits sous gate N0.
 > **Latitude : défaut** (moyens libres ; objectif, contrats publics et zone du plan fixes).
@@ -133,7 +133,7 @@ ${s.taches.map((t) => tacheMd(t, k)).join('\n')}
 <!-- un seul bloc, créé à la première tâche, réécrit aux suivantes -->
 
 ## Fin de session
-Dérouler \`/fin-de-tache\` (mode selon « parallèle : oui/non » du bandeau).
+Dérouler \`/fin-de-tache\`.
 `;
 }
 

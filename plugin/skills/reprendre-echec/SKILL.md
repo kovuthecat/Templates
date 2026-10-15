@@ -112,8 +112,6 @@ Le rapport dit ce que la session **croyait** avoir laissé. Le constater :
 - Un écart entre les deux est en soi un signal : la session s'est arrêtée plus tôt ou plus tard
   qu'elle ne le pense.
 - Si le rapport signale quelque chose à annuler, le faire **maintenant**, avant tout diagnostic.
-- `.claude/wave.lock` présent → la vague n'est pas close ; ne pas la clore ici, c'est le rôle de
-  `/fin-de-tache`.
 
 **Gate** : si l'état à annuler dépasse un `git checkout` d'un fichier (migration jouée, données
 écrites, artefact publié), **s'arrêter et rendre la main** (mode orchestré : `VERDICT: DECISION`,
