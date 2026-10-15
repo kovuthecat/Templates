@@ -44,11 +44,11 @@ function ecrire(chemin, texte) {
 }
 
 /** Copie de `plugin/` hors du mini-projet et hors du dépôt : ce que `--plugin-dir` charge. Les
- * évaluations figées (`plugin/evals/`) n'en font pas partie : elles ne servent à aucun passage. */
+ * `node_modules` n'en fait pas partie. */
 function instantane(destination) {
   cpSync(join(DEPOT, 'plugin'), destination, {
     recursive: true,
-    filter: (src) => !/[\\/](evals|node_modules)([\\/]|$)/.test(src),
+    filter: (src) => !/[\\/]node_modules([\\/]|$)/.test(src),
   });
 }
 

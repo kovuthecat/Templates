@@ -34,7 +34,7 @@ ce soit et s'arrête en code 3 avec la consigne (`claude auth login`, ou `ANTHRO
 `DECISIONS.md`), `src/ops.mjs`, `test.mjs` (aucune dépendance), `.claude/n0.json` (N0 = `node test.mjs`).
 `projet/plan.mjs` écrit le plan P1 et ses `S<k>.md` ; `projet/poser.mjs` construit le passage :
 
-1. copie de `plugin/` (sans `evals/`) dans le dossier du passage — l'**instantané** que `--plugin-dir`
+1. copie de `plugin/` dans le dossier du passage — l'**instantané** que `--plugin-dir`
    charge, hors du mini-projet et hors du dépôt ;
 2. mini-projet **vendoré** par `sync-workflow.mjs` depuis cet instantané, comme un vrai projet ;
 3. `origin` = dépôt nu local, `main` poussée avec son amont ;
