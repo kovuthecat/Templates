@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "session": "P20/S4",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "15b196dbfd9c4aaed2171660142dce67e40ace917127d0dcd53ceeee635d0ef6",
+  "nonSuivis": [
+    "plugin/bin/claude-cli.mjs"
+  ],
+  "date": "2026-10-15T14:12:02.942Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 69988
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 95942
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 147
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 30087
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 4760
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1181
+    }
+  ]
+}

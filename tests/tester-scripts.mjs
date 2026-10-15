@@ -2463,6 +2463,47 @@ cas('mods livrés : les copies réelles du lecteur d\'index sont identiques à p
   return null;
 });
 
+// ── claude-cli.mjs : le wrapper `claude()` unique (P20/S4/T7) ─────────────────────────────────────
+// Les trois appelants (installer-mods, publier, tester-mods) l'importent : plus de copie locale.
+cas('claude-cli : binaire de CLAUDE_CODE_EXECPATH, arguments transmis tels quels (espaces compris)', () => {
+  const poste = posteFactice();
+  const journal = join(poste.config, 'appels.jsonl');
+  writeFileSync(journal, '');
+  const cwd = dossierJetable('workflow-claude-cli-');
+  const script = [
+    `import { claude, binaire } from ${JSON.stringify(pathToFileURL(join(BIN, 'claude-cli.mjs')).href)};`,
+    `process.stdout.write(JSON.stringify({ binaire, version: claude(['--version']), liste: claude(['plugin', 'list', 'deux mots'], { cwd: ${JSON.stringify(cwd)} }) }));`,
+  ].join('\n');
+  const r = lancer('--input-type=module', ['-e', script], cwd, { CLAUDE_CODE_EXECPATH: fauxClaude, CLAUDE_CONFIG_DIR: poste.config, FAKE_LOG: journal });
+  if (r.code !== 0) return `code ${r.code}, sortie: ${r.sortie}`;
+  const sortie = JSON.parse(r.sortie);
+  if (sortie.binaire !== fauxClaude) return `binaire attendu ${fauxClaude}, reçu ${sortie.binaire}`;
+  if (!/9\.9\.9/.test(sortie.version)) return `sortie de --version attendue: ${JSON.stringify(sortie.version)}`;
+  const appels = readFileSync(journal, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  if (JSON.stringify(appels) !== JSON.stringify([['--version'], ['plugin', 'list', 'deux mots']])) return `arguments reçus par le binaire: ${JSON.stringify(appels)}`;
+  return null;
+});
+
+cas('claude-cli : binaire introuvable → lève (jamais un succès silencieux)', () => {
+  const cwd = dossierJetable('workflow-claude-cli-absent-');
+  const script = [
+    `import { claude } from ${JSON.stringify(pathToFileURL(join(BIN, 'claude-cli.mjs')).href)};`,
+    `try { claude(['--version']); process.stdout.write('PAS-DE-LEVEE'); } catch (e) { process.stdout.write('LEVE'); }`,
+  ].join('\n');
+  const r = lancer('--input-type=module', ['-e', script], cwd, { CLAUDE_CODE_EXECPATH: join(cwd, 'inexistant', 'claude') });
+  return r.sortie === 'LEVE' ? null : `levée attendue, reçu code ${r.code} sortie ${r.sortie}`;
+});
+
+cas('wrapper claude() : une seule définition — installer-mods, publier et tester-mods importent claude-cli.mjs', () => {
+  for (const [nom, chemin] of [['installer-mods', join(BIN, 'installer-mods.mjs')], ['publier', join(BIN, 'publier.mjs')], ['tester-mods', join(ICI, 'tester-mods.mjs')]]) {
+    const src = readFileSync(chemin, 'utf8');
+    if (!/from '(?:\.\/|\.\.\/plugin\/bin\/)claude-cli\.mjs'/.test(src)) return `${nom} doit importer claude-cli.mjs`;
+    if (/const citer\s*=/.test(src)) return `${nom} redéfinit encore le quoting du wrapper (citer)`;
+    if (/execSync\(\[binaire/.test(src)) return `${nom} lance encore le binaire lui-même`;
+  }
+  return null;
+});
+
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // prochaine-action.mjs / preuve-n0.mjs — P19/S3 T3 : historique partiel (clone `--depth`).
 // ════════════════════════════════════════════════════════════════════════════════════════════════

@@ -57,9 +57,10 @@
 // temporaire étant neuf à chaque publication, le tag posé ici pointe toujours le commit unique
 // qu'on vient de créer.
 
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, rmSync, cpSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { claude as claudeCli } from './claude-cli.mjs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -231,14 +232,10 @@ function verifierSynchroSource() {
 function mettreAJourPluginLocal() {
   const racineDepot = dirname(RACINE_PAYLOAD);
   const commande = 'claude plugin update workflow@templates --scope local';
-  // Le moteur qui fait tourner cette session d'abord (`CLAUDE_CODE_EXECPATH`, comme
-  // installer-mods.mjs) : le shim `claude` peut manquer ou viser un mauvais dossier sous Desktop
-  // (incident Templates 2026-10-06). À défaut, par un shell (execSync) : une installation npm pose
-  // `claude.cmd` sous Windows, qu'execFileSync ne lance pas sans shell. Arguments constants.
-  const options = { cwd: racineDepot, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 120000 };
-  const claude = (args) => process.env.CLAUDE_CODE_EXECPATH
-    ? execFileSync(process.env.CLAUDE_CODE_EXECPATH, args, options)
-    : execSync(`claude ${args.join(' ')}`, options);
+  // Le wrapper `claude()` est partagé avec installer-mods.mjs (`./claude-cli.mjs`, P20/S4/T7) : le moteur
+  // qui fait tourner cette session d'abord (`CLAUDE_CODE_EXECPATH`) — le shim `claude` peut manquer ou
+  // viser un mauvais dossier sous Desktop (incident Templates 2026-10-06) —, à défaut `claude` du PATH.
+  const claude = (args) => claudeCli(args, { cwd: racineDepot });
   const echec = (raison) => {
     console.error(`publier: publication OK, mais plugin local NON mis à jour — ${raison}`);
     console.error(`  → lancer à la main : ${commande}, puis vérifier \`claude plugin list\`.`);

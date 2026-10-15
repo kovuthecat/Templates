@@ -27,7 +27,7 @@
 //
 // Sortie : une ligne OK/FAIL par contrôle ; exit 1 au moindre écart, 0 sinon.
 
-import { execFileSync, execSync } from 'node:child_process';
+import { claude as claudeCli, binaire } from '../plugin/bin/claude-cli.mjs';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,14 +43,8 @@ const ko = (msg) => { console.log(`FAIL ${msg}`); echecs++; };
 const json = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
 // ── Binaire ──────────────────────────────────────────────────────────────────
-const binaire = process.env.CLAUDE_CODE_EXECPATH || 'claude';
-const WIN = process.platform === 'win32';
-const citer = (a) => `"${String(a).replace(/"/g, '\\"')}"`;
-// Windows : `claude.cmd` d'une installation npm ne se lance pas sans shell, comme dans installer-mods.mjs.
-function claude(args) {
-  const opts = { cwd: RACINE, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 180000 };
-  return WIN ? execSync([binaire, ...args].map(citer).join(' '), opts) : execFileSync(binaire, args, opts);
-}
+// Le wrapper `claude()` est partagé avec installer-mods.mjs et publier.mjs (plugin/bin/claude-cli.mjs).
+const claude = (args) => claudeCli(args, { cwd: RACINE, timeout: 180000 });
 const dernieres = (e) => `${e.stdout ?? ''}${e.stderr ?? ''}`.trim().split('\n').slice(-8).join(' | ') || e.message;
 
 // ── Mods ─────────────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@
 // vérification en échec (la commande à relancer est donnée) · 4 aucun binaire lançable (« sans CLI » :
 // les skills le traitent comme un signal, pas comme une erreur).
 
-import { execSync, execFileSync } from 'node:child_process';
+import { claude as claudeCli, binaire } from './claude-cli.mjs';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -95,16 +95,9 @@ if (mods.length === 0) {
 }
 
 // ── Binaire ──────────────────────────────────────────────────────────────────
-const binaire = process.env.CLAUDE_CODE_EXECPATH || 'claude';
-// Sous Windows, une installation npm pose `claude.cmd`, que execFileSync ne lance pas sans shell :
-// passage par un shell, chaque argument entre guillemets (chemins avec espaces).
-const citer = (a) => `"${String(a).replace(/"/g, '\\"')}"`;
-function claude(a) {
-  const opts = { cwd: racine, windowsHide: true, stdio: 'pipe', encoding: 'utf8', timeout: 120000 };
-  return WIN
-    ? execSync([binaire, ...a].map(citer).join(' '), opts)
-    : execFileSync(binaire, a, opts);
-}
+// Le wrapper `claude()` est partagé (`./claude-cli.mjs`, P20/S4/T7) : même résolution du binaire
+// (`CLAUDE_CODE_EXECPATH`, sinon `claude`), même passage par un shell sous Windows.
+const claude = (a) => claudeCli(a, { cwd: racine });
 const dernier = (e) => String(e.stderr || e.stdout || e.message).trim().split('\n').pop();
 
 console.log(`installer-mods: mode ${mode} · marketplace ${marketplace} · binaire ${binaire}`);
