@@ -16,6 +16,16 @@
 //   preuves valides       chaque plans/P1/S<k>.n0.json vérifié par plugin/bin/preuve-n0.mjs ;
 //   issue                 action du moteur, relancé ICI sur l'état final — attendu `fini`.
 //
+// Lecture du flux (P20/S5/T8) — `lireFlux`, pure, testée sur des flux enregistrés
+// (tests/fixtures/scenarios/*.jsonl) :
+//   - un VERDICT se lit dans le RETOUR d'un agent (`task_notification` ou `tool_result` portant son
+//     `tool_use_id`, ou le dernier texte du sous-agent), jamais dans le prompt qu'on lui envoie ni dans un
+//     fichier qu'il lit : le gabarit `VERDICT: PASS|FAIL|ENQUETE|DECISION` cité par un prompt était lu
+//     comme `PASS` (mesure du 2026-10-14, §6 E1 : deux `DECISION` comptés `PASS`, relance inutile à tort) ;
+//   - un gabarit (`PASS|FAIL|…`) n'est jamais un verdict ;
+//   - la première ligne de la sortie du moteur reste `<action> — …` (`fini`, `pousser`, `cloturer` nus) :
+//     c'est elle que lit `moteurDernierAppelModele`, depuis que le moteur rend aussi son texte final.
+//
 // Anti-raccourci (S6/T11) : un passage n'est `abouti` que si (1) le moteur, relancé par ce script sur
 // l'état final, rend `fini`, (2) le dernier appel du moteur par le modèle lui-même rendait `fini`
 // aussi, (3) les commits de tâche du plan sont dans le dépôt nu `origin` (`git log main`), et (4) le
@@ -45,19 +55,94 @@ function lireJson(chemin, defaut = null) {
   try { return JSON.parse(readFileSync(chemin, 'utf8')); } catch { return defaut; }
 }
 
-/** Tous les textes d'un événement (blocs texte, résultats d'outils) en une seule chaîne. */
-function texteDe(evenement) {
-  const morceaux = [];
-  const contenu = evenement.message?.content;
-  if (typeof contenu === 'string') morceaux.push(contenu);
-  else for (const c of contenu ?? []) {
-    if (c.type === 'text') morceaux.push(c.text);
-    else if (c.type === 'tool_result') {
-      morceaux.push(typeof c.content === 'string' ? c.content : (c.content ?? []).map((x) => x.text ?? '').join('\n'));
+/** Texte d'un bloc `tool_result` (chaîne, ou liste de blocs texte). */
+function texteResultat(bloc) {
+  return typeof bloc.content === 'string' ? bloc.content : (bloc.content ?? []).map((x) => x.text ?? '').join('\n');
+}
+
+const QUESTION = /❓\s*P\d+(?:\/S\d+)?[^\n]*/g;
+
+/** Un vrai verdict : `VERDICT: <mot>` en début de ligne, jamais suivi de `|` (le gabarit
+ * `VERDICT: PASS|FAIL|ENQUETE|DECISION` d'un prompt n'en est pas un). */
+const VERDICT = /^\s*VERDICT:\s*(PASS|FAIL|ENQUETE|DECISION)\b(?!\s*\|)/m;
+
+/** Lecture PURE d'un flux `stream-json` : lancements d'agents (avec leur verdict), appels du moteur,
+ * questions rendues à l'utilisateur, relances inutiles. Aucun accès disque : testée sur des flux
+ * enregistrés (tests/fixtures/scenarios/). */
+export function lireFlux(evenements, pose = {}) {
+  const lancements = [];
+  const appelsMoteur = [];
+  const questions = new Set();
+  evenements.forEach((e, ordre) => {
+    if (e.type !== 'assistant') return;
+    for (const c of e.message?.content ?? []) {
+      if (c.type === 'text') for (const m of c.text.matchAll(QUESTION)) questions.add(m[0].trim());
+      if (c.type !== 'tool_use') continue;
+      if (c.name === 'AskUserQuestion') questions.add(`AskUserQuestion:${c.id}`);
+      if (c.name === 'Bash' && /node\s+\S*prochaine-action\.mjs/.test(c.input?.command ?? '')) appelsMoteur.push({ id: c.id, ordre });
+      if (c.name !== 'Agent' && c.name !== 'Task') continue;
+      const desc = c.input?.description ?? '';
+      const m = /^P(\d+)\/(S\d+)(?:\s+(.*))?$/.exec(desc);
+      const suffixe = (m?.[3] ?? '').toLowerCase();
+      const revue = /relecteur/.test(c.input?.subagent_type ?? '') || /revue/.test(suffixe);
+      lancements.push({
+        id: c.id, ordre, desc, session: m ? m[2] : null,
+        genre: revue ? 'revue' : /reprise/.test(suffixe) ? 'reprise' : /enqu/.test(suffixe) ? 'enquete' : /pr[ée]misse/.test(suffixe) ? 'premisse' : m ? 'session' : 'autre',
+        agent: c.input?.subagent_type ?? null, modele: c.input?.model ?? null, effort: c.input?.effort ?? null, arrierePlan: c.input?.run_in_background ?? null,
+      });
+    }
+  });
+  for (const e of evenements) if (e.type === 'result' && typeof e.result === 'string') for (const m of e.result.matchAll(QUESTION)) questions.add(m[0].trim());
+
+  // ── Verdicts : lus dans le RETOUR de l'agent, associé par identifiant d'appel — jamais dans son prompt.
+  //   rang 0  `task_notification` (agent d'arrière-plan : `summary`) ;
+  //   rang 1  `tool_result` de l'appel, au niveau du modèle qui orchestre (agent au premier plan) ;
+  //   rang 2  dernier texte du sous-agent (`parent_tool_use_id` = l'appel) — repli.
+  for (const l of lancements) {
+    const candidats = [];
+    evenements.forEach((e, i) => {
+      if (i <= l.ordre) return;
+      if (e.type === 'system' && e.subtype === 'task_notification' && e.tool_use_id === l.id) {
+        candidats.push({ i, rang: 0, texte: String(e.summary ?? '') });
+      }
+      if (e.type === 'user') {
+        for (const c of Array.isArray(e.message?.content) ? e.message.content : []) {
+          if (c.type === 'tool_result' && c.tool_use_id === l.id) candidats.push({ i, rang: 1, texte: texteResultat(c) });
+        }
+      }
+      if (e.type === 'assistant' && e.parent_tool_use_id === l.id) {
+        for (const c of e.message?.content ?? []) if (c.type === 'text') candidats.push({ i, rang: 2, texte: c.text });
+      }
+    });
+    candidats.sort((a, b) => a.rang - b.rang || (a.rang === 2 ? b.i - a.i : a.i - b.i));
+    for (const c of candidats) {
+      const v = VERDICT.exec(c.texte);
+      if (v) { l.verdict = v[1]; l.ordreVerdict = c.i; break; }
     }
   }
-  for (const cle of ['summary', 'result', 'text', 'content']) if (typeof evenement[cle] === 'string') morceaux.push(evenement[cle]);
-  return morceaux.join('\n');
+
+  // ── Relances inutiles : lancement d'une session déjà faite (état posé, ou VERDICT: PASS lu avant) ──
+  const faites = new Set(pose.faitesInitiales ?? []);
+  const relancesInutiles = [];
+  for (const l of lancements.filter((x) => x.session && (x.genre === 'session' || x.genre === 'reprise'))) {
+    const dejaPasse = lancements.some((p) => p.session === l.session && p.verdict === 'PASS' && p.ordreVerdict < l.ordre);
+    if (faites.has(l.session) || dejaPasse) relancesInutiles.push(`${l.session}@${l.ordre}`);
+  }
+
+  // ── Dernier appel du moteur par le modèle lui-même : la PREMIÈRE ligne de son résultat — `<action> — …`
+  //    (`fini`, `pousser`, `cloturer` nus), inchangée depuis que le moteur rend aussi son texte final.
+  let moteurDernierAppelModele = null;
+  const dernier = appelsMoteur.at(-1);
+  if (dernier) {
+    for (const e of evenements) {
+      for (const c of e.type === 'user' ? (Array.isArray(e.message?.content) ? e.message.content : []) : []) {
+        if (c.type === 'tool_result' && c.tool_use_id === dernier.id) {
+          moteurDernierAppelModele = texteResultat(c).split('\n').map((x) => x.trim()).find(Boolean) ?? '';
+        }
+      }
+    }
+  }
+  return { lancements, appelsMoteur, questions, relancesInutiles, moteurDernierAppelModele };
 }
 
 /** Sessions et tâches du plan, lues dans l'index FINAL du mini-projet. */
@@ -104,52 +189,8 @@ export function noterPassage(dossier) {
     }
   }
 
-  // ── Lancements d'agents, dans l'ordre du flux ─────────────────────────────────────────────────
-  const lancements = [];
-  const appelsMoteur = [];
-  const questions = new Set();
-  evenements.forEach((e, ordre) => {
-    if (e.type !== 'assistant') return;
-    for (const c of e.message?.content ?? []) {
-      if (c.type === 'text') for (const m of c.text.matchAll(/❓\s*P\d+\/S\d+[^\n]*/g)) questions.add(m[0].trim());
-      if (c.type !== 'tool_use') continue;
-      if (c.name === 'AskUserQuestion') questions.add(`AskUserQuestion:${c.id}`);
-      if (c.name === 'Bash' && /node\s+\S*prochaine-action\.mjs/.test(c.input?.command ?? '')) appelsMoteur.push({ id: c.id, ordre });
-      if (c.name !== 'Agent' && c.name !== 'Task') continue;
-      const desc = c.input?.description ?? '';
-      const m = /^P(\d+)\/(S\d+)(?:\s+(.*))?$/.exec(desc);
-      const suffixe = (m?.[3] ?? '').toLowerCase();
-      const revue = /relecteur/.test(c.input?.subagent_type ?? '') || /revue/.test(suffixe);
-      lancements.push({
-        id: c.id, ordre, desc, session: m ? m[2] : null,
-        genre: revue ? 'revue' : /reprise/.test(suffixe) ? 'reprise' : /enqu/.test(suffixe) ? 'enquete' : /pr[ée]misse/.test(suffixe) ? 'premisse' : m ? 'session' : 'autre',
-        agent: c.input?.subagent_type ?? null, modele: c.input?.model ?? null, effort: c.input?.effort ?? null, arrierePlan: c.input?.run_in_background ?? null,
-      });
-    }
-  });
-  if (resultat?.result && /❓\s*P\d+\/S\d+/.test(resultat.result)) for (const m of resultat.result.matchAll(/❓\s*P\d+\/S\d+[^\n]*/g)) questions.add(m[0].trim());
-
-  // ── Verdicts : le premier VERDICT: lu après un lancement, associé par identifiant d'appel ou par
-  // description (`P1/S1`) — heuristique, à valider sur le premier vrai passage.
-  const utilises = new Set();
-  for (const l of lancements) {
-    for (let i = l.ordre + 1; i < evenements.length; i++) {
-      if (utilises.has(i)) continue;
-      const brut = JSON.stringify(evenements[i]);
-      const texte = texteDe(evenements[i]);
-      const v = /VERDICT:\s*(PASS|FAIL|ENQUETE|DECISION)/.exec(texte);
-      if (!v) continue;
-      if (brut.includes(l.id) || (l.desc && texte.includes(l.desc))) { l.verdict = v[1]; l.ordreVerdict = i; utilises.add(i); break; }
-    }
-  }
-
-  // ── Relances inutiles ─────────────────────────────────────────────────────────────────────────
-  const faites = new Set(pose.faitesInitiales ?? []);
-  const relancesInutiles = [];
-  for (const l of lancements.filter((x) => x.session && (x.genre === 'session' || x.genre === 'reprise'))) {
-    const dejaPasse = lancements.some((p) => p.session === l.session && p.verdict === 'PASS' && p.ordreVerdict < l.ordre);
-    if (faites.has(l.session) || dejaPasse) relancesInutiles.push(`${l.session}@${l.ordre}`);
-  }
+  // ── Lancements d'agents, verdicts, questions : lecture pure du flux ───────────────────────────
+  const { lancements, appelsMoteur, questions, relancesInutiles, moteurDernierAppelModele: moteurModele } = lireFlux(evenements, pose);
 
   // ── État final ────────────────────────────────────────────────────────────────────────────────
   const index = lireIndex(projet);
@@ -162,19 +203,6 @@ export function noterPassage(dossier) {
   }
   const issue = moteurFinal?.action ?? 'inconnue';
 
-  // Dernier appel du moteur par le modèle lui-même : son résultat.
-  let moteurModele = null;
-  const dernier = appelsMoteur.at(-1);
-  if (dernier) {
-    for (const e of evenements) {
-      for (const c of e.type === 'user' ? (e.message?.content ?? []) : []) {
-        if (c.type === 'tool_result' && c.tool_use_id === dernier.id) {
-          const t = typeof c.content === 'string' ? c.content : (c.content ?? []).map((x) => x.text ?? '').join('\n');
-          moteurModele = t.split('\n').map((s) => s.trim()).find(Boolean) ?? '';
-        }
-      }
-    }
-  }
   const relanceFinal = moteurModele !== null && /^fini\b/.test(moteurModele);
 
   // Commits de tâche dans le dépôt nu, et dépôt poussé.

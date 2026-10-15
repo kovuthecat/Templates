@@ -29,6 +29,7 @@ import * as lecteurGardeFous from '../plugin/mods/garde-fous/hooks/lire-index.mj
 import * as lecteurAffichage from '../plugin/mods/affichage/hooks/lire-index.mjs';
 import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
 import { settingsProjet, COMMANDE_STACK } from './scenarios/projet/poser.mjs';
+import { lireFlux } from './scenarios/noter.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -364,6 +365,11 @@ cas('prochaine-action : racine connue → dépôt.racineIntrouvable faux', () =>
 // prochaine-action.mjs — moteur (S10) : les onze cas de la Validation de S10.md
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
+/** Toutes les actions rendues par le moteur pendant ce test (P20/S5) : le cas final vérifie que chacune
+ * porte son `texte` et que la première ligne reste `<action> — …`, sur ce que les 150 cas du moteur
+ * ont réellement fait rendre, pas sur un échantillon écrit pour l'occasion. */
+const ACTIONS_VUES = [];
+
 function lancerJson(args, cwd) {
   const { code, sortie } = lancer(PROCHAINE_ACTION, args, cwd);
   let action = null;
@@ -372,6 +378,7 @@ function lancerJson(args, cwd) {
   } catch {
     /* laissé null, le test le signalera */
   }
+  if (action && args.includes('--json') && !args.includes('--etat')) ACTIONS_VUES.push(action);
   return { code, sortie, action };
 }
 
@@ -2965,6 +2972,679 @@ cas('P20/T5 : une question du moteur sur un échec porte toujours des options (b
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
   if (!action.options || typeof action.options !== 'object' || Object.keys(action.options).length === 0) return `question sans options: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P20/S5 T8 — le moteur rédige les textes finaux : annonce de vague, question (options comprises),
+// reste lançable, rapport `fini`. Fixture `moteur-textes` : prose d'Ordonnancement sur plusieurs lignes
+// (comme un index réel), six sessions, quatre vagues. Anti-raccourci (S5.md) : un test qui vérifie
+// seulement que `texte` existe laisse passer une question sans options — chaque source a donc son cas,
+// avec ses options attendues LIGNE À LIGNE, et un cas final exige que toute source que le moteur sait
+// rendre soit couverte ici.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const VERSION_PLUGIN = JSON.parse(readFileSync(join(RACINE, 'plugin', '.claude-plugin', 'plugin.json'), 'utf8')).version;
+const REVUE_UN_BLOQUANT = 'Bloquant : 1\nCouverture : complète\nReprises : 0\nDépendances : libres\n';
+
+/** Dépôt jetable d'un plan `moteur-textes` (P9). `faites` : sessions cochées `[x]`, revue complète
+ * déposée (sauf `sansRevue`) ; `transformer` : retouche le texte de l'index. */
+function planTextes(prefixe, { faites = [], sansRevue = [], sansWorkflow = false, transformer = null } = {}) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', 'moteur-textes'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  let texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+  for (const s of faites) {
+    texte = texte.replace(new RegExp(`(\\| \\[${s}\\]\\(${s}\\.md\\)[^\\n]*)\\| \\[ \\] \\|`), '$1| [x] 2026-10-15 |');
+  }
+  if (sansWorkflow) texte = texte.replace('Workflow : v0.39.0\n', '');
+  if (transformer) texte = transformer(texte);
+  writeFileSync(chemin, texte);
+  for (const s of faites) {
+    if (!sansRevue.includes(s)) writeFileSync(join(cwd, 'plans', 'P9', `${s}.revue.md`), REVUE_COMPLETE);
+  }
+  return cwd;
+}
+
+const SOURCES_TESTEES = new Set();
+
+/** Vérifie une `question` : source, en-tête, options exactes (dans l'ordre, une par ligne), « reste
+ * lançable », et la première ligne `question — <motif>`. */
+function verifierQuestion({ code, action, sortie }, { source, entete, question, options, reste, rapport, contient = [], absent = [] }) {
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
+  if (action.options?.source !== source) return `source "${source}" attendue, reçu: ${JSON.stringify(action.options)}`;
+  SOURCES_TESTEES.add(source);
+  if (typeof action.texte !== 'string') return `champ texte absent: ${sortie}`;
+  const lignes = action.texte.split('\n');
+  if (lignes[0] !== `question — ${action.motif}`) return `première ligne inattendue: ${lignes[0]}`;
+  if (lignes[1] !== `❓ ${entete} — ${question}`) return `en-tête attendu "❓ ${entete} — ${question}", reçu: ${lignes[1]}`;
+  if (lignes[2] !== `   Pourquoi je m'arrête ici : ${action.motif}`) return `motif non relayé tel quel: ${lignes[2]}`;
+  let precedent = -1;
+  for (const opt of options) {
+    const i = lignes.indexOf(`   ${opt}`);
+    if (i < 0) return `option absente (ligne exacte attendue) : "   ${opt}"\n--- texte ---\n${action.texte}`;
+    if (i < precedent) return `options dans le désordre : "${opt}"`;
+    precedent = i;
+  }
+  const dernier = lignes.filter((l) => l.startsWith('   Rapport : ')).at(-1);
+  if (dernier !== `   Rapport : ${rapport ?? '—'} · reste lançable sans décider : ${reste}`) {
+    return `ligne Rapport / reste lançable attendue "Rapport : ${rapport ?? '—'} · reste lançable sans décider : ${reste}", reçu: ${dernier}`;
+  }
+  for (const m of contient) if (!action.texte.includes(m)) return `le texte devait contenir « ${m} »\n--- texte ---\n${action.texte}`;
+  for (const m of absent) if (action.texte.includes(m)) return `le texte ne devait pas contenir « ${m} »\n--- texte ---\n${action.texte}`;
+  return null;
+}
+
+// ── Annonce de vague ─────────────────────────────────────────────────────────────────────────────
+
+cas('P20/T8 annonce : vague de deux sessions → texte EXACT (prose multi-ligne relayée en entier, une strophe par session)', () => {
+  const cwd = planTextes('workflow-pa-annonce-', { sansWorkflow: true });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer') return `lancer attendu, reçu: ${sortie}`;
+  const attendu = [
+    'lancer — vague 1 : S1, S2',
+    '▶ Vague 1/4 — 2 session(s)',
+    "   Pourquoi cette vague maintenant : tout le reste s'appuie sur ces deux sessions ; sans elles, le moteur n'aurait rien à rédiger.",
+    "   Si une session échoue : je diagnostique, je reprends une fois, j'enquête si la reprise cale — je ne te sollicite que s'il y a un choix à faire, et sous forme de question",
+    "   Fin de vague : j'enchaîne sur la vague 2",
+    '',
+    '   S1 · Les fondations',
+    '      En clair : Les fondations existent : tu le verras à un test qui passe là où il échouait.',
+    '      Tâches T1-T2 · Sonnet/high',
+    '      Fichiers touchés : `src/a.mjs` · Dépend de : —',
+    '',
+    "   S2 · L'interface",
+    "      En clair : L'interface se branche sur les fondations.",
+    '      Tâches T3 · Haiku/low',
+    '      Fichiers touchés : `src/b.mjs` · `docs/` · Dépend de : —',
+    '',
+    '   Pendant que ça tourne : ne pas modifier les fichiers listés — les sessions y écrivent.',
+    '   À la fin : un commit par tâche, retrouvable par son repère `Plan: P9/S<k>/T<m>`.',
+  ].join('\n');
+  if (action.texte !== attendu) return `texte inattendu.\n--- attendu ---\n${attendu}\n--- reçu ---\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T8 annonce : sans --json, la sortie ouvre sur le texte (première ligne inchangée), puis les données machine', () => {
+  const cwd = planTextes('workflow-pa-annonce-texte-', { sansWorkflow: true });
+  initEtCommitTout(cwd);
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P9'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const lignes = sortie.split('\n');
+  if (lignes[0] !== 'lancer — vague 1 : S1, S2') return `première ligne inattendue: ${lignes[0]}`;
+  if (lignes[1] !== '▶ Vague 1/4 — 2 session(s)') return `la deuxième ligne doit ouvrir l'annonce, reçu: ${lignes[1]}`;
+  if (!sortie.includes('S1 → subagent_type: general-purpose · model: sonnet · effort: high')) return `appel d'agent de S1 absent de la sortie:\n${sortie}`;
+  if (sortie.indexOf('— données de l\'action') < sortie.indexOf('À la fin :')) return `les données machine doivent suivre le texte:\n${sortie}`;
+  return null;
+});
+
+cas('P20/T8 annonce : vague 2 après S1 et S2 faites → dépendances « déjà passées », fin de vague, avertissement de version', () => {
+  const cwd = planTextes('workflow-pa-annonce-v2-', { faites: ['S1', 'S2'] });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer' || action.vague !== 2) return `lancer vague 2 attendu, reçu: ${sortie}`;
+  for (const m of [
+    '▶ Vague 2/4 — 2 session(s)',
+    '   Pourquoi cette vague maintenant : le moteur rédige enfin ses textes.',
+    "   Fin de vague : j'enchaîne sur la vague 3",
+    '   S3 · Le moteur',
+    '      En clair : Le moteur rend les textes finaux.',
+    '      Fichiers touchés : `src/c.mjs` · Dépend de : S1, S2, déjà passées',
+    '   S6 · La remesure',
+    '      Fichiers touchés : `src/f.mjs` · Dépend de : —',
+    `Avertissement : index déclare Workflow : v0.39.0, plugin en v${VERSION_PLUGIN}`,
+  ]) if (!action.texte.includes(m)) return `ligne absente : « ${m} »\n--- texte ---\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T8 annonce : vague validation-humaine → « je m\'arrête pour ton jugement » ; dernière vague → clôture du plan', () => {
+  const cwd = planTextes('workflow-pa-annonce-vh-', { faites: ['S1', 'S2', 'S3', 'S4', 'S6'] });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'lancer' || action.vague !== 4) return `lancer vague 4 attendu, reçu: ${sortie}`;
+  if (!action.texte.includes("   Fin de vague : validation humaine — je m'arrête pour ton jugement")) return `fin de vague humaine attendue:\n${action.texte}`;
+  const cwd2 = planTextes('workflow-pa-annonce-derniere-', {
+    faites: ['S1', 'S2', 'S3', 'S4', 'S6'],
+    transformer: (t) => t.replace('Vague 4 — validation-humaine', 'Vague 4'),
+  });
+  initEtCommitTout(cwd2);
+  const r2 = lancerJson(['P9', '--json'], cwd2);
+  if (!r2.action?.texte?.includes('   Fin de vague : je passe à la clôture du plan')) return `fin de plan attendue:\n${r2.action?.texte}`;
+  return null;
+});
+
+cas('P20/T8 annonce : index sans ligne « en clair » → annoncé sans elle, signalé, jamais inventée', () => {
+  const cwd = planTextes('workflow-pa-annonce-sans-clair-', {
+    sansWorkflow: true,
+    transformer: (t) => t.replace("  - **S2** — L'interface se branche sur les fondations.\n", ''),
+  });
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const lignes = action?.texte?.split('\n') ?? [];
+  const i = lignes.indexOf("   S2 · L'interface");
+  if (i < 0) return `strophe de S2 absente:\n${action?.texte}`;
+  if (lignes[i + 1].includes('En clair')) return `S2 n'a pas de ligne « en clair », rien ne doit être inventé: ${lignes[i + 1]}`;
+  if (!lignes.includes("   Index sans ligne « en clair » pour S2 : annoncé sans elle, jamais inventée.")) return `signalement absent:\n${action.texte}`;
+  return null;
+});
+
+// ── Questions : un cas par source, ses options attendues ─────────────────────────────────────────
+
+const SAUF_S1 = (extra = []) => ['S2', 'S6', ...extra];
+
+cas('P20/T8 question budget-epuise : options = `## Issues` du rapport recopiées, recommandation relayée, `Premisse :` de fin de fichier exclue', () => {
+  const cwd = planTextes('workflow-pa-q-issues-', { faites: ['S1', 'S2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S3.echec.md'), [
+    'Nature : exécution', 'Tentatives : reprise=2 enquete=0', 'Blocage : réécrire la gate de S3', '',
+    '## Où ça a cassé', 'la gate est rouge', '',
+    '## Issues',
+    '1. Réécrire la gate de S3 — 10 min · débloque S3, puis S4 et S5',
+    '2. Sortir S3 du plan — débloque S6 seulement',
+    'Recommandation : 1, parce que c\'est réversible.',
+    '', 'Premisse : confirmee · tail ajouté en fin de fichier par l\'orchestrateur', '',
+  ].join('\n'));
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'budget-epuise', entete: 'P9/S3',
+    question: 'Le budget de reprises ou d\'enquête de S3 est épuisé : que fait-on ?',
+    options: ['1. Réécrire la gate de S3 — 10 min · débloque S3, puis S4 et S5', '2. Sortir S3 du plan — débloque S6 seulement'],
+    reste: 'S6', rapport: 'plans/P9/S3.echec.md',
+    contient: ["   Ma recommandation : 1, parce que c'est réversible.", '     Blocage noté dans le rapport : réécrire la gate de S3'],
+    absent: ['Premisse', 'options de repli du moteur', 'Où ça a cassé'],
+  });
+});
+
+cas('P20/T8 reste lançable : S3 bloquée, S4←S3, S5←S4, S6 libre → S6 seulement', () => {
+  // Même plan que le cas précédent, rapport sans Issues : la ligne Rapport / reste lançable est l'objet.
+  const cwd = planTextes('workflow-pa-reste-', { faites: ['S1', 'S2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S3.echec.md'), 'Nature : exécution\nTentatives : reprise=2 enquete=0\nBlocage : x\n');
+  initEtCommitTout(cwd);
+  const r = lancerJson(['P9', '--json'], cwd);
+  const lignes = r.action?.texte?.split('\n') ?? [];
+  if (!lignes.some((l) => l === '   Rapport : plans/P9/S3.echec.md · reste lançable sans décider : S6')) return `« reste lançable : S6 » attendu:\n${r.action?.texte}`;
+  return null;
+});
+
+cas('P20/T8 reste lançable : fermeture TRANSITIVE — S7 dépend de S6 (libre, pas encore faite) → S6 et S7 ; S7 dépendant de S3 → exclue', () => {
+  const ajouterS7 = (dep) => (t) => t
+    .replace('| [S6](S6.md) | T7 | La remesure | Sonnet | medium | — | — | `src/f.mjs` | [ ] |',
+      `| [S6](S6.md) | T7 | La remesure | Sonnet | medium | — | — | \`src/f.mjs\` | [ ] |\n| [S7](S7.md) | T8 | La suite | Sonnet | medium | — | ${dep} | \`src/g.mjs\` | [ ] |`)
+    .replace('(après S1, S2) · S6.', '(après S1, S2) · S6 · S7.');
+  for (const [dep, attendu] of [['S6', 'S6, S7'], ['S3', 'S6']]) {
+    const cwd = planTextes(`workflow-pa-reste-s7-${dep}-`, { faites: ['S1', 'S2'], transformer: ajouterS7(dep) });
+    writeFileSync(join(cwd, 'plans', 'P9', 'S3.echec.md'), 'Nature : exécution\nTentatives : reprise=2 enquete=0\nBlocage : x\n');
+    initEtCommitTout(cwd);
+    const r = lancerJson(['P9', '--json'], cwd);
+    const ligne = r.action?.texte?.split('\n').find((l) => l.startsWith('   Rapport : '));
+    if (ligne !== `   Rapport : plans/P9/S3.echec.md · reste lançable sans décider : ${attendu}`) return `S7←${dep} : « reste lançable : ${attendu} » attendu, reçu: ${ligne}\n${r.sortie}`;
+  }
+  return null;
+});
+
+cas('P20/T8 question budget-epuise sans `## Issues` : options de repli, dites telles', () => {
+  const cwd = planTextes('workflow-pa-q-repli-', { faites: ['S1', 'S2'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S3.echec.md'), 'Nature : exécution\nTentatives : reprise=2 enquete=0\nBlocage : x\n');
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'budget-epuise', entete: 'P9/S3',
+    question: 'Le budget de reprises ou d\'enquête de S3 est épuisé : que fait-on ?',
+    options: ['1. Reprendre la session à la main — débloque S3', '2. Sortir la session du plan — débloque les autres sessions'],
+    reste: 'S6', rapport: 'plans/P9/S3.echec.md',
+    contient: ["   (le rapport n'a pas de section `## Issues` : options de repli du moteur)"],
+  });
+});
+
+cas("P20/T8 question budget-epuise (environnement) : la liste de 3 options rendue par le moteur, numérotée", () => {
+  const cwd = planTextes('workflow-pa-q-env-');
+  initDepot(cwd);
+  const geste = 'autoriser `node .claude/workflow/bin/n0.mjs` dans les permissions du projet, puis relancer N0';
+  ecrireEchec(cwd, 'S1', ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV]);
+  commitTout(cwd, 'S1 en échec (environnement)');
+  ecrireEchec(cwd, 'S1', ['Nature : environnement', 'Tentatives : reprise=1 enquete=0', BLOCAGE_ENV]);
+  commitTout(cwd, 'reprise 1 : même refus');
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'budget-epuise', entete: 'P9/S1',
+    question: "Une panne d'environnement bloque S1 : que fait-on ?",
+    options: [
+      `1. Régler l'environnement (${geste}), puis relancer — débloque S1`,
+      '2. Reprendre la session à la main — débloque S1',
+      '3. Sortir la session du plan — débloque les autres sessions',
+    ],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+  });
+});
+
+cas('P20/T8 question budget-opus : options de repli, passe Opus déjà consommée', () => {
+  const cwd = planTextes('workflow-pa-q-opus-', {
+    faites: ['S1', 'S2'],
+    transformer: (t) => t.replace('Workflow : v0.39.0\n', 'Workflow : v0.39.0\nRemédiation Opus : 1\n'),
+  });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S3.echec.md'), 'Nature : exécution\nTentatives : reprise=1 enquete=0\nBlocage : x\n');
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'budget-opus', entete: 'P9/S3',
+    question: 'La remédiation Opus du plan est déjà consommée : que fait-on pour S3 ?',
+    options: ['1. Reprendre la session à la main — débloque S3', '2. Sortir la session du plan — débloque les autres sessions'],
+    reste: 'S6', rapport: 'plans/P9/S3.echec.md',
+  });
+});
+
+cas('P20/T8 question effort-invalide : corriger la colonne Effort, ou sortir la session', () => {
+  const cwd = planTextes('workflow-pa-q-effort-', {
+    sansWorkflow: true,
+    transformer: (t) => t.replace('Sonnet | high', 'Sonnet | max'),
+  });
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'effort-invalide', entete: 'P9/S1',
+    question: 'L\'effort de S1 ("max") ne se lance pas depuis l\'index : que fait-on ?',
+    options: [
+      "1. Corriger la colonne Effort de S1 dans l'index (low, medium, high ou xhigh), puis relancer — débloque S1",
+      '2. Sortir la session du plan — débloque les autres sessions',
+    ],
+    reste: 'S2, S6',
+  });
+});
+
+cas('P20/T8 question nature-inconnue : corriger la ligne Nature, ou repli', () => {
+  const cwd = planTextes('workflow-pa-q-nature-', { sansWorkflow: true });
+  ecrireEchec(cwd, 'S1', ['Nature : bidule', 'Tentatives : reprise=0 enquete=0']);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'nature-inconnue', entete: 'P9/S1',
+    question: 'La ligne `Nature :` du rapport de S1 n\'est pas reconnue ("bidule") : que fait-on ?',
+    options: [
+      '1. Corriger la ligne `Nature :` de plans/P9/S1.echec.md (environnement, exécution, prémisse, filtre ou interruption), puis relancer — débloque S1',
+      '2. Reprendre la session à la main — débloque S1',
+      '3. Sortir la session du plan — débloque les autres sessions',
+    ],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+  });
+});
+
+cas('P20/T8 question filtre : reformuler la tâche, ou repli', () => {
+  const cwd = planTextes('workflow-pa-q-filtre-', { sansWorkflow: true });
+  ecrireEchec(cwd, 'S1', ['Nature : filtre', 'Tentatives : reprise=0 enquete=0']);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'filtre', entete: 'P9/S1',
+    question: 'Un filtre de contenu a arrêté S1 : que fait-on ?',
+    options: [
+      '1. Reformuler la tâche qui déclenche le filtre dans plans/P9/S1.md, puis relancer — débloque S1',
+      '2. Reprendre la session à la main — débloque S1',
+      '3. Sortir la session du plan — débloque les autres sessions',
+    ],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+  });
+});
+
+for (const [cas_, ligne, question, premiere] of [
+  ['premisse-confirmee', 'Premisse : confirmee · le fichier n\'existe pas',
+    'Le constat de S1 est confirmé : le plan repose sur une prémisse fausse — que fait-on ?',
+    'Réviser le plan pour tenir compte de ce constat (`/cadrer`, puis `/nouveau-plan`), puis relancer — débloque S1'],
+  ['premisse-indecidable', 'Premisse : indecidable · non vérifiable par lecture',
+    'La prémisse de S1 ne se vérifie pas par lecture : que fait-on ?',
+    'Sonder la prémisse à la main (une mesure commitée), puis relancer — débloque S1'],
+  ['premisse-illisible', 'Premisse : peut-être',
+    'La ligne `Premisse :` du rapport de S1 est illisible : que fait-on ?',
+    'Corriger la ligne `Premisse :` du rapport (refutee, confirmee ou indecidable), puis relancer — débloque S1'],
+]) {
+  cas(`P20/T8 question etape6 (${cas_}) : ses options`, () => {
+    const cwd = planTextes('workflow-pa-q-etape6-', { sansWorkflow: true });
+    ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', ligne]);
+    return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+      source: 'etape6', entete: 'P9/S1', question,
+      options: [`1. ${premiere}`, '2. Reprendre la session à la main — débloque S1', '3. Sortir la session du plan — débloque les autres sessions'],
+      reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+    });
+  });
+}
+
+cas('P20/T8 question etape6 (premisse-deja-verifiee), avec `## Issues` : les options du rapport remplacent le repli', () => {
+  const cwd = planTextes('workflow-pa-q-etape6-deja-', { sansWorkflow: true });
+  initDepot(cwd);
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', 'Premisse : confirmee · vérifiée']);
+  commitTout(cwd, 'prémisse vérifiée, consignée');
+  ecrireEchec(cwd, 'S1', ['Nature : prémisse', 'Tentatives : reprise=0 enquete=0', '', '## Issues', '1. Réviser le plan — 1 h · débloque S1', '2. Abandonner S1 — débloque S2']);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'etape6', entete: 'P9/S1',
+    question: 'La prémisse de S1 a déjà été vérifiée, sans issue écrite : que fait-on ?',
+    options: ['1. Réviser le plan — 1 h · débloque S1', '2. Abandonner S1 — débloque S2'],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+    absent: ['options de repli du moteur', 'Reprendre la session à la main'],
+  });
+});
+
+cas('P20/T8 question rebase : plan entier (en-tête sans session), rien ne reste lançable', () => {
+  const cwd = planTextes('workflow-pa-q-rebase-', { sansWorkflow: true });
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, '.git', 'rebase-merge'), { recursive: true });
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'rebase', entete: 'P9',
+    question: 'Un rebase est en cours : comment le résoudre avant de reprendre le plan ?',
+    options: ['1. Résoudre le rebase à la main (`git rebase --abort`, ou `--continue` une fois les conflits réglés), puis relancer — débloque le plan'],
+    reste: 'rien',
+  });
+});
+
+cas('P20/T8 question racine-introuvable : reprendre depuis l\'arbre principal', () => {
+  const gitdir = dossierJetable('workflow-pa-q-racine-gd-');
+  const arbre = dossierJetable('workflow-pa-q-racine-arbre-');
+  execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, arbre], { stdio: 'pipe' });
+  git(arbre, 'config', 'user.email', 'test@local');
+  git(arbre, 'config', 'user.name', 'Test');
+  cpSync(join(FIXTURES, 'plans', 'moteur-textes'), join(arbre, 'plans', 'P9'), { recursive: true });
+  git(arbre, 'add', 'plans');
+  git(arbre, 'commit', '-q', '-m', 'init');
+  const lie = join(dirname(arbre), 'workflow-pa-q-racine-lie-' + Date.now());
+  dossiersTemporaires.push(lie);
+  execFileSync('git', ['-C', arbre, 'worktree', 'add', lie, '-q'], { stdio: 'pipe' });
+  return verifierQuestion(lancerJson(['P9', '--json'], lie), {
+    source: 'racine-introuvable', entete: 'P9',
+    question: 'La racine du dépôt est introuvable : depuis où reprendre le plan ?',
+    options: ["1. Reprendre depuis l'arbre principal du dépôt (pas depuis ce worktree lié), puis relancer — débloque le plan"],
+    reste: 'rien',
+  });
+});
+
+cas('P20/T8 question historique-partiel : lancer `git fetch --unshallow` à la main', () => {
+  const cwd = cloneSuperficiel(depotPlanComplet(), { garderOrigin: false });
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'historique-partiel', entete: 'P9',
+    question: "L'historique git du clone est partiel et n'a pas pu être complété : que fait-on ?",
+    options: ['1. Lancer `git fetch --unshallow` à la main, puis relancer — débloque le plan'],
+    reste: 'rien',
+  });
+});
+
+cas('P20/T8 question reprise-manuelle : reprendre à la main, ou sortir la session', () => {
+  const cwd = planTextes('workflow-pa-q-manuelle-', {
+    sansWorkflow: true,
+    transformer: (t) => t.replace('- **Vague 1** : S1 · S2.', '- **Vague 1 — reprise-manuelle** : S1 · S2.'),
+  });
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : x']);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'reprise-manuelle', entete: 'P9/S1',
+    question: 'La vague est en reprise manuelle et S1 a échoué : que fait-on ?',
+    options: [
+      '1. Reprendre S1 à la main (rapport : plans/P9/S1.echec.md), puis relancer — débloque S1',
+      '2. Sortir la session du plan — débloque les autres sessions',
+    ],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.echec.md',
+  });
+});
+
+cas('P20/T8 question revue-incomplete : liste fixe de la skill (terminer la revue / reporter le plan)', () => {
+  const cwd = planTextes('workflow-pa-q-revue-', { faites: ['S1'], sansRevue: ['S1'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : en cours\nReprises : 1\nDépendances : libres\n');
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'revue-incomplete', entete: 'P9/S1',
+    question: 'La revue de S1 est restée incomplète après une reprise : que fait-on ?',
+    options: [
+      '1. Terminer la revue de S1 à la main (plans/P9/S1.revue.md : `Bloquant :` et `Couverture : complète`), puis relancer — débloque la vague suivante',
+      "2. Reporter le plan — la revue de S1 reste interrompue, sa couverture n'est pas annoncée complète",
+    ],
+    reste: 'S2, S6', rapport: 'plans/P9/S1.revue.md',
+  });
+});
+
+cas('P20/T8 question dependance-revue : corriger le prérequis (nommé) ou réviser la dépendance ; rien ne reste lançable', () => {
+  const cwd = planTextes('workflow-pa-q-depend-', { faites: ['S1', 'S2', 'S6'], sansRevue: ['S1'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 2\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n');
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'dependance-revue', entete: 'P9/S3',
+    question: 'Les prérequis de S3, S4, S5 ont des bloquants de revue non triés : que fait-on ?',
+    options: [
+      '1. Corriger le prérequis S1 (bloquants de sa revue), puis relancer — débloque S3, S4, S5',
+      "2. Réviser explicitement la dépendance dans l'index (colonne Dépend de), preuve à l'appui — débloque S3, S4, S5",
+    ],
+    reste: 'rien', rapport: 'plans/P9/S1.revue.md',
+  });
+});
+
+cas("P20/T8 question session-hors-vague : l'ajouter à une vague, ou la sortir du plan", () => {
+  const cwd = planTextes('workflow-pa-q-hors-vague-', {
+    faites: ['S1', 'S2', 'S3', 'S4', 'S5'],
+    transformer: (t) => t.replace('(après S1, S2) · S6.', '(après S1, S2).').replace('Vague 4 — validation-humaine', 'Vague 4'),
+  });
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'session-hors-vague', entete: 'P9/S6',
+    question: "Des sessions ne sont dans aucune vague de l'Ordonnancement (S6) : que fait-on ?",
+    options: [
+      "1. Ajouter S6 à une vague de l'Ordonnancement de l'index, puis relancer — débloque S6",
+      '2. Sortir S6 du plan — débloque la fin du plan',
+    ],
+    reste: 'rien',
+  });
+});
+
+cas("P20/T8 question arbre-sale (fichiers dans la zone) : la liste fixe de la skill, trois options", () => {
+  const cwd = planTextes('workflow-pa-q-arbre-', { sansWorkflow: true });
+  initEtCommitTout(cwd);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'x\n');
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'arbre-sale', entete: 'P9/S1',
+    question: 'Des fichiers non commités recoupent la zone de S1 : que fait-on ?',
+    options: [
+      '1. Committer ces fichiers toi-même, puis relancer — débloque la vague',
+      '2. Les mettre de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables',
+      '3. Sortir la session concernée de la vague (index) — débloque les autres sessions',
+    ],
+    reste: 'S2, S6',
+  });
+});
+
+cas('P20/T8 question arbre-sale (zone illisible) : réécrire le segment, ou sortir la session', () => {
+  const cwd = planTextes('workflow-pa-q-zone-', {
+    sansWorkflow: true,
+    transformer: (t) => t.replace('| `src/a.mjs` |', '| `src/*.mjs` |'),
+  });
+  initEtCommitTout(cwd);
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'arbre-sale', entete: 'P9/S1',
+    question: 'La zone modifiée de S1 ne se lit pas (« src/*.mjs ») : que fait-on ?',
+    options: [
+      "1. Réécrire ce segment en chemins explicites dans l'index, puis relancer — débloque la vague",
+      '2. Sortir la session concernée de la vague (index) — débloque les autres sessions',
+    ],
+    reste: 'S2, S6',
+  });
+});
+
+cas('P20/T8 question arbre-sale (arbre non commité, rien ne peut être poussé) : commit ou stash', () => {
+  const cwd = planTextes('workflow-pa-q-pousser-', { sansWorkflow: true });
+  execFileSync('git', ['init', '-q', '-b', 'main'], { cwd, stdio: 'pipe' });
+  git(cwd, 'config', 'user.email', 'test@local');
+  git(cwd, 'config', 'user.name', 'Test');
+  git(cwd, 'add', 'plans');
+  git(cwd, 'commit', '-q', '-m', 'init');
+  const bare = dossierJetable('workflow-pa-q-pousser-bare-');
+  execFileSync('git', ['init', '--bare', '-q'], { cwd: bare, stdio: 'pipe' });
+  git(cwd, 'remote', 'add', 'origin', bare);
+  git(cwd, 'push', '-q', '-u', 'origin', 'main');
+  writeFileSync(join(cwd, 'scratch.txt'), 'x\n');
+  git(cwd, 'add', 'scratch.txt');
+  git(cwd, 'commit', '-q', '-m', 'travail local non poussé');
+  writeFileSync(join(cwd, 'scratch.txt'), 'y\n');
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'arbre-sale', entete: 'P9',
+    question: 'Des fichiers non commités empêchent de pousser : que fait-on ?',
+    options: [
+      '1. Committer ces fichiers toi-même, puis relancer — débloque le push',
+      '2. Les mettre de côté (git stash), puis relancer — débloque le push, tes changements restent récupérables',
+    ],
+    reste: 'rien',
+  });
+});
+
+// ── Rapport final ────────────────────────────────────────────────────────────────────────────────
+
+cas('P20/T8 fini : une ligne par session (statut, reprises lues dans l\'historique, revue et bloquants), incidents du plan, N1 à faire', () => {
+  const cwd = planTextes('workflow-pa-fini-', {
+    faites: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
+    sansRevue: ['S2'],
+    transformer: (t) => t.replace('Workflow : v0.39.0\n', 'Workflow : v0.39.0\nClos : 2026-10-15\n'),
+  });
+  initDepot(cwd);
+  // S3 : une reprise, rapport supprimé au PASS (l'historique git est la seule trace).
+  ecrireEchec(cwd, 'S3', ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : x']);
+  commitTout(cwd, 'S3 en échec, reprise');
+  git(cwd, 'rm', '-q', 'plans/P9/S3.echec.md');
+  git(cwd, 'commit', '-q', '-m', 'S3 résolue (PASS)');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S4.revue.md'), REVUE_UN_BLOQUANT);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S5.md'), '# S5\n\n## Bilan de session\n- N0 : vert\n- N1 S5 : à faire — écran /publier\n');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S6.md'), '# S6\n\n## Bilan de session\n- N1 : à faire — écran /remesure\n- N1 S<k> : à faire — <écran>\n');
+  mkdirSync(join(cwd, 'docs', 'workflow', 'incidents'), { recursive: true });
+  writeFileSync(join(cwd, 'docs', 'workflow', 'incidents', '2026-10-15-ce-plan.md'), '# Incident workflow — 2026-10-15 — x\n\n- Projet : T\n- Plan : P9/S4/T5\n');
+  writeFileSync(join(cwd, 'docs', 'workflow', 'incidents', '2026-10-15-autre-plan.md'), '# Incident workflow — 2026-10-15 — y\n\n- Plan : P90/S1\n');
+  commitTout(cwd, 'état final');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'fini') return `fini attendu, reçu: ${sortie}`;
+  const attendu = [
+    'fini',
+    'Plan P9 — rapport final (6 session(s))',
+    '   S1 · PASS · Les fondations · revue : 0 bloquant',
+    "   S2 · PASS · L'interface · revue : sautée (low ou zone aucune)",
+    '   S3 · PASS · Le moteur · 1 reprise(s) · revue : 0 bloquant',
+    '   S4 · PASS · Les mods · revue : 1 bloquant(s) → plans/P9/S4.revue.md',
+    '   S5 · PASS · La publication · revue : 0 bloquant',
+    '   S6 · PASS · La remesure · revue : 0 bloquant',
+    '   Incidents du plan : docs/workflow/incidents/2026-10-15-ce-plan.md',
+    '   N1 S5 : à faire — écran /publier',
+    '   N1 S6 : à faire — écran /remesure',
+    "   Tokens : à compléter par l'orchestrateur (une ligne `subagent_tokens` par session — absents du disque).",
+    `Avertissement : index déclare Workflow : v0.39.0, plugin en v${VERSION_PLUGIN}`,
+  ].join('\n');
+  if (action.texte !== attendu) return `rapport inattendu.\n--- attendu ---\n${attendu}\n--- reçu ---\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T8 fini : rien à signaler → « Incidents du plan : aucun » et « N1 : rien à faire »', () => {
+  const cwd = planTextes('workflow-pa-fini-vide-', {
+    faites: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'],
+    sansWorkflow: true,
+    transformer: (t) => t.replace('## Sessions', 'Clos : 2026-10-15\n\n## Sessions'),
+  });
+  const { action } = lancerJson(['P9', '--json'], cwd);
+  const lignes = action?.texte?.split('\n') ?? [];
+  if (lignes[0] !== 'fini') return `première ligne "fini" attendue, reçu: ${lignes[0]}`;
+  if (!lignes.includes('   Incidents du plan : aucun')) return `« aucun » attendu:\n${action?.texte}`;
+  if (!lignes.includes('   N1 : rien à faire')) return `« rien à faire » attendu:\n${action?.texte}`;
+  return null;
+});
+
+// ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
+
+cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {
+  if (ACTIONS_VUES.length < 100) return `trop peu d'actions observées (${ACTIONS_VUES.length}) : le cas ne couvre plus le moteur`;
+  const NUES = ['pousser', 'fini', 'cloturer'];
+  for (const a of ACTIONS_VUES) {
+    if (typeof a.texte !== 'string' || a.texte.length === 0) return `action "${a.action}" sans texte: ${JSON.stringify(a)}`;
+    const premiere = a.texte.split('\n')[0];
+    const ok = NUES.includes(a.action) ? premiere === a.action : premiere.startsWith(`${a.action} — `);
+    if (!ok) return `première ligne de "${a.action}" inattendue: ${premiere}`;
+    if (a.action === 'question' && !/^   1\. /m.test(a.texte) && !/^   \d+\. /m.test(a.texte)) {
+      return `question sans option numérotée (source ${a.options?.source}):\n${a.texte}`;
+    }
+  }
+  const vues = new Set(ACTIONS_VUES.map((a) => a.action));
+  const attendues = ['lancer', 'verifier-premisse', 'reprendre', 'enqueter', 'relancer-interrompue', 'relire', 'pousser', 'validation-humaine', 'question', 'fini', 'cloturer', 'valider-n0'];
+  const manquantes = attendues.filter((x) => !vues.has(x));
+  if (manquantes.length) return `actions jamais rendues par les cas du moteur (donc jamais contrôlées) : ${manquantes.join(', ')}`;
+  return null;
+});
+
+cas('P20/T8 contrat : toute source de question que le moteur sait rendre a son cas avec ses options attendues', () => {
+  const source = readFileSync(PROCHAINE_ACTION, 'utf8');
+  const rendues = new Set([...source.matchAll(/source:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]));
+  const sansCas = [...rendues].filter((s) => !SOURCES_TESTEES.has(s));
+  if (sansCas.length) return `sources rendues par le moteur sans cas de texte : ${sansCas.join(', ')}`;
+  return null;
+});
+
+// ── noter.mjs sur flux enregistrés (P20/S5/T8) ───────────────────────────────────────────────────
+// `flux-echec-reprise.jsonl` : extrait ANONYMISÉ d'un flux réel (passage `echec-reprise` du 2026-10-15,
+// Haiku orchestrateur) — le prompt de la reprise cite `VERDICT: PASS|FAIL|ENQUETE|DECISION`, le sous-agent
+// lit une skill qui le cite aussi, et la session rend `VERDICT: DECISION`. `flux-nominal.jsonl` : MÊME
+// forme d'événements, contenu d'un plan nominal fini (une session PASS, moteur final `fini`) ; les passages
+// `nominal` conservés n'ont plus de flux sur disque, il est donc reconstitué à partir des événements réels
+// ci-dessus et de la vraie sortie du moteur (lancer, fini) — pas un extrait d'un passage nominal.
+
+const lireFluxFixture = (nom) => readFileSync(join(FIXTURES, 'scenarios', nom), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+
+/** Duplique les événements d'un lancement d'agent sous un autre identifiant et une autre description :
+ * « deux reprises » à partir de la seule reprise réelle du flux enregistré. */
+function avecSecondeReprise(evenements) {
+  const idAncien = evenements.find((e) => e.type === 'assistant' && e.message?.content?.some((c) => c.name === 'Agent')).message.content.find((c) => c.name === 'Agent').id;
+  const concerne = (e) => JSON.stringify(e).includes(idAncien);
+  const copie = evenements.filter(concerne).map((e) => JSON.parse(JSON.stringify(e).replaceAll(idAncien, 'toolu_SECONDE_REPRISE')));
+  for (const e of copie) if (e.message?.content?.[0]?.input?.model) e.message.content[0].input.model = 'sonnet';
+  return [...evenements, ...copie];
+}
+
+cas('P20/T8 noter : flux réel de reprise → le verdict est DECISION (lu dans le retour), jamais PASS (gabarit du prompt)', () => {
+  const f = lireFlux(lireFluxFixture('flux-echec-reprise.jsonl'));
+  if (f.lancements.length !== 1) return `1 lancement attendu, reçu ${f.lancements.length}`;
+  const [l] = f.lancements;
+  if (l.genre !== 'reprise' || l.session !== 'S1') return `reprise de S1 attendue, reçu ${JSON.stringify(l)}`;
+  if (l.verdict !== 'DECISION') return `verdict DECISION attendu (lu dans task_notification / retour), reçu ${l.verdict}`;
+  if (f.lancements.some((x) => x.verdict === 'PASS')) return 'aucun verdict PASS attendu';
+  if (f.relancesInutiles.length !== 0) return `aucune relance inutile attendue, reçu ${f.relancesInutiles}`;
+  return null;
+});
+
+cas('P20/T8 noter : deux reprises → deux DECISION, zéro PASS, aucune relance inutile', () => {
+  const f = lireFlux(avecSecondeReprise(lireFluxFixture('flux-echec-reprise.jsonl')));
+  const verdicts = f.lancements.map((l) => l.verdict);
+  if (f.lancements.length !== 2) return `2 lancements attendus, reçu ${f.lancements.length}`;
+  if (verdicts.join(',') !== 'DECISION,DECISION') return `DECISION,DECISION attendu, reçu ${verdicts.join(',')}`;
+  if (f.relancesInutiles.length !== 0) return `aucune relance inutile attendue, reçu ${f.relancesInutiles}`;
+  return null;
+});
+
+cas('P20/T8 noter : sans retour de l\'agent (ni notification ni résultat), aucun verdict — le prompt et les fichiers lus ne comptent pas', () => {
+  const evenements = lireFluxFixture('flux-echec-reprise.jsonl')
+    .filter((e) => e.subtype !== 'task_notification' && !(e.type === 'assistant' && e.parent_tool_use_id && JSON.stringify(e).includes('VERDICT: DECISION · MOTIF')));
+  const verdictsDansLePrompt = evenements.filter((e) => /VERDICT:\s*PASS\|FAIL/.test(JSON.stringify(e))).length;
+  if (verdictsDansLePrompt < 3) return `le flux doit encore porter le gabarit dans au moins 3 événements (prompt, fichier lu, skill), reçu ${verdictsDansLePrompt}`;
+  const f = lireFlux(evenements);
+  if (f.lancements[0].verdict !== undefined) return `aucun verdict attendu sans retour, reçu ${f.lancements[0].verdict}`;
+  return null;
+});
+
+cas('P20/T8 noter : un gabarit `PASS|FAIL|…` rendu comme « retour » n\'est pas un verdict', () => {
+  const lancement = { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Agent', input: { description: 'P1/S1', model: 'haiku' } }] } };
+  const retour = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'Réponse finale en UNE ligne : VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase>' }] } };
+  if (lireFlux([lancement, retour]).lancements[0].verdict !== undefined) return 'un gabarit ne doit jamais valoir verdict';
+  const vrai = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'VERDICT: FAIL · MOTIF: N0 rouge · RAPPORT: plans/P1/S1.echec.md' }] } };
+  const v = lireFlux([lancement, vrai]).lancements[0].verdict;
+  return v === 'FAIL' ? null : `FAIL attendu pour un vrai retour au premier plan, reçu ${v}`;
+});
+
+cas('P20/T8 noter : flux nominal fini → verdict PASS, dernier appel du moteur `fini` (première ligne), aucune question', () => {
+  const f = lireFlux(lireFluxFixture('flux-nominal.jsonl'));
+  if (f.lancements.length !== 1 || f.lancements[0].verdict !== 'PASS') return `un lancement PASS attendu, reçu ${JSON.stringify(f.lancements.map((l) => [l.desc, l.verdict]))}`;
+  if (!/^fini\b/.test(f.moteurDernierAppelModele ?? '')) return `moteur final « fini » attendu, reçu: ${f.moteurDernierAppelModele}`;
+  if (f.questions.size !== 0) return `aucune question attendue, reçu ${[...f.questions]}`;
+  if (f.relancesInutiles.length !== 0) return `aucune relance inutile attendue, reçu ${f.relancesInutiles}`;
+  return null;
+});
+
+cas('P20/T8 noter : la première ligne rendue par le moteur est celle lue — `<action> — …` — et une question du moteur ou de l\'orchestrateur est comptée', () => {
+  const f = lireFlux(lireFluxFixture('flux-echec-reprise.jsonl'));
+  if (f.moteurDernierAppelModele !== 'reprendre — S1 (Sonnet)') return `première ligne du moteur attendue « reprendre — S1 (Sonnet) », reçu: ${f.moteurDernierAppelModele}`;
+  if (f.questions.size !== 1 || ![...f.questions][0].startsWith('❓ P1/S1 — ')) return `la question relayée par l'orchestrateur doit être comptée, reçu ${[...f.questions]}`;
+  const evenements = [{ type: 'assistant', message: { content: [{ type: 'text', text: '❓ P1 — Un rebase est en cours : comment le résoudre ?' }] } }];
+  if (lireFlux(evenements).questions.size !== 1) return 'une question de plan (sans S<k>) doit être comptée aussi';
   return null;
 });
 

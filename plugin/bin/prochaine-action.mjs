@@ -27,7 +27,12 @@
 // Jamais un état deviné : un index illisible rend une erreur nommée ; un historique partiel qu'on ne
 // peut pas compléter rend une `question` (source `historique-partiel`) sans rien conclure.
 //
-// SORTIE : sans --json, une ligne lisible puis les champs de l'action ; avec --json, l'objet. Code 0
+// SORTIE : chaque action porte un champ `texte` (P20/S5/T8) : le texte FINAL à relayer tel quel —
+// annonce de vague (`lancer`), question avec ses options et « reste lançable » calculé (`question`),
+// rapport tiré du disque (`fini`), une phrase pour les autres. Sa première ligne est celle d'avant
+// (`<action> — …` ; `pousser`, `fini`, `cloturer` nus) : c'est ce que lisent `noter.mjs` et les mods.
+// Avec --json, l'objet (champ `texte` compris) ; sans --json, le `texte`, puis — pour la skill qui
+// lit encore les champs — une ligne `— données de l'action …` et les champs de l'action. Code 0
 // si l'index a pu être lu (quel que soit l'état des sessions qu'il décrit), 2 si l'index est
 // illisible ou si le plan est absent.
 //
@@ -43,7 +48,7 @@
 // `arbre-sale`, motifs : fichiers touchés dans une zone, « zone illisible : <segment> », « arbre
 // invérifiable ».
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -609,7 +614,7 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
         return {
           action: 'question',
           motif: `prémisse prouvée par une mesure commitée sur ${session.session} (${commit})`,
-          options: { source: 'etape6', cas: 'premisse-confirmee' },
+          options: { source: 'etape6', cas: 'premisse-confirmee', session: session.session },
         };
       }
       // Commit cité introuvable : la mesure ne prouve plus rien, retomber sur « sans Mesure ».
@@ -620,7 +625,7 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
     const q = (cas, motif) => ({
       action: 'question',
       motif: `${motif} sur ${session.session}`,
-      options: { source: 'etape6', cas },
+      options: { source: 'etape6', cas, session: session.session },
     });
     if (e.premisseStatut === 'confirmee') return q('premisse-confirmee', `prémisse confirmée par verificateur-premisse (${e.premisseBrut})`);
     if (e.premisseStatut === 'indecidable') return q('premisse-indecidable', `prémisse invérifiable par lecture (${e.premisseBrut})`);
@@ -881,51 +886,582 @@ function avertissementVersion(sortie) {
   return null;
 }
 
-function formaterTexte(action) {
-  const champs = Object.entries(action)
-    .filter(([cle]) => cle !== 'action')
-    .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(valeur) : valeur}`);
-  let ligne;
+// ── Textes finaux (P20/S5/T8, point 10a de la revue externe du 2026-10-13) ───────────────────────────
+// Chaque action porte un champ `texte` : le texte FINAL à relayer tel quel (annonce de vague, question
+// avec ses options, rapport final). Le moteur ne connaît que le disque et git, il ne rédige que ce
+// qu'il peut lire : les `subagent_tokens` et les motifs rendus dans la conversation ne sont pas sur
+// disque — le texte le dit (« à compléter par l'orchestrateur ») plutôt que d'inventer une valeur.
+// La PREMIÈRE ligne reste celle d'avant (`<action> — …`) : c'est ce que lisent `noter.mjs` et les mods.
+// Les gabarits sont ceux de `orchestrer-plan/SKILL.md` (Étapes 1 et 3), déplacés ici sans changement
+// de forme ; S12 réduira la skill à « relaie `texte` ».
+
+/** Espaces et retours à la ligne ramenés à un seul espace — une phrase d'index écrite sur plusieurs
+ * lignes se relaie sur une seule, mot pour mot. */
+const une = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
+
+function premiereLigne(action) {
   switch (action.action) {
     case 'lancer':
-      ligne = `lancer — vague ${action.vague} : ${
-        action.sessions.map((s) => s.session).join(', ') || '—'
-      }`;
-      break;
+      return `lancer — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ') || '—'}`;
     case 'verifier-premisse':
-      ligne = `verifier-premisse — ${action.session}`;
+      return `verifier-premisse — ${action.session}`;
+    case 'reprendre':
+      return `reprendre — ${action.session} (${action.modele}${action.option ? ` · option ${action.option}` : ''})`;
+    case 'enqueter':
+      return `enqueter — ${action.session} (${action.modele})`;
+    case 'relancer-interrompue':
+      return `relancer-interrompue — ${action.session} (${action.modele})`;
+    case 'relire':
+      return `relire — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ')}`;
+    case 'valider-n0':
+      return `valider-n0 — ${action.session}`;
+    case 'validation-humaine':
+      return `validation-humaine — vague ${action.vague}`;
+    case 'question':
+      return `question — ${action.motif}`;
+    default: // pousser, fini, cloturer : une ligne nue, comme avant
+      return action.action;
+  }
+}
+
+// ── Prose de l'Ordonnancement : *Pourquoi maintenant* et lignes « en clair » COMPLÈTES ───────────────
+// Le lecteur d'index (`lire-index.mjs`) ne garde que la première ligne d'une phrase « en clair » et
+// ignore le *Pourquoi maintenant* ; un index réel les écrit sur plusieurs lignes (plans/P20/index.md).
+// Relayer une phrase coupée serait la relayer fausse : ce balayage reprend la prose, et elle seule.
+// Table, vagues et statuts restent lus par le lecteur unique.
+function lireProse(texte) {
+  const vagues = new Map(); // numero → { pourquoi, enClair: { S<k>: texte } }
+  let dans = false;
+  let vague = null;
+  let cible = null; // { objet, cle } : où se prolonge une ligne de continuation
+  for (const brute of String(texte ?? '').replace(/\r\n/g, '\n').split('\n')) {
+    const l = brute.trim();
+    if (/^##\s+Ordonnancement/.test(l)) { dans = true; continue; }
+    if (dans && /^##\s+/.test(l)) break;
+    if (!dans) continue;
+    const v = /^(?:-\s*)?\*\*Vague\s+(\d+)/.exec(l);
+    if (v) {
+      vague = { pourquoi: '', enClair: {} };
+      vagues.set(Number(v[1]), vague);
+      cible = null;
+      continue;
+    }
+    if (!vague) continue;
+    const p = /^\*Pourquoi maintenant\*\s*:\s*(.*)$/.exec(l);
+    if (p) { vague.pourquoi = p[1]; cible = { objet: vague, cle: 'pourquoi' }; continue; }
+    const s = /^-\s*\*\*(S\d+)\*\*\s*[—-]\s*(.*)$/.exec(l);
+    if (s) { vague.enClair[s[1]] = s[2]; cible = { objet: vague.enClair, cle: s[1] }; continue; }
+    if (l === '' || l.startsWith('- ')) { cible = null; continue; }
+    if (cible) cible.objet[cible.cle] += ` ${l}`;
+  }
+  for (const v of vagues.values()) {
+    v.pourquoi = une(v.pourquoi);
+    for (const k of Object.keys(v.enClair)) v.enClair[k] = une(v.enClair[k]);
+  }
+  return { vagues };
+}
+
+const idsDeDependance = (s) => s.dependDe.match(/S\d+/g) ?? [];
+const sessionDe = (sortie, id) => sortie.sessions.find((x) => x.session === id);
+
+// ── Annonce de vague (Étape 1 de la skill) ───────────────────────────────────────────────────────────
+function texteLancer(action, sortie, prose) {
+  const vagues = [...sortie.vagues].sort((a, b) => a.numero - b.numero);
+  const vague = vagues.find((v) => v.numero === action.vague);
+  const suivante = vagues.find((v) => v.numero === action.vague + 1);
+  const proseVague = prose.vagues.get(action.vague);
+  const sansClair = [];
+  const out = [];
+  out.push(`▶ Vague ${action.vague}/${vagues.length} — ${action.sessions.length} session(s)`);
+  out.push(`   Pourquoi cette vague maintenant : ${proseVague?.pourquoi || "(non renseigné dans l'index)"}`);
+  out.push(
+    `   Si une session échoue : ${
+      vague?.repriseManuelle
+        ? "reprise manuelle — je m'arrête et je te rends la main"
+        : "je diagnostique, je reprends une fois, j'enquête si la reprise cale — je ne te sollicite que s'il y a un choix à faire, et sous forme de question"
+    }`,
+  );
+  out.push(
+    `   Fin de vague : ${
+      vague?.validationHumaine
+        ? 'validation humaine — je m\'arrête pour ton jugement'
+        : suivante
+          ? `j'enchaîne sur la vague ${suivante.numero}`
+          : 'je passe à la clôture du plan'
+    }`,
+  );
+  for (const { session: id } of action.sessions) {
+    const s = sessionDe(sortie, id);
+    const clair = proseVague?.enClair[id];
+    out.push('');
+    out.push(`   ${id} · ${s?.titre ?? ''}`);
+    if (clair) out.push(`      En clair : ${une(clair)}`);
+    else sansClair.push(id);
+    out.push(`      Tâches ${s?.taches ?? '—'} · ${s?.modele ?? '?'}/${s?.effort ?? '?'}`);
+    const ids = s ? idsDeDependance(s) : [];
+    const passees = ids.length > 0 && ids.every((d) => sessionDe(sortie, d)?.etat === 'faite');
+    const dep = ids.length === 0 ? '—' : `${ids.join(', ')}${passees ? `, déjà passée${ids.length > 1 ? 's' : ''}` : ''}`;
+    out.push(`      Fichiers touchés : ${s?.zone ?? '—'} · Dépend de : ${dep}`);
+  }
+  out.push('');
+  out.push('   Pendant que ça tourne : ne pas modifier les fichiers listés — les sessions y écrivent.');
+  out.push(`   À la fin : un commit par tâche, retrouvable par son repère \`Plan: ${sortie.plan}/S<k>/T<m>\`.`);
+  if (sansClair.length > 0) {
+    out.push(`   Index sans ligne « en clair » pour ${sansClair.join(', ')} : annoncé sans elle, jamais inventée.`);
+  }
+  return out.join('\n');
+}
+
+// ── `## Issues` d'un rapport d'échec : les options, recopiées ligne à ligne ──────────────────────────
+const CLES_MECANIQUES = ['nature', 'tentatives', 'blocage', 'mesure', 'auto', 'premisse'];
+
+/** `{ lignes, recommandation }` — `lignes` : les lignes de la section `## Issues`, sans rien changer ;
+ * `recommandation` : le texte d'une ligne « Recommandation : … » si le rapport en porte une. La section
+ * s'arrête au titre suivant, ou à une ligne mécanique (`Premisse :` est ajoutée EN FIN de fichier par
+ * l'orchestrateur, après les issues — elle n'est pas une option). Rapport absent ou sans section :
+ * `{ lignes: [], recommandation: null }`. */
+function lireIssues(id) {
+  const chemin = join(RACINE, 'plans', plan, `${id}.echec.md`);
+  if (!existsSync(chemin)) return { lignes: [], recommandation: null };
+  const lignes = [];
+  let recommandation = null;
+  let dans = false;
+  for (const brute of readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n').split('\n')) {
+    if (/^##\s+Issues\s*$/i.test(brute.trim())) { dans = true; continue; }
+    if (!dans) continue;
+    if (/^##\s/.test(brute)) break;
+    const cle = /^([A-Za-zÀ-ÿ ]+?)\s*:/.exec(brute.trim());
+    if (cle && CLES_MECANIQUES.includes(normaliserSimple(cle[1]))) break;
+    const reco = /^(?:ma\s+)?recommandation\s*:\s*(.*)$/i.exec(brute.trim());
+    if (reco) { recommandation = reco[1].trim(); continue; }
+    if (brute.trim() !== '') lignes.push(brute.replace(/\s+$/, ''));
+  }
+  return { lignes, recommandation };
+}
+
+// ── Questions (Étape 3 de la skill) : une entrée par `options.source` ────────────────────────────────
+const REPLI_SESSION = (id) => [
+  `Reprendre la session à la main — débloque ${id}`,
+  'Sortir la session du plan — débloque les autres sessions',
+];
+const ARBRE_SALE_FICHIERS = [
+  'Committer ces fichiers toi-même, puis relancer — débloque la vague',
+  'Les mettre de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables',
+  'Sortir la session concernée de la vague (index) — débloque les autres sessions',
+];
+const ARBRE_SALE_ZONE = [
+  'Réécrire ce segment en chemins explicites dans l\'index, puis relancer — débloque la vague',
+  'Sortir la session concernée de la vague (index) — débloque les autres sessions',
+];
+
+/** Sources dont la question vise le plan entier, pas une session : rien ne reste lançable sans
+ * décider, et l'en-tête de la question ne porte pas de `S<k>`. */
+const SOURCES_PLAN = ['rebase', 'racine-introuvable', 'historique-partiel', 'session-hors-vague'];
+
+/** `{ question, options, graines, rapport }` pour une `question` du moteur, ou `null` si la source est
+ * inconnue (l'appelant rend alors l'option unique « mettre à jour le workflow »). `options` : listes
+ * fixes de la skill (arbre-sale, zone illisible, revue-incomplete, dependance-revue), `liste` de S3
+ * (panne d'environnement), sinon un repli dont chaque première ligne reprend le motif du moteur ; la
+ * section `## Issues` du rapport, quand il y en a une, les remplace (`redigerQuestion`). */
+function definirQuestion(action, sortie) {
+  const o = action.options ?? {};
+  const id = o.session ?? null;
+  const ids = o.sessions ?? [];
+  const nomsIds = ids.join(', ');
+  switch (o.source) {
+    case 'rebase':
+      return {
+        question: 'Un rebase est en cours : comment le résoudre avant de reprendre le plan ?',
+        options: ['Résoudre le rebase à la main (`git rebase --abort`, ou `--continue` une fois les conflits réglés), puis relancer — débloque le plan'],
+        graines: [],
+      };
+    case 'racine-introuvable':
+      return {
+        question: "La racine du dépôt est introuvable : depuis où reprendre le plan ?",
+        options: ["Reprendre depuis l'arbre principal du dépôt (pas depuis ce worktree lié), puis relancer — débloque le plan"],
+        graines: [],
+      };
+    case 'historique-partiel':
+      return {
+        question: "L'historique git du clone est partiel et n'a pas pu être complété : que fait-on ?",
+        options: ['Lancer `git fetch --unshallow` à la main, puis relancer — débloque le plan'],
+        graines: [],
+      };
+    case 'arbre-sale':
+      if (o.motif === 'arbre-inverifiable') {
+        return {
+          question: 'Git ne répond pas dans ce dépôt : que fait-on ?',
+          options: ['Vérifier git dans ce dépôt, puis relancer — débloque la vague'],
+          graines: id ? [id] : [],
+        };
+      }
+      if (o.segment) {
+        return {
+          question: `La zone modifiée de ${id} ne se lit pas (« ${o.segment} ») : que fait-on ?`,
+          options: ARBRE_SALE_ZONE,
+          graines: id ? [id] : [],
+        };
+      }
+      if (id) {
+        return {
+          question: `Des fichiers non commités recoupent la zone de ${id} : que fait-on ?`,
+          options: ARBRE_SALE_FICHIERS,
+          graines: [id],
+        };
+      }
+      return {
+        question: 'Des fichiers non commités empêchent de pousser : que fait-on ?',
+        options: [
+          'Committer ces fichiers toi-même, puis relancer — débloque le push',
+          'Les mettre de côté (git stash), puis relancer — débloque le push, tes changements restent récupérables',
+        ],
+        graines: [],
+      };
+    case 'budget-epuise':
+      return {
+        question: o.nature === 'environnement'
+          ? `Une panne d'environnement bloque ${id} : que fait-on ?`
+          : `Le budget de reprises ou d'enquête de ${id} est épuisé : que fait-on ?`,
+        options: Array.isArray(o.liste) && o.liste.length > 0 ? o.liste : REPLI_SESSION(id),
+        graines: [id],
+      };
+    case 'budget-opus':
+      return {
+        question: `La remédiation Opus du plan est déjà consommée : que fait-on pour ${id} ?`,
+        options: REPLI_SESSION(id),
+        graines: [id],
+      };
+    case 'effort-invalide':
+      return {
+        question: `L'effort de ${id} ("${o.effort}") ne se lance pas depuis l'index : que fait-on ?`,
+        options: [
+          `Corriger la colonne Effort de ${id} dans l'index (low, medium, high ou xhigh), puis relancer — débloque ${id}`,
+          'Sortir la session du plan — débloque les autres sessions',
+        ],
+        graines: [id],
+      };
+    case 'nature-inconnue':
+      return {
+        question: `La ligne \`Nature :\` du rapport de ${id} n'est pas reconnue ("${o.valeur}") : que fait-on ?`,
+        options: [
+          `Corriger la ligne \`Nature :\` de plans/${plan}/${id}.echec.md (environnement, exécution, prémisse, filtre ou interruption), puis relancer — débloque ${id}`,
+          ...REPLI_SESSION(id),
+        ],
+        graines: [id],
+      };
+    case 'filtre':
+      return {
+        question: `Un filtre de contenu a arrêté ${id} : que fait-on ?`,
+        options: [
+          `Reformuler la tâche qui déclenche le filtre dans plans/${plan}/${id}.md, puis relancer — débloque ${id}`,
+          ...REPLI_SESSION(id),
+        ],
+        graines: [id],
+      };
+    case 'etape6': {
+      const phrases = {
+        'premisse-confirmee': `Le constat de ${id} est confirmé : le plan repose sur une prémisse fausse — que fait-on ?`,
+        'premisse-indecidable': `La prémisse de ${id} ne se vérifie pas par lecture : que fait-on ?`,
+        'premisse-illisible': `La ligne \`Premisse :\` du rapport de ${id} est illisible : que fait-on ?`,
+        'premisse-deja-verifiee': `La prémisse de ${id} a déjà été vérifiée, sans issue écrite : que fait-on ?`,
+      };
+      const premiere = {
+        'premisse-confirmee': `Réviser le plan pour tenir compte de ce constat (\`/cadrer\`, puis \`/nouveau-plan\`), puis relancer — débloque ${id}`,
+        'premisse-indecidable': `Sonder la prémisse à la main (une mesure commitée), puis relancer — débloque ${id}`,
+        'premisse-illisible': `Corriger la ligne \`Premisse :\` du rapport (refutee, confirmee ou indecidable), puis relancer — débloque ${id}`,
+        'premisse-deja-verifiee': `Réviser le plan pour tenir compte de ce constat (\`/cadrer\`, puis \`/nouveau-plan\`), puis relancer — débloque ${id}`,
+      };
+      const cas = phrases[o.cas] ? o.cas : 'premisse-confirmee';
+      return {
+        question: phrases[cas],
+        options: [premiere[cas], ...REPLI_SESSION(id)],
+        graines: [id],
+      };
+    }
+    case 'reprise-manuelle':
+      return {
+        question: `La vague est en reprise manuelle et ${id} a échoué : que fait-on ?`,
+        options: [
+          `Reprendre ${id} à la main (rapport : plans/${plan}/${id}.echec.md), puis relancer — débloque ${id}`,
+          'Sortir la session du plan — débloque les autres sessions',
+        ],
+        graines: [id],
+      };
+    case 'revue-incomplete':
+      return {
+        question: `La revue de ${id} est restée incomplète après une reprise : que fait-on ?`,
+        options: [
+          `Terminer la revue de ${id} à la main (plans/${plan}/${id}.revue.md : \`Bloquant :\` et \`Couverture : complète\`), puis relancer — débloque la vague suivante`,
+          `Reporter le plan — la revue de ${id} reste interrompue, sa couverture n'est pas annoncée complète`,
+        ],
+        graines: [id],
+        rapport: `plans/${plan}/${id}.revue.md`,
+      };
+    case 'dependance-revue': {
+      const bloquantes = new Set();
+      const remonter = (s, vus = new Set()) => {
+        for (const d of idsDeDependance(s)) {
+          if (vus.has(d)) continue;
+          vus.add(d);
+          const dep = sessionDe(sortie, d);
+          if (!dep) continue;
+          if (dep.etat === 'faite' && dep.revue?.bloquant > 0 && dep.revue.dependances !== 'libres') bloquantes.add(d);
+          remonter(dep, vus);
+        }
+      };
+      for (const r of ids) { const s = sessionDe(sortie, r); if (s) remonter(s); }
+      const sources = [...bloquantes];
+      return {
+        question: `Les prérequis de ${nomsIds} ont des bloquants de revue non triés : que fait-on ?`,
+        options: [
+          `Corriger le prérequis${sources.length > 1 ? 's' : ''} ${sources.join(', ') || '(voir sa revue)'} (bloquants de sa revue), puis relancer — débloque ${nomsIds}`,
+          `Réviser explicitement la dépendance dans l'index (colonne Dépend de), preuve à l'appui — débloque ${nomsIds}`,
+        ],
+        graines: [], // les sessions en attente ne sont pas des graines : leurs dépendances les bloquent déjà
+        rapport: sources.length > 0 ? `plans/${plan}/${sources[0]}.revue.md` : null,
+        attente: ids,
+      };
+    }
+    case 'session-hors-vague':
+      return {
+        question: `Des sessions ne sont dans aucune vague de l'Ordonnancement (${nomsIds}) : que fait-on ?`,
+        options: [
+          `Ajouter ${nomsIds} à une vague de l'Ordonnancement de l'index, puis relancer — débloque ${nomsIds}`,
+          `Sortir ${nomsIds} du plan — débloque la fin du plan`,
+        ],
+        graines: [],
+      };
+    default:
+      return null;
+  }
+}
+
+/** Sessions encore lançables sans que l'utilisateur tranche : non faites, sans échec, dont AUCUNE
+ * dépendance — directe ou transitive — n'est une session bloquée (`graines`), en échec, ou une
+ * faite à bloquants de revue non libres. `null` si l'état des sessions est inconnu. */
+function resteLancable(sortie, graines) {
+  if (!sortie?.sessions?.every((s) => s.etat)) return null;
+  const memo = new Map();
+  const bloque = (s, pile = new Set()) => {
+    if (memo.has(s.session)) return memo.get(s.session);
+    if (pile.has(s.session)) return true;
+    const pile2 = new Set([...pile, s.session]);
+    let r = graines.includes(s.session) || s.etat === 'echec';
+    if (!r) {
+      r = idsDeDependance(s).some((d) => {
+        const dep = sessionDe(sortie, d);
+        if (!dep) return true;
+        if (graines.includes(d)) return true;
+        if (dep.etat === 'faite') return dep.revue?.bloquant > 0 && dep.revue.dependances !== 'libres';
+        return bloque(dep, pile2);
+      });
+    }
+    memo.set(s.session, r);
+    return r;
+  };
+  return sortie.sessions.filter((s) => s.etat === 'a-lancer' && !bloque(s)).map((s) => s.session);
+}
+
+/** `❓ P<n>/S<k> — …` : la question au format imposé, options comprises. Source ou action inconnue :
+ * option unique « mettre à jour le workflow » (le moteur la rédige lui-même, la skill n'a plus à la
+ * décrire). */
+function redigerQuestion(action, sortie) {
+  const o = action.options ?? {};
+  let def = definirQuestion(action, sortie);
+  let inconnue = false;
+  if (!def) {
+    inconnue = true;
+    def = {
+      question: `Le moteur rend une source de question inconnue (${o.source ?? action.action}) : que fait-on ?`,
+      options: ['Mettre à jour le workflow (`/maj-workflow`), puis relancer — débloque le plan'],
+      graines: [],
+    };
+  }
+  const id = o.session ?? (o.sessions ?? [])[0] ?? null;
+  const issues = o.session && !inconnue ? lireIssues(o.session) : { lignes: [], recommandation: null };
+  // Listes FIXES de la skill (arbre-sale, revue-incomplete, dependance-revue) : jamais remplacées par
+  // un rapport d'échec qui n'a pas ces options en vue. Le reste : `## Issues` du rapport si elle existe.
+  const fixes = ['arbre-sale', 'revue-incomplete', 'dependance-revue'].includes(o.source);
+  const delIssues = !fixes && issues.lignes.length > 0;
+  const options = delIssues
+    ? issues.lignes
+    : def.options.map((opt, i) => `${i + 1}. ${opt}`);
+
+  const sessionEnTete = id ? `${plan}/${id}` : plan;
+  const echecChemin = o.session && existsSync(join(RACINE, 'plans', plan, `${o.session}.echec.md`))
+    ? `plans/${plan}/${o.session}.echec.md`
+    : null;
+  const rapport = def.rapport ?? echecChemin ?? '—';
+
+  let reste;
+  if (o.session && !SOURCES_PLAN.includes(o.source) || def.attente) {
+    const liste = resteLancable(sortie, def.graines);
+    reste = liste === null ? "inconnu (l'état des sessions n'a pas pu être lu)" : liste.length > 0 ? liste.join(', ') : 'rien';
+  } else {
+    reste = 'rien';
+  }
+
+  const out = [];
+  out.push(`❓ ${sessionEnTete} — ${def.question}`);
+  out.push(`   Pourquoi je m'arrête ici : ${action.motif}`);
+  if (echecChemin) {
+    const blocage = valeurDeCle(readFileSync(join(RACINE, echecChemin), 'utf8').replace(/\r\n/g, '\n'), 'Blocage');
+    if (blocage && !action.motif.includes(blocage)) out.push(`     Blocage noté dans le rapport : ${une(blocage)}`);
+  }
+  out.push('');
+  for (const l of options) out.push(`   ${l}`);
+  // Pas de `## Issues` : options de repli du moteur — dit une fois, jamais présentées comme celles
+  // d'une enquête (la skill demandait de le dire quand la section manque).
+  if (echecChemin && !delIssues && !fixes && !inconnue) {
+    out.push("   (le rapport n'a pas de section `## Issues` : options de repli du moteur)");
+  }
+  out.push('');
+  if (delIssues && issues.recommandation) {
+    out.push(`   Ma recommandation : ${issues.recommandation.replace(/^(?:ma\s+)?recommandation\s*:\s*/i, '')}`);
+  }
+  out.push(`   Rapport : ${rapport} · reste lançable sans décider : ${reste}`);
+  if (inconnue) out.push("   Une action ou une source inconnue du moteur est un incident du workflow (§9b, nature `orchestration`).");
+  return out.join('\n');
+}
+
+// ── Rapport final (`fini`) : tiré du disque ──────────────────────────────────────────────────────────
+function incidentsDuPlan() {
+  const dossier = join(RACINE, 'docs', 'workflow', 'incidents');
+  if (!existsSync(dossier)) return [];
+  const motif = new RegExp(`\\bPlan\\s*:\\s*${plan}\\b`);
+  return readdirSync(dossier)
+    .filter((f) => f.endsWith('.md'))
+    .filter((f) => motif.test(readFileSync(join(dossier, f), 'utf8').split('\n').slice(0, 15).join('\n')))
+    .sort()
+    .map((f) => `docs/workflow/incidents/${f}`);
+}
+
+/** Les `N1 S<k> : à faire — <écran>` consignés dans le bilan de session d'un `S<k>.md`. */
+function n1ALfaire(id) {
+  const chemin = join(RACINE, 'plans', plan, `${id}.md`);
+  if (!existsSync(chemin)) return [];
+  const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+  const debut = texte.search(/^##\s+Bilan de session/m);
+  if (debut < 0) return [];
+  const trouves = [];
+  for (const l of texte.slice(debut).split('\n')) {
+    const m = /^\W*N1(?:\s+S\d+)?\s*:\s*à faire\s*[—-]\s*(.+?)\s*$/i.exec(l);
+    if (m && !m[1].startsWith('<')) trouves.push(`N1 ${id} : à faire — ${m[1]}`);
+  }
+  return trouves;
+}
+
+function texteFini(action, sortie) {
+  const out = [];
+  out.push(`Plan ${sortie.plan} — rapport final (${sortie.sessions.length} session(s))`);
+  const n1 = [];
+  for (const s of sortie.sessions) {
+    const statut = s.etat === 'faite' ? 'PASS' : s.etat === 'echec' ? 'FAIL' : 'non faite (plan clos)';
+    const chemin = `plans/${sortie.plan}/${s.session}.echec.md`;
+    const textes = versionsCommitees(chemin);
+    if (existsSync(join(RACINE, chemin))) textes.push(readFileSync(join(RACINE, chemin), 'utf8').replace(/\r\n/g, '\n'));
+    const t = maxTentatives(textes);
+    const reprises = [
+      t.reprise > 0 ? `${t.reprise} reprise(s)` : null,
+      t.enquete > 0 ? `${t.enquete} enquête(s)` : null,
+    ].filter(Boolean);
+    let revue;
+    const fichierRevue = `plans/${sortie.plan}/${s.session}.revue.md`;
+    if (s.revue) {
+      if (s.revue.bloquant === null) revue = 'revue illisible';
+      else if (s.revue.bloquant > 0) {
+        revue = `revue : ${s.revue.bloquant} bloquant(s)${existsSync(join(RACINE, fichierRevue)) ? ` → ${fichierRevue}` : ' (revue rangée au tri de clôture)'}`;
+      } else revue = 'revue : 0 bloquant';
+    } else if (!sortie.workflow) revue = 'revue : — (plan antérieur à la revue)';
+    else if (s.effort === 'low' || !s.zone || s.zone.replace(/`/g, '').trim().toLowerCase() === 'aucune') revue = 'revue : sautée (low ou zone aucune)';
+    else revue = 'revue : absente';
+    out.push(`   ${s.session} · ${statut} · ${s.titre}${reprises.length ? ` · ${reprises.join(' + ')}` : ''} · ${revue}`);
+    n1.push(...n1ALfaire(s.session));
+  }
+  const incidents = incidentsDuPlan();
+  out.push(`   Incidents du plan : ${incidents.length > 0 ? incidents.join(', ') : 'aucun'}`);
+  if (n1.length > 0) for (const l of n1) out.push(`   ${l}`);
+  else out.push('   N1 : rien à faire');
+  out.push('   Tokens : à compléter par l\'orchestrateur (une ligne `subagent_tokens` par session — absents du disque).');
+  return out.join('\n');
+}
+
+// ── Les autres actions : une ligne, et ce qu'elle demande ────────────────────────────────────────────
+function texteSimple(action, sortie) {
+  const nomPlan = sortie?.plan ?? plan;
+  const l = [];
+  switch (action.action) {
+    case 'verifier-premisse':
+      l.push(`   Vérifier l'affirmation de « Ce qu'il faudrait pour que ça passe » de ${action.chemin}.`);
       break;
     case 'reprendre':
-      ligne = `reprendre — ${action.session} (${action.modele}${action.option ? ` · option ${action.option}` : ''})`;
+      l.push(`   Reprise de ${action.session} sur ${action.modele}${action.option ? `, option ${action.option} de la section ## Issues` : ''}.`);
       break;
     case 'enqueter':
-      ligne = `enqueter — ${action.session} (${action.modele})`;
+      l.push(`   Enquête en lecture seule sur ${action.session} (${action.modele}).`);
       break;
     case 'relancer-interrompue':
-      ligne = `relancer-interrompue — ${action.session} (${action.modele})`;
+      l.push(`   ${action.session} a été coupée par un quota : la relancer, hors budget de reprises.`);
       break;
     case 'relire':
-      ligne = `relire — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ')}`;
+      l.push(`   Relecture de ${action.sessions.map((s) => `${s.session} (effort ${s.effort}${s.reprise ? ', reprise' : ''})`).join(', ')}.`);
+      break;
+    case 'valider-n0':
+      l.push(`   La preuve N0 de ${action.session} manque ou est invalide : ${action.motif}.`);
       break;
     case 'pousser':
-      ligne = 'pousser';
-      break;
-    case 'validation-humaine':
-      ligne = `validation-humaine — vague ${action.vague}`;
-      break;
-    case 'question':
-      ligne = `question — ${action.motif}`;
-      break;
-    case 'fini':
-      ligne = 'fini';
+      l.push('   Des commits locaux ne sont pas poussés : `git pull --rebase`, puis `git push`.');
       break;
     case 'cloturer':
-      ligne = 'cloturer';
+      l.push('   Toutes les sessions sont faites : dérouler la clôture du plan (`fin-de-tache/references/fin-de-plan.md`).');
+      break;
+    case 'validation-humaine': {
+      const v = sortie?.vagues.find((x) => x.numero === action.vague);
+      const noms = (v?.sessions ?? []).map((id) => {
+        const s = sessionDe(sortie, id);
+        return s ? `${id} (${s.titre})` : id;
+      });
+      l.push(`   La vague ${action.vague} (${noms.join(', ') || '—'}) attend ton jugement : aucune mesure ne le remplace.`);
+      l.push(`   Au « oui » : ajouter \`· validée\` au libellé de la vague ${action.vague} dans plans/${nomPlan}/index.md, committer, pousser, puis relancer.`);
+      break;
+    }
+    default:
+      break;
+  }
+  return l;
+}
+
+/** Le champ `texte` d'une action : première ligne inchangée, puis le texte final à relayer.
+ * `sortie` : l'état assemblé (`null` seulement avant la lecture de l'état : historique partiel). */
+function redigerTexte(action, sortie, prose) {
+  const out = [premiereLigne(action)];
+  switch (action.action) {
+    case 'lancer':
+      out.push(texteLancer(action, sortie, prose));
+      break;
+    case 'question':
+      out.push(redigerQuestion(action, sortie));
+      break;
+    case 'fini':
+      out.push(texteFini(action, sortie));
       break;
     default:
-      ligne = action.action;
+      out.push(...texteSimple(action, sortie));
   }
-  return [ligne, ...champs, ...lignesAppelAgent(action)].join('\n');
+  if (action.avertissement) out.push(`Avertissement : ${action.avertissement}`);
+  return out.join('\n');
+}
+
+const MARQUE_DONNEES = '— données de l\'action pour le moteur, à ne pas relayer —';
+
+/** Sortie sans `--json` : le `texte`, puis (si l'action en porte) ses champs et ses appels d'agent —
+ * ce que la skill d'orchestration lit encore tant que S12 ne l'a pas réduite à « relaie `texte` ». */
+function formaterTexte(action) {
+  const champs = Object.entries(action)
+    .filter(([cle]) => cle !== 'action' && cle !== 'texte')
+    .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(valeur) : valeur}`);
+  const donnees = [...champs, ...lignesAppelAgent(action)];
+  return [action.texte ?? premiereLigne(action), ...(donnees.length > 0 ? ['', MARQUE_DONNEES, ...donnees] : [])].join('\n');
 }
 
 /** Une ligne lisible par appel d'agent prêt à recopier (D2) — `S1 → subagent_type: general-purpose ·
@@ -956,6 +1492,7 @@ if (index.erreur) {
 // les commits de tâche plus anciens — lu comme complet, il ferait relancer une session déjà faite.
 const questionPartiel = verifierHistoriqueComplet();
 if (questionPartiel) {
+  questionPartiel.texte = redigerTexte(questionPartiel, null, { vagues: new Map() });
   process.stdout.write((json ? JSON.stringify(questionPartiel, null, 2) : formaterTexte(questionPartiel)) + '\n');
   process.exit(0);
 }
@@ -1045,6 +1582,9 @@ if (avertissement) {
   // Ne pas écraser un avertissement déjà posé (modèle inconnu, D2) : les deux comptent.
   action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
 }
+
+// Le texte final, rédigé en dernier : il porte aussi l'avertissement de version posé ci-dessus.
+action.texte = redigerTexte(action, sortie, lireProse(readFileSync(join(dossierPlan, 'index.md'), 'utf8')));
 
 process.stdout.write((json ? JSON.stringify(action, null, 2) : formaterTexte(action)) + '\n');
 process.exit(0);
