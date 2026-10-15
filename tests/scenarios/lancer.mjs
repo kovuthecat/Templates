@@ -42,7 +42,7 @@ const scenarioArg = opt('--scenario', args.includes('--poser-seulement') ? 'tous
 export const OUTILS_AUTORISES = [
   'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Agent', 'Task', 'SendMessage', 'Skill',
   'Bash(git:*)', 'Bash(node:*)',
-  'Bash(ls:*)', 'Bash(cat:*)', 'Bash(sed:*)', 'Bash(grep:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)',
+  'Bash(cd:*)', 'Bash(echo:*)', 'Bash(pwd:*)', 'Bash(ls:*)', 'Bash(cat:*)', 'Bash(sed:*)', 'Bash(grep:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)',
 ];
 
 const PROMPT = '/workflow:orchestrer-plan P1';

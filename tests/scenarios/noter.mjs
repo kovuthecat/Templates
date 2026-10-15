@@ -114,7 +114,7 @@ export function noterPassage(dossier) {
       if (c.type === 'text') for (const m of c.text.matchAll(/❓\s*P\d+\/S\d+[^\n]*/g)) questions.add(m[0].trim());
       if (c.type !== 'tool_use') continue;
       if (c.name === 'AskUserQuestion') questions.add(`AskUserQuestion:${c.id}`);
-      if (c.name === 'Bash' && /prochaine-action/.test(c.input?.command ?? '')) appelsMoteur.push({ id: c.id, ordre });
+      if (c.name === 'Bash' && /node\s+\S*prochaine-action\.mjs/.test(c.input?.command ?? '')) appelsMoteur.push({ id: c.id, ordre });
       if (c.name !== 'Agent' && c.name !== 'Task') continue;
       const desc = c.input?.description ?? '';
       const m = /^P(\d+)\/(S\d+)(?:\s+(.*))?$/.exec(desc);
