@@ -29,6 +29,22 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
 - [ ] À faire par l'utilisateur : retirer de `~/.claude/plugins/installed_plugins.json` l'entrée
   `workflow@templates` v0.55.0 (`projectPath` `C:\Users\kovu\Projets\Templates`), doublon dû à la casse du chemin
 
+## Suites de la revue externe — plan 2, P20 (`plans/P20/index.md`)
+- T1-T2 — Retrait du mode parallèle · → plans/P20/S1.md
+- T3 — Retrait des agents par effort · → plans/P20/S2.md
+- T4-T5 — Sessions d'arrière-plan : commandes et autorisations · → plans/P20/S3.md
+- T6-T7 — Un seul lecteur d'index · → plans/P20/S4.md
+- T8 — Le moteur rend les textes finaux · → plans/P20/S5.md
+- T9-T10 — Arrêt relayé : une session reprend avec ta réponse · → plans/P20/S6.md
+- T11 — Le moteur écrit et committe · → plans/P20/S7.md
+- T12 — Relecture selon le risque · → plans/P20/S8.md
+- T13-T14 — Voie express et plans courts · → plans/P20/S9.md
+- T15 — Mods : ils suivent le moteur · → plans/P20/S10.md
+- T16-T17 — Passe texte : WORKFLOW, EXECUTANT, CLAUDE-BASE · → plans/P20/S11.md
+- T18-T19 — Passe skills · → plans/P20/S12.md
+- T20 — Remesure · → plans/P20/S13.md
+- T21 — Publication 0.67.0 · → plans/P20/S14.md
+
 ## Backlog de revue (non bloquant)
 
 - **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
