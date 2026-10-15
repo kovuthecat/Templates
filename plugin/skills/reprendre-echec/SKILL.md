@@ -101,7 +101,12 @@ de soin : c'est le cas où l'état laissé derrière est le moins connu.
     bac à sable, un humain requis : `VERDICT: DECISION`, motif = la remédiation nommée, telle
     quelle. Ce n'est pas au workflow d'élargir ce que l'utilisateur a borné, et corriger du code ne
     servirait à rien. **Plus de `FAIL` ici** : un `FAIL` laisse croire à un problème de code et
-    déclenche une enquête qui ne trouvera rien.
+    déclenche une enquête qui ne trouvera rien. **Ta reprise est la seule** : le moteur ne relance
+    pas un échec d'environnement deux fois (`Tentatives : reprise=1`, ou même `Blocage :` que la
+    version commitée précédente → question à options, jamais une 2ᵉ reprise). Écris donc dans
+    `Blocage :` la commande refusée **telle quelle**, et lance tes propres commandes comme
+    `EXECUTANT.md` le dit (racine du dépôt, chemins relatifs, sans `cd` ni `&&`) : un refus de
+    permission venu de ta propre commande mal écrite se corrige, il ne se rapporte pas.
 - `exécution` (ou ligne absente) → Étapes 2 à 5, comme ci-dessous.
 
 ## Étape 2 — Vérifier l'état réel avant de toucher à quoi que ce soit

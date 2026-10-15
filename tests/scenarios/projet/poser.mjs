@@ -52,6 +52,9 @@ function instantane(destination) {
   });
 }
 
+/** Commande de la stack du mini-projet, posée dans son `permissions.allow` (cf. `settingsProjet`). */
+export const COMMANDE_STACK = 'Bash(node test.mjs:*)';
+
 /** `settings.json` du mini-projet : le socle de permissions du gabarit vendoré. Les hooks n'y sont
  * PAS câblés : ils viennent du plugin chargé par `--plugin-dir` (sinon chacun tournerait deux fois). */
 export function settingsProjet(snapshot) {
@@ -61,6 +64,9 @@ export function settingsProjet(snapshot) {
     if (cle === 'hooks' || cle === 'outputStyle' || cle === '_comment_hooks' || cle === '_comment_outputStyle') continue;
     propre[cle] = valeur;
   }
+  // Comme `/nouveau-projet` à l'instanciation : la commande de la stack du projet s'ajoute au socle (ici le
+  // runner du mini-projet, `node test.mjs` — N0 y est `.claude/n0.json`). Une commande précise, jamais `node:*`.
+  propre.permissions = { ...propre.permissions, allow: [...propre.permissions.allow, COMMANDE_STACK] };
   return JSON.stringify(propre, null, 2) + '\n';
 }
 

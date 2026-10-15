@@ -24,7 +24,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifierPreuve } from '../plugin/bin/preuve-n0.mjs';
 import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
-import { settingsProjet } from './scenarios/projet/poser.mjs';
+import { settingsProjet, COMMANDE_STACK } from './scenarios/projet/poser.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -2576,6 +2576,7 @@ cas('P20/T4 : --autorisations projet → chaque entrée Bash du gabarit y est, n
   if (manquantes.length > 0) return `entrées du gabarit absentes de la liste : ${manquantes.join(', ')}`;
   const interdites = ENTREES_INTERDITES.filter((e) => liste.includes(e));
   if (interdites.length > 0) return `entrées trop larges présentes : ${interdites.join(', ')}`;
+  if (!liste.includes(COMMANDE_STACK)) return `la commande de la stack du mini-projet (${COMMANDE_STACK}) manque : un vrai projet instancié l'a`;
   const sansSocle = OUTILS_SOCLE.filter((o) => !liste.includes(o));
   if (sansSocle.length > 0) return `outils non-Bash du socle absents : ${sansSocle.join(', ')}`;
   if (new Set(liste).size !== liste.length) return 'doublons dans la liste';
@@ -2609,6 +2610,117 @@ cas('P20/T4 : lancer.mjs --autorisations <inconnue> → code 2 avant tout appel 
   const { code, sortie } = lancer(LANCER_SCENARIOS, ['--scenario', 'nominal', '--autorisations', 'large'], RACINE);
   if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
   if (!/--autorisations attend banc ou projet/.test(sortie)) return `message attendu absent: ${sortie}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P20/S3 T5 — une panne d'environnement n'a droit qu'à UNE reprise ; la deuxième, ou un `Blocage :`
+// identique à celui de la version commitée précédente, rend une `question` AVEC options (`options.liste`).
+// Constat B de la mesure : deux reprises brûlées sur la même permission, puis une question sans options.
+// Les versions du rapport sont COMMITÉES (comme au dépôt réel), jamais seulement posées sur le disque.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const BLOCAGE_ENV = 'Blocage : autoriser `node .claude/workflow/bin/n0.mjs` dans les permissions du projet, puis relancer N0';
+
+/** Écrit puis committe une version du rapport de S1 (plan moteur-base, dépôt jetable déjà initialisé). */
+function versionEchec(cwd, lignes, message) {
+  ecrireEchec(cwd, 'S1', lignes);
+  commitTout(cwd, message);
+}
+
+function questionEnvironnementAttendue(action, sortie) {
+  if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
+  const liste = action.options?.liste;
+  if (!Array.isArray(liste) || liste.length !== 3) return `options.liste de 3 entrées attendue, reçu: ${JSON.stringify(action.options)}`;
+  if (!/^Régler l'environnement/.test(liste[0]) || !/débloque S1/.test(liste[0])) return `option 1 inattendue: ${liste[0]}`;
+  if (!/autoriser `node \.claude\/workflow\/bin\/n0\.mjs`/.test(liste[0])) return `option 1 doit citer le geste de « Blocage : », reçu: ${liste[0]}`;
+  if (!/Reprendre la session à la main — débloque S1/.test(liste[1])) return `option 2 inattendue: ${liste[1]}`;
+  if (!/Sortir la session du plan — débloque les autres sessions/.test(liste[2])) return `option 3 inattendue: ${liste[2]}`;
+  return null;
+}
+
+cas('P20/T5 : deux échecs environnement identiques (reprise=1, même Blocage) → question, options.liste de 3, jamais un 2e reprendre', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-deux-');
+  initDepot(cwd);
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV], 'S1 en échec (environnement)');
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=1 enquete=0', BLOCAGE_ENV], 'reprise 1 : même refus');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  return questionEnvironnementAttendue(action, sortie);
+});
+
+cas('P20/T5 : Blocage identique d\'une version commitée à l\'autre, compteur oublié (reprise=0 partout) → question', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-compteur-oublie-');
+  initDepot(cwd);
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV], 'S1 en échec (environnement)');
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV, '', '## Déjà écarté', '- Bash refusé à nouveau'], 'reprise sans incrément');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  return questionEnvironnementAttendue(action, sortie);
+});
+
+cas('P20/T5 : un seul échec environnement commité (reprise=0) → reprendre, même modèle (Sonnet)', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-un-');
+  initDepot(cwd);
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV], 'S1 en échec (environnement)');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `reprendre attendu, reçu: ${sortie}`;
+  if (action.session !== 'S1' || action.modele !== 'Sonnet') return `S1/Sonnet attendus, reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T5 : un seul échec environnement posé sur le disque, jamais commité → reprendre (pas de répétition sans version précédente)', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-disque-');
+  ecrireEchec(cwd, 'S1', ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV]);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `reprendre attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T5 : deux échecs environnement mais Blocage différent, reprise=0 → reprendre (la répétition se lit sur le Blocage)', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-blocage-different-');
+  initDepot(cwd);
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', BLOCAGE_ENV], 'S1 en échec (environnement)');
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=0 enquete=0', 'Blocage : installer la dépendance manquante, puis relancer'], 'autre panne');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `reprendre attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T5 : environnement (reprise=1) puis exécution (autre Blocage) → budget d\'exécution intact : 2e reprise, Opus', () => {
+  const cwd = planMoteurJetable('workflow-pa-env-puis-exec-');
+  initDepot(cwd);
+  versionEchec(cwd, ['Nature : environnement', 'Tentatives : reprise=1 enquete=0', BLOCAGE_ENV], 'S1 en échec (environnement)');
+  versionEchec(cwd, ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : corriger doubler() dans src/ops.mjs, puis relancer N0'], 'la panne est réglée, un test est rouge');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre') return `reprendre attendu (la borne d'environnement ne s'applique pas à l'exécution), reçu: ${sortie}`;
+  if (action.modele !== 'Opus') return `Opus attendu (reprise=1 : un cran au-dessus), reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T5 : exécution avec le même Blocage deux fois (reprise=0) → reprendre : la borne de répétition est propre à l\'environnement', () => {
+  const cwd = planMoteurJetable('workflow-pa-exec-meme-blocage-');
+  initDepot(cwd);
+  const blocage = 'Blocage : corriger doubler() dans src/ops.mjs, puis relancer N0';
+  versionEchec(cwd, ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', blocage], 'S1 en échec (exécution)');
+  versionEchec(cwd, ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', blocage, '', '## Déjà écarté', '- rien'], 'rapport complété');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'reprendre' || action.modele !== 'Sonnet') return `reprendre Sonnet attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T5 : une question du moteur sur un échec porte toujours des options (budget exécution épuisé compris)', () => {
+  const cwd = planMoteurJetable('workflow-pa-options-toujours-');
+  ecrireEchec(cwd, 'S1', ['Nature : exécution', 'Tentatives : reprise=2 enquete=0', 'Blocage : x']);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!action || action.action !== 'question') return `question attendue, reçu: ${sortie}`;
+  if (!action.options || typeof action.options !== 'object' || Object.keys(action.options).length === 0) return `question sans options: ${sortie}`;
   return null;
 });
 

@@ -62,10 +62,12 @@ quatre autres agents du workflow (`relecteur-session`, `verificateur-plan`, `ver
 
 Commandes depuis la racine du dépôt, chemins relatifs, sans `cd` ni `&&` ; une commande par appel.
 Les commandes du workflow s'écrivent `node .claude/workflow/bin/<script>.mjs` (vendoré) ou
-`node plugin/bin/<script>.mjs` (dépôt source) — c'est la forme autorisée. Pourquoi : un agent
-d'arrière-plan ne peut pas approuver une commande ; `cd <dir> && cat <relatif>` en demande une dès
-qu'une règle `Read()` deny existe, et `node C:/…/n0.mjs` ne commence par aucun préfixe de
-`permissions.allow` — la commande est refusée, N0 ni le commit ne partent.
+`node plugin/bin/<script>.mjs` (dépôt source) — c'est la forme autorisée. Donc ni `git -C <dir>`
+ni chemin absolu dans une commande ; lire un fichier = l'outil `Read`, pas `cat`/`sed`/`head`.
+Pourquoi : un agent d'arrière-plan ne peut pas approuver une commande ; `cd <dir> && cat <relatif>`
+en demande une dès qu'une règle `Read()` deny existe, et `node C:/…/n0.mjs` ou
+`git -C C:/… status` ne commencent par aucun préfixe de `permissions.allow` — la commande est
+refusée, N0 ni le commit ne partent.
 
 ## Interdits
 

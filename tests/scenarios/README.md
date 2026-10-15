@@ -27,7 +27,9 @@ le binaire qui lance la session courante, sinon `claude` du PATH) · `--autorisa
 (`OUTILS_AUTORISES` : `Bash(git:*)`, `Bash(node:*)`, `Bash(cd:*)`, `Bash(cat:*)`…) mais le
 `permissions.allow` du gabarit **tel que vendoré** — lu dans le `settings.json` du mini-projet — plus les
 outils non-Bash du socle (`Read`, `Edit`, `Write`, `Glob`, `Grep`, `Agent`, `Task`, `SendMessage`,
-`Skill`). La liste jouée est écrite dans `meta.json` du passage (`autorisations`, `outilsAutorises`) : un
+`Skill`). Le `settings.json` du mini-projet porte, en plus du gabarit, la commande de sa stack
+(`Bash(node test.mjs:*)`, `COMMANDE_STACK` de `projet/poser.mjs`) : un projet instancié par
+`/nouveau-projet` l'a aussi, sans `node:*` générique. La liste jouée est écrite dans `meta.json` du passage (`autorisations`, `outilsAutorises`) : un
 passage sans `autorisations: "projet"` ne prouve rien sur les refus.
 Pourquoi : la liste large cachait les constats A et B de la mesure (`docs/analyses/2026-10-14-mesure-de-reference.md`,
 §6) — `cd <dir> && cat <relatif>` demande une approbation dès qu'une règle `Read()` deny existe

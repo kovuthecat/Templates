@@ -392,6 +392,22 @@ function maxTentatives(textes) {
   );
 }
 
+/** Un échec d'environnement qui se répète à l'identique (P20/S3/T5, constat B de la mesure) : la ligne
+ * `Blocage :` de la version courante est celle de la version **commitée précédente**, et celle-ci
+ * était déjà de nature `environnement`. « Précédente » = la plus récente version commitée dont le texte
+ * diffère de l'arbre de travail (celle qui lui est identique EST l'état courant, pas une tentative
+ * antérieure). Lit le même historique que les compteurs (`versionsCommitees`, du plus récent au plus
+ * ancien) : une reprise qui oublie d'incrémenter `Tentatives :` ne fait pas boucler le moteur. */
+function blocageRepeteDepuisEnvironnement(texte, blocage, anterieures) {
+  if (!blocage) return false;
+  const precedente = anterieures.find((v) => v.trim() !== texte.trim());
+  if (!precedente) return false;
+  if (normaliserNature(valeurDeCle(precedente, 'Nature')).nature !== 'environnement') return false;
+  const forme = (b) => String(b ?? '').replace(/[\s`*]+/g, ' ').trim().toLowerCase();
+  const blocagePrecedent = valeurDeCle(precedente, 'Blocage');
+  return blocagePrecedent !== null && forme(blocagePrecedent) === forme(blocage);
+}
+
 function lireEchec(chemin, relatif) {
   const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
   const valeur = (nom) => valeurDeCle(texte, nom);
@@ -406,6 +422,7 @@ function lireEchec(chemin, relatif) {
   const tentatives = maxTentatives([texte, ...anterieures]);
 
   const blocage = valeur('Blocage'); // absente ⇒ démarrage à froid (pas de canal court)
+  const blocageRepete = blocageRepeteDepuisEnvironnement(texte, blocage, anterieures);
   const mesure = valeur('Mesure'); // optionnelle : seulement une prémisse mesurée et commitée
 
   // Auto : oui, suivi d'un séparateur quelconque (·, -, ,, espace) puis `option <m>`. Un « oui » sans
@@ -443,6 +460,7 @@ function lireEchec(chemin, relatif) {
     natureInconnue,
     tentatives,
     blocage,
+    blocageRepete,
     mesure,
     auto,
     avertissementAuto,
@@ -605,6 +623,32 @@ function questionBudget(session, nature = 'reprise') {
   };
 }
 
+/** Panne d'environnement : une seule reprise (P20/S3/T5), puis une question — jamais sans options.
+ * `liste` est rendue ici, dans le JSON de l'action : le rapport de passation d'un échec d'environnement
+ * n'a pas obligatoirement de `## Issues` (gabarit-echec.md), l'orchestrateur n'invente rien. Source
+ * `budget-epuise` conservée : c'est celle que l'orchestrateur sait déjà relayer. */
+function questionEnvironnement(session, e) {
+  const id = session.session;
+  const geste = e.blocage ? e.blocage.replace(/\s+/g, ' ').trim() : `voir plans/${plan}/${id}.echec.md`;
+  return {
+    action: 'question',
+    motif: e.blocageRepete
+      ? `panne d'environnement identique à la tentative précédente sur ${id} : une seule reprise est permise`
+      : `budget de reprises épuisé sur ${id} : une panne d'environnement n'a droit qu'à une reprise`,
+    options: {
+      source: 'budget-epuise',
+      session: id,
+      nature: 'environnement',
+      blocage: e.blocage ?? null,
+      liste: [
+        `Régler l'environnement (${geste}), puis relancer — débloque ${id}`,
+        `Reprendre la session à la main — débloque ${id}`,
+        'Sortir la session du plan — débloque les autres sessions',
+      ],
+    },
+  };
+}
+
 /** Une session à lancer porte un effort non lançable — refuser en nommant §3 plutôt que propager
  * un effort que l'outil `Agent` n'accepte pas. */
 function questionEffortInvalide(session) {
@@ -701,8 +745,11 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
     return { action: 'verifier-premisse', session: session.session };
   }
 
+  // Une panne d'environnement n'a droit qu'à UNE reprise (la 2e brûlait le budget sur la même permission,
+  // mesure du 2026-10-15) ; un `Blocage :` identique à celui de la tentative précédente vaut une reprise
+  // consommée même si le compteur n'a pas été incrémenté.
   if (nature === 'environnement') {
-    if (e.tentatives.reprise >= 2) return questionBudget(session);
+    if (e.tentatives.reprise >= 1 || e.blocageRepete) return questionEnvironnement(session, e);
     return { action: 'reprendre', session: session.session, modele: modeleIndex };
   }
 
