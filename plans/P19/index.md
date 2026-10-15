@@ -31,7 +31,7 @@ sessions ont tourné sur un autre.
 | [S4](S4.md) | T6-T8 | Garde-fou git, skills qui poussent, plugin en retard signalé | Sonnet | medium | — | S3 | `plugin/hooks/pretooluse-git.mjs` · `plugin/hooks/sessionstart-contexte.mjs` · `plugin/skills/purge-contexte/SKILL.md` · `plugin/skills/revue-de-conception/SKILL.md` · `tests/tester-hooks.mjs` | [ ] | — |
 | [S5](S5.md) | T9-T10 | N0 sans doublon, tests en CI | Sonnet | medium | — | S4 | `plugin/bin/publier.mjs` · `.claude/n0.json` · `.github/workflows/plugin.yml` · `tests/tester-scripts.mjs` · `tests/tester-hooks.mjs` · `tests/tester-renvois.mjs` · `tests/tester-preuves.mjs` · `tests/tester-mods.mjs` | [ ] | — |
 | [S6](S6.md) | T11-T13 | Scénarios de bout en bout et mesure de référence | Sonnet | high | — | S5 | `tests/scenarios/` · `docs/analyses/2026-10-14-mesure-de-reference.md` · `plugin/evals/` | [x] 2026-10-15 | — |
-| [S7](S7.md) | T14 | Publication 0.66.0 | Haiku | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` | [ ] | — |
+| [S7](S7.md) | T14 | Publication 0.66.0 | Haiku | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` | [x] 2026-10-15 | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 
