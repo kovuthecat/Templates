@@ -3542,6 +3542,317 @@ cas('P20/T8 fini : rien à signaler → « Incidents du plan : aucun » et « N1
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P20/S6 T9 — arrêt relayé : l'état `en-attente`. Une session arrêtée sur un choix écrit
+// `plans/P<n>/S<k>.question.md` (gabarit `reprendre-echec/references/gabarit-question.md`, lu à
+// l'exécution : jamais recopié ici). Sans `Réponse :` → `question` (source `attente-reponse`) ; avec
+// réponse → `transmettre` ; avec réponse et `Agent : introuvable` → `reprendre` à froid ; jamais un
+// budget consulté. Anti-raccourci (S6.md) : un `transmettre` testé sans vérifier que `Tentatives :`
+// reste inchangé laisserait un arrêt brûler le budget — chaque cas compare les fichiers avant/après.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Le bloc gabarit de `S<k>.question.md` : `reprendre-echec/references/gabarit-question.md`. */
+function extraireGabaritQuestion() {
+  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'reprendre-echec', 'references', 'gabarit-question.md'), 'utf8').replace(/\r\n/g, '\n');
+  const m = /```md\n([\s\S]*?)```/.exec(texte);
+  if (!m) throw new Error('gabarit introuvable dans reprendre-echec/references/gabarit-question.md');
+  return m[1];
+}
+
+const QUESTION_PAR_DEFAUT = {
+  question: 'Quel nom donner à la fonction de lecture ?',
+  fichier: 'src/a.mjs',
+  agent: 'agent-7f3a91',
+  reponse: '—',
+  options: ['1. lireIndex — nom actuel, aucun renommage · débloque S1', '2. chargerIndex — plus parlant, quatre renommages · débloque S1'],
+  contexte: ['Deux noms coexistent dans le dépôt.', 'La réponse fixe le nom des tests de T2.'],
+};
+
+/** Le gabarit réel rempli de valeurs (les lignes mécaniques, `## Options`, `## Contexte`). */
+function questionRemplie(v = {}) {
+  const x = { ...QUESTION_PAR_DEFAUT, ...v };
+  const g = extraireGabaritQuestion()
+    .replace(/^Question\s*:.*$/m, `Question : ${x.question}`)
+    .replace(/^Fichier à relire\s*:.*$/m, `Fichier à relire : ${x.fichier}`)
+    .replace(/^Agent\s*:.*$/m, `Agent : ${x.agent}`)
+    .replace(/^Réponse\s*:.*$/m, `Réponse : ${x.reponse}`)
+    .replace(/^## Options\n[\s\S]*?\n\n## Contexte\n[\s\S]*$/m, `## Options\n${x.options.join('\n')}\n\n## Contexte\n${x.contexte.join('\n')}\n`);
+  if (!g.includes(`Question : ${x.question}`) || (x.options.length > 0 && !g.includes(x.options[0]))) throw new Error('gabarit-question.md : lignes mécaniques ou sections introuvables');
+  return g;
+}
+
+/** Dépôt jetable d'une fixture `moteur-question-*` (P9), `src/` commité (WIP), `S1.question.md` écrit
+ * depuis le gabarit et commité. `echec` : lignes d'un `S1.echec.md` commité avant la question. */
+function planQuestion(prefixe, fixture, { question = {}, echec = null, commiterQuestion = true } = {}) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', fixture), join(cwd, 'plans', 'P9'), { recursive: true });
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  for (const f of ['a', 'b', 'c']) writeFileSync(join(cwd, 'src', `${f}.mjs`), `export const ${f} = 1;\n`);
+  initDepot(cwd);
+  if (echec) ecrireEchec(cwd, 'S1', echec);
+  commitTout(cwd, 'WIP de S1\n\nPlan: P9/S1/T1');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.question.md'), questionRemplie(question));
+  if (commiterQuestion) commitTout(cwd, 'question de S1');
+  return cwd;
+}
+
+const lireSiExiste = (chemin) => (existsSync(chemin) ? readFileSync(chemin, 'utf8') : null);
+
+cas('P20/T9 concordance : gabarit-question.md rempli → le moteur lit question, fichier, agent, réponse, options, contexte', () => {
+  const cwd = planQuestion('workflow-pa-question-gabarit-', 'moteur-question-sans-reponse');
+  const { code, sortie } = lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const s1 = JSON.parse(sortie).sessions.find((s) => s.session === 'S1');
+  if (s1?.etat !== 'en-attente') return `S1 attendue en-attente, reçu ${JSON.stringify(s1?.etat)}`;
+  const q = s1.question;
+  if (q.question !== QUESTION_PAR_DEFAUT.question) return `Question mal lue : ${JSON.stringify(q.question)}`;
+  if (q.fichier !== 'src/a.mjs') return `Fichier à relire mal lu : ${JSON.stringify(q.fichier)}`;
+  if (q.agent !== 'agent-7f3a91' || q.agentIntrouvable) return `Agent mal lu : ${JSON.stringify([q.agent, q.agentIntrouvable])}`;
+  if (q.reponse !== null) return `Réponse « — » attendue vide, reçu ${JSON.stringify(q.reponse)}`;
+  if (q.options.join('|') !== QUESTION_PAR_DEFAUT.options.join('|')) return `options mal lues : ${JSON.stringify(q.options)}`;
+  if (q.contexte.join('|') !== QUESTION_PAR_DEFAUT.contexte.join('|')) return `contexte mal lu : ${JSON.stringify(q.contexte)}`;
+  // La même, une fois la réponse recopiée par l'orchestrateur.
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.question.md'), questionRemplie({ reponse: '2, chargerIndex' }));
+  const apres = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie).sessions.find((s) => s.session === 'S1').question;
+  if (apres.reponse !== '2, chargerIndex') return `Réponse remplie mal lue : ${JSON.stringify(apres.reponse)}`;
+  return null;
+});
+
+cas('P20/T9 concordance : le gabarit tel quel (rien de rempli) → réponse vide, agent absent, question en attente', () => {
+  const cwd = planQuestion('workflow-pa-question-gabarit-vide-', 'moteur-question-sans-reponse');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.question.md'), extraireGabaritQuestion());
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'question' || action.options?.source !== 'attente-reponse') return `question attente-reponse attendue, reçu: ${sortie}`;
+  const q = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie).sessions[0].question;
+  if (q.agent !== null || q.reponse !== null || q.fichier !== null || q.question !== null) return `gabarit non rempli : tout doit se lire vide, reçu ${JSON.stringify(q)}`;
+  return null;
+});
+
+cas('P20/T9 sans réponse → question (source attente-reponse) : la question, ses options recopiées, le fichier à relire', () => {
+  const cwd = planQuestion('workflow-pa-question-sans-reponse-', 'moteur-question-sans-reponse');
+  const avant = lireSiExiste(join(cwd, 'plans', 'P9', 'S1.question.md'));
+  const r = verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'attente-reponse',
+    entete: 'P9/S1',
+    question: QUESTION_PAR_DEFAUT.question,
+    options: QUESTION_PAR_DEFAUT.options,
+    reste: 'rien', // S2 dépend de S1 : rien ne reste lançable sans la réponse
+    rapport: 'src/a.mjs',
+    contient: [
+      '     Deux noms coexistent dans le dépôt.',
+      '     La réponse fixe le nom des tests de T2.',
+      'ta réponse est écrite dans plans/P9/S1.question.md, puis transmise à S1',
+    ],
+  });
+  if (r) return r;
+  if (lireSiExiste(join(cwd, 'plans', 'P9', 'S1.question.md')) !== avant) return 'le moteur a modifié S1.question.md (lecture seule)';
+  return null;
+});
+
+cas('P20/T9 sans réponse et sans fichier à relire → le rapport est la question elle-même ; options non numérotées → numérotées', () => {
+  const cwd = planQuestion('workflow-pa-question-sans-fichier-', 'moteur-question-sans-reponse', {
+    question: { fichier: '—', options: ['lireIndex — nom actuel', 'chargerIndex — plus parlant'] },
+  });
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'attente-reponse',
+    entete: 'P9/S1',
+    question: QUESTION_PAR_DEFAUT.question,
+    options: ['1. lireIndex — nom actuel', '2. chargerIndex — plus parlant'],
+    reste: 'rien',
+    rapport: 'plans/P9/S1.question.md',
+  });
+});
+
+cas('P20/T9 sans réponse, sans options → une option de repli (répondre par écrit), jamais une question sans option', () => {
+  const cwd = planQuestion('workflow-pa-question-sans-options-', 'moteur-question-sans-reponse', { question: { options: [] } });
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'attente-reponse',
+    entete: 'P9/S1',
+    question: QUESTION_PAR_DEFAUT.question,
+    options: ['1. Répondre par écrit — la session reprend avec ta réponse'],
+    reste: 'rien',
+    rapport: 'src/a.mjs',
+  });
+});
+
+cas("P20/T9 sans réponse : un `S1.echec.md` antérieur ne lui prend pas la main — la question reste en attente, ses options sont celles de la session", () => {
+  const cwd = planQuestion('workflow-pa-question-et-echec-', 'moteur-question-sans-reponse', {
+    echec: ['Nature : exécution', 'Tentatives : reprise=1 enquete=0', 'Blocage : relancer le build', '', '## Issues', "1. Option de l'enquête — jamais relayée ici"],
+  });
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), {
+    source: 'attente-reponse',
+    entete: 'P9/S1',
+    question: QUESTION_PAR_DEFAUT.question,
+    options: QUESTION_PAR_DEFAUT.options,
+    reste: 'rien',
+    rapport: 'src/a.mjs',
+    absent: ["Option de l'enquête", 'Blocage noté', 'section `## Issues`'],
+  });
+});
+
+cas('P20/T9 avec réponse → transmettre : session, agent gardé dans le fichier, message = la réponse', () => {
+  const cwd = planQuestion('workflow-pa-question-transmettre-', 'moteur-question-avec-reponse', { question: { reponse: '2, chargerIndex' } });
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'transmettre') return `transmettre attendu, reçu: ${sortie}`;
+  if (action.session !== 'S1' || action.agent !== 'agent-7f3a91' || action.message !== '2, chargerIndex') {
+    return `session S1 / agent agent-7f3a91 / message « 2, chargerIndex » attendus, reçu ${JSON.stringify(action)}`;
+  }
+  if (action.question !== 'plans/P9/S1.question.md') return `chemin du fichier attendu, reçu ${action.question}`;
+  const lignes = action.texte.split('\n');
+  if (lignes[0] !== 'transmettre — S1') return `première ligne « transmettre — S1 » attendue, reçu ${lignes[0]}`;
+  if (!lignes.includes('   > 2, chargerIndex')) return `la réponse doit figurer dans le texte:\n${action.texte}`;
+  if (!action.texte.includes('Agent : introuvable')) return `le texte doit dire quoi faire quand SendMessage échoue:\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T9 transmettre : une réponse sur plusieurs lignes est transmise en entier, et seulement elle', () => {
+  const cwd = planQuestion('workflow-pa-question-multiligne-', 'moteur-question-avec-reponse');
+  const fichier = join(cwd, 'plans', 'P9', 'S1.question.md');
+  writeFileSync(fichier, readFileSync(fichier, 'utf8').replace(/^Réponse : —$/m, 'Réponse : 2, chargerIndex\nEt renomme aussi le test.'));
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'transmettre') return `transmettre attendu, reçu: ${sortie}`;
+  if (action.message !== '2, chargerIndex\nEt renomme aussi le test.') return `message attendu sur deux lignes, reçu ${JSON.stringify(action.message)}`;
+  return null;
+});
+
+cas('P20/T9 transmettre HORS BUDGET : S1 à reprise=2 enquete=1 (budget épuisé) → transmettre, jamais question budget-epuise ; Tentatives : inchangé', () => {
+  const cwd = planQuestion('workflow-pa-question-hors-budget-', 'moteur-question-avec-reponse', {
+    question: { reponse: '2, chargerIndex' },
+    echec: ['Nature : exécution', 'Tentatives : reprise=2 enquete=1', 'Blocage : relancer le build'],
+  });
+  const chemins = ['S1.echec.md', 'S1.question.md'].map((f) => join(cwd, 'plans', 'P9', f));
+  const avant = chemins.map(lireSiExiste);
+  const statutAvant = gitSortie(cwd, 'status', '--porcelain');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'transmettre') return `transmettre attendu malgré le budget épuisé, reçu: ${sortie}`;
+  // Anti-raccourci : le compteur reste celui d'avant — rien n'est lu ni écrit pour un arrêt.
+  const apres = chemins.map(lireSiExiste);
+  if (apres[0] !== avant[0] || !/^Tentatives : reprise=2 enquete=1$/m.test(apres[0])) return `Tentatives : modifié par le moteur:\n${apres[0]}`;
+  if (apres[1] !== avant[1]) return 'S1.question.md modifié par le moteur (lecture seule)';
+  if (gitSortie(cwd, 'status', '--porcelain') !== statutAvant) return "l'arbre a changé : le moteur ne doit rien écrire";
+  const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
+  const s1 = etat.sessions.find((s) => s.session === 'S1');
+  if (s1.etat !== 'en-attente' || s1.echec !== null) return `S1 en-attente sans lecture du rapport d'échec attendue, reçu ${JSON.stringify([s1.etat, s1.echec])}`;
+  if (action.texte.includes('budget épuisé')) return `le texte de transmettre ne parle pas de budget épuisé:\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T9 le témoin du budget : sans le fichier .question.md, le même S1 (reprise=2) est bien en question budget-epuise', () => {
+  const cwd = planQuestion('workflow-pa-question-temoin-budget-', 'moteur-question-avec-reponse', {
+    question: { reponse: '2, chargerIndex' },
+    echec: ['Nature : exécution', 'Tentatives : reprise=2 enquete=1', 'Blocage : relancer le build'],
+  });
+  git(cwd, 'rm', '-q', 'plans/P9/S1.question.md');
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'question' || action.options?.source !== 'budget-epuise') return `question budget-epuise attendue sans le fichier de question, reçu: ${sortie}`;
+  return null;
+});
+
+cas('P20/T9 un WIP porte le repère Plan: de la tâche : la session reste en attente, jamais « faite » par ses commits de tâche', () => {
+  const cwd = planQuestion('workflow-pa-question-wip-', 'moteur-question-sans-reponse');
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 2;\n');
+  commitTout(cwd, 'WIP de S1\n\nPlan: P9/S1/T2');
+  const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
+  const s1 = etat.sessions.find((s) => s.session === 'S1');
+  if (s1.etat !== 'en-attente') return `S1 attendue en-attente (T1 et T2 commitées par repère, mais la question prime), reçu ${s1.etat}`;
+  return null;
+});
+
+cas('P20/T9 avec réponse et `Agent : introuvable` → reprendre à froid, hors budget : le prompt fait lire le fichier et sa réponse', () => {
+  const cwd = planQuestion('workflow-pa-question-froid-', 'moteur-question-agent-introuvable', {
+    question: { reponse: '2, chargerIndex', agent: 'introuvable' },
+    echec: ['Nature : exécution', 'Tentatives : reprise=2 enquete=1', 'Blocage : relancer le build'],
+  });
+  const chemins = ['S1.echec.md', 'S1.question.md'].map((f) => join(cwd, 'plans', 'P9', f));
+  const avant = chemins.map(lireSiExiste);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  // Remédiation Opus : 1 et S1 Opus : une reprise ordinaire rendrait `budget-opus` ; celle-ci reste hors budget.
+  if (action?.action !== 'reprendre') return `reprendre attendu (hors budget, ni budget-epuise ni budget-opus), reçu: ${sortie}`;
+  if (action.session !== 'S1' || action.modele !== 'Opus' || action.agent?.model !== 'opus' || action.agent?.effort !== 'high') {
+    return `S1 sur Opus/high attendue, reçu ${JSON.stringify([action.session, action.modele, action.agent])}`;
+  }
+  if (action.option !== undefined) return `aucune option d'enquête attendue, reçu ${action.option}`;
+  if (action.question !== 'plans/P9/S1.question.md') return `chemin du fichier attendu, reçu ${action.question}`;
+  for (const m of ['EXECUTANT.md', 'plans/P9/S1.md', 'plans/P9/S1.question.md', '`Réponse :`', 'VERDICT: PASS|FAIL|QUESTION', 'supprime plans/P9/S1.question.md par un commit']) {
+    if (!action.prompt.includes(m)) return `le prompt devait contenir « ${m} »:\n${action.prompt}`;
+  }
+  if (/reprendre-echec|\.echec\.md/.test(action.prompt)) return `le prompt ne doit pas renvoyer à un rapport d'échec:\n${action.prompt}`;
+  if (action.texte.split('\n')[0] !== 'reprendre — S1 (Opus)') return `première ligne attendue « reprendre — S1 (Opus) », reçu ${action.texte.split('\n')[0]}`;
+  if (!action.texte.includes('--- prompt ---') || !action.texte.includes('hors budget')) return `le texte doit porter le prompt et « hors budget »:\n${action.texte}`;
+  if (action.avertissement && /sans identifiant/.test(action.avertissement)) return `Agent : introuvable n'est pas un identifiant absent:\n${action.avertissement}`;
+  // Anti-raccourci : aucun compteur touché.
+  if (chemins.map(lireSiExiste).join('\u0000') !== avant.join('\u0000')) return 'un fichier du plan a été modifié par le moteur (lecture seule, compteur compris)';
+  return null;
+});
+
+cas('P20/T9 avec réponse et `Agent : —` (identifiant jamais complété) → reprendre à froid avec un avertissement, jamais un SendMessage sans destinataire', () => {
+  const cwd = planQuestion('workflow-pa-question-sans-agent-', 'moteur-question-avec-reponse', { question: { reponse: '1', agent: '—' } });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'reprendre' || action.question !== 'plans/P9/S1.question.md') return `reprendre à froid attendu, reçu: ${sortie}`;
+  if (!/sans identifiant/.test(action.avertissement ?? '')) return `avertissement « sans identifiant » attendu, reçu ${JSON.stringify(action.avertissement)}`;
+  if (!action.texte.includes('Avertissement : ')) return `l'avertissement doit figurer dans le texte:\n${action.texte}`;
+  return null;
+});
+
+cas("P20/T9 session cochée [x] malgré un .question.md oublié → faite : la coche l'emporte, plus de question", () => {
+  const cwd = planQuestion('workflow-pa-question-cochee-', 'moteur-question-sans-reponse');
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  writeFileSync(chemin, readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n').replace(/(\| \[S1\]\(S1\.md\)[^\n]*)\| \[ \] \|/, '$1| [x] 2026-10-15 |'));
+  const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
+  if (etat.sessions.find((s) => s.session === 'S1').etat !== 'faite') return 'S1 cochée attendue faite';
+  return null;
+});
+
+cas('P20/T9 arbre : WIP commité + .question.md → la question, pas arbre-sale ; sans le fichier, le même fichier de zone modifié EST arbre-sale', () => {
+  const cwd = planQuestion('workflow-pa-question-arbre-', 'moteur-question-sans-reponse');
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 3;\n'); // WIP non commité dans la zone de S1
+  const avec = lancerJson(['P9', '--json'], cwd);
+  if (avec.action?.action !== 'question' || avec.action.options?.source !== 'attente-reponse') return `question attente-reponse attendue (la question prime sur l'arbre), reçu: ${avec.sortie}`;
+  git(cwd, 'rm', '-q', 'plans/P9/S1.question.md');
+  git(cwd, 'commit', '-q', '-m', 'S1 sans question');
+  const sans = lancerJson(['P9', '--json'], cwd);
+  if (sans.action?.action !== 'question' || sans.action.options?.source !== 'arbre-sale') return `témoin : question arbre-sale attendue sans le fichier de question, reçu: ${sans.sortie}`;
+  return null;
+});
+
+cas('P20/T9 arbre : S1.question.md non suivi seul (zone propre) → question en attente, jamais arbre-sale (fichier du plan exclu du contrôle de zone)', () => {
+  const cwd = planQuestion('workflow-pa-question-non-suivie-', 'moteur-question-sans-reponse', { commiterQuestion: false });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'question' || action.options?.source !== 'attente-reponse') return `question attente-reponse attendue, reçu: ${sortie}`;
+  return null;
+});
+
+// ── `pastille` : lu, ignoré, signalé ─────────────────────────────────────────────────────────────
+
+cas("P20/T9 `pastille` dans la ligne « en clair » d'une session → lancer comme les autres, avec un avertissement (jamais un arrêt)", () => {
+  const cwd = planMoteurJetable('workflow-pa-pastille-');
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+  if (!texte.includes('  - **S1** — fixture.')) throw new Error('fixture moteur-base : ligne en clair de S1 introuvable');
+  writeFileSync(chemin, texte.replace('  - **S1** — fixture.', '  - **S1** — écran à valider, pastille : déroulé surveillé.'));
+  initEtCommitTout(cwd);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'lancer' || action.sessions.map((s) => s.session).join() !== 'S1') return `lancer S1 attendu, reçu: ${sortie}`;
+  if (!action.sessions[0].agent) return `S1 lancée avec son appel d'agent attendue, reçu ${JSON.stringify(action.sessions[0])}`;
+  if (!/S1 : marque « pastille » héritée, ignorée — lancée en sous-agent/.test(action.avertissement ?? '')) return `avertissement pastille attendu, reçu ${JSON.stringify(action.avertissement)}`;
+  if (!action.texte.includes('Avertissement : S1 : marque « pastille » héritée')) return `l'avertissement doit figurer dans le texte:\n${action.texte}`;
+  return null;
+});
+
+cas('P20/T9 témoin : sans le mot `pastille`, le même plan se lance sans avertissement de marque', () => {
+  const cwd = planMoteurJetable('workflow-pa-sans-pastille-');
+  initEtCommitTout(cwd);
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'lancer') return `lancer attendu, reçu: ${sortie}`;
+  if (/pastille/.test(action.avertissement ?? '')) return `aucun avertissement pastille attendu, reçu ${action.avertissement}`;
+  return null;
+});
+
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {
@@ -3557,7 +3868,7 @@ cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, 
     }
   }
   const vues = new Set(ACTIONS_VUES.map((a) => a.action));
-  const attendues = ['lancer', 'verifier-premisse', 'reprendre', 'enqueter', 'relancer-interrompue', 'relire', 'pousser', 'validation-humaine', 'question', 'fini', 'cloturer', 'valider-n0'];
+  const attendues = ['lancer', 'verifier-premisse', 'reprendre', 'enqueter', 'relancer-interrompue', 'relire', 'pousser', 'validation-humaine', 'question', 'fini', 'cloturer', 'valider-n0', 'transmettre'];
   const manquantes = attendues.filter((x) => !vues.has(x));
   if (manquantes.length) return `actions jamais rendues par les cas du moteur (donc jamais contrôlées) : ${manquantes.join(', ')}`;
   return null;

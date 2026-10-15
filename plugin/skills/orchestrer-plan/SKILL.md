@@ -48,6 +48,7 @@ pas une question posée à l'utilisateur tant que l'abandon n'a pas été tenté
 | `reprendre` | `references/remediation.md` — canal court si ses trois conditions tiennent, sinon reprise à froid ; `modele`/`option` déjà décidés par le script. |
 | `enqueter` | `references/remediation.md` — bloc d'enquête ; `modele` déjà décidé par le script. |
 | `relancer-interrompue` | `references/remediation.md` — bloc `relancer-interrompue` ; hors budget, exception écrite aux trois conditions du canal court. |
+| `transmettre` | `SendMessage` à `agent` avec `message` ; échec → écrire `Agent : introuvable` dans le `.question.md` (`question`), committer, rappeler le moteur (il rend alors `reprendre` avec un `prompt` : lancer l'agent à froid avec ce prompt). |
 | `valider-n0` | Lancer N0 complet avec `--session P<n>/S<k>`, committer la preuve si PASS, puis rappeler le moteur. FAIL → rapport d’échec et décocher la session ; jamais fabriquer une preuve. |
 | `relire` | Étape 2, pour chaque session de `sessions` — l'orchestrateur committe chaque `.revue.md`. |
 | `pousser` | `git pull --rebase` puis `git push` ; conflit → rappeler le script, il rend `question`. |
@@ -119,11 +120,11 @@ Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à 
 corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
 plans/P<n>/S<k>.echec.md, ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis
 renvoie son chemin.
-Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
+Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
 ```
 
-**Collecter** : lire `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre, en gardant l'identifiant d'agent (canal court, `references/remediation.md`). Sans
+**Collecter** : lire `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre, en gardant l'identifiant d'agent (canal court, `references/remediation.md`). `QUESTION` : la session s'est arrêtée sur un choix et a écrit `plans/P<n>/S<k>.question.md` (gabarit : `reprendre-echec/references/gabarit-question.md`) ; si elle y a écrit `Agent : —`, le compléter avec l'identifiant gardé, committer, rappeler le script (`question`, source `attente-reponse`) ; à la réponse de l'utilisateur, l'écrire dans la ligne `Réponse :` du fichier, committer, rappeler le script (`transmettre`). Un arrêt n'est ni un échec ni une reprise : hors budget. Sans
 `VERDICT:` ni commit : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend
 parfois `PASS`, 2026-09-11). `partial` (tours épuisés) = **toujours** `FAIL`. Recoupement d'un `FAIL`
 par les commits : fait par le script au tour suivant, plus par l'orchestrateur. Verdict perdu ou
@@ -208,7 +209,7 @@ session dont une dépendance (directe ou transitive) est celle qui bloque, même
 
 Options jamais inventées ici : `options.source` de l'action (`etape6`, `budget-epuise`, `budget-opus`,
 `effort-invalide`, `session-hors-vague`, `nature-inconnue`, `filtre`, `rebase`, `arbre-sale`,
-`reprise-manuelle`, `racine-introuvable`, `revue-incomplete`, `dependance-revue`) et la section `## Issues` d'un rapport
+`reprise-manuelle`, `racine-introuvable`, `revue-incomplete`, `dependance-revue`, `attente-reponse`) et la section `## Issues` d'un rapport
 d'enquête (`references/remediation.md`) les fournissent. Une `question` sur une session en échec
 (`budget-epuise`, `budget-opus`, `nature-inconnue`…) : lire ses options **avant** d'écrire la
 question, en lisant le rapport avec l'outil `Read` (section `## Issues`) — jamais `sed`, `cat` ni

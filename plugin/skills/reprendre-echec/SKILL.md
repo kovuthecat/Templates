@@ -61,7 +61,8 @@ bornée qui remplace une hypothèse morte par une hypothèse vivante ou nomme le
 
 Une session qui échoue écrit `plans/P<n>/S<k>.echec.md` **avant** de renvoyer son verdict, au
 gabarit exact et aux lignes mécaniques qu'`/orchestrer-plan` lit — annexe :
-`references/gabarit-echec.md`.
+`references/gabarit-echec.md`. Un arrêt sur un **choix** n'est pas un échec : il s'écrit dans
+`S<k>.question.md`, `references/gabarit-question.md`.
 
 ---
 

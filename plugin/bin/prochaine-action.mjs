@@ -43,6 +43,14 @@
 // docs/decisions/2026-09-22-flous-du-workflow.md). Modèle hors Sonnet|Opus|Haiku : pas de champ
 // `agent`, un `avertissement` nommant la valeur.
 //
+// État `en-attente` (P20/S6/T9, arrêt relayé) : une session qui tombe sur un choix écrit
+// `plans/P<n>/S<k>.question.md` (gabarit : `reprendre-echec/references/gabarit-question.md`), le commite,
+// et rend `VERDICT: QUESTION`. Le fichier porte la question, ses options, l'identifiant d'agent et la
+// réponse. Sans `Réponse :` remplie → `question` (source `attente-reponse`) ; avec réponse → `transmettre`
+// (`SendMessage` à `agent`, `message` = la réponse) ; avec réponse et `Agent : introuvable` (ou `—`) →
+// `reprendre` à froid, dont le `prompt` fait lire le fichier. Hors budget dans les trois cas : l'état
+// passe avant `echec`, le moteur ne lit ni ne compte `Tentatives :`.
+//
 // Avant un `lancer` : l'arbre non commité est croisé avec la zone de chaque session de la vague (D1,
 // même décision). Recoupement, zone illisible ou `git status` en échec → `question` source
 // `arbre-sale`, motifs : fichiers touchés dans une zone, « zone illisible : <segment> », « arbre
@@ -50,7 +58,7 @@
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifierPreuve } from './preuve-n0.mjs';
 import { lireIndexTexte, normaliserSimple } from './lire-index.mjs';
@@ -69,7 +77,9 @@ if (!plan) {
 }
 
 // ── git, best-effort, jamais bloquant (style maison : plugin/bin/collecter-incidents.mjs) ────────
-function git(...a) {
+/** Sortie brute de git, espaces de tête compris — `git status --porcelain` commence par un espace pour un
+ * fichier suivi modifié (` M chemin`) : la rogner décalait le premier chemin (P20/S6, défaut mesuré). */
+function gitBrut(...a) {
   try {
     return execFileSync('git', a, {
       cwd: RACINE,
@@ -77,10 +87,14 @@ function git(...a) {
       stdio: ['ignore', 'pipe', 'ignore'],
       windowsHide: true,
       timeout: 8000,
-    }).trim();
+    });
   } catch {
     return null;
   }
+}
+
+function git(...a) {
+  return gitBrut(...a)?.trim() ?? null;
 }
 
 // `racineDepot` : celle de `plugin/hooks/lib.mjs` (bin/ et hooks/ sont vendorés côte à côte,
@@ -374,6 +388,66 @@ function lireRevue(chemin, texte = readFileSync(chemin, 'utf8').replace(/\r\n/g,
     reprises, dependances: dependances === 'libres' ? 'libres' : 'bloquées' };
 }
 
+// ── `.question.md` : une session arrêtée sur un choix (P20/S6/T9) ───────────────────────────────────
+/** Une réponse « remplie » : autre chose qu'un tiret, des points ou un gabarit `<…>` non rempli. */
+const estVide = (v) => v === null || /^[\s—–\-_.…*`]*$/.test(v) || /^<[^>]*>$/.test(v.trim());
+
+/** Lignes d'une section `## <titre>` d'un fichier (jusqu'au titre suivant), sans lignes vides. */
+function sectionDe(texte, titre) {
+  const lignes = [];
+  let dans = false;
+  for (const brute of texte.split('\n')) {
+    if (/^##\s/.test(brute)) {
+      dans = brute.trim().replace(/^##\s+/, '').toLowerCase() === titre.toLowerCase();
+      continue;
+    }
+    if (dans && brute.trim() !== '') lignes.push(brute.replace(/\s+$/, ''));
+  }
+  return lignes;
+}
+
+/** `{ chemin, question, fichier, agent, agentIntrouvable, reponse, options, contexte }` — les lignes
+ * mécaniques (`Question :`, `Fichier à relire :`, `Agent :`, `Réponse :`, clés comparées sans casse ni
+ * accents comme celles d'un `.echec.md`) et les sections `## Options` / `## Contexte`. `reponse` est
+ * `null` tant que la ligne est vide, en tiret ou en gabarit ; une réponse écrite sur plusieurs lignes
+ * se lit jusqu'à la première ligne vide, ligne mécanique ou titre. `agent` est `null` pour `—`/absent,
+ * `agentIntrouvable` vrai pour `introuvable` (posé par l'orchestrateur quand `SendMessage` échoue). */
+function lireQuestion(chemin, relatif) {
+  const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+  const valeur = (nom) => valeurDeCle(texte, nom);
+  const brutQuestion = valeur('Question');
+  const brutFichier = valeur('Fichier à relire');
+  const brutAgent = valeur('Agent');
+  const sansEmphase = (v) => v.replace(/^[`*]+|[`*]+$/g, '').trim();
+
+  let reponse = valeur('Réponse');
+  if (estVide(reponse)) {
+    reponse = null;
+  } else {
+    const lignes = texte.split('\n');
+    const i = lignes.findIndex((l) => l.includes(':') && normaliserSimple(l.slice(0, l.indexOf(':'))) === 'reponse');
+    const suite = [];
+    for (const l of lignes.slice(i + 1)) {
+      const cle = /^([A-Za-zÀ-ÿ ]+?)\s*:/.exec(l.trim());
+      if (l.trim() === '' || /^##\s/.test(l) || (cle && ['question', 'fichier a relire', 'agent'].includes(normaliserSimple(cle[1])))) break;
+      suite.push(l.trim());
+    }
+    reponse = [sansEmphase(reponse), ...suite].join('\n');
+  }
+
+  const agentIntrouvable = brutAgent !== null && normaliserSimple(brutAgent).startsWith('introuvable');
+  return {
+    chemin: relatif,
+    question: estVide(brutQuestion) ? null : une(brutQuestion),
+    fichier: estVide(brutFichier) ? null : une(sansEmphase(brutFichier)),
+    agent: agentIntrouvable || estVide(brutAgent) ? null : une(sansEmphase(brutAgent)),
+    agentIntrouvable,
+    reponse,
+    options: sectionDe(texte, 'Options'),
+    contexte: sectionDe(texte, 'Contexte'),
+  };
+}
+
 // ── Moteur (S10) — table « la nature décide » de remediation.md, reprise telle quelle ────────────────
 // Budget (WORKFLOW.md §9c) : 2 reprises + 1 enquête par session, 2 enquêtes par plan. Vit dans les
 // lignes mécaniques d'un .echec.md (survit à une orchestration interrompue). Un .echec.md disparaît
@@ -448,7 +522,7 @@ function cheminsDeZone(cellule) {
  * `git` échoue — jamais un arbre deviné. Renommage/copie (code X ou Y = R/C) : le chemin d'origine
  * (champ `-z` suivant) compte aussi. */
 function fichiersSales() {
-  const sortie = git('status', '--porcelain', '-z', '--untracked-files=all');
+  const sortie = gitBrut('status', '--porcelain', '-z', '--untracked-files=all');
   if (sortie === null) return null;
   const bruts = sortie.split('\0').filter((s) => s.length > 0);
   const fichiers = [];
@@ -669,6 +743,59 @@ function remedier(session, enqueteTotalPlan, remediationOpusDeja) {
   return { action: typeAction, session: session.session, modele: modeleCible };
 }
 
+/** Chemin d'`EXECUTANT.md` à donner à une session lancée à froid : celui du plugin voisin de ce
+ * script (relatif à la racine du dépôt s'il y vit : `plugin/` en source, `.claude/workflow/` vendoré),
+ * sinon la variable du plugin. */
+function cheminExecutant() {
+  const chemin = join(dirname(fileURLToPath(import.meta.url)), '..', 'EXECUTANT.md');
+  if (!existsSync(chemin)) return '${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md';
+  const rel = relative(RACINE, chemin).replaceAll('\\', '/');
+  return rel.startsWith('..') || isAbsolute(rel) ? chemin.replaceAll('\\', '/') : rel;
+}
+
+/** Le prompt d'une reprise à froid après une question (`Agent : introuvable`) : il fait lire le fichier
+ * et sa réponse. Même forme que les prompts de session de l'orchestrateur. */
+function promptRepriseApresQuestion(id, cheminQuestion) {
+  return [
+    `Lis ${cheminExecutant()} en entier avant ton premier geste : il porte les invariants de lancement.`,
+    `Ouvre plans/${plan}/${id}.md et reprends-le : la session s'était arrêtée sur une question, écrite dans ${cheminQuestion}.`,
+    "Lis ce fichier : la ligne `Réponse :` est la réponse de l'utilisateur. Le travail déjà fait est dans les commits",
+    `\`Plan: ${plan}/${id}/T<m>\` : reprends à partir d'eux, avec cette réponse. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.`,
+    'Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`.',
+    "Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier plan — et aucune commande n'est détachée.",
+    'Ta réponse finale CLÔT ton tour : ce qui finit après elle n\'est lu par personne.',
+    `Au PASS, supprime ${cheminQuestion} par un commit. Si tu t'arrêtes de nouveau sur un choix, réécris ce fichier (nouvelle question, \`Réponse : —\`), committe-le, puis rends \`VERDICT: QUESTION\`.`,
+    'Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->',
+  ].join('\n');
+}
+
+/** Décision pour UNE session `en-attente` (P20/S6/T9) : jamais `remedier`, jamais un compteur lu ou écrit —
+ * un arrêt sur un choix n'est ni une reprise ni une enquête. */
+function decisionAttente(session) {
+  const q = session.question;
+  const id = session.session;
+  if (q.reponse === null) {
+    return {
+      action: 'question',
+      motif: `${id} s'est arrêtée sur un choix et attend ta réponse`,
+      options: { source: 'attente-reponse', session: id, fichier: q.fichier, chemin: q.chemin },
+    };
+  }
+  if (q.agent) {
+    return { action: 'transmettre', session: id, agent: q.agent, message: q.reponse, question: q.chemin };
+  }
+  const decision = {
+    action: 'reprendre',
+    session: id,
+    modele: session.modele,
+    ...champAgent(session.modele, effortDeReprise(session, session.modele)),
+    question: q.chemin,
+    prompt: promptRepriseApresQuestion(id, q.chemin),
+  };
+  if (!q.agentIntrouvable) decision.avertissement = `${id} : \`Agent :\` sans identifiant dans ${q.chemin} — reprise à froid`;
+  return decision;
+}
+
 /** Une action parmi celles de C2, dérivée de l'état déjà assemblé (`sortie`). Ordre des tests (T5,
  * P10/S2, incident ebm-msp 2026-09-24) : rebase, racine introuvable, interruption, `pousser` (arbre propre
  * seulement), le reste inchangé. */
@@ -744,6 +871,10 @@ function prochaineAction(sortie) {
     const membres = vague.sessions
       .map((id) => sortie.sessions.find((s) => s.session === id))
       .filter(Boolean);
+
+    // Une session arrêtée sur un choix attend, quoi qu'il reste d'un rapport d'échec antérieur (P20/S6).
+    const enAttente = membres.find((s) => s.etat === 'en-attente');
+    if (enAttente) return decisionAttente(enAttente);
 
     const enEchec = membres.find((s) => s.etat === 'echec');
     if (enEchec) {
@@ -822,6 +953,8 @@ function prochaineAction(sortie) {
       if (effortInvalide) return questionEffortInvalide(effortInvalide);
       const questionArbre = arreteSurArbreSale(aLancer, sortie.plan);
       if (questionArbre) return questionArbre;
+      // Le mot `pastille` d'une ligne « en clair » : lu, ignoré, signalé (P20/S6) — lancée comme les autres.
+      const pastilles = aLancer.filter((s) => s.pastille).map((s) => s.session);
       return {
         action: 'lancer',
         vague: vague.numero,
@@ -831,6 +964,9 @@ function prochaineAction(sortie) {
           effort: s.effort,
           ...champAgent(s.modele, s.effort),
         })),
+        ...(pastilles.length > 0
+          ? { avertissement: `${pastilles.join(', ')} : marque « pastille » héritée, ignorée — lancée en sous-agent comme les autres` }
+          : {}),
       };
     }
 
@@ -909,6 +1045,8 @@ function premiereLigne(action) {
       return `reprendre — ${action.session} (${action.modele}${action.option ? ` · option ${action.option}` : ''})`;
     case 'enqueter':
       return `enqueter — ${action.session} (${action.modele})`;
+    case 'transmettre':
+      return `transmettre — ${action.session}`;
     case 'relancer-interrompue':
       return `relancer-interrompue — ${action.session} (${action.modele})`;
     case 'relire':
@@ -1222,6 +1360,21 @@ function definirQuestion(action, sortie) {
         attente: ids,
       };
     }
+    case 'attente-reponse': {
+      // Le fichier de la session : ses lignes d'options sont recopiées, numérotées seulement si elles ne le sont pas.
+      const q = sessionDe(sortie, id).question;
+      const numerotees = q.options.some((l) => /^\s*\d+[.)]\s/.test(l));
+      return {
+        question: q.question ?? `${id} attend ta réponse`,
+        options: q.options.length === 0
+          ? ['Répondre par écrit — la session reprend avec ta réponse']
+          : q.options.map((l) => l.trimEnd()),
+        dejaNumerotees: q.options.length > 0 && numerotees,
+        contexte: q.contexte,
+        graines: [id],
+        rapport: q.fichier ?? q.chemin,
+      };
+    }
     case 'session-hors-vague':
       return {
         question: `Des sessions ne sont dans aucune vague de l'Ordonnancement (${nomsIds}) : que fait-on ?`,
@@ -1281,14 +1434,15 @@ function redigerQuestion(action, sortie) {
   const issues = o.session && !inconnue ? lireIssues(o.session) : { lignes: [], recommandation: null };
   // Listes FIXES de la skill (arbre-sale, revue-incomplete, dependance-revue) : jamais remplacées par
   // un rapport d'échec qui n'a pas ces options en vue. Le reste : `## Issues` du rapport si elle existe.
-  const fixes = ['arbre-sale', 'revue-incomplete', 'dependance-revue'].includes(o.source);
+  const attente = o.source === 'attente-reponse'; // options écrites par la session elle-même, dans son `.question.md`
+  const fixes = attente || ['arbre-sale', 'revue-incomplete', 'dependance-revue'].includes(o.source);
   const delIssues = !fixes && issues.lignes.length > 0;
   const options = delIssues
     ? issues.lignes
-    : def.options.map((opt, i) => `${i + 1}. ${opt}`);
+    : def.dejaNumerotees ? def.options : def.options.map((opt, i) => `${i + 1}. ${opt}`);
 
   const sessionEnTete = id ? `${plan}/${id}` : plan;
-  const echecChemin = o.session && existsSync(join(RACINE, 'plans', plan, `${o.session}.echec.md`))
+  const echecChemin = o.session && !attente && existsSync(join(RACINE, 'plans', plan, `${o.session}.echec.md`))
     ? `plans/${plan}/${o.session}.echec.md`
     : null;
   const rapport = def.rapport ?? echecChemin ?? '—';
@@ -1304,6 +1458,7 @@ function redigerQuestion(action, sortie) {
   const out = [];
   out.push(`❓ ${sessionEnTete} — ${def.question}`);
   out.push(`   Pourquoi je m'arrête ici : ${action.motif}`);
+  for (const l of def.contexte ?? []) out.push(`     ${l.trim()}`);
   if (echecChemin) {
     const blocage = valeurDeCle(readFileSync(join(RACINE, echecChemin), 'utf8').replace(/\r\n/g, '\n'), 'Blocage');
     if (blocage && !action.motif.includes(blocage)) out.push(`     Blocage noté dans le rapport : ${une(blocage)}`);
@@ -1316,6 +1471,7 @@ function redigerQuestion(action, sortie) {
     out.push("   (le rapport n'a pas de section `## Issues` : options de repli du moteur)");
   }
   out.push('');
+  if (attente) out.push(`   Réponds par le numéro d'une option ou en une phrase : ta réponse est écrite dans ${o.chemin}, puis transmise à ${id}, qui reprend avec tout ce qu'elle avait lu.`);
   if (delIssues && issues.recommandation) {
     out.push(`   Ma recommandation : ${issues.recommandation.replace(/^(?:ma\s+)?recommandation\s*:\s*/i, '')}`);
   }
@@ -1395,7 +1551,20 @@ function texteSimple(action, sortie) {
       l.push(`   Vérifier l'affirmation de « Ce qu'il faudrait pour que ça passe » de ${action.chemin}.`);
       break;
     case 'reprendre':
+      if (action.question) {
+        l.push(`   ${action.session} s'était arrêtée sur une question et son agent est introuvable : reprise à froid sur ${action.modele}, hors budget (ni reprise ni enquête décomptée).`);
+        l.push(`   Lancer l'agent avec le \`prompt\` ci-dessous : il fait lire ${action.question} et la réponse qu'il porte.`);
+        l.push('   --- prompt ---');
+        for (const ligne of action.prompt.split('\n')) l.push(`   ${ligne}`);
+        l.push('   --- fin du prompt ---');
+        break;
+      }
       l.push(`   Reprise de ${action.session} sur ${action.modele}${action.option ? `, option ${action.option} de la section ## Issues` : ''}.`);
+      break;
+    case 'transmettre':
+      l.push(`   ${action.session} attend sa réponse : l'envoyer à l'agent ${action.agent} par SendMessage, \`message\` tel quel (hors budget : ni reprise ni enquête décomptée) :`);
+      for (const ligne of action.message.split('\n')) l.push(`   > ${ligne}`);
+      l.push(`   Envoi en échec (agent introuvable, session fermée) : écrire \`Agent : introuvable\` dans ${action.question}, committer ce fichier, rappeler le moteur — il rend alors la reprise à froid.`);
       break;
     case 'enqueter':
       l.push(`   Enquête en lecture seule sur ${action.session} (${action.modele}).`);
@@ -1458,7 +1627,7 @@ const MARQUE_DONNEES = '— données de l\'action pour le moteur, à ne pas rela
  * ce que la skill d'orchestration lit encore tant que S12 ne l'a pas réduite à « relaie `texte` ». */
 function formaterTexte(action) {
   const champs = Object.entries(action)
-    .filter(([cle]) => cle !== 'action' && cle !== 'texte')
+    .filter(([cle]) => cle !== 'action' && cle !== 'texte' && cle !== 'prompt') // `prompt` : déjà en entier dans le texte
     .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(valeur) : valeur}`);
   const donnees = [...champs, ...lignesAppelAgent(action)];
   return [action.texte ?? premiereLigne(action), ...(donnees.length > 0 ? ['', MARQUE_DONNEES, ...donnees] : [])].join('\n');
@@ -1505,8 +1674,14 @@ for (const s of index.sessions) {
   const taches = parseTaches(s.taches).map((n) => `${plan}/${s.session}/T${n}`);
   const toutesCommitees = taches.length > 0 && taches.every((ref) => refs.has(ref));
 
+  // `en-attente` (P20/S6) avant `echec` et avant « toutes les tâches commitées » : le WIP commité avant
+  // la question porte un repère `Plan:` de tâche sans que la session ait fini ; un `.echec.md` plus
+  // ancien (reprise arrêtée sur un choix) ne prime pas non plus. Une session cochée l'emporte.
+  const cheminQuestion = join(dossierPlan, `${s.session}.question.md`);
   if (s.coche) {
     s.etat = 'faite';
+  } else if (existsSync(cheminQuestion)) {
+    s.etat = 'en-attente';
   } else if (existsSync(cheminEchec)) {
     s.etat = 'echec';
   } else if (toutesCommitees) {
@@ -1517,6 +1692,7 @@ for (const s of index.sessions) {
 
   s.preuve = index.preuveN0 && s.etat === 'faite' ? verifierPreuve(RACINE, `${plan}/${s.session}`) : null;
   s.echec = s.etat === 'echec' ? lireEchec(cheminEchec, `plans/${plan}/${s.session}.echec.md`) : null;
+  s.question = s.etat === 'en-attente' ? lireQuestion(cheminQuestion, `plans/${plan}/${s.session}.question.md`) : null;
   // Une revue toujours présente se lit normalement ; une revue **ajoutée par un commit** puis
   // supprimée depuis (tri de clôture) compte comme faite mais sans `Bloquant :` à relire — le
   // fichier n'existe plus (T6, P10/S2).

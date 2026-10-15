@@ -27,6 +27,11 @@ que quelque chose a cassé (nature de l'échec : `WORKFLOW.md` §9a) :
 | `prémisse` fausse, **mais mesure commitée + remède dans ta zone + objectif intact + aucun critère d'arrêt touché** | **amendement** (`WORKFLOW.md` §9a) : tu l'écris dans « Écarts au plan » de ton `S<k>.md` (commit séparé, repère `Amendement :`), tu continues |
 | `prémisse` fausse, hors des deux cas ci-dessus | tu t'arrêtes : l'objectif ou le périmètre du plan change, et ça, c'est un choix |
 
+**Un choix qui t'arrête** (les quatre critères ci-dessus) s'écrit dans `plans/P<n>/S<k>.question.md`
+(gabarit : `reprendre-echec/references/gabarit-question.md`), après avoir **committé le travail en
+cours** (WIP, repère `Plan:`) ; puis `VERDICT: QUESTION`. Reprise par message : continue avec la
+réponse. Au `PASS`, supprime le fichier par un commit.
+
 **Budget en hypothèses** : jusqu'à 3 hypothèses **distinctes**, chacune inscrite dans « Déjà écarté »
 avant la suivante ; arrêt sur hypothèse répétée, ou contexte > 70 %. Tu peux écrire `Auto : oui`
 toi-même sur ton propre `.echec.md`, aux mêmes critères qu'une enquête : `Auto : oui · option <m>`
