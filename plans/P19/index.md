@@ -12,6 +12,7 @@ du coût d'un plan joué de bout en bout existe : c'est sur elle que le plan 2 (
 écrit, puis jugé. Le tout est publié en 0.66.0.
 Décision : `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` (§ Les
 deux plans, plan 1) ; constats numérotés : `docs/revues/2026-10-13-revue-externe-workflow.md`.
+Remédiation Opus : 1
 
 **Risques du plan** : H1 — un `claude -p` qui déroule `/orchestrer-plan` sur un mini-projet jetable
 va jusqu'au bout sans humain (outil `Agent` disponible, agents du plugin résolus par
