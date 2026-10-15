@@ -6,21 +6,19 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
 ```md
 # P<n> · S<k> — <titre>   (rédigé par Opus)
 
-> **Modèle : <Sonnet/Haiku> · effort : <low|medium|high|xhigh> · Vague : <v>**
-> **Environnement : <Desktop (navigateur requis) | indifférent>** (`WORKFLOW.md` §6, N1)
-> **Régime : <fixé | ouvert>** — `fixé` : périmètre d'écriture fermé, livrable = commits sous gate
-> N0 (le défaut). `ouvert` (session `exploration`, C6) : **branche** jetable **nommée ET poussée**
-> ci-dessous (jamais `main`), **budget** écrit (tours ou temps), **ce qui compterait comme réponse
-> positive ET négative** — livrable = mesure + ce qui a été réfuté + code candidat (`WORKFLOW.md`
-> §1, C6).
-> **Latitude : <défaut : moyens libres ; objectif, contrats publics et zone du plan fixes>** — le
-> cadreur ne **restreint** ce défaut qu'en exception, une ligne de raison à l'appui (absent = le
-> défaut ; une restriction sans raison écrite est un écart, `verificateur-plan`).
-> **Correctif localisé : interdit — <raison>** (optionnel, rare : zone sensible, état coûteux à
-> annuler ; absent = autorisé sous les quatre conditions de `WORKFLOW.md` §9a)
-> Exécutant : UNIQUEMENT les tâches ci-dessous, dans l'ordre ; fichiers sous « Lire » / « Modifier ».
-> Design fixé — ne reconçois pas. Tu t'arrêtes sur un choix que tu n'as pas reçu, pas parce que
-> quelque chose a cassé : `EXECUTANT.md`.
+<!-- Bandeau = les ÉCARTS au défaut, rien d'autre, au plus 6 lignes `>` (`verifier-plan.mjs`
+     avertit au-delà). Garde seulement les lignes dont l'écart existe, supprime les autres ; sans
+     aucun écart, pas de bandeau. Modèle, effort et vague viennent de l'`index.md` : ne pas les
+     recopier. Défauts : environnement indifférent, régime fixé (`main`, livrable = commits sous gate
+     N0), latitude libre, correctif localisé autorisé. Les règles d'exécutant (UNIQUEMENT les tâches
+     de la fiche, design fixé, arrêt sur un choix) sont dans `EXECUTANT.md`, lu par la première ligne
+     « Lire » : ne pas les recopier non plus. -->
+
+> **Environnement : Desktop (navigateur requis)** — N1 au navigateur in-app (`WORKFLOW.md` §6)
+> **Régime : ouvert** (exploration, C6) — branche jetable nommée ET poussée (jamais `main`), budget
+> écrit, réponse positive ET négative décrites ; livrable = mesure + réfutations + code candidat
+> **Latitude : <restriction>** — <la raison, en une ligne : sans raison écrite, c'est un écart>
+> **Correctif localisé : interdit** — <raison : zone sensible, état coûteux à annuler>
 
 - Date : YYYY-MM-DD · Branche : <ou — ; obligatoire (nommée, poussée) si Régime : ouvert>
 
@@ -101,6 +99,7 @@ ce n'est pas un STOP :
  aucun arrêt de l'orchestrateur.>
 
 ### Message de commit (appliqué par la session elle-même)
+<!-- Seul endroit où vit ce message : la colonne « Message de commit » n'existe plus dans l'index. -->
 `<type(scope): message>`
 Dernière ligne du commit, obligatoire : `Plan: P<n>/S<k>/T<m>` — c'est le repère qui rend la tâche
 retrouvable ensuite (`git log --grep`), et par lequel l'orchestrateur lit le verdict d'une session

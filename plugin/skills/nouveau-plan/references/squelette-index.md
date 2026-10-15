@@ -28,16 +28,16 @@ Preuve N0 : requise
 **Risques du plan** : <hypothèses comportementales non sondées — chacune avec ce qui la réfuterait — ou `—`>
 
 ## Sessions
-| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1-T3 | … | Haiku | medium | — | — | `<fichiers réellement modifiés>` | [ ] | — |
-| [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `<répertoire ou fichiers, jamais une généralité>` | [ ] | — |
+| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [S1](S1.md) | T1-T3 | … | Haiku | medium | — | — | `<fichiers réellement modifiés>` | [ ] |
+| [S2](S2.md) | T5 | … | Sonnet | high | — | S1 | `<répertoire ou fichiers, jamais une généralité>` | [ ] |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 <!-- Vocabulaire complet : WORKFLOW.md §4a — ne pas inventer d'autre marque ici. -->
-<!-- Colonne « Message de commit » : laissée à `—`, le message de commit de chaque tâche vit dans son
-     `S<k>.md`. Le tableau garde ses neuf premières colonnes dans cet ordre (`prochaine-action.mjs`
-     les lit par position). -->
+<!-- Neuf colonnes, dans cet ordre : le lecteur d'index (`lire-index.mjs`) les lit par position. Le
+     message de commit de chaque tâche vit dans son `S<k>.md` seulement, plus dans l'index : un ancien
+     index à dix colonnes (colonne « Message de commit » en plus) reste lu à l'identique. -->
 
 
 ## Ordonnancement

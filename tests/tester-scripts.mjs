@@ -4915,6 +4915,113 @@ cas('T12 : relecteur-session.md — les exemptions low et .md/données ne valent
 });
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// P20/S9/T14 — fiches de session plus courtes : squelettes réduits, tailles signalées
+// Les squelettes sont LUS à l'exécution (pas de copie figée) ; les avertissements de `verifier-plan`
+// ne sont jamais un écart : plan valide, sortie `RAS`, code 0.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Plan `P1` neuf et valide, une session S1 dont la fiche a `bandeau` lignes `>` et `lignes` lignes au
+ * total (complétée par des lignes de « Pourquoi »). Rend le dossier jetable. */
+function planAvecFiche({ bandeau, lignes, citationApresEnTete = 0 }) {
+  const cwd = dossierJetable('workflow-fiche-');
+  mkdirSync(join(cwd, 'plans', 'P1'), { recursive: true });
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 1;\n');
+  writeFileSync(join(cwd, '.claude', 'n0.json'), JSON.stringify({ commandes: [{ nom: 'syntaxe', cmd: 'node --check src/a.mjs' }] }));
+  writeFileSync(join(cwd, 'plans', 'P1', 'index.md'), [
+    '# Plan P1 — fiche', '', 'Workflow : v1', 'Preuve N0 : requise', '', '## Sessions',
+    '| Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| [S1](S1.md) | T1 | Un | Sonnet | high | — | — | `src/a.mjs` | [ ] |',
+    '', '## Ordonnancement', '- **Vague 1** : S1.', '',
+  ].join('\n'));
+  const tete = ['# P1 · S1 — x   (rédigé par Opus)', ''];
+  for (let i = 0; i < bandeau; i++) tete.push(`> écart ${i + 1}`);
+  const corps = ['', '## T1 — x', '### Objectif', 'A', '### Pourquoi'];
+  for (let i = 0; i < citationApresEnTete; i++) corps.push(`> citation ${i + 1}`);
+  const fin = ['### Lire / Modifier', '- Modifier : `src/a.mjs`', '### Validation', '- **N0 auto** : `node n0.mjs` → PASS'];
+  const remplissage = Math.max(0, lignes - tete.length - corps.length - fin.length);
+  const fiche = [...tete, ...corps, ...Array.from({ length: remplissage }, (_, i) => `ligne de remplissage ${i}`), ...fin];
+  writeFileSync(join(cwd, 'plans', 'P1', 'S1.md'), fiche.join('\n') + '\n');
+  return cwd;
+}
+const verifierFiche = (cwd) => {
+  const r = lancer(join(BIN, 'verifier-plan.mjs'), ['P1', '--json'], cwd);
+  return { code: r.code, ...JSON.parse(r.sortie) };
+};
+
+cas('T14 verifier-plan : bandeau de 6 lignes → aucun avertissement ; de 7 lignes → avertissement, RAS, code 0', () => {
+  const six = verifierFiche(planAvecFiche({ bandeau: 6, lignes: 30 }));
+  if (six.resultat !== 'RAS' || six.avertissements.length !== 0) return `6 lignes : RAS sans avertissement attendu, reçu ${JSON.stringify(six)}`;
+  const sept = verifierFiche(planAvecFiche({ bandeau: 7, lignes: 30 }));
+  if (sept.resultat !== 'RAS' || sept.code !== 0) return `7 lignes : RAS (code 0) attendu — un avertissement n'est pas un écart, reçu ${JSON.stringify(sept)}`;
+  if (sept.avertissements.length !== 1 || !/S1 : bandeau de 7 lignes/.test(sept.avertissements[0])) return `avertissement « bandeau de 7 lignes » attendu, reçu ${JSON.stringify(sept.avertissements)}`;
+  return null;
+});
+
+cas('T14 verifier-plan : fiche de 200 lignes → rien ; de 201 lignes → avertissement, RAS, code 0', () => {
+  const ok = verifierFiche(planAvecFiche({ bandeau: 3, lignes: 200 }));
+  if (ok.avertissements.length !== 0) return `200 lignes : aucun avertissement attendu, reçu ${JSON.stringify(ok.avertissements)}`;
+  const trop = verifierFiche(planAvecFiche({ bandeau: 3, lignes: 201 }));
+  if (trop.resultat !== 'RAS' || trop.code !== 0) return `201 lignes : RAS (code 0) attendu, reçu ${JSON.stringify(trop)}`;
+  if (trop.avertissements.length !== 1 || !/S1 : fiche de 201 lignes \(plafond 200\)/.test(trop.avertissements[0])) return `avertissement « fiche de 201 lignes » attendu, reçu ${JSON.stringify(trop.avertissements)}`;
+  return null;
+});
+
+cas('T14 verifier-plan : les deux avertissements ensemble ; sortie texte « RAS » + lignes d\'avertissement', () => {
+  const cwd = planAvecFiche({ bandeau: 8, lignes: 210 });
+  if (verifierFiche(cwd).avertissements.length !== 2) return `2 avertissements attendus, reçu ${JSON.stringify(verifierFiche(cwd).avertissements)}`;
+  const texte = lancer(join(BIN, 'verifier-plan.mjs'), ['P1'], cwd);
+  if (texte.code !== 0 || !/^RAS/.test(texte.sortie) || (texte.sortie.match(/^avertissement — /gm) ?? []).length !== 2) return `RAS + 2 lignes « avertissement — » attendus, reçu: ${texte.sortie}`;
+  return null;
+});
+
+cas('T14 verifier-plan : des lignes `>` APRÈS le premier `## ` (citations) ne comptent pas dans le bandeau', () => {
+  const r = verifierFiche(planAvecFiche({ bandeau: 2, lignes: 40, citationApresEnTete: 9 }));
+  return r.avertissements.length === 0 ? null : `aucun avertissement attendu (bandeau de 2), reçu ${JSON.stringify(r.avertissements)}`;
+});
+
+cas('T14 squelette-session.md : le bandeau, avec TOUS ses écarts possibles, tient dans 6 lignes ; plus de modèle/effort/vague ni de consignes d\'exécutant', () => {
+  const bloc = extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-session.md')).replace(/<!--[\s\S]*?-->\n?/g, '');
+  const entete = bloc.split(/^## /m)[0];
+  const bandeau = entete.split('\n').filter((l) => l.startsWith('>'));
+  if (bandeau.length === 0 || bandeau.length > 6) return `1 à 6 lignes de bandeau attendues, reçu ${bandeau.length}`;
+  const texte = bandeau.join('\n');
+  for (const absent of ['Modèle :', 'effort :', 'Vague :', 'UNIQUEMENT', 'Design fixé']) {
+    if (texte.includes(absent)) return `le bandeau ne doit plus porter « ${absent} » (index ou EXECUTANT.md le portent déjà)`;
+  }
+  for (const present of ['Environnement :', 'Régime :', 'Latitude :', 'Correctif localisé :']) {
+    if (!texte.includes(present)) return `l'écart « ${present} » doit rester possible dans le bandeau`;
+  }
+  if (!/### Message de commit/.test(bloc)) return 'le message de commit vit dans la fiche : section « Message de commit » attendue';
+  return null;
+});
+
+cas('T14 squelette-index.md : plus de colonne « Message de commit », neuf colonnes lues par position, concordance avec le lecteur', () => {
+  const bloc = squeletteReel();
+  if (/Message de commit/.test(bloc)) return 'la colonne « Message de commit » ne doit plus être dans le squelette d\'index';
+  const entete = bloc.split('\n').find((l) => l.startsWith('| Session'));
+  if (entete.split('|').length - 2 !== 9) return `9 colonnes attendues, reçu ${entete.split('|').length - 2}`;
+  const idx = analyserIndex(bloc);
+  if (idx.sessions.length !== 2 || idx.sessionsIncompletes.length !== 0) return `2 sessions lues, aucune incomplète attendues, reçu ${JSON.stringify([idx.sessions.length, idx.sessionsIncompletes])}`;
+  if (idx.sessions.some((s) => s.statut !== 'a-faire' || !s.zone.includes('`'))) return `statut et zone mal lus : ${JSON.stringify(idx.sessions)}`;
+  return null;
+});
+
+cas('T14 lecteur d\'index : un index à neuf colonnes et le même à dix colonnes sont lus à l\'identique', () => {
+  const neuf = readFileSync(join(FIXTURES, 'plans', 'moteur-base', 'index.md'), 'utf8').replace(/\r\n/g, '\n');
+  const dix = neuf
+    .replace('| Statut |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |', '| Statut | Message de commit |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |')
+    .replace(/(\| \[S\d\]\(S\d\.md\) \|.*\| \[ \]) \|$/gm, '$1 | `feat: un message` |');
+  if (neuf === dix) return 'le montage à dix colonnes n\'a rien changé (remplacement raté)';
+  const a = analyserIndex(neuf), b = analyserIndex(dix);
+  if (a.sessions.length !== 2) return `2 sessions attendues dans la fixture, reçu ${a.sessions.length}`;
+  if (JSON.stringify(a) !== JSON.stringify(b)) return 'neuf et dix colonnes doivent être lus à l\'identique';
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
 // bilan-express.mjs — P20/S9/T13 : fiabilité de la voie express, sur un historique fabriqué
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 

@@ -6,6 +6,12 @@ import { resolve, relative, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyserIndex } from './lire-index.mjs';
 
+// Plafonds de taille d'une fiche de session (P20/S9/T14 ; mesure sur P16-P19 : bandeaux de 12 à 16
+// lignes, fiches de 76 à 276 lignes, médiane 150). Des AVERTISSEMENTS, jamais un écart : une fiche
+// longue justifiée (P19/S6) reste valide.
+const BANDEAU_MAX = 6;
+const FICHE_MAX = 200;
+
 const racine = process.cwd();
 const plan = process.argv.find(x => /^P\d+$/.test(x));
 const json = process.argv.includes('--json');
@@ -73,6 +79,15 @@ try {
     const chemin = resolve(racine, 'plans', plan, `${s.id}.md`);
     if (!existsSync(chemin)) { signaler(s.id, 1, 'fichier de session absent'); continue; }
     const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+    // Tailles : le bandeau est le premier bloc de lignes `>` AVANT le premier `## ` ; la fiche, ses lignes.
+    const lignesFiche = texte.replace(/\n$/, '').split('\n');
+    let bandeau = 0, dansBandeau = false;
+    for (const l of lignesFiche) {
+      if (/^## /.test(l)) break;
+      if (l.startsWith('>')) { bandeau++; dansBandeau = true; } else if (dansBandeau) break;
+    }
+    if (bandeau > BANDEAU_MAX) avertissements.push(`${s.id} : bandeau de ${bandeau} lignes (au plus ${BANDEAU_MAX} : les écarts au défaut seulement, modèle/effort/vague viennent de l'index)`);
+    if (lignesFiche.length > FICHE_MAX) avertissements.push(`${s.id} : fiche de ${lignesFiche.length} lignes (plafond ${FICHE_MAX})`);
     const taches = texte.split(/^## T\d+[^\n]*$/m).slice(1);
     for (const [i, tache] of (taches.length ? taches : [texte]).entries()) {
       if (!/^### Objectif/m.test(tache) || !/^### Validation/m.test(tache)) signaler(s.id, 3, `tâche ${i + 1} : Objectif ou Validation absent`);
