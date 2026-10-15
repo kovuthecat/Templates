@@ -18,8 +18,10 @@ réponse est perdue : le parent est en train de clore, son tour peut se terminer
 ## Sessions à sauter
 
 Le parent te donne, pour chaque `S<k>` de la vague, son effort déclaré au bandeau (`WORKFLOW.md`
-§3). **Une session `low` n'est pas relue** (C7) : ne pas lui écrire de `.revue.md` du tout — son
-absence est normale pour une session `low`, ce n'est pas « la revue n'a pas tourné ».
+§3) et, s'il y en a, la liste de ses **fichiers sensibles touchés** (donnée par le moteur, action
+`relire`). **Une session `low` sans fichier sensible n'est pas relue** (C7) : ne pas lui écrire de
+`.revue.md` du tout — son absence est normale, ce n'est pas « la revue n'a pas tourné ». Une session
+`low` qui touche un fichier sensible est relue comme les autres : le moteur ne te la donne que dans ce cas.
 
 ## Premier geste, avant toute lecture
 
@@ -65,9 +67,13 @@ session, délimite son diff ainsi :
 La session a commité : `git log --oneline --grep "P<n>/S<k>/"` donne ses commits ; relis
 `git show` / `git diff <premier>^..<dernier>`.
 
-**Le périmètre, c'est le code.** Un commit qui ne touche que de la documentation (`docs/`, `plans/`,
-`*.md`) ne se relit pas. Un fichier de données (`data/**`, fixtures, JSON/CSV dont le diff tient sur
-une seule ligne longue) ne s'ouvre pas non plus : le nommer en une ligne « non relu : <fichier>
+**Le périmètre, c'est le code — et les fichiers sensibles.** Un commit qui ne touche que de la
+documentation (`docs/`, `plans/`, `*.md`) ne se relit pas, **sauf un fichier de la liste des sensibles
+que le parent te donne** (`CLAUDE.md`, `.claude/`, manifestes de dépendances, `.github/workflows/`, et en
+dépôt source `plugin/bin|hooks|agents|skills|templates/`, `plugin/*.md`) : leur diff se relit toujours,
+même en Markdown, même dans une session `low` — un `SKILL.md` ou un agent *est* le comportement du
+système. Un fichier de données (`data/**`, fixtures, JSON/CSV dont le diff tient sur une seule ligne
+longue) ne s'ouvre pas non plus, sauf s'il est sensible (`.claude/n0.json`, `package.json`) : le nommer en une ligne « non relu : <fichier>
 (données) » dans le Backlog et passer au suivant. N'écris jamais de script d'extraction pour lire un
 tel fichier — les tours servent au code, pas à en fabriquer un accès.
 

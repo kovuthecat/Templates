@@ -614,6 +614,51 @@ function cheminToucheZone(chemin, zoneChemin) {
   return zoneChemin.endsWith('/') ? chemin.startsWith(zoneChemin) : chemin === zoneChemin;
 }
 
+// ── Relecture selon le risque (P20/S8/T12, revue externe point 8) ────────────────────────────────────
+/** Chemins sensibles : un diff qui en touche un est relu même pour une session `low` ou un diff de pur
+ * Markdown — le comportement du système y vit. Une constante, pas un texte (décision 2026-10-14, point 8).
+ * `dossiers` : préfixes ; `noms` : nom de fichier, où qu'il soit ; `source` : seulement dans le dépôt
+ * source (celui qui porte `plugin/`). Les réglages (`settings*.json`) sont déjà sous `.claude/` ; les
+ * « fixtures qui définissent les résultats attendus » de la revue ne sont pas ajoutées (non délimitables). */
+const CHEMINS_SENSIBLES = {
+  dossiers: ['.claude/', '.github/workflows/'],
+  noms: [/^CLAUDE\.md$/, /^package\.json$/, /^package-lock\.json$/, /^pnpm-lock\.yaml$/, /^requirements[^/]*\.txt$/, /^pyproject\.toml$/, /^Cargo\.toml$/, /^go\.mod$/],
+  source: ['plugin/bin/', 'plugin/hooks/', 'plugin/agents/', 'plugin/skills/', 'plugin/templates/'],
+  sourceRacineMd: /^plugin\/[^/]+\.md$/,
+};
+const FICHIER_N0 = '.claude/n0.json';
+const MOTIF_BLOQUANT_MOTEUR = 'Bloquant moteur : n0.json modifié hors zone';
+
+const estDepotSource = () => existsSync(join(RACINE, 'plugin', '.claude-plugin', 'plugin.json'));
+
+function estSensible(chemin, source) {
+  const c = chemin.replace(/\\/g, '/');
+  if (CHEMINS_SENSIBLES.dossiers.some((d) => c.startsWith(d))) return true;
+  if (CHEMINS_SENSIBLES.noms.some((re) => re.test(c.slice(c.lastIndexOf('/') + 1)))) return true;
+  if (!source) return false;
+  return CHEMINS_SENSIBLES.source.some((d) => c.startsWith(d)) || CHEMINS_SENSIBLES.sourceRacineMd.test(c);
+}
+
+/** Les fichiers de `fichiers` qui sont sensibles (ordre conservé, sans doublon). */
+function toucheSensible(fichiers, source = estDepotSource()) {
+  return [...new Set(fichiers)].filter((f) => estSensible(f, source));
+}
+
+/** Fichiers touchés par TOUS les commits `Plan: P<n>/S<k>/` d'une session (pas seulement le dernier). */
+function fichiersDeSession(id) {
+  const sortie = gitBrut('log', '--format=', '--name-only', '-E', `--grep=^Plan:[[:space:]]*${plan}/${id}/`);
+  return sortie === null ? [] : [...new Set(sortie.split('\n').map((l) => l.trim()).filter(Boolean))];
+}
+
+/** `n0.json` modifié par un commit de la session alors que sa zone ne le contient pas. Zone `aucune` : hors
+ * zone (aucun fichier n'est annoncé). Zone illisible : pas de conclusion (l'arbre sale pose déjà la question). */
+function n0HorsZone(zone, fichiers) {
+  if (!fichiers.includes(FICHIER_N0)) return false;
+  const { chemins, illisible } = cheminsDeZone(zone);
+  if (illisible) return false;
+  return !chemins.some((c) => cheminToucheZone(FICHIER_N0, c));
+}
+
 /** Avant un `lancer` : croise l'arbre non commité avec la zone de chaque session à lancer. `null` si
  * rien à signaler (l'appelant rend `lancer`) ; sinon la `question` à rendre à sa place. */
 function arreteSurArbreSale(aLancer, plan) {
@@ -977,15 +1022,14 @@ function prochaineAction(sortie) {
     // C4/C3 n'a jamais produit de .revue.md, lui en exiger un serait un état deviné), puis
     // validation-humaine.
     if (sortie.workflow) {
-      // Une session `low` n'est jamais relue (C7, relecteur-session.md « Sessions à sauter ») —
+      // Une session `low` n'est pas relue (C7) — sauf si elle touche un chemin sensible (P20/S8/T12) —
       // exclue ici, au seul endroit qui décide quoi relire (T3, P7/S2), plutôt que de compter sur
       // la prose du relecteur pour l'appliquer.
       const sansRevue = membres.filter(
         (s) =>
           s.etat === 'faite' &&
-          s.effort !== 'low' &&
-          s.zone &&
-          s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune' &&
+          (s.fichiersSensibles.length > 0 ||
+            (s.effort !== 'low' && s.zone && s.zone.replace(/`/g, '').trim().toLowerCase() !== 'aucune')) &&
           (!s.revue || s.revue.couverture !== 'complète'),
       );
       if (sansRevue.length > 0) {
@@ -995,7 +1039,7 @@ function prochaineAction(sortie) {
         return {
           action: 'relire',
           vague: vague.numero,
-          sessions: sansRevue.map((s) => ({ session: s.session, effort: s.effort, reprise: s.revue ? 1 : 0 })),
+          sessions: sansRevue.map((s) => ({ session: s.session, effort: s.effort, reprise: s.revue ? 1 : 0, sensibles: s.fichiersSensibles })),
         };
       }
     }
@@ -1625,7 +1669,7 @@ function texteFini(action, sortie) {
         revue = `revue : ${s.revue.bloquant} bloquant(s)${existsSync(join(RACINE, fichierRevue)) ? ` → ${fichierRevue}` : ' (revue rangée au tri de clôture)'}`;
       } else revue = 'revue : 0 bloquant';
     } else if (!sortie.workflow) revue = 'revue : — (plan antérieur à la revue)';
-    else if (s.effort === 'low' || !s.zone || s.zone.replace(/`/g, '').trim().toLowerCase() === 'aucune') revue = 'revue : sautée (low ou zone aucune)';
+    else if (!(s.fichiersSensibles?.length > 0) && (s.effort === 'low' || !s.zone || s.zone.replace(/`/g, '').trim().toLowerCase() === 'aucune')) revue = 'revue : sautée (low ou zone aucune)';
     else revue = 'revue : absente';
     out.push(`   ${s.session} · ${statut} · ${s.titre}${reprises.length ? ` · ${reprises.join(' + ')}` : ''} · ${revue}`);
     n1.push(...n1ALfaire(s.session));
@@ -1670,6 +1714,9 @@ function texteSimple(action, sortie) {
       break;
     case 'relire':
       l.push(`   Relecture de ${action.sessions.map((s) => `${s.session} (effort ${s.effort}${s.reprise ? ', reprise' : ''})`).join(', ')}.`);
+      for (const s of action.sessions.filter((x) => x.sensibles?.length > 0)) {
+        l.push(`   ${s.session} touche des chemins sensibles : ${s.sensibles.join(', ')} — à relire même si la session est \`low\` ou si le diff est du Markdown ; le relecteur ne saute pas leur diff.`);
+      }
       break;
     case 'valider-n0':
       l.push(`   La preuve N0 de ${action.session} manque ou est invalide : ${action.motif}.`);
@@ -1829,6 +1876,16 @@ function assembler() {
       s.revue = texte ? lireRevue(cheminRevue, texte) : null;
     } else {
       s.revue = null;
+    }
+    // Relecture selon le risque (P20/S8/T12) : chemins sensibles touchés, et `n0.json` hors zone — contrôle du
+    // moteur sur TOUS les commits de la session. Le bloquant est compté ici (en mémoire) tant que la `.revue.md`
+    // ne porte pas sa ligne `Bloquant moteur :` ; le geste `bloquant-moteur` l'y écrit.
+    const fichiers = s.etat === 'faite' ? fichiersDeSession(s.session) : [];
+    s.fichiersSensibles = toucheSensible(fichiers);
+    s.n0HorsZone = n0HorsZone(s.zone, fichiers);
+    if (s.n0HorsZone && s.revue && s.revue.couverture === 'complète' && s.revue.bloquant !== null && existsSync(cheminRevue)) {
+      s.revue.moteurAEcrire = !readFileSync(cheminRevue, 'utf8').includes(MOTIF_BLOQUANT_MOTEUR);
+      if (s.revue.moteurAEcrire) s.revue.bloquant += 1;
     }
   }
 
@@ -2088,6 +2145,33 @@ function gesteEtat(sortie) {
         }
         const hash = committer([INDEX_REL], `plan(${plan}): ${s.session} faite`, `${plan}/${s.session}`);
         return `${s.session} cochée [x] ${date} (${hash})`;
+      },
+    };
+  }
+  // 2b. `n0.json` modifié hors zone : la ligne `Bloquant moteur :` est écrite dans la `.revue.md` (présente,
+  // complète) et le compte de `Bloquant :` l'inclut ; la suite (`[x]!`, `dependance-revue`) est celle d'un
+  // bloquant de relecture.
+  for (const s of sortie.sessions) {
+    if (!s.revue?.moteurAEcrire) continue;
+    return {
+      cle: `bloquant-moteur:${s.session}`,
+      faire: () => {
+        const rel = `plans/${plan}/${s.session}.revue.md`;
+        const abs = join(RACINE, rel);
+        const brut = readFileSync(abs, 'utf8');
+        const crlf = brut.includes('\r\n');
+        let t = brut.replace(/\r\n/g, '\n');
+        t = t.replace(/^(Bloquant\s*:\s*)(\d+)/m, (_, a, n) => `${a}${Number(n) + 1}`);
+        if (/^## Bloquants[ \t]*$/m.test(t)) {
+          t = t.replace(/^(## Bloquants[ \t]*\n)(\s*- aucun[ \t]*\n)?/m, `$1- ${MOTIF_BLOQUANT_MOTEUR}\n`);
+        } else {
+          t = `${t.replace(/\s*$/, '')}\n\n## Bloquants\n- ${MOTIF_BLOQUANT_MOTEUR}\n`;
+        }
+        t = t.replace(/^Dépendances\s*:.*$/m, 'Dépendances : bloquées');
+        writeFileSync(abs, crlf ? t.replace(/\n/g, '\r\n') : t);
+        const n = s.revue.bloquant;
+        const hash = committer([rel], `revue(${plan}): ${s.session} relue, ${n} bloquant(s) (n0.json hors zone)`, `${plan}/${s.session}`);
+        return `${s.session} : « ${MOTIF_BLOQUANT_MOTEUR} » ajouté à ${rel} (${n} bloquant(s)) (${hash})`;
       },
     };
   }

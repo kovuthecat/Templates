@@ -4804,6 +4804,116 @@ cas('T11 noter : une sortie enchaînée qui finit sur une AUTRE action que `fini
   return null;
 });
 
+// ── P20/S8/T12 : relecture selon le risque — chemins sensibles, n0.json hors zone ─────────────────────
+/** Dépôt jetable du plan `moteur-low` (P9, S1 `low`, zone `src/a.mjs`) : état initial commité, puis un commit
+ * `Plan: P9/S1/T<m>` par entrée de `commits` (`{ fichiers: {chemin: contenu} }`). `zone` remplace la zone de S1. */
+function planRisque(prefixe, { commits, initiaux = {}, zone = null }) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', 'moteur-low'), join(cwd, 'plans', 'P9'), { recursive: true });
+  if (zone) {
+    const chemin = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(chemin, readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n').replace('| `src/a.mjs` |', `| ${zone} |`));
+  }
+  const ecrire = (fichiers) => {
+    for (const [f, contenu] of Object.entries(fichiers)) {
+      mkdirSync(dirname(join(cwd, f)), { recursive: true });
+      writeFileSync(join(cwd, f), contenu);
+    }
+  };
+  initDepot(cwd);
+  ecrire({ 'src/a.mjs': 'export const a = 1;\n', ...initiaux });
+  commitTout(cwd, 'init');
+  git(cwd, 'branch', '-M', 'main');
+  commits.forEach((c, i) => {
+    ecrire(c);
+    commitTout(cwd, `S1 T${i + 1}\n\nPlan: P9/S1/T${i + 1}`);
+  });
+  if (commits.length < 2) git(cwd, 'commit', '--allow-empty', '-q', '-m', 'S1 T2\n\nPlan: P9/S1/T2');
+  return cwd;
+}
+
+for (const [fichier, sensible] of [['CLAUDE.md', true], ['.claude/n0.json', true], ['package.json', true], ['docs/notes.md', false], ['README.md', false]]) {
+  cas(`T12 : session low touchant ${fichier} → ${sensible ? 'relire, avec le chemin exact dans le texte' : 'pas de relire (exemption low conservée)'}`, () => {
+    const cwd = planRisque('workflow-pa-sensible-', { commits: [{ [fichier]: '{}\n' }] });
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!sensible) return action?.action === 'relire' ? `relire inattendu pour un fichier non sensible: ${sortie}` : null;
+    if (action?.action !== 'relire') return `relire attendu, reçu: ${sortie}`;
+    const s1 = action.sessions.find((s) => s.session === 'S1');
+    if (!s1 || JSON.stringify(s1.sensibles) !== JSON.stringify([fichier])) return `sensibles attendus [${fichier}], reçu: ${JSON.stringify(s1)}`;
+    if (!action.texte.includes(fichier)) return `le texte de l'action doit citer ${fichier}: ${action.texte}`;
+    return null;
+  });
+}
+
+cas('T12 : dépôt source — plugin/skills/x/SKILL.md (Markdown) relu ; plugin/ ordinaire hors dépôt source ne l\'est pas', () => {
+  const source = planRisque('workflow-pa-sensible-source-', {
+    initiaux: { 'plugin/.claude-plugin/plugin.json': '{"version":"0.0.0"}\n' },
+    commits: [{ 'plugin/skills/x/SKILL.md': '# x\n' }],
+  });
+  const a = lancerJson(['P9', '--json'], source);
+  if (a.action?.action !== 'relire') return `relire attendu en dépôt source, reçu: ${a.sortie}`;
+  if (!a.action.texte.includes('plugin/skills/x/SKILL.md')) return `chemin exact absent du texte: ${a.action.texte}`;
+  const autre = planRisque('workflow-pa-sensible-autre-', { commits: [{ 'plugin/skills/x/SKILL.md': '# x\n' }] });
+  const b = lancerJson(['P9', '--json'], autre);
+  if (b.action?.action === 'relire') return `relire inattendu hors dépôt source: ${b.sortie}`;
+  return null;
+});
+
+/** Revue complète déposée (Bloquant 0), puis `--appliquer` : ce que le moteur en fait. */
+function appliquerRevueN0(prefixe, opts) {
+  const cwd = planRisque(prefixe, opts);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n\n## Bloquants\n- aucun\n\n## Backlog\n- aucun\n');
+  const r = appliquerJson(cwd);
+  const revue = readFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'utf8').replace(/\r\n/g, '\n');
+  return { cwd, r, revue, ligne: ligneIndex(cwd, 'S1') };
+}
+
+cas('T12 : n0.json modifié hors zone, premier de deux commits → Bloquant moteur dans la revue, compte incrémenté, [x]!', () => {
+  const { r, revue, ligne } = appliquerRevueN0('workflow-pa-n0-hors-zone-', {
+    commits: [{ '.claude/n0.json': '{"commandes":[]}\n' }, { 'src/a.mjs': 'export const a = 2;\n' }],
+  });
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (!/^(- )?Bloquant moteur : n0\.json modifié hors zone$/m.test(revue)) return `ligne « Bloquant moteur » absente:\n${revue}`;
+  if (!/^Bloquant : 1$/m.test(revue)) return `Bloquant : 1 attendu:\n${revue}`;
+  if (!/^Dépendances : bloquées$/m.test(revue)) return `Dépendances : bloquées attendu:\n${revue}`;
+  if (!ligne || !ligne.includes('[x]!')) return `[x]! attendu, ligne: ${ligne}`;
+  return null;
+});
+
+cas('T12 : n0.json modifié dans la zone du plan → aucun bloquant, revue intacte, session [x]', () => {
+  const { cwd, r, revue, ligne } = appliquerRevueN0('workflow-pa-n0-dans-zone-', {
+    zone: '`src/a.mjs` · `.claude/n0.json`',
+    commits: [{ '.claude/n0.json': '{"commandes":[]}\n' }, { 'src/a.mjs': 'export const a = 2;\n' }],
+  });
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (/Bloquant moteur/.test(revue) || !/^Bloquant : 0$/m.test(revue)) return `aucun bloquant attendu:\n${revue}`;
+  if (!ligne || ligne.includes('[x]!') || !ligne.includes('[x]')) return `[x] sans ! attendu, ligne: ${ligne}`;
+  return null;
+});
+
+cas('T12 : n0.json hors zone, sans --appliquer → bloquant compté sans rien écrire (lecture seule)', () => {
+  const cwd = planRisque('workflow-pa-n0-lecture-', { commits: [{ '.claude/n0.json': '{}\n' }, { 'src/a.mjs': 'export const a = 2;\n' }] });
+  const chemin = join(cwd, 'plans', 'P9', 'S1.revue.md');
+  const brut = 'Bloquant : 0\nCouverture : complète\nReprises : 0\nDépendances : libres\n';
+  writeFileSync(chemin, brut);
+  const { code, sortie } = lancerJson(['P9', '--json', '--etat'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  const s1 = JSON.parse(sortie).sessions.find((s) => s.session === 'S1');
+  if (s1.revue?.bloquant !== 1) return `bloquant effectif 1 attendu, reçu: ${JSON.stringify(s1.revue)}`;
+  if (readFileSync(chemin, 'utf8') !== brut) return 'la revue ne doit pas être réécrite sans --appliquer';
+  return null;
+});
+
+cas('T12 : relecteur-session.md — les exemptions low et .md/données ne valent plus pour un fichier sensible', () => {
+  const texte = readFileSync(join(RACINE, 'plugin', 'agents', 'relecteur-session.md'), 'utf8').replace(/\s+/g, ' ');
+  for (const attendu of ["Une session `low` sans fichier sensible n'est pas relue", 'sauf un fichier de la liste des sensibles', 'même en Markdown, même dans une session `low`']) {
+    if (!texte.includes(attendu)) return `passage attendu absent: ${attendu}`;
+  }
+  if (texte.includes("**Une session `low` n'est pas relue**")) return "l'ancienne exclusion inconditionnelle des sessions low subsiste";
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {
