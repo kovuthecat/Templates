@@ -23,6 +23,8 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifierPreuve } from '../plugin/bin/preuve-n0.mjs';
+import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
+import { settingsProjet } from './scenarios/projet/poser.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -2545,6 +2547,68 @@ cas('publier : échec dans le try (chemin personnel planté) → code 1, dossier
   if (!/personnel\(s\) détecté/.test(sortie)) return `refus du scan absent: ${sortie}`;
   const restes = readdirSync(tmp);
   if (restes.length) return `dossier temporaire non nettoyé: ${restes.join(', ')}`;
+  return null;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P20/S3 T4 — le banc joue un passage sous les autorisations d'un projet (`--autorisations projet`).
+// Constats A et B de la mesure (docs/analyses/2026-10-14-mesure-de-reference.md, §6) : la liste large du
+// banc (`Bash(cd:*)`, `Bash(node:*)`) cachait des refus qu'un vrai projet subit.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const LANCER_SCENARIOS = join(RACINE, 'tests', 'scenarios', 'lancer.mjs');
+const GABARIT_SETTINGS = JSON.parse(readFileSync(join(RACINE, 'plugin', 'templates', 'project-settings.json'), 'utf8'));
+const ENTREES_INTERDITES = ['Bash(cd:*)', 'Bash(node:*)'];
+
+function miniProjetAvecSettings(prefixe) {
+  const projet = dossierJetable(prefixe);
+  mkdirSync(join(projet, '.claude'), { recursive: true });
+  // Le même écrivain que `poser` : le settings.json du mini-projet est celui du gabarit vendoré.
+  writeFileSync(join(projet, '.claude', 'settings.json'), settingsProjet(join(RACINE, 'plugin')));
+  return projet;
+}
+
+cas('P20/T4 : --autorisations projet → chaque entrée Bash du gabarit y est, ni Bash(cd:*) ni Bash(node:*)', () => {
+  const liste = autorisationsProjet(miniProjetAvecSettings('workflow-autorisations-projet-'));
+  const bashGabarit = GABARIT_SETTINGS.permissions.allow.filter((e) => e.startsWith('Bash('));
+  if (bashGabarit.length === 0) return 'gabarit sans entrée Bash : le test ne prouverait rien';
+  const manquantes = bashGabarit.filter((e) => !liste.includes(e));
+  if (manquantes.length > 0) return `entrées du gabarit absentes de la liste : ${manquantes.join(', ')}`;
+  const interdites = ENTREES_INTERDITES.filter((e) => liste.includes(e));
+  if (interdites.length > 0) return `entrées trop larges présentes : ${interdites.join(', ')}`;
+  const sansSocle = OUTILS_SOCLE.filter((o) => !liste.includes(o));
+  if (sansSocle.length > 0) return `outils non-Bash du socle absents : ${sansSocle.join(', ')}`;
+  if (new Set(liste).size !== liste.length) return 'doublons dans la liste';
+  return null;
+});
+
+cas('P20/T4 : anti-raccourci — le gabarit lui-même n\'autorise ni cd ni node générique, et porte les lectures seules', () => {
+  const allow = GABARIT_SETTINGS.permissions.allow;
+  const larges = ENTREES_INTERDITES.filter((e) => allow.includes(e));
+  if (larges.length > 0) return `le gabarit autorise ${larges.join(', ')} : les commandes mal écrites passeraient au lieu d'être corrigées`;
+  const lectures = ['Bash(git status:*)', 'Bash(git log:*)', 'Bash(git diff:*)', 'Bash(git show:*)', 'Bash(ls:*)'];
+  const absentes = lectures.filter((e) => !allow.includes(e));
+  if (absentes.length > 0) return `lectures seules absentes du gabarit : ${absentes.join(', ')}`;
+  return null;
+});
+
+cas('P20/T4 : la liste large du banc (défaut) est inchangée — Bash(cd:*) et Bash(node:*) y sont encore', () => {
+  const absentes = ENTREES_INTERDITES.filter((e) => !OUTILS_AUTORISES.includes(e));
+  return absentes.length > 0 ? `le mode « banc » a perdu ${absentes.join(', ')} : son comportement a changé` : null;
+});
+
+cas('P20/T4 : autorisationsProjet sans permissions.allow → exception (jamais une liste vide qui passerait tout)', () => {
+  const projet = dossierJetable('workflow-autorisations-vide-');
+  mkdirSync(join(projet, '.claude'), { recursive: true });
+  writeFileSync(join(projet, '.claude', 'settings.json'), '{}');
+  try { autorisationsProjet(projet); } catch { return null; }
+  return 'aucune exception sur un settings.json sans permissions.allow';
+});
+
+cas('P20/T4 : lancer.mjs --autorisations <inconnue> → code 2 avant tout appel à claude', () => {
+  const { code, sortie } = lancer(LANCER_SCENARIOS, ['--scenario', 'nominal', '--autorisations', 'large'], RACINE);
+  if (code !== 2) return `code ${code} attendu 2, sortie: ${sortie}`;
+  if (!/--autorisations attend banc ou projet/.test(sortie)) return `message attendu absent: ${sortie}`;
   return null;
 });
 

@@ -7,15 +7,18 @@
 //   node tests/scenarios/lancer.mjs --nettoyer               # supprime les passages posés dans le dossier temporaire
 //
 // Options : --model haiku · --effort medium (orchestrateur) · --max-budget 3 (USD par passage) ·
-//           --max-turns 200 · --delai-min 45 · --claude <binaire> · --sans-noter
+//           --max-turns 200 · --delai-min 45 · --claude <binaire> · --sans-noter ·
+//           --autorisations banc|projet (défaut banc = la liste large OUTILS_AUTORISES ; projet =
+//           le permissions.allow du gabarit tel que vendoré, comme un vrai projet)
 //
 // Un passage = un dossier `<tmp>/scenarios-templates/<scénario>-<n>-<horodatage>/` : l'instantané du
 // plugin, le mini-projet vendoré (`projet/`), le dépôt nu `origin.git`, la sortie `out/stream.jsonl`.
 // Rien n'est écrit dans ce dépôt. Mode d'emploi et pièges : tests/scenarios/README.md.
 import { spawn, execFileSync } from 'node:child_process';
-import { createWriteStream, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createWriteStream, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ATTENDU, SCENARIOS, DEPOT, poser, envGit } from './projet/poser.mjs';
 import { noterPassage, afficher } from './noter.mjs';
 
@@ -33,6 +36,7 @@ const BUDGET = opt('--max-budget', '3');
 const TOURS = opt('--max-turns', '200');
 const DELAI_MIN = Number(opt('--delai-min', '45'));
 const ESSAIS = Number(opt('--essais', '1'));
+const AUTORISATIONS = opt('--autorisations', 'banc');
 const scenarioArg = opt('--scenario', args.includes('--poser-seulement') ? 'tous' : null);
 
 /** Outils autorisés : jamais `bypassPermissions` — le mini-projet tourne sur le vrai poste de
@@ -44,6 +48,23 @@ export const OUTILS_AUTORISES = [
   'Bash(git:*)', 'Bash(node:*)',
   'Bash(cd:*)', 'Bash(echo:*)', 'Bash(pwd:*)', 'Bash(ls:*)', 'Bash(cat:*)', 'Bash(sed:*)', 'Bash(grep:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(wc:*)',
 ];
+
+/** Outils non-Bash du socle : toujours autorisés, quelle que soit la liste choisie. */
+export const OUTILS_SOCLE = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Agent', 'Task', 'SendMessage', 'Skill'];
+
+export const MODES_AUTORISATIONS = ['banc', 'projet'];
+
+/** `--autorisations projet` : ce qu'un vrai projet vendoré autorise — le `permissions.allow` du
+ * `.claude/settings.json` du mini-projet (celui du gabarit, après vendorage) plus les outils non-Bash
+ * du socle. Le dossier du passage n'est pas « de confiance » : Claude Code n'y lit pas ces `allow`,
+ * seul `--allowedTools` compte — on les lui passe donc tels quels. Ni `Bash(cd:*)` ni `Bash(node:*)`
+ * n'y entrent : c'est ce qui fait réapparaître les refus des constats A et B de la mesure. */
+export function autorisationsProjet(projet) {
+  const settings = JSON.parse(readFileSync(join(projet, '.claude', 'settings.json'), 'utf8'));
+  const allow = settings.permissions?.allow;
+  if (!Array.isArray(allow) || allow.length === 0) throw new Error(`${projet}/.claude/settings.json : permissions.allow absent ou vide`);
+  return [...new Set([...OUTILS_SOCLE, ...allow])];
+}
 
 const PROMPT = '/workflow:orchestrer-plan P1';
 
@@ -84,7 +105,7 @@ function etatDepot() {
   catch { return { commit: 'inconnu', sale: false }; }
 }
 
-function jouer({ binaire, dossier, projet, snapshot }) {
+function jouer({ binaire, dossier, projet, snapshot, outils }) {
   const env = envPropre(dossier);
   const out = join(dossier, 'out');
   mkdirSync(out, { recursive: true });
@@ -93,7 +114,7 @@ function jouer({ binaire, dossier, projet, snapshot }) {
     '--max-turns', TOURS, '--max-budget-usd', BUDGET,
     '--strict-mcp-config', '--no-session-persistence',
     '--permission-mode', 'acceptEdits',
-    '--allowedTools', OUTILS_AUTORISES.join(','),
+    '--allowedTools', outils.join(','),
     '--plugin-dir', snapshot,
     '--output-format', 'stream-json', '--verbose',
   ];
@@ -124,6 +145,10 @@ async function main() {
   const poserSeulement = args.includes('--poser-seulement');
   if (!scenarioArg) {
     console.error(`indiquer --scenario <${SCENARIOS.join('|')}|tous> (ou --poser-seulement)`);
+    return 2;
+  }
+  if (!MODES_AUTORISATIONS.includes(AUTORISATIONS)) {
+    console.error(`--autorisations attend ${MODES_AUTORISATIONS.join(' ou ')} (reçu : ${AUTORISATIONS})`);
     return 2;
   }
   const scenarios = scenarioArg === 'tous' ? SCENARIOS : scenarioArg.split(',');
@@ -162,10 +187,15 @@ async function main() {
       for (const c of pose.constats) console.log(`    constat : ${c}`);
       if (poserSeulement) { passages.push({ dossier, pose }); continue; }
 
-      console.log(`  → claude -p (${MODELE} ${EFFORT}, plafond ${BUDGET} USD, ${DELAI_MIN} min) dans ${dossier}`);
-      const resultat = await jouer({ binaire, dossier, projet: pose.projet, snapshot: pose.snapshot });
+      // `projet` : lue dans le settings.json du mini-projet APRÈS vendorage (posé par `poser`).
+      let outils;
+      try { outils = AUTORISATIONS === 'projet' ? autorisationsProjet(pose.projet) : OUTILS_AUTORISES; }
+      catch (e) { console.error(`✗ ${scenario} : ${e.message}`); echecPose = true; continue; }
+      console.log(`  → claude -p (${MODELE} ${EFFORT}, plafond ${BUDGET} USD, ${DELAI_MIN} min, autorisations ${AUTORISATIONS}) dans ${dossier}`);
+      const resultat = await jouer({ binaire, dossier, projet: pose.projet, snapshot: pose.snapshot, outils });
       const meta = {
         scenario, essai: i, modele: MODELE, effort: EFFORT, budgetUsd: Number(BUDGET), maxTours: Number(TOURS),
+        autorisations: AUTORISATIONS, outilsAutorises: outils,
         claude: versionClaude(binaire, envTest), depot, pluginVersion: pose.version,
         sortie: resultat.code, erreur: resultat.erreur ?? null, delaiDepasse: resultat.delaiDepasse, dureeMurMs: resultat.dureeMs,
         passage: dossier.split(/[\\/]/).pop(),
@@ -184,4 +214,5 @@ async function main() {
   return echecPose ? 1 : 0;
 }
 
-process.exitCode = await main();
+// Importé (par tests/tester-scripts.mjs, pour `autorisationsProjet`), le module ne lance rien.
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) process.exitCode = await main();

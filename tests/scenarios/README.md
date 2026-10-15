@@ -21,7 +21,20 @@ node tests/scenarios/lancer.mjs --nettoyer                   # supprime les pass
 
 Options : `--model haiku --effort medium` (orchestrateur, `WORKFLOW.md` §3) · `--max-budget 3` (USD
 par passage) · `--max-turns 200` · `--delai-min 45` · `--claude <binaire>` (sinon `$CLAUDE_BIN`, sinon
-le binaire qui lance la session courante, sinon `claude` du PATH).
+le binaire qui lance la session courante, sinon `claude` du PATH) · `--autorisations banc|projet`.
+
+**`--autorisations projet`** (défaut `banc`) : `--allowedTools` n'est plus la liste large du banc
+(`OUTILS_AUTORISES` : `Bash(git:*)`, `Bash(node:*)`, `Bash(cd:*)`, `Bash(cat:*)`…) mais le
+`permissions.allow` du gabarit **tel que vendoré** — lu dans le `settings.json` du mini-projet — plus les
+outils non-Bash du socle (`Read`, `Edit`, `Write`, `Glob`, `Grep`, `Agent`, `Task`, `SendMessage`,
+`Skill`). La liste jouée est écrite dans `meta.json` du passage (`autorisations`, `outilsAutorises`) : un
+passage sans `autorisations: "projet"` ne prouve rien sur les refus.
+Pourquoi : la liste large cachait les constats A et B de la mesure (`docs/analyses/2026-10-14-mesure-de-reference.md`,
+§6) — `cd <dir> && cat <relatif>` demande une approbation dès qu'une règle `Read()` deny existe
+(`Read(.env*)`… du gabarit), et `node C:/…/n0.mjs` ne commence par aucun préfixe autorisé ; un agent
+d'arrière-plan ne peut pas approuver, la commande est refusée. Les `deny` du gabarit s'appliquent dans les
+deux modes. Le remède est l'écriture des commandes (`EXECUTANT.md`, « Écrire ses commandes »), jamais
+d'ajouter `Bash(cd:*)` ou `Bash(node:*)` au gabarit.
 
 **Prérequis** : `claude auth status` doit rendre `loggedIn: true` *dans un terminal ordinaire*. Une
 session Desktop s'authentifie par l'application hôte ; un processus enfant ne le peut pas, et le premier
@@ -83,9 +96,10 @@ inutiles) est une heuristique sur le flux : à valider sur le premier passage r�
 - `--strict-mcp-config`, `--no-session-persistence`, `--plugin-dir <instantané>`. `noter.mjs` alerte si
   l'événement `init` ne montre pas l'instantané : un résultat obtenu avec le plugin du cache ne mesure rien.
 - **Jamais `bypassPermissions`** : le mini-projet tourne sur le vrai poste. `--permission-mode acceptEdits`
-  et `--allowedTools` explicite (`OUTILS_AUTORISES` dans `lancer.mjs` ; `Task` y côtoie `Agent`, nom que
-  `init` donne à l'outil en 2.1.293). Un outil refusé s'ajoute à la liste, nommé dans la mesure ;
-  `noter.mjs` imprime les `permission_denials`.
+  et `--allowedTools` explicite (`OUTILS_AUTORISES` dans `lancer.mjs`, ou la liste du gabarit avec
+  `--autorisations projet` ; `Task` y côtoie `Agent`, nom que `init` donne à l'outil en 2.1.293).
+  `noter.mjs` imprime les `permission_denials`. Un refus sous `--autorisations projet` se corrige dans
+  la commande (ou, pour une lecture seule, dans le gabarit), pas en élargissant la liste.
 - Le dossier du passage n'est pas « de confiance » : Claude Code y ignore les `permissions.allow` du
   `.claude/settings.json` du mini-projet (message `Ignoring … permissions.allow entries … not been
   trusted`). Seul `--allowedTools` compte — on n'écrit pas dans `~/.claude.json` de l'hôte.

@@ -58,6 +58,15 @@ quatre autres agents du workflow (`relecteur-session`, `verificateur-plan`, `ver
 `critique-plan`) ne sont pas à toi de lancer — ils viennent avec `/fin-de-tache`, `/nouveau-plan` et
 `/orchestrer-plan`.
 
+## Écrire ses commandes
+
+Commandes depuis la racine du dépôt, chemins relatifs, sans `cd` ni `&&` ; une commande par appel.
+Les commandes du workflow s'écrivent `node .claude/workflow/bin/<script>.mjs` (vendoré) ou
+`node plugin/bin/<script>.mjs` (dépôt source) — c'est la forme autorisée. Pourquoi : un agent
+d'arrière-plan ne peut pas approuver une commande ; `cd <dir> && cat <relatif>` en demande une dès
+qu'une règle `Read()` deny existe, et `node C:/…/n0.mjs` ne commence par aucun préfixe de
+`permissions.allow` — la commande est refusée, N0 ni le commit ne partent.
+
 ## Interdits
 
 - **Jamais de dépendance ajoutée seul** : si la tâche en requiert une, elle est déjà tranchée dans

@@ -54,7 +54,7 @@ function instantane(destination) {
 
 /** `settings.json` du mini-projet : le socle de permissions du gabarit vendoré. Les hooks n'y sont
  * PAS câblés : ils viennent du plugin chargé par `--plugin-dir` (sinon chacun tournerait deux fois). */
-function settingsProjet(snapshot) {
+export function settingsProjet(snapshot) {
   const gabarit = JSON.parse(readFileSync(join(snapshot, 'templates', 'project-settings.json'), 'utf8'));
   const propre = {};
   for (const [cle, valeur] of Object.entries(gabarit)) {
