@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "session": "P20/S6",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "2af993d0c2793a59d723578905462a3e0809e0eb47af2c715a8874e09cbfe935",
+  "nonSuivis": [
+    "tests/fixtures/scenarios/flux-arret-relaye.jsonl"
+  ],
+  "date": "2026-10-15T16:57:13.388Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 72677
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 150612
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 149
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 28570
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 4948
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1123
+    }
+  ]
+}

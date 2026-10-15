@@ -8,7 +8,7 @@ import {
 } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PLANS, indexMd, sessionMd, opsApres, testApres } from './plan.mjs';
+import { PLANS, indexMd, sessionMd, opsApres, testApres, MOT_ARRET_RELAYE } from './plan.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 export const DEPOT = resolve(ICI, '..', '..', '..');
@@ -19,6 +19,8 @@ export const ATTENDU = {
   'echec-reprise': { action: 'reprendre', session: 'S1' },
   interruption: { action: 'relancer-interrompue', session: 'S1' },
   'revue-incomplete': { action: 'relire', session: 'S1' },
+  // P20/S6 : S1 s'arrête sur un choix ; le moteur la lance (le banc joue l'arrêt, puis la réponse, en deux temps).
+  'arret-relaye': { action: 'lancer', session: 'S1' },
 };
 export const SCENARIOS = Object.keys(ATTENDU);
 
@@ -192,6 +194,12 @@ Agent : a0000000000000000
     commit(projet, env, 'revue(P1): S1 relue, 0 bloquant(s)\n\nPlan: P1/S1', 'plans/P1/S1.revue.md');
     lancerGit(projet, env, 'push', '-q');
     faitesInitiales.push('S1');
+  } else if (scenario === 'arret-relaye') {
+    // Le mot que S1 lira, retiendra puis effacera : il ne figure nulle part ailleurs (ni plan, ni question).
+    ecrire(join(projet, 'docs', 'mot.txt'), `${MOT_ARRET_RELAYE}
+`);
+    commit(projet, env, 'chore(docs): mot à lire par S1', 'docs/mot.txt');
+    lancerGit(projet, env, 'push', '-q');
   }
   // nominal : plan neuf, rien à ajouter au commit initial.
 
@@ -207,7 +215,7 @@ Agent : a0000000000000000
     );
   }
 
-  const meta = { scenario, version, premiere, faitesInitiales, constats, pose: new Date().toISOString() };
+  const meta = { scenario, version, premiere, faitesInitiales, constats, pose: new Date().toISOString(), ...(scenario === 'arret-relaye' ? { mot: MOT_ARRET_RELAYE } : {}) };
   writeFileSync(join(dossier, 'pose.json'), JSON.stringify(meta, null, 2) + '\n');
   return { projet, origin, snapshot, ...meta };
 }

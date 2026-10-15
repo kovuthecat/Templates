@@ -448,6 +448,19 @@ function lireQuestion(chemin, relatif) {
   };
 }
 
+/** Une question dont la session a repris le travail : la réponse est écrite et committée, puis un commit de TÂCHE
+ * (`Plan: P<n>/S<k>/T<m>`) suit le dernier commit qui a touché le fichier. La session n'attend plus — même si
+ * le fichier est resté en place (aucun outil de suppression sous les autorisations d'un projet : pas de
+ * `git rm` dans `permissions.allow`, mesure du scénario `arret-relaye`). Sans cette règle, le moteur rendrait
+ * `transmettre` en boucle après le PASS. Fichier modifié non committé, ou jamais committé : l'attente continue. */
+function questionConsommee(relatif, id) {
+  if (git('status', '--porcelain', '--', relatif)) return false;
+  const dernier = git('log', '-1', '--format=%H', '--', relatif);
+  if (!dernier) return false;
+  const depuis = git('log', `${dernier}..HEAD`, '--format=%B') ?? '';
+  return new RegExp(String.raw`Plan:\s*${plan}/${id}/T\d+`).test(depuis);
+}
+
 // ── Moteur (S10) — table « la nature décide » de remediation.md, reprise telle quelle ────────────────
 // Budget (WORKFLOW.md §9c) : 2 reprises + 1 enquête par session, 2 enquêtes par plan. Vit dans les
 // lignes mécaniques d'un .echec.md (survit à une orchestration interrompue). Un .echec.md disparaît
@@ -764,7 +777,7 @@ function promptRepriseApresQuestion(id, cheminQuestion) {
     'Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`.',
     "Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier plan — et aucune commande n'est détachée.",
     'Ta réponse finale CLÔT ton tour : ce qui finit après elle n\'est lu par personne.',
-    `Au PASS, supprime ${cheminQuestion} par un commit. Si tu t'arrêtes de nouveau sur un choix, réécris ce fichier (nouvelle question, \`Réponse : —\`), committe-le, puis rends \`VERDICT: QUESTION\`.`,
+    `Au PASS, supprime ${cheminQuestion} par un commit si ton outillage le permet (sinon laisse-le : ton commit de tâche suffit). Si tu t'arrêtes de nouveau sur un choix, réécris ce fichier (nouvelle question, \`Réponse : —\`), committe-le, puis rends \`VERDICT: QUESTION\`.`,
     'Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->',
   ].join('\n');
 }
@@ -1680,7 +1693,7 @@ for (const s of index.sessions) {
   const cheminQuestion = join(dossierPlan, `${s.session}.question.md`);
   if (s.coche) {
     s.etat = 'faite';
-  } else if (existsSync(cheminQuestion)) {
+  } else if (existsSync(cheminQuestion) && !questionConsommee(`plans/${plan}/${s.session}.question.md`, s.session)) {
     s.etat = 'en-attente';
   } else if (existsSync(cheminEchec)) {
     s.etat = 'echec';

@@ -30,7 +30,8 @@ que quelque chose a cassé (nature de l'échec : `WORKFLOW.md` §9a) :
 **Un choix qui t'arrête** (les quatre critères ci-dessus) s'écrit dans `plans/P<n>/S<k>.question.md`
 (gabarit : `reprendre-echec/references/gabarit-question.md`), après avoir **committé le travail en
 cours** (WIP, repère `Plan:`) ; puis `VERDICT: QUESTION`. Reprise par message : continue avec la
-réponse. Au `PASS`, supprime le fichier par un commit.
+réponse. Au `PASS`, supprime le fichier par un commit si ton outillage le permet (sinon laisse-le :
+ton commit de tâche suffit au moteur).
 
 **Budget en hypothèses** : jusqu'à 3 hypothèses **distinctes**, chacune inscrite dans « Déjà écarté »
 avant la suivante ; arrêt sur hypothèse répétée, ou contexte > 70 %. Tu peux écrire `Auto : oui`

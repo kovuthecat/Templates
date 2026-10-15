@@ -29,7 +29,7 @@ import * as lecteurGardeFous from '../plugin/mods/garde-fous/hooks/lire-index.mj
 import * as lecteurAffichage from '../plugin/mods/affichage/hooks/lire-index.mjs';
 import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
 import { settingsProjet, COMMANDE_STACK } from './scenarios/projet/poser.mjs';
-import { lireFlux } from './scenarios/noter.mjs';
+import { lireFlux, evaluerH1 } from './scenarios/noter.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -3752,12 +3752,62 @@ cas('P20/T9 le témoin du budget : sans le fichier .question.md, le même S1 (re
 });
 
 cas('P20/T9 un WIP porte le repère Plan: de la tâche : la session reste en attente, jamais « faite » par ses commits de tâche', () => {
-  const cwd = planQuestion('workflow-pa-question-wip-', 'moteur-question-sans-reponse');
+  // T1 et T2 portent un repère `Plan:` AVANT la question (WIP commité avec elle) : la question prime.
+  const cwd = planQuestion('workflow-pa-question-wip-', 'moteur-question-sans-reponse', { commiterQuestion: false });
   writeFileSync(join(cwd, 'src', 'a.mjs'), 'export const a = 2;\n');
-  commitTout(cwd, 'WIP de S1\n\nPlan: P9/S1/T2');
+  commitTout(cwd, 'WIP et question de S1\n\nPlan: P9/S1/T2');
   const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
   const s1 = etat.sessions.find((s) => s.session === 'S1');
   if (s1.etat !== 'en-attente') return `S1 attendue en-attente (T1 et T2 commitées par repère, mais la question prime), reçu ${s1.etat}`;
+  return null;
+});
+
+/** Dépôt où la réponse est écrite et committée (repère `Plan: P9/S1`, sans tâche), puis `apres` s'exécute. */
+function planQuestionRepondue(prefixe, apres = null, options = {}) {
+  const cwd = planQuestion(prefixe, 'moteur-question-avec-reponse', { question: { reponse: '2, chargerIndex' }, ...options });
+  git(cwd, 'commit', '--allow-empty', '-q', '-m', "réponse de l'utilisateur pour S1\n\nPlan: P9/S1");
+  if (apres) apres(cwd);
+  return cwd;
+}
+
+cas("P20/T9 la réponse committée avec le seul repère `Plan: P9/S1` (sans tâche) ne consomme pas la question : transmettre", () => {
+  const cwd = planQuestionRepondue('workflow-pa-question-repondue-');
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'transmettre') return `transmettre attendu, reçu: ${sortie}`;
+  return null;
+});
+
+cas("P20/T9 la session a repris (commit de tâche après la réponse) : la question est consommée, le fichier resté en place (pas de git rm sous les autorisations d'un projet) ne fait plus rendre transmettre", () => {
+  const cwd = planQuestionRepondue('workflow-pa-question-consommee-', (d) => {
+    writeFileSync(join(d, 'src', 'a.mjs'), 'export const a = 2;\n');
+    commitTout(d, 'feat(ops): fois2\n\nPlan: P9/S1/T2');
+  });
+  if (!existsSync(join(cwd, 'plans', 'P9', 'S1.question.md'))) throw new Error('le fichier de question doit rester en place');
+  const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
+  const s1 = etat.sessions.find((s) => s.session === 'S1');
+  if (s1.etat !== 'faite') return `S1 attendue faite (T1 et T2 commitées, question consommée), reçu ${s1.etat}`;
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (['transmettre', 'question'].includes(action?.action) && action.options?.source !== 'revue-incomplete') return `ni transmettre ni question d'attente après la reprise, reçu: ${sortie}`;
+  return null;
+});
+
+cas("P20/T9 la session a repris puis échoué (.echec.md après la réponse) : la question est consommée, le rapport d'échec reprend la main", () => {
+  const cwd = planQuestionRepondue('workflow-pa-question-puis-echec-', (d) => {
+    writeFileSync(join(d, 'src', 'a.mjs'), 'export const a = 2;\n');
+    commitTout(d, 'WIP de S1 après la réponse\n\nPlan: P9/S1/T2');
+    ecrireEchec(d, 'S1', ['Nature : exécution', 'Tentatives : reprise=0 enquete=0', 'Blocage : relancer le build']);
+  });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'reprendre' || action.session !== 'S1' || action.question !== undefined) return `reprise d'échec ordinaire attendue, reçu: ${sortie}`;
+  return null;
+});
+
+cas("P20/T9 réponse écrite mais pas encore committée, un commit de tâche plus ancien dans l'historique : l'attente continue (transmettre)", () => {
+  const cwd = planQuestion('workflow-pa-question-reponse-non-commitee-', 'moteur-question-avec-reponse');
+  const f = join(cwd, 'plans', 'P9', 'S1.question.md');
+  writeFileSync(f, readFileSync(f, 'utf8').replace(/^Réponse : —$/m, 'Réponse : 2, chargerIndex'));
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'transmettre') return `transmettre attendu (réponse non committée), reçu: ${sortie}`;
   return null;
 });
 
@@ -3956,6 +4006,133 @@ cas('P20/T8 noter : la première ligne rendue par le moteur est celle lue — `<
   if (f.questions.size !== 1 || ![...f.questions][0].startsWith('❓ P1/S1 — ')) return `la question relayée par l'orchestrateur doit être comptée, reçu ${[...f.questions]}`;
   const evenements = [{ type: 'assistant', message: { content: [{ type: 'text', text: '❓ P1 — Un rebase est en cours : comment le résoudre ?' }] } }];
   if (lireFlux(evenements).questions.size !== 1) return 'une question de plan (sans S<k>) doit être comptée aussi';
+  return null;
+});
+
+// ── P20/S6 T10 — scénario `arret-relaye` : état posé, noter.mjs sur un flux joué ─────────────────
+// `flux-arret-relaye.jsonl` : extrait ANONYMISÉ du passage réel `arret-relaye` du 2026-10-15 (Haiku, session
+// persistée, réponse écrite après 30 min d'attente, `claude -p --resume`) : le lancement de S1 qui rend
+// `VERDICT: QUESTION`, son `SendMessage` de reprise (retour sans erreur) et le `VERDICT: PASS` final qui
+// restitue le mot lu avant l'arrêt. Les cas de dérive (erreur d'envoi, mot perdu, mot dans la réponse) sont
+// fabriqués à partir de lui : un cas qui ne prouverait que « noter ne plante pas » laisserait passer une H1
+// confirmée à tort.
+
+const MOT_ARRET = 'cormoran-9031';
+
+cas("P20/T10 pose : --poser-seulement --scenario arret-relaye → le moteur rend `lancer` S1, le mot n'est que dans docs/mot.txt", () => {
+  const tmp = dossierJetable('workflow-scenarios-arret-relaye-');
+  const env = { TEMP: tmp, TMP: tmp, TMPDIR: tmp };
+  const { code, sortie } = lancer(LANCER_SCENARIOS, ['--poser-seulement', '--scenario', 'arret-relaye'], RACINE, env);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!/première action : lancer S1 \(attendu : lancer S1\)/.test(sortie)) return `première action « lancer S1 » attendue, sortie: ${sortie}`;
+  const racine = join(tmp, 'scenarios-templates');
+  const passage = readdirSync(racine).find((d) => d.startsWith('arret-relaye-'));
+  if (!passage) return `passage posé introuvable dans ${racine}`;
+  const projet = join(racine, passage, 'projet');
+  if (readFileSync(join(projet, 'docs', 'mot.txt'), 'utf8').trim() !== MOT_ARRET) return 'docs/mot.txt doit contenir le mot';
+  // Anti-raccourci : le mot ne figure dans AUCUN autre fichier suivi (plan, index, session, base).
+  const ailleurs = gitSortie(projet, 'grep', '-l', MOT_ARRET).split('\n').filter(Boolean);
+  if (ailleurs.join() !== 'docs/mot.txt') return `le mot ne doit figurer que dans docs/mot.txt, trouvé dans : ${ailleurs.join(', ')}`;
+  const pose = JSON.parse(readFileSync(join(racine, passage, 'pose.json'), 'utf8'));
+  if (pose.mot !== MOT_ARRET) return `pose.json doit porter le mot pour noter.mjs, reçu ${JSON.stringify(pose.mot)}`;
+  const s1 = readFileSync(join(projet, 'plans', 'P1', 'S1.md'), 'utf8');
+  if (!/VERDICT: QUESTION/.test(s1) || !/Réponse : —/.test(s1) || !/mot=<le mot lu dans docs\/mot\.txt>/.test(s1)) return 'S1.md doit dicter l\'arrêt (QUESTION), la ligne Réponse et la restitution du mot';
+  return null;
+});
+
+cas('P20/T10 noter : flux joué → lancement S1 au verdict QUESTION, un SendMessage compté (sans erreur), PASS final avec le mot', () => {
+  const f = lireFlux(lireFluxFixture('flux-arret-relaye.jsonl'));
+  if (f.lancements.length !== 1) return `1 lancement attendu, reçu ${f.lancements.length}`;
+  const [l] = f.lancements;
+  if (l.session !== 'S1' || l.verdict !== 'QUESTION') return `S1 au verdict QUESTION attendue (lu dans la notification de l'agent), reçu ${JSON.stringify([l.session, l.verdict])}`;
+  if (!/Quel nom donner/.test(l.motif ?? '')) return `motif de la question attendu, reçu ${JSON.stringify(l.motif)}`;
+  if (f.sendMessages.length !== 1) return `1 SendMessage attendu, reçu ${f.sendMessages.length}`;
+  const [m] = f.sendMessages;
+  if (m.to !== 'a147acc8ff99003c5' || m.message !== 'Choisis le nom fois2.') return `SendMessage vers l'agent avec la réponse attendu, reçu ${JSON.stringify([m.to, m.message])}`;
+  if (m.erreur !== false) return `retour du SendMessage sans erreur attendu, reçu erreur=${m.erreur} retour=${m.retour}`;
+  if (f.relancesInutiles.length !== 0) return `aucune relance inutile attendue, reçu ${f.relancesInutiles}`;
+  return null;
+});
+
+/** Les événements du flux, retouchés par `f`. */
+const fluxArretRetouche = (f) => f(JSON.parse(JSON.stringify(lireFluxFixture('flux-arret-relaye.jsonl'))));
+const POSE_ARRET = { mot: MOT_ARRET };
+const REPRISE_ARRET = { attenteReelleMs: 1800338, reponse: 'Choisis le nom fois2.' };
+const h1De = (evenements, extra = {}) => {
+  const f = lireFlux(evenements);
+  return evaluerH1({ evenements, lancements: f.lancements, sendMessages: f.sendMessages, pose: POSE_ARRET, reprise: REPRISE_ARRET, projet: null, env: {}, ...extra });
+};
+
+cas('P20/T10 noter H1 : flux joué → confirmée, preuve = le mot restitué par la même session, attente de 30 min lue', () => {
+  const h = h1De(lireFluxFixture('flux-arret-relaye.jsonl'));
+  if (h.issue !== 'confirmée') return `H1 confirmée attendue, reçu ${JSON.stringify(h)}`;
+  if (!h.preuve.includes(MOT_ARRET)) return `la preuve doit citer le mot restitué, reçu ${h.preuve}`;
+  if (h.attenteMs !== 1800338 || h.sendMessages !== 1 || h.question !== true) return `attente / SendMessage / question mal lus : ${JSON.stringify(h)}`;
+  return null;
+});
+
+cas('P20/T10 noter H1 : SendMessage en erreur (agent introuvable) → réfutée, avec le message d\'erreur comme preuve', () => {
+  const evenements = fluxArretRetouche((ev) => {
+    for (const e of ev) {
+      for (const c of Array.isArray(e.message?.content) ? e.message.content : []) {
+        if (c.type === 'tool_result' && /Resuming agent/.test(JSON.stringify(c.content))) {
+          c.is_error = true;
+          c.content = [{ type: 'text', text: 'Error: agent a147acc8ff99003c5 not found' }];
+        }
+      }
+    }
+    return ev;
+  });
+  const f = lireFlux(evenements);
+  if (f.sendMessages[0]?.erreur !== true) return `erreur de SendMessage attendue, reçu ${JSON.stringify(f.sendMessages)}`;
+  const h = h1De(evenements);
+  if (h.issue !== 'réfutée' || !/not found/.test(h.preuve)) return `H1 réfutée avec le message d'erreur attendue, reçu ${JSON.stringify(h)}`;
+  return null;
+});
+
+cas('P20/T10 noter H1 : SendMessage sans erreur mais mot perdu après la reprise → réfutée (contexte perdu), jamais confirmée', () => {
+  const evenements = JSON.parse(JSON.stringify(lireFluxFixture('flux-arret-relaye.jsonl')).replaceAll(MOT_ARRET, 'mot-perdu'));
+  const h = h1De(evenements);
+  if (h.issue !== 'réfutée' || !/contexte perdu/.test(h.preuve)) return `H1 réfutée (contexte perdu) attendue, reçu ${JSON.stringify(h)}`;
+  return null;
+});
+
+cas('P20/T10 noter H1 anti-raccourci : le mot figure dans la réponse du banc → indéterminée (la restitution ne prouve rien)', () => {
+  const h = h1De(lireFluxFixture('flux-arret-relaye.jsonl'), { reprise: { ...REPRISE_ARRET, reponse: `Choisis fois2 (${MOT_ARRET}).` } });
+  if (h.issue !== 'indéterminée' || !h.motDansReponse) return `H1 indéterminée attendue, reçu ${JSON.stringify(h)}`;
+  return null;
+});
+
+cas('P20/T10 noter H1 anti-raccourci : la session relit mot.txt ou un diff de l\'historique après la reprise → indéterminée, pas confirmée', () => {
+  const evenements = JSON.parse(JSON.stringify(lireFluxFixture('flux-arret-relaye.jsonl')));
+  const i = evenements.findIndex((e) => e.type === 'assistant' && e.parent_tool_use_id && JSON.stringify(e).includes('VERDICT: PASS'));
+  const releve = { type: 'assistant', parent_tool_use_id: evenements[i].parent_tool_use_id, message: { content: [{ type: 'tool_use', id: 't9', name: 'Bash', input: { command: 'git show HEAD~3:docs/mot.txt' } }] } };
+  evenements.splice(i, 0, releve);
+  const h = h1De(evenements);
+  if (h.issue !== 'indéterminée' || !h.relectures?.length) return `H1 indéterminée (relecture) attendue, reçu ${JSON.stringify(h)}`;
+  // Un `git log --format` de l'orchestrateur, lui, ne dit rien du mot.
+  const sans = JSON.parse(JSON.stringify(lireFluxFixture('flux-arret-relaye.jsonl')));
+  sans.splice(i, 0, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't8', name: 'Bash', input: { command: "git log -6 --format='%h %s'" } }] } });
+  const h2 = h1De(sans);
+  if (h2.issue !== 'confirmée') return `un git log --format n'est pas une relecture : confirmée attendue, reçu ${JSON.stringify(h2)}`;
+  return null;
+});
+
+cas("P20/T10 noter H1 : une édition de l'index dont la zone cite docs/mot.txt, ou un geste du relecteur APRÈS la restitution, n'est pas une relecture", () => {
+  const evenements = JSON.parse(JSON.stringify(lireFluxFixture('flux-arret-relaye.jsonl')));
+  const i = evenements.findIndex((e) => e.type === 'assistant' && e.parent_tool_use_id && JSON.stringify(e).includes('VERDICT: PASS'));
+  const parent = evenements[i].parent_tool_use_id;
+  evenements.splice(i, 0, { type: 'assistant', parent_tool_use_id: parent, message: { content: [{ type: 'tool_use', id: 't7', name: 'Edit', input: { file_path: 'plans/P1/index.md', old_string: '`test.mjs` · `docs/mot.txt`', new_string: 'x' } }] } });
+  const j = evenements.findIndex((e) => e.type === 'assistant' && e.parent_tool_use_id && JSON.stringify(e).includes('VERDICT: PASS'));
+  evenements.splice(j + 1, 0, { type: 'assistant', parent_tool_use_id: 'toolu_RELECTEUR', message: { content: [{ type: 'tool_use', id: 't6', name: 'PowerShell', input: { command: 'Get-Content docs/mot.txt; git show HEAD' } }] } });
+  const h = h1De(evenements);
+  if (h.issue !== 'confirmée') return `confirmée attendue (aucune relecture avant la restitution), reçu ${JSON.stringify(h)}`;
+  return null;
+});
+
+cas('P20/T10 noter H1 : aucune question posée, aucun SendMessage → indéterminée (une mesure, pas un échec de la session)', () => {
+  const h = h1De([]);
+  if (h.issue !== 'indéterminée') return `H1 indéterminée attendue, reçu ${JSON.stringify(h)}`;
   return null;
 });
 

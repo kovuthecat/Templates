@@ -48,3 +48,11 @@ contexte. Reprise à froid : lire ce fichier et sa `Réponse :`, reprendre depui
 faits. Dans les deux cas, **au `PASS` — et au `FAIL`, où un `.echec.md` prend le relais —, supprimer
 `S<k>.question.md` par un commit** (comme un `.echec.md` résolu) ; une nouvelle question réécrit le
 fichier (`Réponse : —`).
+
+**Si l'outillage ne permet pas de supprimer** (aucun `git rm` dans les `permissions.allow` d'un projet : mesure
+du scénario `arret-relaye`, 2026-10-15), le fichier reste en place sans rien casser : le moteur tient la question
+pour consommée dès qu'un commit de tâche (`Plan: P<n>/S<k>/T<m>`) suit le commit de la réponse.
+
+**Mesure de H1 (2026-10-15)** : la reprise par `SendMessage` après 30 min d'attente, depuis une conversation
+reprise (`claude -p --resume`), **fonctionne** — la même session restitue ce qu'elle avait lu avant l'arrêt. Le
+repli « reprise à froid qui lit la réponse » (`Agent : introuvable`) reste le seul recours quand l'envoi échoue.

@@ -11,17 +11,20 @@ Rien n'est écrit dans ce dépôt : tout vit dans `<dossier temporaire>/scenario
 ## Usage
 
 ```bash
-node tests/scenarios/lancer.mjs --poser-seulement          # pose les 4 états, vérifie le moteur, n'appelle pas claude
+node tests/scenarios/lancer.mjs --poser-seulement          # pose les états de tous les scénarios, vérifie le moteur, n'appelle pas claude
 node tests/scenarios/lancer.mjs --scenario nominal          # un passage réel
 node tests/scenarios/lancer.mjs --scenario nominal --essais 2
-node tests/scenarios/lancer.mjs --scenario tous              # les 4 scénarios, l'un après l'autre
+node tests/scenarios/lancer.mjs --scenario tous              # tous les scénarios, l'un après l'autre
 node tests/scenarios/noter.mjs                               # note le dernier passage ; -v détaille les agents ; --tous
 node tests/scenarios/lancer.mjs --nettoyer                   # supprime les passages posés
+node tests/scenarios/lancer.mjs --scenario arret-relaye --autorisations projet --attente 30   # en deux temps (voir plus bas)
+node tests/scenarios/lancer.mjs --reprendre --autorisations projet --pause-max 8              # continue le dernier passage en deux temps
 ```
 
 Options : `--model haiku --effort medium` (orchestrateur, `WORKFLOW.md` §3) · `--max-budget 3` (USD
 par passage) · `--max-turns 200` · `--delai-min 45` · `--claude <binaire>` (sinon `$CLAUDE_BIN`, sinon
-le binaire qui lance la session courante, sinon `claude` du PATH) · `--autorisations banc|projet`.
+le binaire qui lance la session courante, sinon `claude` du PATH) · `--autorisations banc|projet` ·
+`--attente <minutes>` et `--pause-max <minutes>` (scénario `arret-relaye`, voir plus bas).
 
 **`--autorisations projet`** (défaut `banc`) : `--allowedTools` n'est plus la liste large du banc
 (`OUTILS_AUTORISES` : `Bash(git:*)`, `Bash(node:*)`, `Bash(cd:*)`, `Bash(cat:*)`…) mais le
@@ -63,12 +66,38 @@ Sessions en Haiku · medium, tâches triviales (`doubler()`, `tripler()` et leur
 | `echec-reprise` | S1 a échoué : `S1.echec.md` (`Nature : exécution`, `reprise=0 enquete=0`), test rouge commité | `reprendre` S1 |
 | `interruption` | S1 a deux tâches, T1 commitée (`Plan: P1/S1/T1`), T2 amorcée non commitée, rapport `Nature : interruption` | `relancer-interrompue` S1 |
 | `revue-incomplete` | S1 faite (preuve N0 valide), `S1.revue.md` avec `Bloquant : 0` sans `Couverture :` | `relire` S1 |
+| `arret-relaye` | plan P1 neuf, une session ; `docs/mot.txt` porte un mot que S1 lira avant de s'arrêter sur un choix (le nom d'une fonction) | `lancer` S1 |
 
 **Une fixture qui ne rend pas la première action attendue est à corriger, jamais l'attendu.** Cas
 rencontré : l'état `interruption` « sans rapport d'échec » rend `lancer`, pas `relancer-interrompue` —
 le moteur ne rend cette action que sur un rapport `Nature : interruption`, que l'orchestrateur écrit
 lui-même à la coupure par quota (`orchestrer-plan/SKILL.md`, « Coupure par quota »). L'état posé porte
 donc ce rapport ; `--poser-seulement` imprime le constat.
+
+## Le scénario `arret-relaye`, en deux temps (P20/S6)
+
+Mesure l'hypothèse H1 du plan P20 : une session arrêtée sur une question reprend **par `SendMessage`, avec tout son
+contexte**, même après une longue attente. Le banc joue deux `claude -p` sur la **même session persistée** (c'est le
+seul scénario sans `--no-session-persistence`) :
+
+1. **Temps 1** — `claude -p --session-id <uuid>` : l'orchestrateur lance S1 ; S1 lit `docs/mot.txt` (un mot qui ne
+   figure nulle part ailleurs), en efface le contenu, committe, écrit `plans/P1/S1.question.md` (gabarit
+   `reprendre-echec/references/gabarit-question.md`) et rend `VERDICT: QUESTION` ; l'orchestrateur complète `Agent :`,
+   rappelle le moteur (`question`, source `attente-reponse`) et relaie la question. `claude -p` s'arrête.
+2. **Attente** — `--attente <minutes>` (au moins 30 pour mesurer H1). Un appel du banc ne dépasse pas `--pause-max`
+   minutes ; au-delà, code 4 : `--reprendre` continue (l'attente écoulée est lue dans `attente.json`).
+3. **Temps 2** — le banc écrit la réponse (`Choisis le nom fois2.`, jamais le mot) dans la ligne `Réponse :` de
+   `S1.question.md`, la committe et la pousse, puis `claude -p --resume <uuid>` relance `/workflow:orchestrer-plan P1` :
+   le moteur rend `transmettre`, l'orchestrateur fait le `SendMessage`, S1 termine par
+   `VERDICT: PASS · MOTIF: mot=<le mot> nom=<le nom>`.
+
+`noter.mjs` lit les deux flux (`out/stream.jsonl`, `out/stream-reprise.jsonl`), somme les coûts, compte les
+`SendMessage` (avec l'erreur du `tool_result`) et conclut H1 : **confirmée** (mot restitué par la même session,
+`SendMessage` sans erreur), **réfutée** (envoi en erreur, ou envoi réussi mais mot perdu) ou **indéterminée** (pas de
+question, pas d'envoi, mot dans la question ou la réponse, ou mot retrouvé par une relecture de `mot.txt` / d'un diff git).
+Dans tous les cas une mesure, pas un échec de la session. Aucun outil du mini-projet ne supprime un fichier (`git rm`
+n'est pas dans `permissions.allow`) : le mot est effacé par `Write`, et `S1.question.md` reste en place — le moteur le
+tient pour consommé dès qu'un commit de tâche suit la réponse.
 
 ## Ce que `noter.mjs` mesure
 

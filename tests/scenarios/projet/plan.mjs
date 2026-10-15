@@ -18,7 +18,17 @@ export const PLANS = {
   'echec-reprise': [{ k: 1, taches: [1], dependDe: '—', vague: 1 }],
   interruption: [{ k: 1, taches: [1, 2], dependDe: '—', vague: 1 }],
   'revue-incomplete': [{ k: 1, taches: [1], dependDe: '—', vague: 1 }],
+  'arret-relaye': [{ k: 1, taches: [1], dependDe: '—', vague: 1 }],
 };
+
+/** Scénario `arret-relaye` (P20/S6/T10) : S1 lit un mot dans `docs/mot.txt`, le retient, en efface le contenu,
+ * puis s'arrête sur un choix (le nom de la fonction). Le mot ne figure QUE dans ce fichier : ni dans la
+ * question, ni dans la réponse du banc — le restituer après la réponse prouve le contexte conservé (la session
+ * ne peut pas le relire sans fouiller l'historique git, ce que noter.mjs détecte). */
+export const MOT_ARRET_RELAYE = 'cormoran-9031';
+export const NOMS_ARRET_RELAYE = ['doubler', 'fois2'];
+/** La réponse écrite par le banc dans `S1.question.md` : le nom choisi, jamais le mot. */
+export const REPONSE_ARRET_RELAYE = 'Choisis le nom fois2.';
 
 const plage = (taches) => (taches.length === 1 ? `T${taches[0]}` : `T${taches[0]}-T${taches[taches.length - 1]}`);
 
@@ -27,10 +37,11 @@ function titreSession(taches) {
 }
 
 export function indexMd(scenario, version, { cochees = [] } = {}) {
+  const zone = scenario === 'arret-relaye' ? '`src/ops.mjs` · `test.mjs` · `docs/mot.txt`' : '`src/ops.mjs` · `test.mjs`';
   const sessions = PLANS[scenario];
   const lignes = sessions.map((s) => {
     const statut = cochees.includes(s.k) ? '[x] 2026-10-14' : '[ ]';
-    return `| [S${s.k}](S${s.k}.md) | ${plage(s.taches)} | ${titreSession(s.taches)} | Haiku | medium | — | ${s.dependDe} | \`src/ops.mjs\` · \`test.mjs\` | ${statut} | — |`;
+    return `| [S${s.k}](S${s.k}.md) | ${plage(s.taches)} | ${titreSession(s.taches)} | Haiku | medium | — | ${s.dependDe} | ${zone} | ${statut} | — |`;
   });
   const vagues = sessions.map((s) => {
     const apres = s.dependDe === '—' ? '' : ` (après ${s.dependDe})`;
@@ -104,7 +115,97 @@ Dernière ligne du commit, obligatoire : \`Plan: P1/S${k}/T${t}\`
 `;
 }
 
+/** La session du scénario `arret-relaye` : le même squelette que les autres, une seule tâche, dont l'étape 2 est un arrêt. */
+function sessionArretRelayeMd(k) {
+  const [a, b] = NOMS_ARRET_RELAYE;
+  const gabarit = '.claude/skills/reprendre-echec/references/gabarit-question.md';
+  return `# P1 · S${k} — Ajouter une fonction de doublement   (rédigé par Opus)
+
+> **Modèle : Haiku · effort : medium · Vague : 1**
+> **Environnement : indifférent** (\`WORKFLOW.md\` §6, N1)
+> **Régime : fixé** — sur \`main\`, livrable = commits sous gate N0.
+> **Latitude : défaut** (moyens libres ; objectif, contrats publics et zone du plan fixes).
+> Exécutant : UNIQUEMENT les tâches ci-dessous, dans l'ordre ; fichiers sous « Lire » / « Modifier ».
+> Design fixé — ne reconçois pas. Tu t'arrêtes sur un choix que tu n'as pas reçu, pas parce que
+> quelque chose a cassé : \`EXECUTANT.md\`.
+
+- Date : 2026-10-15 · Branche : main
+
+## Lire (commun à la session — point de départ, pas une clôture)
+- Lire : \`.claude/workflow/EXECUTANT.md\`
+- Lire : \`${gabarit}\`
+- Lire : \`docs/mot.txt\` (une seule fois — voir l'étape 1)
+- Lire : \`src/ops.mjs\`
+- Lire : \`test.mjs\`
+
+## Hors périmètre
+- Tout fichier autre que \`src/ops.mjs\`, \`test.mjs\`, \`docs/mot.txt\` et les fichiers de \`plans/P1/\`.
+
+---
+
+## T1 — Ajouter une fonction de doublement
+
+### Objectif
+Ajouter à \`src/ops.mjs\` une fonction qui rend \`n * 2\`, et son cas de test dans \`test.mjs\`. **Son nom ne t'est pas
+donné** : deux noms sont possibles, \`${a}\` ou \`${b}\`, et le choix n'est pas le tien.
+
+### Pourquoi
+Mesurer une session qui s'arrête sur un choix, puis reprend avec ce qu'elle avait lu avant l'arrêt.
+
+### Décision clé
+- Le nom de la fonction est un choix de l'utilisateur : tu t'arrêtes (\`EXECUTANT.md\`, « Un choix qui t'arrête »), tu ne le tranches pas.
+- **Le mot de \`docs/mot.txt\`** : tu le lis, tu le retiens, tu ne l'écris **nulle part** avant ta réponse finale —
+  ni dans la question, ni dans un commit, ni dans un fichier. Tu en effaces ensuite le contenu (étape 1) : il ne contient plus le mot quand tu t'arrêtes.
+
+### Lire / Modifier
+- Modifier : \`src/ops.mjs\`
+- Modifier : \`test.mjs\`
+- Modifier : \`docs/mot.txt\` (lire puis effacer le contenu)
+- Modifier : \`plans/P1/S${k}.question.md\` (créer)
+
+### Étapes
+1. Lire \`docs/mot.txt\` (un seul mot) et le retenir. Effacer son contenu avec l'outil \`Write\` (le fichier ne contient
+   plus que \`(lu)\`), puis \`git add docs/mot.txt\` et committer (\`chore(docs): mot lu\`, dernière ligne
+   \`Plan: P1/S${k}/T1\`). Ne rien noter du mot nulle part.
+2. **T'arrêter sur le choix du nom** : écrire \`plans/P1/S${k}.question.md\` au gabarit de \`${gabarit}\`
+   (\`Question :\` une phrase ; \`Fichier à relire : —\` ; \`Agent :\` ton identifiant d'agent si tu le connais, sinon \`—\` ;
+   \`Réponse : —\` ; \`## Options\` : \`1. ${a}\` et \`2. ${b}\`). Committer ce fichier
+   (\`chore(plan): question de S${k}\`, dernière ligne \`Plan: P1/S${k}/T1\`). Ta réponse finale est alors
+   \`VERDICT: QUESTION · MOTIF: <la question> · RAPPORT: plans/P1/S${k}.question.md\` — et rien d'autre.
+3. Une fois la réponse reçue (par message, ou en lisant la ligne \`Réponse :\` du fichier si tu reprends à froid) :
+   dans \`src/ops.mjs\`, ajouter \`export function <le nom choisi>(n) { return n * 2; }\` ; dans \`test.mjs\`, l'importer
+   et ajouter à la liste \`cas\` \`['<le nom choisi> 6', () => assert.equal(<le nom choisi>(3), 6)],\` ; lancer \`node test.mjs\`.
+4. La fin de tâche habituelle (N0 complet, bilan, commit \`feat(ops): <le nom choisi>(n)\`, dernière ligne
+   \`Plan: P1/S${k}/T1\`). Laisser \`plans/P1/S${k}.question.md\` en place : aucun outil de ce projet ne supprime un fichier
+   (pas de \`git rm\` dans ses autorisations).
+
+### Validation
+- **N0 auto (bloque le commit)** : \`node .claude/workflow/bin/n0.mjs --session P1/S${k}\` → vert
+- **Tests** : le cas \`<le nom choisi> 6\` de \`test.mjs\`.
+- **N1 visuel auto** : —
+- **N2 humain** : —
+- **Anti-raccourci** : une question qui contient le mot lu dans \`docs/mot.txt\`.
+
+### Si bloqué
+Aucun choix propre à cette tâche, hors le nom de la fonction.
+
+### Message de commit (appliqué par la session elle-même)
+\`feat(ops): <le nom choisi>(n)\`
+Dernière ligne du commit, obligatoire : \`Plan: P1/S${k}/T1\`
+
+---
+
+## Bilan de session
+<!-- un seul bloc, créé à la première tâche, réécrit aux suivantes -->
+
+## Fin de session
+Dérouler \`/fin-de-tache\`. Réponse finale après la réponse reçue : \`VERDICT: PASS · MOTIF: mot=<le mot lu dans docs/mot.txt> nom=<le nom choisi> · RAPPORT: -\`
+(le mot lu AVANT l'arrêt, restitué de mémoire : le fichier ne le contient plus).
+`;
+}
+
 export function sessionMd(scenario, k) {
+  if (scenario === 'arret-relaye') return sessionArretRelayeMd(k);
   const s = PLANS[scenario].find((x) => x.k === k);
   return `# P1 · S${k} — ${titreSession(s.taches)}   (rédigé par Opus)
 
