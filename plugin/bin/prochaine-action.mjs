@@ -32,7 +32,8 @@
 // illisible ou si le plan est absent.
 //
 // Actions `lancer`, `reprendre`, `enqueter` : chaque session/appel porte `agent: { subagent_type:
-// "session-<effort>", model: "<sonnet|opus|haiku>" }`, prêt à recopier dans un appel `Agent(...)` —
+// "general-purpose", model: "<sonnet|opus|haiku>", effort: "<low|medium|high|xhigh>" }`, prêt à
+// recopier dans un appel `Agent(...)` (l'effort se passe à l'outil, il prime sur l'agent) —
 // jamais une valeur que le modèle transforme lui-même (D2,
 // docs/decisions/2026-09-22-flous-du-workflow.md). Modèle hors Sonnet|Opus|Haiku : pas de champ
 // `agent`, un `avertissement` nommant la valeur.
@@ -475,21 +476,27 @@ function lireRevue(chemin, texte = readFileSync(chemin, 'utf8').replace(/\r\n/g,
 
 const UN_CRAN_AU_DESSUS = { Haiku: 'Sonnet', Sonnet: 'Opus' };
 
-// Effort lançable depuis un index (T2, P7/S2) — `max` en est exclu à dessein : WORKFLOW.md §3 le
-// réserve à `/effort max` en session, jamais à une colonne d'index (décision 2026-09-18).
+// Effort lançable depuis un index — `max` en est exclu à dessein : WORKFLOW.md §3 le réserve à
+// `/effort max` en session, jamais à une colonne d'index (décision 2026-09-18).
 const EFFORTS_LANCABLES = ['low', 'medium', 'high', 'xhigh'];
 
-// ── D2 : appel d'agent prêt à recopier — le script rend `subagent_type` et `model` (minuscules),
-// jamais une valeur que l'orchestrateur transforme à la main (docs/decisions/2026-09-22-…, table
-// modèle → effort reprise de `references/remediation.md` l. 11-15, désormais portée ici). ──────────
+// ── D2 : appel d'agent prêt à recopier — le script rend `subagent_type`, `model` (minuscules) et
+// `effort`, jamais une valeur que l'orchestrateur transforme à la main (docs/decisions/2026-09-22-…). ──
 const MODELES_VALIDES = ['Sonnet', 'Opus', 'Haiku'];
 const EFFORT_DU_MODELE = { Opus: 'high', Sonnet: 'medium', Haiku: 'medium' };
 
-/** `{ subagent_type, model }` prêt à recopier dans un appel `Agent(...)`, ou `null` si le modèle est
- * hors Sonnet|Opus|Haiku — jamais un `subagent_type` inventé. */
+/** `{ subagent_type, model, effort }` prêt à recopier dans un appel `Agent(...)`, ou `null` si le
+ * modèle est hors Sonnet|Opus|Haiku — jamais un `model` inventé. L'effort est passé à l'outil : il
+ * prime sur le frontmatter, donc un agent générique suffit. */
 function appelAgent(modele, effort) {
   if (!MODELES_VALIDES.includes(modele)) return null;
-  return { subagent_type: `session-${effort}`, model: modele.toLowerCase() };
+  return { subagent_type: 'general-purpose', model: modele.toLowerCase(), effort };
+}
+
+/** Effort d'une reprise ou d'une relance : celui de la ligne de l'index (il ne change pas quand le
+ * modèle monte) ; repli sur la table par modèle si la ligne porte un effort non lançable. */
+function effortDeReprise(session, modele) {
+  return EFFORTS_LANCABLES.includes(session.effort) ? session.effort : EFFORT_DU_MODELE[modele];
 }
 
 /** `{ agent }` à étaler sur une session/action, ou `{ avertissement }` nommant la valeur si le
@@ -599,7 +606,7 @@ function questionBudget(session, nature = 'reprise') {
 }
 
 /** Une session à lancer porte un effort non lançable — refuser en nommant §3 plutôt que propager
- * un `subagent_type` inexistant (T2, P7/S2). */
+ * un effort que l'outil `Agent` n'accepte pas. */
 function questionEffortInvalide(session) {
   if (session.effort === 'max') {
     return {
@@ -761,7 +768,7 @@ function prochaineAction(sortie) {
         action: 'relancer-interrompue',
         session: interrompue.session,
         modele: interrompue.modele,
-        ...champAgent(interrompue.modele, EFFORT_DU_MODELE[interrompue.modele] ?? interrompue.effort),
+        ...champAgent(interrompue.modele, effortDeReprise(interrompue, interrompue.modele)),
       };
     }
   }
@@ -815,7 +822,7 @@ function prochaineAction(sortie) {
         decision.chemin = `plans/${sortie.plan}/${enEchec.session}.echec.md`;
       }
       if (decision.action === 'reprendre' || decision.action === 'enqueter') {
-        Object.assign(decision, champAgent(decision.modele, EFFORT_DU_MODELE[decision.modele]));
+        Object.assign(decision, champAgent(decision.modele, effortDeReprise(enEchec, decision.modele)));
       }
       if (enEchec.echec.avertissementAuto) {
         decision.avertissement = decision.avertissement
@@ -989,10 +996,10 @@ function formaterTexte(action) {
   return [ligne, ...champs, ...lignesAppelAgent(action)].join('\n');
 }
 
-/** Une ligne lisible par appel d'agent prêt à recopier (D2) — `S1 → subagent_type: session-low ·
- * model: sonnet` — pour la sortie sans `--json` de `lancer`, `reprendre`, `enqueter`. */
+/** Une ligne lisible par appel d'agent prêt à recopier (D2) — `S1 → subagent_type: general-purpose ·
+ * model: sonnet · effort: low` — pour la sortie sans `--json` de `lancer`, `reprendre`, `enqueter`. */
 function lignesAppelAgent(action) {
-  const ligne = (session, agent) => `${session} → subagent_type: ${agent.subagent_type} · model: ${agent.model}`;
+  const ligne = (session, agent) => `${session} → subagent_type: ${agent.subagent_type} · model: ${agent.model} · effort: ${agent.effort}`;
   if (action.action === 'lancer') {
     return action.sessions.filter((s) => s.agent).map((s) => ligne(s.session, s.agent));
   }

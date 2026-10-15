@@ -429,14 +429,11 @@ cas('moteur : vague à efforts mêlés → lancer rend à chacune le sien', () =
   return null;
 });
 
-cas('moteur : cohérence — chaque effort lançable a son agent plugin/agents/session-<effort>.md', () => {
-  // Efforts lançables (T2, P7/S2, prochaine-action.mjs `EFFORTS_LANCABLES`) : sans ce test, plus
-  // rien ne relie la validation de l'index aux fichiers d'agent créés en S1.
-  const efforts = ['low', 'medium', 'high', 'xhigh'];
-  for (const e of efforts) {
-    const chemin = join(RACINE, 'plugin', 'agents', `session-${e}.md`);
-    if (!existsSync(chemin)) return `agent manquant pour l'effort "${e}": ${chemin}`;
-  }
+cas('moteur : cohérence — plus aucun agent de session par effort dans plugin/agents/ (effort passé à Agent)', () => {
+  // P20/S2 : l'effort se passe à l'outil `Agent` (sonde du 2026-10-14) ; un agent par effort
+  // réapparu ferait croire que le frontmatter porte encore l'effort.
+  const reste = readdirSync(join(RACINE, 'plugin', 'agents')).filter((f) => f.startsWith('session-'));
+  if (reste.length) return `agents de session par effort encore présents : ${reste.join(', ')}`;
   return null;
 });
 
@@ -775,7 +772,7 @@ cas('moteur : `Clos :` avec sessions jamais lancées → fini, pas lancer (clôt
 // prochaine-action.mjs — D2 : appel d'agent prêt à recopier (T1, P8/S1)
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 
-cas('moteur : lancer à efforts mêlés → S1 {session-low, haiku}, S2 {session-medium, sonnet}', () => {
+cas('moteur : lancer à efforts mêlés → S1 {general-purpose, haiku, low}, S2 {general-purpose, sonnet, medium}', () => {
   // Anti-raccourci (S1.md) : la fixture écrit Haiku/Sonnet capitalisés — un test qui passerait sur
   // un index déjà en minuscules ne prouverait rien sur `appelAgent`.
   const cwd = dossierJetable('workflow-pa-agent-lancer-');
@@ -786,16 +783,37 @@ cas('moteur : lancer à efforts mêlés → S1 {session-low, haiku}, S2 {session
   if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
   const s1 = action.sessions.find((s) => s.session === 'S1'); // Haiku, low
   const s2 = action.sessions.find((s) => s.session === 'S2'); // Sonnet, medium
-  if (!s1?.agent || s1.agent.subagent_type !== 'session-low' || s1.agent.model !== 'haiku') {
-    return `S1.agent attendu {subagent_type: "session-low", model: "haiku"}, reçu: ${JSON.stringify(s1?.agent)}`;
+  if (!s1?.agent || s1.agent.subagent_type !== 'general-purpose' || s1.agent.model !== 'haiku' || s1.agent.effort !== 'low') {
+    return `S1.agent attendu {subagent_type: "general-purpose", model: "haiku", effort: "low"}, reçu: ${JSON.stringify(s1?.agent)}`;
   }
-  if (!s2?.agent || s2.agent.subagent_type !== 'session-medium' || s2.agent.model !== 'sonnet') {
-    return `S2.agent attendu {subagent_type: "session-medium", model: "sonnet"}, reçu: ${JSON.stringify(s2?.agent)}`;
+  if (!s2?.agent || s2.agent.subagent_type !== 'general-purpose' || s2.agent.model !== 'sonnet' || s2.agent.effort !== 'medium') {
+    return `S2.agent attendu {subagent_type: "general-purpose", model: "sonnet", effort: "medium"}, reçu: ${JSON.stringify(s2?.agent)}`;
   }
   return null;
 });
 
-cas('moteur : reprendre — échec exécution Sonnet reprise=1 → agent {session-high, opus} (un cran au-dessus)', () => {
+// Anti-raccourci (S2.md) : un moteur qui n'enverrait plus d'effort ferait tourner toutes les sessions à
+// l'effort de l'orchestrateur — on fait donc varier l'effort de la ligne et on exige qu'il ressorte tel quel.
+for (const effort of ['low', 'medium', 'high', 'xhigh']) {
+  cas(`moteur : lancer — effort "${effort}" de la ligne → agent.effort "${effort}", subagent_type general-purpose`, () => {
+    const cwd = dossierJetable(`workflow-pa-agent-effort-${effort}-`);
+    cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+    const chemin = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(chemin, readFileSync(chemin, 'utf8').replace('Sonnet | medium', `Sonnet | ${effort}`));
+    initEtCommitTout(cwd);
+    const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+    if (!action || action.action !== 'lancer') return `action attendue "lancer", reçu: ${sortie}`;
+    const s1 = action.sessions.find((s) => s.session === 'S1');
+    if (s1?.effort !== effort) return `la fixture devait porter l'effort "${effort}", reçu: ${JSON.stringify(s1)}`;
+    if (!s1.agent || s1.agent.effort !== effort || s1.agent.subagent_type !== 'general-purpose') {
+      return `agent attendu {subagent_type: "general-purpose", effort: "${effort}"}, reçu: ${JSON.stringify(s1.agent)}`;
+    }
+    return null;
+  });
+}
+
+cas('moteur : reprendre — échec exécution Sonnet|medium reprise=1 → agent {general-purpose, opus, medium} (modèle monte, effort de la ligne gardé)', () => {
   const cwd = dossierJetable('workflow-pa-agent-reprendre-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   writeFileSync(
@@ -807,13 +825,13 @@ cas('moteur : reprendre — échec exécution Sonnet reprise=1 → agent {sessio
   if (!action || action.action !== 'reprendre' || action.modele !== 'Opus') {
     return `reprendre en Opus attendu, reçu: ${sortie}`;
   }
-  if (!action.agent || action.agent.subagent_type !== 'session-high' || action.agent.model !== 'opus') {
-    return `agent attendu {subagent_type: "session-high", model: "opus"}, reçu: ${JSON.stringify(action.agent)}`;
+  if (!action.agent || action.agent.subagent_type !== 'general-purpose' || action.agent.model !== 'opus' || action.agent.effort !== 'medium') {
+    return `agent attendu {subagent_type: "general-purpose", model: "opus", effort: "medium"}, reçu: ${JSON.stringify(action.agent)}`;
   }
   return null;
 });
 
-cas('moteur : reprendre — échec exécution Haiku (index "Haiku | low") reprise=0 → agent {session-medium, haiku} (effort de EFFORT_DU_MODELE)', () => {
+cas('moteur : reprendre — échec exécution Haiku (index "Haiku | low") reprise=0 → agent {general-purpose, haiku, low} (effort de la ligne)', () => {
   const cwd = dossierJetable('workflow-pa-agent-reprendre-haiku-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   const chemin = join(cwd, 'plans', 'P9', 'index.md');
@@ -825,13 +843,13 @@ cas('moteur : reprendre — échec exécution Haiku (index "Haiku | low") repris
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'reprendre') return `action attendue "reprendre", reçu: ${sortie}`;
-  if (!action.agent || action.agent.subagent_type !== 'session-medium' || action.agent.model !== 'haiku') {
-    return `agent attendu {subagent_type: "session-medium", model: "haiku"}, reçu: ${JSON.stringify(action.agent)}`;
+  if (!action.agent || action.agent.subagent_type !== 'general-purpose' || action.agent.model !== 'haiku' || action.agent.effort !== 'low') {
+    return `agent attendu {subagent_type: "general-purpose", model: "haiku", effort: "low"}, reçu: ${JSON.stringify(action.agent)}`;
   }
   return null;
 });
 
-cas('moteur : enqueter — modèle et effort cohérents (Opus ⇒ session-high, opus)', () => {
+cas('moteur : enqueter — modèle et effort cohérents (Opus|high ⇒ general-purpose, opus, high)', () => {
   const cwd = dossierJetable('workflow-pa-agent-enqueter-');
   cpSync(join(FIXTURES, 'plans', 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
   const chemin = join(cwd, 'plans', 'P9', 'index.md');
@@ -843,8 +861,8 @@ cas('moteur : enqueter — modèle et effort cohérents (Opus ⇒ session-high, 
   const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (!action || action.action !== 'enqueter') return `action attendue "enqueter", reçu: ${sortie}`;
-  if (!action.agent || action.agent.subagent_type !== 'session-high' || action.agent.model !== 'opus') {
-    return `agent attendu {subagent_type: "session-high", model: "opus"}, reçu: ${JSON.stringify(action.agent)}`;
+  if (!action.agent || action.agent.subagent_type !== 'general-purpose' || action.agent.model !== 'opus' || action.agent.effort !== 'high') {
+    return `agent attendu {subagent_type: "general-purpose", model: "opus", effort: "high"}, reçu: ${JSON.stringify(action.agent)}`;
   }
   return null;
 });

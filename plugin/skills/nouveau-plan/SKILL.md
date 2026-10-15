@@ -252,10 +252,9 @@ cette vague doit passer par un humain d'emblée (état coûteux à annuler, zone
 colonne `Env.` : domicile `WORKFLOW.md` §5b, ne pas le reformuler ici. Résumé pour le découpage :
 
 Colonne **Env.** : toujours `—` (sous-agent — seule voie depuis v0.30.0, §5b). L'effort écrit sur une
-ligne est celui auquel la session tournera : `/orchestrer-plan` la lance sur l'agent `session-<effort
-de la ligne>`, qui porte son propre frontmatter (§3) — plus de couverture par l'effort ambiant de la
-conversation d'orchestration, plus d'effort d'orchestration à écrire dans l'index. `max` n'est pas une
-valeur d'index (§3) : il n'existe pas d'agent `session-max`. *Legacy : dans un plan antérieur à P3,
+ligne est celui auquel la session tournera : `/orchestrer-plan` la lance en passant cet effort à l'outil `Agent` (§3) — plus de couverture par
+l'effort ambiant de la conversation d'orchestration, plus d'effort d'orchestration à écrire dans
+l'index. `max` n'est pas une valeur d'index (§3) : le moteur la refuse. *Legacy : dans un plan antérieur à P3,
 `Desktop` se lit comme `—` ; dans un plan antérieur à v0.30.0, `headless` se lit comme `—`
 (sous-agent).*
 

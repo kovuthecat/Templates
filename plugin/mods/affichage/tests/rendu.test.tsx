@@ -174,7 +174,7 @@ describe('bandeau au-dessus du prompt', () => {
       tool_use_id: 't1',
       prompt: 'Ouvre plans/P7/S2.md',
       description: 'session',
-      subagentType: 'workflow:session-high',
+      subagentType: 'general-purpose',
       provider: { plugin: 'workflow', tier: 'user' },
       parentModel: 'claude-opus',
       background: false,

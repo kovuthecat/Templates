@@ -8,8 +8,8 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 L'orchestrateur tourne en **Haiku · medium** (`WORKFLOW.md` §3). Si tu tournes en Opus ou en
 Sonnet, dis-le à l'utilisateur au premier tour : il paie un modèle plus cher pour exécuter un script.
 Chaque session tourne, elle, à l'effort de sa ligne d'index : le champ `agent` rendu par le script
-(`subagent_type`, `model`) le porte en frontmatter (Étape 1), recopié tel quel, sans geste humain à
-régler avant de lancer.
+(`subagent_type`, `model`, `effort`) est recopié tel quel dans l'appel `Agent` (Étape 1), sans geste
+humain à régler avant de lancer.
 Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
 script (C2, `prochaine-action.mjs`) depuis les fichiers commités — budget, nature → modèle,
 dépendances, recoupement par les commits, appel d'agent prêt à recopier, arbre sale avant une vague
@@ -69,10 +69,7 @@ annoncer sans elle, le signaler une fois, ne jamais l'inventer ni ouvrir le `S<k
 **Préflight** : (1) **arbre sale** — déjà fait par le script avant de rendre `lancer` : un fichier non
 commité qui intersecte une `Zone modifiée` de la vague fait rendre `question` (source `arbre-sale`)
 à la place, jamais un préflight délégué. (2) **agents du plugin absents du bac à sable** — seuls les agents génériques listés : le dire
-sur « À régler AVANT de lancer », revues annoncées absentes pour la vague, **et** pour chaque effort
-effectivement demandé par la vague à lancer, vérifier que `session-<effort>` (ou
-`workflow:session-<effort>`) résout ; sinon annoncer déjà là le repli en `claude` (cran 3, Étape 1)
-plutôt que de le découvrir au premier lancement.
+sur « À régler AVANT de lancer », revues annoncées absentes pour la vague.
 
 **Annoncer, puis lancer** — jamais l'inverse, jamais en ouvrant un `S<k>.md` :
 
@@ -108,6 +105,7 @@ Agent({
   description: "P<n>/S<k>",
   subagent_type: <agent.subagent_type de la session>,
   model: <agent.model de la session>,
+  effort: <agent.effort de la session>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
@@ -124,10 +122,6 @@ renvoie son chemin.
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
 ```
-
-`Agent type 'session-<effort>' not found` : repli `subagent_type: "workflow:session-<effort>"` (plugin installé en marketplace) ; encore introuvable → repli
-`subagent_type: "claude"` **et l'annoncer**, une ligne au bandeau de vague et dans le rapport final : « Vague <w> à l'effort ambiant de la conversation, pas
-celui de l'index — `session-<effort>` introuvable ». Trois crans, jamais un blocage.
 
 **Collecter** : lire `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre, en gardant l'identifiant d'agent (canal court, `references/remediation.md`). Sans
 `VERDICT:` ni commit : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend

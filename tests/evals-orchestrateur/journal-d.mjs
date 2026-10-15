@@ -1,6 +1,6 @@
 // Cas D — journal d'une orchestration longue (vagues 1 à 3 de P99), injecté en tête du prompt pour
 // reproduire un orchestrateur repris au milieu d'un plan, contexte chargé (~25 k tokens).
-// Piège : la dernière sortie de script du journal (1re reprise de S6 : session-low · haiku) n'est plus
+// Piège : la dernière sortie de script du journal (1re reprise de S6 : general-purpose · haiku · low) n'est plus
 // l'état courant — S6 a échoué une 2e fois, le script rend désormais un cran au-dessus. Un
 // orchestrateur qui se fie à sa mémoire au lieu de relancer le script relance en Haiku.
 // Usage : node journal-d.mjs <base> <version>   → écrit <base>/journal-D.md
@@ -18,8 +18,6 @@ const sessions = {
   S5: { titre: 'Export CSV', taches: ['T7'], modele: 'Sonnet', effort: 'medium', zone: 'src/export.mjs', clair: 'Le gérant pourra exporter les réservations du mois dans un tableur.' },
   S6: { titre: 'Calcul des tarifs', taches: ['T8', 'T9'], modele: 'Haiku', effort: 'low', zone: 'src/tarifs.mjs', clair: 'Le prix affiché tiendra compte de la saison et du nombre de nuits.' },
 };
-const agent = (m, e) => `session-${e}`;
-
 function promptSession(k, modele, effort) {
   return `Lis ${racine}/plugin/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Ouvre plans/P99/${k}.md et exécute-le. Reste
@@ -40,8 +38,9 @@ function appel(k, modele, effort, extra = '') {
   return `\`\`\`
 Agent({
   description: "P99/${k}${extra}",
-  subagent_type: "${agent(modele, effort)}",
+  subagent_type: "general-purpose",
   model: "${modele.toLowerCase()}",
+  effort: "${effort}",
   run_in_background: true,
   prompt: "${promptSession(k, modele, effort).replace(/"/g, '\\"')}"
 })
@@ -121,9 +120,9 @@ ${(0x5f2c).toString(16)} plan(P99): réservations — huit sessions, cinq vagues
 // Vague 1
 blocs.push(sortieScript(`lancer — vague 1 : S1, S2
 vague: 1
-sessions: [{"session":"S1","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S2","modele":"Haiku","effort":"low","agent":{"subagent_type":"session-low","model":"haiku"}}]
-S1 → subagent_type: session-medium · model: sonnet
-S2 → subagent_type: session-low · model: haiku`));
+sessions: [{"session":"S1","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"general-purpose","model":"sonnet","effort":"medium"}},{"session":"S2","modele":"Haiku","effort":"low","agent":{"subagent_type":"general-purpose","model":"haiku","effort":"low"}}]
+S1 → subagent_type: general-purpose · model: sonnet · effort: medium
+S2 → subagent_type: general-purpose · model: haiku · effort: low`));
 blocs.push(banniere(1, ['S1', 'S2']));
 blocs.push(appel('S1', 'Sonnet', 'medium'));
 blocs.push(appel('S2', 'Haiku', 'low'));
@@ -139,9 +138,9 @@ blocs.push(pousser(1));
 // Vague 2
 blocs.push(sortieScript(`lancer — vague 2 : S3, S4
 vague: 2
-sessions: [{"session":"S3","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S4","modele":"Opus","effort":"high","agent":{"subagent_type":"session-high","model":"opus"}}]
-S3 → subagent_type: session-medium · model: sonnet
-S4 → subagent_type: session-high · model: opus`));
+sessions: [{"session":"S3","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"general-purpose","model":"sonnet","effort":"medium"}},{"session":"S4","modele":"Opus","effort":"high","agent":{"subagent_type":"general-purpose","model":"opus","effort":"high"}}]
+S3 → subagent_type: general-purpose · model: sonnet · effort: medium
+S4 → subagent_type: general-purpose · model: opus · effort: high`));
 blocs.push(banniere(2, ['S3', 'S4']));
 blocs.push(appel('S3', 'Sonnet', 'medium'));
 blocs.push(appel('S4', 'Opus', 'high'));
@@ -159,9 +158,9 @@ blocs.push(`[Utilisateur] Ça avance bien. Continue sans moi, je regarde demain.
 // Vague 3 : S5 passe, S6 échoue deux fois
 blocs.push(sortieScript(`lancer — vague 3 : S5, S6
 vague: 3
-sessions: [{"session":"S5","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"session-medium","model":"sonnet"}},{"session":"S6","modele":"Haiku","effort":"low","agent":{"subagent_type":"session-low","model":"haiku"}}]
-S5 → subagent_type: session-medium · model: sonnet
-S6 → subagent_type: session-low · model: haiku`));
+sessions: [{"session":"S5","modele":"Sonnet","effort":"medium","agent":{"subagent_type":"general-purpose","model":"sonnet","effort":"medium"}},{"session":"S6","modele":"Haiku","effort":"low","agent":{"subagent_type":"general-purpose","model":"haiku","effort":"low"}}]
+S5 → subagent_type: general-purpose · model: sonnet · effort: medium
+S6 → subagent_type: general-purpose · model: haiku · effort: low`));
 blocs.push(banniere(3, ['S5', 'S6']));
 blocs.push(appel('S5', 'Sonnet', 'medium'));
 blocs.push(appel('S6', 'Haiku', 'low'));
@@ -177,8 +176,8 @@ Auto : non`);
 blocs.push(sortieScript(`reprendre — S6 (Haiku)
 session: S6
 modele: Haiku
-agent: {"subagent_type":"session-low","model":"haiku"}
-S6 → subagent_type: session-low · model: haiku`));
+agent: {"subagent_type":"general-purpose","model":"haiku","effort":"low"}
+S6 → subagent_type: general-purpose · model: haiku · effort: low`));
 blocs.push(`1re reprise de S6 — le modèle de l'index, inchangé (table d'escalade).`);
 blocs.push(appel('S6', 'Haiku', 'low', ' (reprise 1)').replace('Ouvre plans/P99/S6.md et exécute-le.', 'Déroule /reprendre-echec sur plans/P99/S6.echec.md.'));
 blocs.push(`[Notification] S6 (reprise 1) terminé.

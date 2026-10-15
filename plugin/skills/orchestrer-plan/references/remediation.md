@@ -2,7 +2,7 @@
 
 Annexe de `/orchestrer-plan` — un bloc par geste que le modèle doit écrire, pour les actions `verifier-premisse`, `reprendre`, `enqueter` de la table des
 actions (`SKILL.md`). Budget, table nature → modèle, dépendances, vérification du commit d'une
-mesure, appel d'agent prêt à recopier (`subagent_type`, `model`) : rendus par `prochaine-action.mjs`
+mesure, appel d'agent prêt à recopier (`subagent_type`, `model`, `effort`) : rendus par `prochaine-action.mjs`
 (C2), rien de tout ça ne se recalcule ici.
 
 ## Table des natures
@@ -98,6 +98,7 @@ Agent({
   description: "P<n>/S<k> reprise",
   subagent_type: <agent.subagent_type de l'action>,
   model: <agent.model de l'action>,
+  effort: <agent.effort de l'action>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
@@ -112,9 +113,6 @@ Incrémente la ligne `Tentatives :` du rapport avant de rendre la main, sauf si 
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
 ```
-
-Repli à trois crans si `subagent_type` ne résout pas — même forme et même annonce au cran 3 qu'à
-l'Étape 1 de `SKILL.md` (T5) : `session-<effort>` → `workflow:session-<effort>` → `claude` (annoncé).
 
 Avant de lancer, `modele` Opus : incrémenter `Remédiation Opus :` dans l'index (la créer à 1 sous
 l'objectif si elle manque), dans le même commit que le lancement ou juste avant (`prochaine-action.mjs`
@@ -134,6 +132,7 @@ Agent({
   description: "P<n>/S<k> enquête",
   subagent_type: <agent.subagent_type de l'action>,
   model: <agent.model de l'action>,
+  effort: <agent.effort de l'action>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan
@@ -145,10 +144,6 @@ finale CLÔT ton tour, ce qui finit après elle n'est lu par personne.
 Réponse finale en UNE ligne, exactement : ENQUETE: PISTE|OPTIONS · MOTIF: <une phrase> · RAPPORT: <chemin>"
 })
 ```
-
-Repli à trois crans si `subagent_type` ne résout pas — identique à celui de `reprendre — à froid`
-ci-dessus (lui-même celui de l'Étape 1 de `SKILL.md`, T5) : `session-<effort>` →
-`workflow:session-<effort>` → `claude` (annoncé).
 
 Avant de lancer, `modele` Opus : incrémenter `Remédiation Opus :` dans l'index (la créer à 1 sous
 l'objectif si elle manque), dans le même commit que le lancement ou juste avant.

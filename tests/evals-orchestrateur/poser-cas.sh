@@ -60,7 +60,7 @@ for c in B C; do
     "$F/moteur-base/index.md" > "$BASE/cas/base-$c/plans/P99/index.md"
 done
 # B — 1re reprise = modèle de l index inchangé (décision du 2026-09-24) : S1 en Opus high pour que
-# la reprise attendue reste session-high / opus.
+# la reprise attendue reste opus / high.
 sed -i 's/^\(| \[S1\](S1.md) .*\)| Sonnet | medium |/\1| Opus | high |/' "$BASE/cas/base-B/plans/P99/index.md"
 cat > "$BASE/cas/base-B/plans/P99/S1.echec.md" <<'EOF'
 # S1 — échec du 2026-09-22
@@ -86,8 +86,8 @@ Auto : non
 EOF
 
 # D — plan long repris en vague 3 (8 sessions, 5 vagues) : S1-S5 faites et relues, S6 (Haiku low) en
-# échec après sa 1re reprise. La 2e reprise monte d'un cran (Haiku→Sonnet → session-medium · sonnet) ;
-# le journal injecté par lancer.sh (journal-d.mjs) se termine, lui, sur la 1re (session-low · haiku).
+# échec après sa 1re reprise. La 2e reprise monte d'un cran (Haiku→Sonnet, effort de la ligne gardé : sonnet · low) ;
+# le journal injecté par lancer.sh (journal-d.mjs) se termine, lui, sur la 1re (haiku · low).
 VERSION="$(cd "$RACINE" && node -p "require('./plugin/.claude-plugin/plugin.json').version")"
 cat > "$BASE/cas/base-D/plans/P99/index.md" <<EOF
 # Plan P99 — Réservations : de la saisie à l'export
@@ -160,7 +160,7 @@ for c in A B C D; do
     A) echo "$sortie" | grep -q '^lancer' || { echo "ATTENDU : lancer — obtenu ci-dessus"; FAIL=1; } ;;
     B) echo "$sortie" | grep -q '^reprendre — S1 (Opus)' || { echo "ATTENDU : reprendre — S1 (Opus)"; FAIL=1; } ;;
     C) echo "$sortie" | grep -q '^question' || { echo "ATTENDU : question — obtenu ci-dessus"; FAIL=1; } ;;
-    D) echo "$sortie" | grep -q 'S6 → subagent_type: session-medium · model: sonnet' || { echo "ATTENDU : reprendre — S6 → session-medium · sonnet"; FAIL=1; } ;;
+    D) echo "$sortie" | grep -q 'S6 → subagent_type: general-purpose · model: sonnet · effort: low' || { echo "ATTENDU : reprendre — S6 → general-purpose · sonnet · low"; FAIL=1; } ;;
   esac
 done
 node "$(dirname "${BASH_SOURCE[0]}")/journal-d.mjs" "$BASE_NODE" "$VERSION"

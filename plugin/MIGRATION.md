@@ -54,10 +54,10 @@ comportements de `prochaine-action.mjs`, qui arrivent par la synchronisation. Tr
 
 ## Vers 0.40.0
 
-Une mise à jour ordinaire pour tout projet vendoré : les quatre agents `session-<effort>` arrivent
-par `sync-workflow.mjs`, et chaque session tourne désormais à son effort écrit. **Réserve** : un
-projet qui exporte `CLAUDE_CODE_EFFORT_LEVEL` dans son environnement gardera la variable
-prioritaire sur le frontmatter des agents — le mécanisme y restera sans effet, sans erreur.
+Une mise à jour ordinaire pour tout projet vendoré : chaque session tourne désormais à son effort
+écrit. *Remplacé ensuite (P20/S2) : les agents `session-<effort>` sont retirés, le champ `agent` du
+moteur porte `{ subagent_type: "general-purpose", model, effort }` et l'effort se passe à l'outil
+`Agent` — plus de réserve sur le frontmatter.*
 
 ## Vers 0.39.0
 

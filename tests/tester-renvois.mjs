@@ -54,12 +54,11 @@ const PLUGIN = join(RACINE, 'plugin');
 const RENVOI = 'Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.';
 
 // Un bloc `Agent({` lance une session, une reprise ou une enquête (donc doit porter le renvoi) si
-// son `subagent_type` commence par `session-`, ou si son prompt cite `/reprendre-echec`. Déclaré
+// porte un `effort:` (l'effort passe à l'outil `Agent`), ou si son prompt cite `/reprendre-echec`. Déclaré
 // ici (pas près de l'assertion 4, qui le réutilise) car l'assertion 1 en a besoin la première.
 const MOTIF_SUBAGENT = /subagent_type:\s*"([\w-]+)"/;
 function estBlocSessionOuReprise(texte) {
-  const m = texte.match(MOTIF_SUBAGENT);
-  if (m && m[1].startsWith('session-')) return true;
+  if (/\beffort:\s*[<"]/.test(texte)) return true; // une session porte son effort à l'outil Agent
   return texte.includes('/reprendre-echec');
 }
 
@@ -182,11 +181,11 @@ cas(`assertion 1 — renvoi présent dans chaque bloc Agent({ de session/reprise
 // ── Assertion 1bis — fixtures en mémoire : classification session/reprise vs le reste ───────
 // `prochaine-action.mjs` et les squelettes changent souvent ; ce cas fige le CONTRAT de
 // classification sur deux fixtures minimales, indépendamment des fichiers réels du dépôt.
-cas('assertion 1bis — fixture subagent_type "session-*" classée requise (sans renvoi → détectable)', () => {
-  const fixture = 'Agent({\n  subagent_type: "session-medium",\n  prompt: "Ouvre plans/P1/S1.md et exécute-le."\n})';
+cas('assertion 1bis — fixture portant effort: classée requise (sans renvoi → détectable)', () => {
+  const fixture = 'Agent({\n  subagent_type: "general-purpose",\n  effort: "medium",\n  prompt: "Ouvre plans/P1/S1.md et exécute-le."\n})';
   const blocs = blocsAgentDe(fixture);
   if (blocs.length !== 1) return `fixture mal formée : ${blocs.length} bloc(s) trouvé(s), 1 attendu`;
-  if (!estBlocSessionOuReprise(blocs[0].texte)) return 'un bloc subagent_type: "session-medium" doit être classé session/reprise (donc FAIL si le renvoi manque)';
+  if (!estBlocSessionOuReprise(blocs[0].texte)) return 'un bloc portant effort: (session lancée à son effort) doit être classé session/reprise (donc FAIL si le renvoi manque)';
   if (blocs[0].texte.includes(RENVOI)) return 'fixture invalide : ne doit pas contenir le renvoi';
   return null;
 });

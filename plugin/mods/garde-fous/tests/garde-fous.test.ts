@@ -28,7 +28,7 @@ const spawn = (prompt: string, extra: Record<string, unknown> = {}) => ({
   tool_use_id: 'tu-1',
   prompt,
   description: 'session',
-  subagentType: 'workflow:session-high',
+  subagentType: 'general-purpose',
   provider: { plugin: 'workflow', tier: 'user' },
   parentModel: 'claude-opus',
   background: false,

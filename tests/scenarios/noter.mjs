@@ -123,7 +123,7 @@ export function noterPassage(dossier) {
       lancements.push({
         id: c.id, ordre, desc, session: m ? m[2] : null,
         genre: revue ? 'revue' : /reprise/.test(suffixe) ? 'reprise' : /enqu/.test(suffixe) ? 'enquete' : /pr[ée]misse/.test(suffixe) ? 'premisse' : m ? 'session' : 'autre',
-        agent: c.input?.subagent_type ?? null, modele: c.input?.model ?? null, arrierePlan: c.input?.run_in_background ?? null,
+        agent: c.input?.subagent_type ?? null, modele: c.input?.model ?? null, effort: c.input?.effort ?? null, arrierePlan: c.input?.run_in_background ?? null,
       });
     }
   });
@@ -219,7 +219,7 @@ export function noterPassage(dossier) {
     sessionsLancees: lancements.filter((l) => l.genre === 'session').length,
     reprises: lancements.filter((l) => l.genre === 'reprise').length,
     revues,
-    lancements: lancements.map((l) => ({ desc: l.desc, agent: l.agent, modele: l.modele, genre: l.genre, verdict: l.verdict ?? null })),
+    lancements: lancements.map((l) => ({ desc: l.desc, agent: l.agent, modele: l.modele, effort: l.effort, genre: l.genre, verdict: l.verdict ?? null })),
     relancesInutiles,
     interventions: questions.size,
     questions: [...questions],
@@ -253,7 +253,7 @@ export function afficher(n, verbeux = false) {
   if (n.tachesManquantesDansOrigin.length) console.log(`commits de tâche absents d'origin/main : ${n.tachesManquantesDansOrigin.join(', ')}`);
   for (const q of n.questions) console.log(`question rendue : ${q}`);
   for (const a of n.alertes) console.log(`ATTENTION — ${a}`);
-  if (verbeux) for (const l of n.lancements) console.log(`  agent ${l.genre.padEnd(8)} ${l.desc || '(sans description)'} · ${l.agent ?? '?'} · ${l.modele ?? '?'} · ${l.verdict ?? 'pas de verdict lu'}`);
+  if (verbeux) for (const l of n.lancements) console.log(`  agent ${l.genre.padEnd(8)} ${l.desc || '(sans description)'} · ${l.agent ?? '?'} · ${l.modele ?? '?'} · ${l.effort ?? '?'} · ${l.verdict ?? 'pas de verdict lu'}`);
 }
 
 function passagesDisponibles() {

@@ -33,15 +33,15 @@ const CHECKS = {
     s1Seule: (t) => {
       const appels = t.match(/Agent\(\{[\s\S]*?\n\}\)/g);
       const zone = appels ? appels.join('\n') : t;
-      return /subagent_type:\s*"?(workflow:)?session-low"?/.test(zone) && !/subagent_type:\s*"?(workflow:)?session-high"?/.test(zone) && !/model:\s*"?opus/i.test(zone);
+      return /effort:\s*"?low"?/.test(zone) && !/effort:\s*"?high"?/.test(zone) && !/model:\s*"?opus/i.test(zone);
     },
-    agentLow: (t) => /subagent_type:\s*"?(workflow:)?session-low"?/.test(t),
+    effortLow: (t) => /effort:\s*"?low"?/.test(t),
     modeleSonnet: (t) => /model:\s*"?sonnet/i.test(t),
     enClairS1: (t) => t.includes("Le formulaire refusera une date de départ antérieure à la date d'arrivée."),
     pasResumeurGit: (t) => !/resumeur-git/.test(t),
   },
   B: {
-    agentHigh: (t) => /subagent_type:\s*"?(workflow:)?session-high"?/.test(t),
+    effortHigh: (t) => /effort:\s*"?high"?/.test(t),
     opus: (t) => /model:\s*"?opus/i.test(t),
     reprendreEchec: (t) => /reprendre-echec/.test(t) && /plans\/P99\/S1\.echec\.md/.test(t),
     pasCanalCourt: (t) => !/SendMessage\(/.test(t),
@@ -58,12 +58,12 @@ const CHECKS = {
     lancable: (t) => /reste lançable[^\n]*:\s*\**rien/i.test(t),
   },
   // D — plan long repris en vague 3, journal de ~24 k tokens (journal-d.mjs). Le script rend la 2e
-  // reprise de S6 un cran au-dessus (Haiku→Sonnet) ; le journal finit sur la 1re (session-low · haiku).
+  // reprise de S6 un cran au-dessus (Haiku→Sonnet) ; le journal finit sur la 1re (haiku · low).
   // Jugé sur les blocs Agent({…}) : le journal cité en prose ne doit ni faire passer ni échouer.
   D: {
-    agentMedium: (t) => appels(t).some((a) => /subagent_type:\s*"?(workflow:)?session-medium"?/.test(a)),
+    effortGarde: (t) => appels(t).some((a) => /effort:\s*"?low"?/.test(a)), // l'effort de la ligne suit la reprise
     sonnet: (t) => appels(t).some((a) => /model:\s*"?sonnet/i.test(a)),
-    pasMemoire: (t) => appels(t).length > 0 && !appels(t).some((a) => /session-low|model:\s*"?haiku/i.test(a)),
+    pasMemoire: (t) => appels(t).length > 0 && !appels(t).some((a) => /model:\s*"?haiku/i.test(a)),
     reprendreEchec: (t) => /reprendre-echec/.test(t) && /plans\/P99\/S6\.echec\.md/.test(t),
     pasS7: (t) => !appels(t).some((a) => /P99\/S7/.test(a)),
   },

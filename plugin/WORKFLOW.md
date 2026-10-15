@@ -58,7 +58,7 @@ Défaut : `.claude/settings.json` du projet. Chaque `S<k>.md` porte **modèle + 
 
 `xhigh` permanent est le poste de dépense le plus silencieux du workflow.
 
-**Effort d'orchestration.** `effort` en frontmatter d'**agent nommé** est documenté et honoré — il prime l'effort de session, pas la variable d'environnement (`model-config` § *Set the effort level*, `sub-agents` § *Frontmatter reference*) ; `critique-plan` s'en sert. Une session de plan se lance désormais sur l'agent `session-<effort>` composé depuis la colonne Effort de l'index (`plugin/agents/session-low.md` … `session-xhigh.md`) : c'est son frontmatter qui porte l'effort, jamais l'outil `Agent`, qui règle toujours le modèle. Précédence : frontmatter de l'agent nommé, sinon niveau de session ; **seule** la variable d'environnement `CLAUDE_CODE_EFFORT_LEVEL` bat le frontmatter (`model-config` § *Set the effort level*) — c'est la seule façon de rendre le mécanisme inopérant sans erreur. `max` ne se règle pas depuis un index : il n'existe pas d'agent `session-max`, et le moteur refuse la valeur en renvoyant ici. L'orchestrateur tourne sur **Haiku · medium** (Haiku 5.5) : banc `tests/evals-orchestrateur/` du 2026-10-12, 18/20 contre 20/20 pour Sonnet, écarts de forme seule, 14× moins cher (`docs/analyses/2026-10-12-orchestrateur-haiku-5-5.md` du dépôt source). Retour à Sonnet au premier geste inventé — action attribuée au script qu'il n'a pas rendue, option ajoutée — consigné en incident (§9b).
+**Effort d'orchestration.** `effort` en frontmatter d'**agent nommé** est documenté et honoré — il prime l'effort de session, pas la variable d'environnement (`model-config` § *Set the effort level*, `sub-agents` § *Frontmatter reference*) ; `critique-plan` s'en sert. Une session de plan se lance sur `general-purpose` avec `model` **et `effort`** passés à l'outil `Agent` (valeurs rendues par le moteur, depuis la colonne Effort de l'index) : le paramètre `effort` de l'outil prime sur le frontmatter et sur le niveau de la conversation (sonde du 2026-10-14, `docs/analyses/2026-10-14-mesure-de-reference.md` §5). `max` ne se règle pas depuis un index : le moteur refuse la valeur en renvoyant ici. L'orchestrateur tourne sur **Haiku · medium** (Haiku 5.5) : banc `tests/evals-orchestrateur/` du 2026-10-12, 18/20 contre 20/20 pour Sonnet, écarts de forme seule, 14× moins cher (`docs/analyses/2026-10-12-orchestrateur-haiku-5-5.md` du dépôt source). Retour à Sonnet au premier geste inventé — action attribuée au script qu'il n'a pas rendue, option ajoutée — consigné en incident (§9b).
 
 ## 3b. Coût et cache
 
@@ -131,11 +131,7 @@ Chercher, lancer une commande verbeuse ou lire une doc externe remplit le contex
 - `verificateur-premisse` → confronter au dépôt l'affirmation d'une session en échec, **avant** qu'elle n'arrête le plan (`/orchestrer-plan` action `verifier-premisse`, §9c).
 - `critique-plan` → confronter un plan à ses risques **avant** approbation (`/nouveau-plan` 1bis) ; ne juge ni périmètre produit ni style.
 
-Une seconde famille cohabite dans `plugin/agents/` sans en faire partie : les quatre agents
-`session-<effort>` ne rendent aucune conclusion à un parent, ils *sont* la session — rôle et
-mécanisme en §3, pas ici.
-
-Une troisième cohabite de même : `parcoureur-usage` ne rend pas de conclusion à une session de plan,
+Une autre famille cohabite : `parcoureur-usage` ne rend pas de conclusion à une session de plan,
 il joue un parcours et rend ses constats à la skill `/revue-d-usage` qui l'a lancé — jamais lancé
 proactivement, jamais par une session de plan.
 
@@ -166,7 +162,7 @@ agents qui exécutent.
 
 **Voie normale : sous-agent**, en arrière-plan, quel que soit l'environnement — hérite navigateur in-app et environnement complet de l'orchestration (permissions, MCP), verdict = ses commits (§4b) ; la session d'orchestration reste ouverte. **Cet arrière-plan est celui de la session entière, pas de ses délégations internes** : une fois lancée, ses appels aux quatre agents de délégation et son `n0.mjs` restent au **premier plan** (`docs/decisions/2026-09-04-delegation-au-premier-plan.md`).
 
-**L'effort d'un sous-agent vient de son frontmatter, sinon de la conversation qui le lance** (l'outil `Agent` règle le modèle, pas l'effort). Une session de plan se lance en `subagent_type: "session-<effort lu dans l'index>"` : c'est le frontmatter de cet agent nommé qui pose l'effort, en trois temps — frontmatter de l'agent de session, sinon niveau de conversation ; et si l'agent ne résout pas (valeur d'index absente de la famille `session-<effort>`), le repli est annoncé par `/orchestrer-plan`, pas recopié ici. Voie headless retirée : une seule voie, le sous-agent (`docs/decisions/2026-09-12-une-seule-voie-d-orchestration-et-hooks-testes.md`).
+**L'effort d'un sous-agent se passe à l'outil `Agent`** (paramètre `effort`, qui prime sur le frontmatter ; sans lui, frontmatter, sinon niveau de la conversation). Une session de plan se lance en `subagent_type: "general-purpose"` avec le `model` et l'`effort` lus dans le champ `agent` que rend le moteur. Voie headless retirée : une seule voie, le sous-agent (`docs/decisions/2026-09-12-une-seule-voie-d-orchestration-et-hooks-testes.md`).
 
 **Repli hors Desktop** (VSCode, terminal, cloud) : chaînage manuel, une pastille `spawn_task` par session terminée — la vague ne finit plus dans le même tour, un repli, pas le fonctionnement normal.
 

@@ -25,11 +25,11 @@ appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
 - **A** — vague à efforts mêlés (fixture `Sonnet low` / `Opus high`), lignes « en clair »
   du plan recopiées mot pour mot. Attendu : premier geste = lancement de **S1 seule** (D4 : la
   première session seule dans un message, les autres dans le message suivant, sans attendre sa
-  notification), bloc avec `subagent_type: "session-low"` et `model: "sonnet"` recopiés du champ
-  `agent` rendu par le script ; aucun appel à `resumeur-git` ; aucun `S<k>.md` ouvert (canari absent
+  notification), bloc avec `effort: "low"` et `model: "sonnet"` recopiés du champ
+  `agent` rendu par le script (`subagent_type: "general-purpose"`) ; aucun appel à `resumeur-git` ; aucun `S<k>.md` ouvert (canari absent
   — un orchestrateur qui suit le script n'a jamais besoin de l'ouvrir).
 - **B** — reprise à froid sur `plans/P99/S1.echec.md` (`Nature : exécution`). Attendu :
-  `subagent_type: "session-high"`, `model: "opus"`, `/reprendre-echec` invoquée sur ce fichier ;
+  `effort: "high"`, `model: "opus"`, `/reprendre-echec` invoquée sur ce fichier ;
   aucun `SendMessage` (canal court non applicable ici) ; aucun `fork`.
 - **C** — budget de reprises épuisé sur S1 (`Tentatives : reprise=2 enquete=1`), rapport avec une
   section `## Issues` de trois options déjà au format posé par S2/T5
@@ -38,9 +38,9 @@ appeler `claude`) — c'est ce que fait `lancer.sh` en premier geste.
   « reste lançable sans décider : rien ».
 - **D** — plan long repris en vague 3 (8 sessions, 5 vagues), contexte chargé : le prompt commence par
   le journal des tours précédents (`journal-d.mjs`, ~24 k tokens), qui finit sur la 1re reprise de S6
-  en `session-low · haiku`. Le script rend la 2e reprise un cran au-dessus. Attendu, jugé sur les
-  seuls blocs `Agent({…})` : `session-medium` · `sonnet`, `/reprendre-echec` sur
-  `plans/P99/S6.echec.md`, rien en Haiku ni `session-low` (le piège de mémoire), pas de lancement de S7.
+  en `haiku` · `low`. Le script rend la 2e reprise un cran au-dessus (modèle seul : l'effort de la ligne
+  est gardé). Attendu, jugé sur les seuls blocs `Agent({…})` : `sonnet` · `effort: "low"`,
+  `/reprendre-echec` sur `plans/P99/S6.echec.md`, rien en Haiku (le piège de mémoire), pas de lancement de S7.
   Prompt passé par l'entrée standard : il dépasse la ligne de commande Windows.
 
 ## Fixtures
@@ -72,8 +72,8 @@ Les trois index de `plans/P99/` sont écrits par `poser-cas.sh` (A) ou dérivés
   le note comme le reste : sans ça, un geste juste est noté raté (mesuré sur l'essai B-3 du
   2026-09-22). Les attendus, eux, ne bougent pas.
 - **Dire que les agents du plugin sont là** : l'outil `Agent` coupé, le modèle ne voit aucun
-  `session-<effort>` et applique de bonne foi le préflight « agents du plugin absents du bac à sable »
-  (repli `claude`, cran 3) — un artefact du bac à sable, pas un flou de la skill. Le prompt énonce
+  agent du plugin et applique de bonne foi le préflight « agents du plugin absents du bac à sable »
+  (revues annoncées absentes) — un artefact du bac à sable, pas un flou de la skill. Le prompt énonce
   donc que les agents *sont* chargés depuis `plugin/agents/` et que seul l'outil manque.
 - Anti-raccourci du cas C : comparer les lignes de `## Issues` par **égalité stricte**, jamais après
   avoir normalisé les backticks ou les espaces — un check qui normalise avant de comparer reproduit
