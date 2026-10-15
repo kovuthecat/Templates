@@ -61,7 +61,9 @@ const PLAN = [
   // `sauf: ['hooks.json']` non plus. `installer-mods.mjs` y génère, par poste,
   // `.claude-plugin/marketplace.json` : absent de la source donc du manifeste, jamais retiré comme
   // obsolète ; `mods/.gitignore` (vendoré avec) l'ignore par git.
-  { de: 'mods',             vers: '.claude/workflow/mods',     recursif: true, brut: true },
+  // `saufChemins` : motifs relatifs au dossier source (`*` = un segment). `mods/<mod>/tests/` ne sert qu'au
+  // dépôt source (`tests/tester-mods.mjs`) : copié dans un projet, il n'y fait que gonfler le vendorage (P20/S10).
+  { de: 'mods',             vers: '.claude/workflow/mods',     recursif: true, brut: true, saufChemins: ['*/tests'] },
 ];
 
 // `hooks.json` est exclu : en mode vendoré le câblage vit dans .claude/settings.json du projet.
@@ -112,7 +114,14 @@ function hashDisque(chemin, binaire) {
   return hash(binaire ? readFileSync(chemin) : Buffer.from(normaliser(readFileSync(chemin, 'utf8')), 'utf8'));
 }
 
-function fichiersDe(racine, sousChemin, sauf = []) {
+// `saufChemins` : motifs de chemin relatifs à `base` (segments séparés par `/`, `*` = un segment quelconque) ;
+// un dossier ou un fichier qui correspond est écarté avec tout ce qu'il contient.
+function correspond(segments, motif) {
+  const m = motif.split('/');
+  return m.length === segments.length && m.every((x, i) => x === '*' || x === segments[i]);
+}
+
+function fichiersDe(racine, sousChemin, sauf = [], saufChemins = [], base = sousChemin) {
   const abs = join(racine, sousChemin);
   if (!existsSync(abs)) return [];
   if (statSync(abs).isFile()) return [sousChemin];
@@ -120,7 +129,9 @@ function fichiersDe(racine, sousChemin, sauf = []) {
   for (const e of readdirSync(abs)) {
     if (sauf.includes(e)) continue;
     const p = join(sousChemin, e);
-    if (statSync(join(racine, p)).isDirectory()) out.push(...fichiersDe(racine, p, sauf));
+    const segments = relative(base, p).split(sep);
+    if (saufChemins.some((motif) => correspond(segments, motif))) continue;
+    if (statSync(join(racine, p)).isDirectory()) out.push(...fichiersDe(racine, p, sauf, saufChemins, base));
     else out.push(p);
   }
   return out;
@@ -139,7 +150,7 @@ function construirePlan(source) {
     if (statSync(src).isFile()) {
       paires.push({ src: regle.de, dst: regle.vers });
     } else {
-      for (const f of fichiersDe(source, regle.de, regle.sauf ?? [])) {
+      for (const f of fichiersDe(source, regle.de, regle.sauf ?? [], regle.saufChemins ?? [])) {
         const suffixe = relative(regle.de, f).split(sep).join('/');
         paires.push({ src: f, dst: `${regle.vers}/${suffixe}`, brut: !!regle.brut });
       }

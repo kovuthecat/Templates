@@ -1,8 +1,9 @@
-import type { Mode, ModelePlan, SessionPlan } from '../types'
+import type { Mode, ModelePlan } from '../types'
 
-// Logique pure du panneau « plan » : la sortie de `prochaine-action.mjs P<n> --json` (et `--etat --json`)
-// devient un modele d'affichage ; chaque bouton de relance a son texte selon le mode du projet.
-// Aucun `$` ici : les tests rejouent des sorties REELLES du script, recopiees en fixture.
+// Logique pure du panneau « plan » : la sortie de `prochaine-action.mjs P<n> --json` devient un modele
+// d'affichage — le champ `texte` du moteur, tel quel (P20/S10) ; chaque bouton de relance a son texte selon
+// le mode du projet. Aucun `$` ici : les tests rejouent des sorties REELLES du moteur, regenerees a chaque
+// passage de tests/tester-mods.mjs.
 
 // Mode : `vendore` (`.claude/workflow/manifest.json` present, skills sous `/<skill>`) ou `source` (depot
 // source du workflow, skills sous `/workflow:<skill>`) — meme detection que installer-mods.mjs.
@@ -35,46 +36,6 @@ export function texteBouton(id: BoutonId, mode: Mode, plan: string): string {
   }
 }
 
-const noms = (liste: unknown): string[] =>
-  Array.isArray(liste) ? liste.map((x: any) => (typeof x === 'string' ? x : x?.session)).filter(Boolean).map(String) : []
-
-// Premiere ligne de `formaterTexte` de prochaine-action.mjs, refaite depuis l'objet `--json`.
-export function texteAction(a: any): string {
-  const cle = String(a?.action ?? '')
-  const sessions = noms(a?.sessions)
-  switch (cle) {
-    case 'lancer':
-      return `lancer — vague ${a.vague} : ${sessions.join(', ') || '—'}`
-    case 'verifier-premisse':
-      return `verifier-premisse — ${a.session}`
-    case 'reprendre':
-      return `reprendre — ${a.session} (${a.modele}${a.option ? ` · option ${a.option}` : ''})`
-    case 'enqueter':
-      return `enqueter — ${a.session} (${a.modele})`
-    case 'relancer-interrompue':
-      return `relancer-interrompue — ${a.session} (${a.modele})`
-    case 'relire':
-      return `relire — vague ${a.vague} : ${sessions.join(', ')}`
-    case 'validation-humaine':
-      return `validation-humaine — vague ${a.vague}`
-    case 'question':
-      return `question — ${a.motif}`
-    default:
-      return cle
-  }
-}
-
-const ICONES: Record<string, string> = { faite: '✓', echec: '✗' }
-const LIBELLE_MAX = 60
-
-const tronquer = (t: string) => (t.length > LIBELLE_MAX ? `${t.slice(0, LIBELLE_MAX - 1)}…` : t)
-
-// Ligne d'une session : `✓ S1  titre`, `→` devant celles de la vague en cours.
-export function ligneSession(s: SessionPlan): string {
-  const icone = s.courante ? '→' : (ICONES[s.etat] ?? '○')
-  return `${icone} ${s.session}  ${tronquer(s.titre)}`
-}
-
 const lire = (sortie: string | undefined): any => {
   try {
     const j = JSON.parse(String(sortie ?? ''))
@@ -84,32 +45,15 @@ const lire = (sortie: string | undefined): any => {
   }
 }
 
-// `action` : sortie de `P<n> --json` ; `etat` : sortie de `P<n> --etat --json` (facultative : sans elle, pas
-// de liste de sessions). Sortie illisible ou sans `action` : undefined -> pas de panneau.
-export function modelePlan(plan: string, action: string | undefined, etat?: string): ModelePlan | undefined {
+// `action` : sortie de `P<n> --json`. Le texte est celui que le moteur rend (champ `texte`, S5), jamais refait ici :
+// une action inconnue s'affiche donc comme les autres ; sans `texte` (moteur plus ancien), le nom de l'action.
+// Sortie illisible ou sans `action` : undefined -> pas de panneau.
+export function modelePlan(plan: string, action: string | undefined): ModelePlan | undefined {
   const a = lire(action)
   if (!a || typeof a.action !== 'string') return undefined
-  const e = lire(etat)
-  const courantes = new Set([...noms(a.sessions), ...(a.session ? [String(a.session)] : [])])
-  const sessions: SessionPlan[] = Array.isArray(e?.sessions)
-    ? e.sessions
-        .filter((s: any) => s && typeof s.session === 'string')
-        .map((s: any) => ({
-          session: s.session,
-          titre: String(s.titre ?? ''),
-          etat: String(s.etat ?? ''),
-          courante: courantes.has(s.session) && s.etat !== 'faite',
-        }))
-    : []
+  const texte = typeof a.texte === 'string' && a.texte.trim() !== '' ? a.texte.replace(/\r\n/g, '\n').trimEnd() : a.action
   const vague = a.vague ?? undefined
-  return {
-    plan,
-    ...(vague !== undefined ? { vague: String(vague) } : {}),
-    action: texteAction(a),
-    ...(typeof a.avertissement === 'string' && a.avertissement !== '' ? { avertissement: a.avertissement } : {}),
-    clos: typeof e?.clos === 'string' && e.clos !== '',
-    sessions,
-  }
+  return { plan, ...(vague !== undefined && vague !== null ? { vague: String(vague) } : {}), texte }
 }
 
 // Ce que fait un appui. `$.prompt.submit` refuse un texte qui commence par `/` (le moteur le tient pour une

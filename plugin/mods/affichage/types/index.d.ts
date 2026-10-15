@@ -5,15 +5,11 @@ export type Fenetre = { kind: string; percentUsed: number; resetsAt?: string }
 export type FenetreBandeau = { libelle: string; valeur: string }
 export type Bandeau = { plan?: string; fenetres: FenetreBandeau[] }
 
-export type SessionPlan = { session: string; titre: string; etat: string; courante: boolean }
-
+// Panneau « plan » : le texte que prochaine-action.mjs rend pour l'action en cours (champ `texte`).
 export type ModelePlan = {
   plan: string
   vague?: string
-  action: string
-  avertissement?: string
-  clos: boolean
-  sessions: SessionPlan[]
+  texte: string
 }
 
 // vendore : skills sous /<skill> ; source : dépôt source du workflow, /workflow:<skill>.

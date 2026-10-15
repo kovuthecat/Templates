@@ -1,11 +1,7 @@
-// Parsing pur des incidents de workflow (`docs/workflow/incidents/*.md`, gabarit WORKFLOW.md §9b), PORTE de
-// `plugin/bin/collecter-incidents.mjs` (`lireIncident`) : le mod n'a pas Node. Memes regles : un champ est un
-// segment `Champ : valeur` d'une puce, premier match gagne ; un incident non conforme est liste quand meme,
-// champs vides ; la date vient du nom du fichier. Aucun `$` ici.
+// Presentation de `/incidents` : la collecte est faite par `plugin/bin/collecter-incidents.mjs --json` (le script
+// fait foi — P20/S10 : la copie de son parsing `lireIncident` est supprimee, jamais regeneree) ; ce fichier
+// ne fait que lire sa sortie, trier et mettre en table. Aucun `$` ici.
 
-export const CHAMPS = ['Projet', 'Workflow', 'Plan', 'Environnement', 'Étape', 'Nature'] as const
-
-export const DOSSIER_INCIDENTS = 'docs/workflow/incidents'
 export const LIGNES_MAX = 50
 
 export type Incident = {
@@ -15,24 +11,6 @@ export type Incident = {
   titre: string
   nature: string
   conforme: boolean
-}
-
-export function lireIncident(texte: string, fichier: string, projet: string): Incident {
-  const lignes = texte.replace(/\r\n/g, '\n').split('\n')
-  const titre = (lignes.find((l) => l.startsWith('# ')) ?? '').replace(/^#\s*/, '')
-  const champs: Record<string, string> = {}
-  for (const ligne of lignes) {
-    if (!/^-\s/.test(ligne)) continue
-    for (const segment of ligne.replace(/^-\s*/, '').split('·')) {
-      const m = /^\s*([^:]+?)\s*:\s*(.*)$/.exec(segment)
-      if (!m) continue
-      const nom = m[1].trim()
-      if ((CHAMPS as readonly string[]).includes(nom) && champs[nom] === undefined) champs[nom] = m[2].trim()
-    }
-  }
-  const date = /^(\d{4}-\d{2}-\d{2})/.exec(nomDeFichier(fichier))?.[1] ?? ''
-  const complet = CHAMPS.every((c) => (champs[c] ?? '') !== '')
-  return { projet, fichier, date, titre, nature: champs.Nature ?? '', conforme: complet && date !== '' }
 }
 
 // Separateur de chemin Windows (ecrit par son code : un antislash litteral se perd dans trop de couches).
@@ -49,11 +27,6 @@ export function parentDe(racine: string): string {
   return coupe < 0 ? '' : coupe === 0 ? '/' : net.slice(0, coupe)
 }
 
-// Un dossier est un projet a scruter comme dans collecter-incidents.mjs : ni `#...`, ni node_modules.
-export const projetScrutable = (nom: string) => !nom.startsWith('#') && nom !== 'node_modules'
-
-export const estIncident = (nom: string) => nom.endsWith('.md')
-
 // `/incidents [YYYY-MM-DD]` : « depuis » facultatif. Argument illisible : une erreur, pas de collecte.
 export function lireArgs(args: string | undefined): { depuis?: string } | { erreur: string } {
   const a = String(args ?? '').trim()
@@ -62,9 +35,27 @@ export function lireArgs(args: string | undefined): { depuis?: string } | { erre
   return { erreur: `/incidents attend une date YYYY-MM-DD (« depuis »), reçu « ${a} ».` }
 }
 
-// Garde un incident daté a partir de `depuis` (inclus) ; sans date lisible, il reste (a corriger).
-export const depuisLe = (liste: readonly Incident[], depuis: string | undefined): Incident[] =>
-  depuis ? liste.filter((i) => !(i.date && i.date < depuis)) : [...liste]
+// Sortie `--json` de collecter-incidents.mjs : `{ projets: [noms], incidents: [{ date, projet, fichier, titre,
+// nature, conforme, ... }] }` ; `fichier` y est un chemin complet, le tableau n'en garde que le nom.
+// Illisible ou d'une autre forme : une erreur, jamais une table vide qui ferait croire a « aucun incident ».
+export function lireCollecte(sortie: string): { projets: number; incidents: Incident[] } | { erreur: string } {
+  let j: any
+  try {
+    j = JSON.parse(sortie)
+  } catch {
+    return { erreur: 'sortie du script illisible' }
+  }
+  if (!j || !Array.isArray(j.projets) || !Array.isArray(j.incidents)) return { erreur: 'sortie du script inattendue' }
+  const incidents: Incident[] = j.incidents.map((x: any) => ({
+    projet: String(x?.projet ?? ''),
+    fichier: nomDeFichier(String(x?.fichier ?? '')),
+    date: String(x?.date ?? ''),
+    titre: String(x?.titre ?? ''),
+    nature: String(x?.nature ?? ''),
+    conforme: x?.conforme === true,
+  }))
+  return { projets: j.projets.length, incidents }
+}
 
 // Du plus recent au plus ancien ; a date egale, par projet puis par fichier.
 export function trier(liste: readonly Incident[]): Incident[] {

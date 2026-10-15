@@ -170,19 +170,44 @@ for (const m of mods) {
 if (aEcrire.length > 0) echec(`--verifier : ${aEcrire.join(' ; ')}`);
 
 // ── Vérification par `plugin list` ───────────────────────────────────────────
-let liste;
-try { liste = claude(['plugin', 'list']); }
-catch (e) { echec(`\`plugin list\` en échec — ${dernier(e)}`); }
-const lignes = liste.split(/\r?\n/);
-for (const m of mods) {
-  const id = `${m.nom}@${marketplace}`;
+// Sortie MACHINE d'abord (P20/S10, point 22 de la revue externe) : `claude plugin list --json` (vérifié sur
+// le binaire du poste, 2.1.296 — `claude plugin list --help` : « --json  Output as JSON ») rend un tableau
+// d'objets `{ id, version, scope, enabled, projectPath }`. Un binaire plus ancien, sans cette option, rend du
+// texte (ou échoue) : la lecture de la sortie HUMAINE ci-dessous reste le repli — format non garanti, d'où
+// le JSON en premier.
+function listeJson() {
+  try {
+    const j = JSON.parse(claude(['plugin', 'list', '--json']));
+    return Array.isArray(j) ? j : null;
+  } catch { return null; }
+}
+function etatDepuisJson(liste, id) {
+  const x = liste.find((e) => e.id === id && (e.scope !== 'local' || (e.projectPath && norm(e.projectPath) === norm(racine))));
+  return x ? { present: true, version: x.version, enabled: x.enabled === true } : { present: false };
+}
+function etatDepuisTexte(lignes, id) {
   const debut = lignes.findIndex((l) => l.includes(id));
-  if (debut < 0) echec(`\`plugin list\` ne cite pas ${id}`);
+  if (debut < 0) return { present: false };
   const fin = lignes.findIndex((l, i) => i > debut && l.includes('❯'));
   const bloc = lignes.slice(debut, fin < 0 ? undefined : fin).join('\n');
-  const v = bloc.match(/Version:\s*(\S+)/)?.[1];
-  if (v !== m.version) echec(`\`plugin list\` rend ${id} en ${v ?? '(aucune version)'}, attendu ${m.version}`);
-  if (!/\benabled\b/.test(bloc)) echec(`${id} n'est pas \`enabled\` dans \`plugin list\``);
+  return { present: true, version: bloc.match(/Version:\s*(\S+)/)?.[1], enabled: /\benabled\b/.test(bloc) };
+}
+let etatDe;
+const json = listeJson();
+if (json) etatDe = (id) => etatDepuisJson(json, id);
+else {
+  let liste;
+  try { liste = claude(['plugin', 'list']); }
+  catch (e) { echec(`\`plugin list\` en échec — ${dernier(e)}`); }
+  const lignes = liste.split(/\r?\n/);
+  etatDe = (id) => etatDepuisTexte(lignes, id);
+}
+for (const m of mods) {
+  const id = `${m.nom}@${marketplace}`;
+  const x = etatDe(id);
+  if (!x.present) echec(`\`plugin list\` ne cite pas ${id}`);
+  if (x.version !== m.version) echec(`\`plugin list\` rend ${id} en ${x.version ?? '(aucune version)'}, attendu ${m.version}`);
+  if (!x.enabled) echec(`${id} n'est pas \`enabled\` dans \`plugin list\``);
   console.log(`installer-mods: ${id} ${m.version}, enabled${verifier ? ' (vérifié)' : ''} — redémarrer les sessions ouvertes pour le charger`);
 }
 process.exit(0);

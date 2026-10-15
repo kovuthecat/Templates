@@ -1,17 +1,29 @@
 import { describe, expect, test } from 'claude-code/testing'
-import { INDEX_FIXTURE, INDEX_ILLISIBLE } from './fixture-index'
+import { MOTEUR_FINI, MOTEUR_LANCER, MOTEUR_REPRENDRE_OPUS, MOTEUR_REPRENDRE_SONNET } from './fixture-index'
+
+// Les sorties du moteur sont GENEREES par tests/tester-mods.mjs depuis le vrai prochaine-action.mjs a chaque
+// passage (voir fixture-index.ts) : O1 est confronte a ce que le moteur rend, pas a une sortie recopiee.
 
 const norm = (p: string) => p.split('\\').join('/').replace(/^[A-Za-z]:/, '')
 const RACINE = '/proj'
+const SCRIPT = 'plugin/bin/prochaine-action.mjs'
 
-type Monde = { spawns: any[]; appels: any[] }
+type Monde = { spawns: any[]; appels: any[]; moteur: string[][] }
 
-function monde(on: any, fichiers: Record<string, string> = {}): Monde {
-  const m: Monde = { spawns: [], appels: [] }
+// `moteur` : stdout rendu par `node <script> P<n> --json` (absent : aucun script dans le projet).
+function monde(on: any, opts: { moteur?: string; code?: number; vendore?: boolean } = {}): Monde {
+  const m: Monde = { spawns: [], appels: [], moteur: [] }
   on('session.root', () => ({ value: RACINE }))
-  on('fs.read', (_$: any, e: any) => {
+  on('fs.exists', (_$: any, e: any) => {
     const k = norm(e.path)
-    return k in fichiers ? { value: fichiers[k] } : { deny: 'ENOENT' }
+    const present = opts.moteur !== undefined && k === `${RACINE}/${opts.vendore ? '.claude/workflow/bin/prochaine-action.mjs' : SCRIPT}`
+    return { value: present }
+  })
+  on('process.run', (_$: any, e: any) => {
+    m.moteur.push([...e.argv])
+    return {
+      value: { exitCode: opts.code ?? 0, stdout: opts.moteur ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false },
+    }
   })
   on('agent.spawn', (_$: any, e: any) => {
     m.spawns.push(e)
@@ -36,76 +48,99 @@ const spawn = (prompt: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
 })
 
-const INDEX = { [`${RACINE}/plans/P1/index.md`]: INDEX_FIXTURE }
+describe('O1 modele calcule par le moteur', () => {
+  test('lancer : agent.model de la session lancee, moteur lu en lecture seule (P<n> --json, sans --appliquer)', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('Ouvre plans/P9/S1.md et execute-le.') as any)
+    expect(m.spawns[0].model).toBe('sonnet')
+    expect(m.moteur).toEqual([['node', `${RACINE}/${SCRIPT}`, 'P9', '--json']])
+  })
 
-describe('O1 filet de modele', () => {
-  test('modele absent, prompt cite plans/P1/S1.md : Sonnet impose', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Ouvre plans/P1/S1.md et execute-le.') as any)
+  test('reprise : le modele du moteur (Sonnet) prime sur celui de l index (Haiku) — escalade preservee', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_REPRENDRE_SONNET })
+    await $.agent.spawn(spawn('Ouvre plans/P9/S1.md') as any)
     expect(m.spawns[0].model).toBe('sonnet')
   })
 
-  test('chemin Windows plans\\P1\\S2.md : Opus ; S10 distinct de S1 (Haiku)', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Ouvre plans\\P1\\S2.md') as any)
-    await $.agent.spawn(spawn('Ouvre plans/P1/S10.md') as any)
-    expect(m.spawns[0].model).toBe('opus')
-    expect(m.spawns[1].model).toBe('haiku')
-  })
-
-  test('modele explicite : jamais ecrase', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Ouvre plans/P1/S1.md', { model: 'opus' }) as any)
+  test('reprise escaladee : Opus, quel que soit le modele de l index (Sonnet)', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_REPRENDRE_OPUS })
+    await $.agent.spawn(spawn('Ouvre plans\\P9\\S1.md') as any)
     expect(m.spawns[0].model).toBe('opus')
   })
 
-  test('S1.echec.md seul : inchange', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Lis plans/P1/S1.echec.md') as any)
+  test('projet vendore : le script de .claude/workflow/bin est lance', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER, vendore: true })
+    await $.agent.spawn(spawn('plans/P9/S1.md') as any)
+    expect(m.spawns[0].model).toBe('sonnet')
+    expect(m.moteur[0][1]).toBe(`${RACINE}/.claude/workflow/bin/prochaine-action.mjs`)
+  })
+
+  test('aucune action pour cette session (S2 hors vague, plan fini) : inchange, jamais un refus', async ($, on) => {
+    const a = monde(on, { moteur: MOTEUR_LANCER })
+    const r = await $.agent.spawn(spawn('plans/P9/S2.md') as any)
+    expect(a.spawns[0].model).toBeUndefined()
+    expect((r as any).deny).toBeUndefined()
+  })
+
+  test('plan fini : inchange', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_FINI })
+    await $.agent.spawn(spawn('plans/P9/S1.md') as any)
     expect(m.spawns[0].model).toBeUndefined()
   })
 
+  test('modele explicite : jamais ecrase, moteur non lance', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('Ouvre plans/P9/S1.md', { model: 'opus' }) as any)
+    expect(m.spawns[0].model).toBe('opus')
+    expect(m.moteur).toEqual([])
+  })
+
+  test('S1.echec.md seul : inchange, moteur non lance', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('Lis plans/P9/S1.echec.md') as any)
+    expect(m.spawns[0].model).toBeUndefined()
+    expect(m.moteur).toEqual([])
+  })
+
   test('S1.revue.md seul : inchange', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Lis plans/P1/S1.revue.md') as any)
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('Lis plans/P9/S1.revue.md') as any)
     expect(m.spawns[0].model).toBeUndefined()
   })
 
   test('fork : inchange', async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('Ouvre plans/P1/S1.md', { fork: true }) as any)
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('Ouvre plans/P9/S1.md', { fork: true }) as any)
     expect(m.spawns[0].model).toBeUndefined()
   })
 
-  test('index illisible, absent ou session inconnue : inchange, jamais un refus', async ($, on) => {
-    const m = monde(on, { [`${RACINE}/plans/P2/index.md`]: INDEX_ILLISIBLE })
-    const a = await $.agent.spawn(spawn('plans/P2/S1.md') as any)
-    const b = await $.agent.spawn(spawn('plans/P3/S1.md') as any)
-    const c = await $.agent.spawn(spawn('plans/P2/S9.md') as any)
-    for (const r of [a, b, c]) expect((r as any).deny).toBeUndefined()
-    expect(m.spawns.map((s) => s.model)).toEqual([undefined, undefined, undefined])
-  })
-
-  test('valeur hors liste : inchange', async ($, on) => {
-    const m = monde(on, {
-      [`${RACINE}/plans/P1/index.md`]: INDEX_FIXTURE.replace('| Sonnet |', '| Gpt |'),
-    })
-    await $.agent.spawn(spawn('plans/P1/S1.md') as any)
+  test('script absent : inchange, jamais un refus', async ($, on) => {
+    const m = monde(on)
+    const r = await $.agent.spawn(spawn('plans/P9/S1.md') as any)
     expect(m.spawns[0].model).toBeUndefined()
+    expect((r as any).deny).toBeUndefined()
+    expect(m.moteur).toEqual([])
   })
 
-  test('colonne lue par position : l en-tete n entre pas en jeu (comme le moteur)', async ($, on) => {
-    const m = monde(on, {
-      [`${RACINE}/plans/P1/index.md`]: INDEX_FIXTURE.replace('| Modèle |', '| Autre nom |'),
-    })
-    await $.agent.spawn(spawn('plans/P1/S2.md') as any)
-    expect(m.spawns[0].model).toBe('opus')
-  })
-
-  test('o1: false : inchange', { options: { o1: false } }, async ($, on) => {
-    const m = monde(on, INDEX)
-    await $.agent.spawn(spawn('plans/P1/S1.md') as any)
+  test('sortie illisible : inchange, jamais un refus', async ($, on) => {
+    const m = monde(on, { moteur: 'prochaine-action: index illisible' })
+    const r = await $.agent.spawn(spawn('plans/P9/S1.md') as any)
     expect(m.spawns[0].model).toBeUndefined()
+    expect((r as any).deny).toBeUndefined()
+  })
+
+  test('moteur en echec (code 2) : inchange, jamais un refus', async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER, code: 2 })
+    const r = await $.agent.spawn(spawn('plans/P9/S1.md') as any)
+    expect(m.spawns[0].model).toBeUndefined()
+    expect((r as any).deny).toBeUndefined()
+  })
+
+  test('o1: false : inchange, moteur non lance', { options: { o1: false } }, async ($, on) => {
+    const m = monde(on, { moteur: MOTEUR_LANCER })
+    await $.agent.spawn(spawn('plans/P9/S1.md') as any)
+    expect(m.spawns[0].model).toBeUndefined()
+    expect(m.moteur).toEqual([])
   })
 })
 

@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "session": "P20/S10",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "b45773ec47ffdc0efca0ac817c1da7ce049682409ff7c979f3685f9b6ac5d792",
+  "nonSuivis": [],
+  "date": "2026-10-15T21:19:58.290Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 111547
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 358468
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 190
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 36456
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 9673
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1274
+    }
+  ]
+}

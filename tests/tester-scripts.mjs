@@ -2110,6 +2110,12 @@ if (a[1] === 'marketplace' && a[2] === 'add') {
   else liste.push({ scope: 'local', projectPath: process.cwd(), version: versionDe(mkt, mod) });
   ip.plugins[a[2]] = liste;
   wr('installed_plugins.json', ip);
+} else if (a[1] === 'list' && a.includes('--json') && !process.env.FAKE_LIST_SANS_JSON) {
+  // Sortie machine du vrai binaire : un tableau { id, version, scope, enabled, projectPath }.
+  const out = [];
+  for (const [id, liste] of Object.entries(ip.plugins)) for (const x of liste)
+    out.push({ id, version: x.version, scope: x.scope, enabled: !process.env.FAKE_LIST_DESACTIVE, projectPath: x.projectPath });
+  process.stdout.write(JSON.stringify(out, null, 2));
 } else if (a[1] === 'list') {
   let out = 'Installed plugins:\\n\\n';
   for (const [id, liste] of Object.entries(ip.plugins)) for (const x of liste)
@@ -2196,6 +2202,27 @@ cas('installer-mods (b) : deuxième lancement, tout en place → aucun add/insta
   if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
   if (ecritures(appels).length !== 0) return `aucune écriture attendue, reçu: ${JSON.stringify(ecritures(appels))}`;
   if (!appels.some((a) => a[1] === 'list')) return '`plugin list` jamais appelé';
+  return null;
+});
+
+cas('installer-mods (b2) : `plugin list --json` est lu en premier (sortie machine) ; un mod désactivé ou en retard est refusé (code 3)', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  const premier = poste.lancerInstaller(projet);
+  if (premier.code !== 0) return `premier lancement en échec: ${premier.sortie}`;
+  if (!premier.appels.some((a) => a[1] === 'list' && a.includes('--json'))) return '`plugin list --json` jamais appelé';
+  if (premier.appels.some((a) => a[1] === 'list' && !a.includes('--json'))) return 'la sortie humaine a été lue alors que --json répondait';
+  const off = poste.lancerInstaller(projet, [], { FAKE_LIST_DESACTIVE: '1' });
+  if (off.code !== 3 || !/n'est pas `enabled`/.test(off.sortie)) return `mod désactivé : code 3 et « enabled » attendus, reçu ${off.code}: ${off.sortie}`;
+  return null;
+});
+
+cas('installer-mods (b3) : binaire sans --json (texte à la place) → repli sur la sortie humaine, même verdict', () => {
+  const poste = posteFactice();
+  const projet = projetVendore();
+  const { code, sortie, appels } = poste.lancerInstaller(projet, [], { FAKE_LIST_SANS_JSON: '1' });
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (!appels.some((a) => a[1] === 'list' && !a.includes('--json'))) return 'repli sur `plugin list` (texte) jamais appelé';
   return null;
 });
 
@@ -2331,6 +2358,32 @@ cas('sync-workflow : mods vendorés tels quels (hooks.json inclus, marqueur inta
   const manifeste = JSON.parse(readFileSync(join(projet, '.claude/workflow/manifest.json'), 'utf8')).fichiers;
   if (!manifeste['.claude/workflow/mods/x/hooks/hooks.json']) return 'hooks.json du mod absent du manifeste';
   if (manifeste['.claude/workflow/mods/.claude-plugin/marketplace.json']) return 'la marketplace générée ne doit pas figurer au manifeste';
+  return null;
+});
+
+cas('sync-workflow : les tests d\'un mod (mods/<mod>/tests/) ne sont pas vendorés ; le reste du mod, si (P20/S10)', () => {
+  const source = dossierJetable('workflow-sync-mods-tests-source-');
+  mkdirSync(join(source, '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, '.claude-plugin', 'plugin.json'), JSON.stringify({ version: '1.0.0' }));
+  mkdirSync(join(source, 'mods', 'x', 'hooks'), { recursive: true });
+  mkdirSync(join(source, 'mods', 'x', 'tests'), { recursive: true });
+  // Témoin : un dossier `tests` plus profond que mods/<mod>/ n'est pas écarté — le motif vise le test du mod, rien d'autre.
+  mkdirSync(join(source, 'mods', 'x', 'hooks', 'tests'), { recursive: true });
+  writeFileSync(join(source, 'mods', 'x', 'hooks', 'hooks.json'), '{ "modules": ["./register.ts"] }\n');
+  writeFileSync(join(source, 'mods', 'x', 'hooks', 'register.ts'), 'export const a = 1;\n');
+  writeFileSync(join(source, 'mods', 'x', 'hooks', 'tests', 'garde.ts'), 'export const garde = 1;\n');
+  writeFileSync(join(source, 'mods', 'x', 'tests', 'x.test.ts'), 'export const t = 1;\n');
+  writeFileSync(join(source, 'mods', 'x', 'tests', 'fixtures.ts'), 'export const f = 1;\n');
+  const projet = dossierJetable('workflow-sync-mods-tests-projet-');
+  const config = dossierJetable('workflow-sync-mods-tests-config-');
+  const { code, sortie } = lancer(SYNC_WORKFLOW, ['--source', source, '--projet', projet], projet, { CLAUDE_CONFIG_DIR: config });
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (existsSync(join(projet, '.claude/workflow/mods/x/tests'))) return 'mods/x/tests/ vendoré';
+  const manifeste = JSON.parse(readFileSync(join(projet, '.claude/workflow/manifest.json'), 'utf8')).fichiers;
+  const testsAuManifeste = Object.keys(manifeste).filter((f) => f.startsWith('.claude/workflow/mods/x/tests/'));
+  if (testsAuManifeste.length > 0) return `tests du mod au manifeste: ${testsAuManifeste.join(', ')}`;
+  if (!existsSync(join(projet, '.claude/workflow/mods/x/hooks/register.ts'))) return 'register.ts du mod non vendoré';
+  if (!existsSync(join(projet, '.claude/workflow/mods/x/hooks/tests/garde.ts'))) return 'témoin : hooks/tests/ (plus profond) doit rester vendoré';
   return null;
 });
 

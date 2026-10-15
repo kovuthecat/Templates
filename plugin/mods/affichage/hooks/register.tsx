@@ -11,23 +11,26 @@ import {
   plansParNumero,
   texteBandeau,
 } from './limites'
-import { DOSSIER_INCIDENTS, depuisLe, estIncident, lireArgs, lireIncident, parentDe, projetScrutable, tableIncidents, trier } from './incidents'
-import type { Incident } from './incidents'
-import { BOUTONS, ligneSession, modelePlan, relance } from './plan'
+import { lireArgs, lireCollecte, parentDe, tableIncidents, trier } from './incidents'
+import { BOUTONS, modelePlan, relance } from './plan'
 import { contexteDepuisPrompt, contexteDepuisSkill, nomProjet, promptDeLaPersonne } from './titre'
 import type { Contexte } from './titre'
 
 // Affichage du workflow : un bandeau au-dessus du prompt (plan, limites 5 h / 7 j) et un panneau « plan »
-// (sessions, prochaine action, boutons de relance).
-// La commande `/incidents` liste les incidents de workflow des projets freres (lecture seule).
+// (le texte que rend prochaine-action.mjs, boutons de relance).
+// La commande `/incidents` liste les incidents de workflow des projets freres : elle appelle
+// `collecter-incidents.mjs --json` (lecture seule), le script fait foi.
 // Le titre de la session suit la convention « Projet - P<n> - S<k> » / « Projet - Cadrer » (titre.ts).
 // Rien ici n'ecrit dans le projet ni ne refuse un evenement ; toute lecture qui echoue laisse l'affichage tel quel.
 //
 // Forme imposee par `plugin validate` : `$` ne passe qu'a des fonctions declarees au sommet.
 
 const PANE_PLAN = 'plan'
-const CACHE_PLAN_MS = 20000
+// Le moteur n'est relu que quand `HEAD` change (commit, rebase) ; ce plancher rattrape les changements que git ne
+// voit pas (un `index.md` ou un `.echec.md` ecrit sans commit).
+const PLANCHER_PLAN_MS = 5 * 60 * 1000
 const DELAI_PROCESS_MS = 5000
+const DELAI_INCIDENTS_MS = 15000
 
 const bandeauAtom = atom({ plugin: 'affichage', key: 'bandeau' } as const, { fenetres: [] } as Bandeau)
 const planAtom = atom({ plugin: 'affichage', key: 'plan' } as const, { modele: null, mode: 'source' } as PlanAffiche)
@@ -37,8 +40,8 @@ type Etat = {
   session?: string
   script?: string | null
   mode?: Mode
-  cachePlan?: { plan: string; at: number; vague?: string; sessions?: string; modele?: ModelePlan }
-  cacheDefaut?: { at: number; plan?: string }
+  cachePlan?: { plan: string; at: number; head?: string; vague?: string; sessions?: string; modele?: ModelePlan }
+  cacheDefaut?: { at: number; head?: string; plan?: string }
   dernierTexte?: string
   fenetres: Fenetre[]
   planModele?: ModelePlan
@@ -111,32 +114,48 @@ async function lancerScript($: any, script: string, argv: string[]): Promise<str
   }
 }
 
-// Vague, sessions et modele du panneau : `prochaine-action.mjs P<n> --json` puis `--etat --json`, cache 20 s, delai 5 s.
+// `HEAD` du depot : change a chaque commit ou rebase. Sans git (ou sans commit) : undefined, seul le plancher joue.
+async function lireHead($: any): Promise<string | undefined> {
+  try {
+    const r = await $.process.run(['git', 'rev-parse', 'HEAD'], { cwd: await racine($), timeoutMs: DELAI_PROCESS_MS })
+    const head = String(r.stdout ?? '').trim()
+    return r.exitCode === 0 && head !== '' ? head : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// Un releve (plan par defaut, etat du plan) vaut tant que `HEAD` est le meme et que le plancher n'est pas atteint.
+const releveValide = (releve: { at: number; head?: string } | undefined, head: string | undefined, maintenant: number): boolean =>
+  releve !== undefined && releve.head === head && maintenant - releve.at < PLANCHER_PLAN_MS
+
+// Vague et modele du panneau : UN appel du moteur, `prochaine-action.mjs P<n> --json` (son champ `texte` fait le
+// panneau), relance seulement quand `HEAD` change ; delai 5 s.
 async function etatDuPlan(
   $: any,
   s: Etat,
   plan: string,
   maintenant: number,
+  head: string | undefined,
 ): Promise<{ vague?: string; sessions?: string; modele?: ModelePlan }> {
-  if (s.cachePlan && s.cachePlan.plan === plan && maintenant - s.cachePlan.at < CACHE_PLAN_MS) return s.cachePlan
+  if (s.cachePlan && s.cachePlan.plan === plan && releveValide(s.cachePlan, head, maintenant)) return s.cachePlan
   const script = await trouverScript($, s)
   let etat: { vague?: string; sessions?: string; modele?: ModelePlan } = {}
   if (script) {
     const action = await lancerScript($, script, [plan, '--json'])
     if (action !== undefined) {
       etat = lireEtatPlan(action)
-      const lignes = await lancerScript($, script, [plan, '--etat', '--json'])
-      const modele = modelePlan(plan, action, lignes)
+      const modele = modelePlan(plan, action)
       if (modele) etat = { ...etat, modele }
     }
   }
-  s.cachePlan = { plan, at: maintenant, ...etat }
+  s.cachePlan = { plan, at: maintenant, head, ...etat }
   return etat
 }
 
 // A defaut de repere dans un prompt d'agent : le plus grand P<n> dont l'index n'a pas de ligne `Clos :`.
-async function planParDefaut($: any, s: Etat, maintenant: number): Promise<string | undefined> {
-  if (s.cacheDefaut && maintenant - s.cacheDefaut.at < CACHE_PLAN_MS) return s.cacheDefaut.plan
+async function planParDefaut($: any, s: Etat, maintenant: number, head: string | undefined): Promise<string | undefined> {
+  if (releveValide(s.cacheDefaut, head, maintenant)) return s.cacheDefaut?.plan
   let plan: string | undefined
   try {
     const base = await racine($)
@@ -152,7 +171,7 @@ async function planParDefaut($: any, s: Etat, maintenant: number): Promise<strin
   } catch {
     plan = undefined
   }
-  s.cacheDefaut = { at: maintenant, plan }
+  s.cacheDefaut = { at: maintenant, head, plan }
   return plan
 }
 
@@ -175,48 +194,30 @@ async function majPlan($: any, s: Etat, modele: ModelePlan | undefined): Promise
   }
 }
 
-// Projet du workflow : manifeste vendore ou manifeste du plugin source. Hors de l'un et de l'autre, les
-// commandes du workflow ne sont pas enregistrees.
-async function projetDuWorkflow($: any): Promise<boolean> {
+// collecter-incidents.mjs : `plugin/bin/` dans le depot source (le script n'est pas vendore, geste de
+// mainteneur). Absent : la commande `/incidents` n'est pas enregistree.
+async function trouverCollecte($: any): Promise<string | undefined> {
   try {
     const base = await racine($)
-    return (await $.fs.exists(`${base}/.claude/workflow/manifest.json`)) || (await $.fs.exists(`${base}/plugin/.claude-plugin/plugin.json`))
+    for (const c of ['plugin/bin/collecter-incidents.mjs', '.claude/workflow/bin/collecter-incidents.mjs']) {
+      if (await $.fs.exists(`${base}/${c}`)) return `${base}/${c}`
+    }
   } catch {
-    return false
+    // pas de commande
   }
+  return undefined
 }
 
-// Les incidents de tous les projets freres (`<parent>/*/docs/workflow/incidents/*.md`) : comme
-// collecter-incidents.mjs, seuls les dossiers portant un `.git` sont des projets. Lecture seule.
-async function collecterIncidents($: any): Promise<{ projets: number; incidents: Incident[] }> {
-  const parent = parentDe(await racine($))
-  const incidents: Incident[] = []
-  let projets = 0
-  const entrees = (await $.fs.list(parent)) as any[]
-  for (const entree of entrees) {
-    const nom = String(entree.name)
-    if (entree.kind !== 'dir' || !projetScrutable(nom)) continue
-    const dossierProjet = `${parent}/${nom}`
-    try {
-      if (!(await $.fs.exists(`${dossierProjet}/.git`))) continue
-    } catch {
-      continue
-    }
-    projets++
-    let fichiers: any[]
-    try {
-      fichiers = (await $.fs.list(`${dossierProjet}/${DOSSIER_INCIDENTS}`)) as any[]
-    } catch {
-      continue
-    }
-    for (const f of fichiers) {
-      const fichier = String(f.name)
-      if (f.kind === 'dir' || !estIncident(fichier)) continue
-      const texte = await lireTexte($, `${dossierProjet}/${DOSSIER_INCIDENTS}/${fichier}`)
-      if (texte !== undefined) incidents.push(lireIncident(texte, fichier, nom))
-    }
-  }
-  return { projets, incidents }
+// Les incidents de tous les projets freres : le script les collecte (`--projets <parent> --json`, `--depuis`).
+async function collecterIncidents($: any, depuis: string | undefined): Promise<string> {
+  const script = await trouverCollecte($)
+  if (!script) return 'collecter-incidents.mjs introuvable dans ce projet.'
+  const argv = ['--projets', parentDe(await racine($)), '--json', ...(depuis ? ['--depuis', depuis] : [])]
+  const r = await $.process.run(['node', script, ...argv], { cwd: await racine($), timeoutMs: DELAI_INCIDENTS_MS })
+  if (r.exitCode !== 0) throw new Error(String(r.stderr ?? '').trim() || `collecter-incidents.mjs a rendu le code ${r.exitCode}`)
+  const collecte = lireCollecte(String(r.stdout ?? ''))
+  if ('erreur' in collecte) throw new Error(collecte.erreur)
+  return tableIncidents(trier(collecte.incidents), collecte.projets, depuis)
 }
 
 // Le bandeau, reecrit seulement si son texte change.
@@ -228,9 +229,10 @@ async function rafraichirLigne($: any, s: Etat): Promise<void> {
     let sessions: string | undefined
     let modele: ModelePlan | undefined
     if (await trouverScript($, s)) {
-      plan = s.plan ?? (await planParDefaut($, s, maintenant))
+      const head = await lireHead($)
+      plan = s.plan ?? (await planParDefaut($, s, maintenant, head))
       if (plan) {
-        const etat = await etatDuPlan($, s, plan, maintenant)
+        const etat = await etatDuPlan($, s, plan, maintenant, head)
         vague = etat.vague
         modele = etat.modele
         sessions = etat.sessions ?? (plan === s.plan ? s.session : undefined)
@@ -272,7 +274,7 @@ export const register: Register = (on) => {
       // limites connues a la premiere mesure
     }
     try {
-      if (await projetDuWorkflow($)) {
+      if (await trouverCollecte($)) {
         await $.command.register({ name: 'incidents', description: 'Incidents de workflow de tous les projets', argumentHint: '[YYYY-MM-DD]' })
       }
     } catch {
@@ -300,8 +302,7 @@ export const register: Register = (on) => {
     const args = lireArgs(e.args)
     if ('erreur' in args) return { text: args.erreur }
     try {
-      const { projets, incidents } = await collecterIncidents($)
-      return { text: tableIncidents(trier(depuisLe(incidents, args.depuis)), projets, args.depuis) }
+      return { text: await collecterIncidents($, args.depuis) }
     } catch (x: any) {
       return { text: `Incidents illisibles : ${String(x?.message ?? x)}` }
     }
@@ -394,14 +395,13 @@ export const register: Register = (on) => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const { modele, mode } = await read($, planAtom)
     if (!modele) return <Text dimColor>Pas de plan en cours.</Text>
-    const entete = [modele.plan, modele.vague ? `vague ${modele.vague}` : '', modele.clos ? 'clos' : ''].filter(Boolean).join(' · ')
+    const entete = [modele.plan, modele.vague ? `vague ${modele.vague}` : ''].filter(Boolean).join(' · ')
+    // Le texte du moteur, ligne a ligne, tel quel : la premiere ligne est l'action (`lancer — vague 2 : S2`).
     return (
       <Box flexDirection="column">
         <Text bold>{entete}</Text>
-        <Text>{`Prochaine action : ${modele.action}`}</Text>
-        {modele.avertissement && <Text dimColor>{`⚠ ${modele.avertissement}`}</Text>}
-        {modele.sessions.map((x) => (
-          <Text>{ligneSession(x)}</Text>
+        {modele.texte.split('\n').map((ligne) => (
+          <Text>{ligne === '' ? ' ' : ligne}</Text>
         ))}
         <Box flexWrap="wrap" columnGap={1}>
           {BOUTONS.map((b) => (

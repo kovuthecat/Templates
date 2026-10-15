@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { P15_ACTION, P15_ETAT } from './fixtures-plan'
+import { MOTEUR_LANCER } from './fixtures-plan'
 
 const norm = (p: string) => p.split(String.fromCharCode(92)).join('/')
 const RACINE = '/proj'
@@ -35,6 +35,8 @@ function monde(
     contexte?: number
     fichiers?: string[]
     scripts?: Record<string, string>
+    // `git rev-parse HEAD` : une valeur fixe, ou une fonction (le test fait avancer HEAD) ; absent : pas de depot lisible.
+    head?: string | (() => string)
   } = {},
 ): Sorties {
   const s: Sorties = { status: [], commandes: [], panneaux: [], fermes: [], relances: [] }
@@ -89,9 +91,14 @@ function monde(
         ? { value: { exitCode: 128, stdout: '', stderr: 'fatal: no upstream configured', isStdoutTruncated: false, isStderrTruncated: false } }
         : { value: { exitCode: 0, stdout: opts.nonPousses ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
+    if (argv[0] === 'git' && argv[1] === 'rev-parse') {
+      const head = typeof opts.head === 'function' ? opts.head() : opts.head
+      return head === undefined
+        ? { value: { exitCode: 128, stdout: '', stderr: 'fatal', isStdoutTruncated: false, isStderrTruncated: false } }
+        : { value: { exitCode: 0, stdout: `${head}\n`, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     if (argv[0] === 'node') {
-      const cle = argv.includes('--etat') ? `${argv[2]}:etat` : argv[2]
-      return { value: { exitCode: 0, stdout: opts.scripts?.[cle] ?? '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+      return { value: { exitCode: 0, stdout: opts.scripts?.[argv[2]] ?? '{}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     return { value: { exitCode: 1, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
@@ -212,8 +219,10 @@ describe('bandeau au-dessus du prompt', () => {
 })
 
 describe('panneau plan', () => {
-  // P1 est le plan par defaut de monde() ; ses sorties sont celles, reelles, de P15 (voir fixtures-plan.ts).
-  const SCRIPTS = { P1: P15_ACTION, 'P1:etat': P15_ETAT }
+  // P1 est le plan par defaut de monde() ; sa sortie est celle, reelle et regeneree a chaque passage, du moteur
+  // (voir fixtures-plan.ts).
+  const SCRIPTS = { P1: MOTEUR_LANCER }
+  const TEXTE_MOTEUR: string[] = JSON.parse(MOTEUR_LANCER).texte.trimEnd().split('\n')
   const AVEC_PLAN = (vendore: boolean) => ({
     fichiers: ['plugin/bin/prochaine-action.mjs', ...(vendore ? ['.claude/workflow/manifest.json'] : [])],
     scripts: SCRIPTS,
@@ -227,16 +236,16 @@ describe('panneau plan', () => {
     ['bouton:commit', { via: 'prompt', text: `Committe et pousse le travail en attente, selon ${pref}fin-de-tache.` }],
   ] as const
   for (const surface of SURFACES) {
-    test(`${surface} : plan, vague, prochaine action, avertissement, sessions et quatre boutons`, async ($, on) => {
+    test(`${surface} : plan, vague, texte du moteur ligne a ligne et quatre boutons`, async ($, on) => {
       monde(on, AVEC_PLAN(false))
       await demarrer($)
       const ui = await monter($, surface, 'plan')
       const lignes = await textes(ui)
-      expect(lignes[0]).toBe('P1 · vague 2')
-      expect(lignes).toContain('Prochaine action : lancer — vague 2 : S2')
-      expect(lignes).toContain('⚠ index déclare Workflow : v0.54.0, plugin en v0.56.0')
-      expect(lignes.filter((l) => /^[✓→○✗] S\d/.test(l))).toHaveLength(6)
-      expect(lignes.find((l) => l.startsWith('→ S2'))).toBeDefined()
+      expect(lignes[0]).toBe('P1 · vague 1')
+      // Le texte du moteur, tel quel (une ligne vide s'affiche en blanc) : la premiere ligne n'est plus refaite.
+      expect(lignes.slice(1, 1 + TEXTE_MOTEUR.length)).toEqual(TEXTE_MOTEUR.map((l) => (l === '' ? ' ' : l)))
+      expect(lignes[1]).toBe('lancer — vague 1 : S1')
+      expect(lignes.some((l) => l.includes('parallele'))).toBe(false)
       const boutons = await ui.findAll({ type: 'Button' })
       expect(boutons.map((b: any) => b.text)).toEqual(['Go', 'Reprends', "Enchaîne l'orchestration", 'Commit+push'])
     })
@@ -302,13 +311,77 @@ describe('panneau plan', () => {
   })
 })
 
+describe('panneau plan : le moteur est relu quand HEAD change, pas avant', () => {
+  const AVEC_PLAN = { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: MOTEUR_LANCER } }
+  const moteur = (s: Sorties) => s.commandes.filter((c) => c[0] === 'node')
+  const mesurer = ($: any) => $.session.measure({ context: { window: 200000, percent: 11 }, rateLimits: [], changed: ['context'] })
+
+  test('HEAD inchange : un seul appel du moteur (P<n> --json), aucun de plus a chaque mesure', async ($, on) => {
+    const s = monde(on, { ...AVEC_PLAN, head: 'aaa111' })
+    await demarrer($)
+    await attendre($)
+    expect(moteur(s)).toHaveLength(1)
+    expect(moteur(s)[0].slice(2)).toEqual(['P1', '--json'])
+    for (let i = 0; i < 5; i++) await mesurer($)
+    expect(moteur(s)).toHaveLength(1)
+  })
+
+  test('HEAD change (commit, rebase) : un appel de plus, et un seul, puis plus rien tant que HEAD tient', async ($, on) => {
+    let head = 'aaa111'
+    const s = monde(on, { ...AVEC_PLAN, head: () => head })
+    await demarrer($)
+    await attendre($)
+    expect(moteur(s)).toHaveLength(1)
+    head = 'bbb222'
+    await mesurer($)
+    expect(moteur(s)).toHaveLength(2)
+    await mesurer($)
+    await mesurer($)
+    expect(moteur(s)).toHaveLength(2)
+    head = 'aaa111'
+    await mesurer($)
+    expect(moteur(s)).toHaveLength(3)
+  })
+
+  test('le panneau suit le moteur relu : nouveau texte apres un changement de HEAD', async ($, on) => {
+    let head = 'aaa111'
+    const sorties: Record<string, string> = { P1: MOTEUR_LANCER }
+    const s = monde(on, { ...AVEC_PLAN, scripts: sorties, head: () => head })
+    await demarrer($)
+    await attendre($)
+    const ligne2 = async () => {
+      const ui = await monter($, 'desktop', 'plan')
+      const t = (await textes(ui))[1]
+      await ui.unmount()
+      return t
+    }
+    expect(await ligne2()).toBe('lancer — vague 1 : S1')
+    sorties.P1 = JSON.stringify({ action: 'pousser', texte: 'pousser' })
+    await mesurer($)
+    expect(await ligne2()).toBe('lancer — vague 1 : S1') // HEAD identique : releve garde
+    head = 'bbb222'
+    await mesurer($)
+    expect(await ligne2()).toBe('pousser')
+    expect(moteur(s)).toHaveLength(2)
+  })
+
+  test('sans depot lisible (git en echec) : relu seulement au plancher, pas a chaque mesure', async ($, on) => {
+    const s = monde(on, AVEC_PLAN)
+    await demarrer($)
+    await attendre($)
+    for (let i = 0; i < 5; i++) await mesurer($)
+    expect(moteur(s)).toHaveLength(1)
+  })
+})
+
 describe('panneaux retires', () => {
   test("ni limites ni fichiers ne s'ouvrent, meme dans un depot git avec un plan", async ($, on) => {
-    const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: P15_ACTION, 'P1:etat': P15_ETAT } })
+    const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: MOTEUR_LANCER } })
     await demarrer($)
     await attendre($)
     expect(s.panneaux).toEqual(['plan'])
-    expect(s.commandes.some((c) => c[0] === 'git')).toBe(false)
+    // Seul `git rev-parse HEAD` est lance (le repere du rafraichissement) : ni status ni diff.
+    expect(s.commandes.filter((c) => c[0] === 'git' && c[1] !== 'rev-parse')).toEqual([])
   })
 
   test("commande /panneau sans plan : le dit, n'ouvre rien", async ($, on) => {

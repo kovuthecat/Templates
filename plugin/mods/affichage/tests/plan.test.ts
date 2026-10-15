@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { BOUTONS, ligneSession, modelePlan, relance, texteAction, texteBouton } from '../hooks/plan'
-import { P11_ACTION, P11_ETAT, P15_ACTION, P15_ETAT, P2_ACTION, P2_ETAT, P9_ACTION } from './fixtures-plan'
+import { BOUTONS, modelePlan, relance, texteBouton } from '../hooks/plan'
+import { MOTEUR_FINI, MOTEUR_LANCER, MOTEUR_REPRENDRE_SONNET } from './fixtures-plan'
 
-// Les fixtures sont des sorties REELLES de prochaine-action.mjs (voir fixtures-plan.ts).
+// Les fixtures sont des sorties REELLES de prochaine-action.mjs, regenerees a chaque passage de
+// tests/tester-mods.mjs (voir fixtures-plan.ts) : le texte attendu est lu dans la sortie, jamais recopie ici.
+const texteDe = (sortie: string): string => JSON.parse(sortie).texte.trimEnd()
 
 describe('texteBouton', () => {
   test('mode vendore : skills sous /<skill>', () => {
@@ -38,60 +40,41 @@ describe('relance : canal de chaque bouton', () => {
   })
 })
 
-describe('modelePlan sur des sorties reelles', () => {
-  test('lancer : vague, action, avertissement, sessions et session courante', () => {
-    const m = modelePlan('P15', P15_ACTION, P15_ETAT)
-    expect(m).toBeDefined()
-    expect(m?.plan).toBe('P15')
-    expect(m?.vague).toBe('2')
-    expect(m?.action).toBe('lancer — vague 2 : S2')
-    expect(m?.avertissement).toBe('index déclare Workflow : v0.54.0, plugin en v0.56.0')
-    expect(m?.clos).toBe(false)
-    expect(m?.sessions.map((s) => `${s.session}:${s.etat}:${s.courante}`)).toEqual([
-      'S1:faite:false',
-      'S2:a-lancer:true',
-      'S3:a-lancer:false',
-      'S4:a-lancer:false',
-      'S5:a-lancer:false',
-      'S6:a-lancer:false',
-    ])
-    expect(m?.sessions.map(ligneSession)[0]).toBe("✓ S1  Hook Stop : jamais de relance d'une session planifiée (sur …")
-    expect(m?.sessions.map(ligneSession)[1].startsWith('→ S2  ')).toBe(true)
-    expect(m?.sessions.map(ligneSession)[2].startsWith('○ S3  ')).toBe(true)
+describe('modelePlan : le texte du moteur, tel quel', () => {
+  test('lancer : plan, vague, texte integral du moteur', () => {
+    const m = modelePlan('P9', MOTEUR_LANCER)
+    expect(m?.plan).toBe('P9')
+    expect(m?.vague).toBe('1')
+    expect(m?.texte).toBe(texteDe(MOTEUR_LANCER))
+    expect(m?.texte.split('\n')[0]).toBe('lancer — vague 1 : S1')
+    expect(m?.texte).toContain('Avertissement : ')
   })
 
-  test('titre long tronque', () => {
-    const l = ligneSession({ session: 'S9', titre: 'x'.repeat(100), etat: 'a-lancer', courante: false })
-    expect(l).toBe(`○ S9  ${'x'.repeat(59)}…`)
-  })
-
-  test('question : motif dans le texte de l action, pas de vague', () => {
-    const m = modelePlan('P9', P9_ACTION)
-    expect(m?.action).toBe('question — prérequis non validés : S5')
+  test('reprendre : pas de vague, texte du moteur', () => {
+    const m = modelePlan('P9', MOTEUR_REPRENDRE_SONNET)
     expect(m?.vague).toBeUndefined()
-    expect(m?.sessions).toEqual([])
-    expect(m?.avertissement).toBe('index déclare Workflow : v0.41.0, plugin en v0.56.0')
+    expect(m?.texte).toBe(texteDe(MOTEUR_REPRENDRE_SONNET))
+    expect(m?.texte.split('\n')[0]).toBe('reprendre — S1 (Sonnet)')
   })
 
-  test('fini : action seule, sans avertissement', () => {
-    const m = modelePlan('P2', P2_ACTION, P2_ETAT)
-    expect(m?.action).toBe('fini')
-    expect(m?.avertissement).toBeUndefined()
-    expect(m?.sessions.length).toBeGreaterThan(0)
-    expect(m?.sessions.some((s) => s.courante)).toBe(false)
+  test('fini : le rapport du moteur, premiere ligne nue', () => {
+    const m = modelePlan('P9', MOTEUR_FINI)
+    expect(m?.texte).toBe(texteDe(MOTEUR_FINI))
+    expect(m?.texte.split('\n')[0]).toBe('fini')
   })
 
-  test('plan clos : le drapeau suit la ligne Clos ; une session deja faite n est pas courante', () => {
-    const m = modelePlan('P11', P11_ACTION, P11_ETAT)
-    expect(m?.clos).toBe(true)
-    expect(m?.action).toBe('relire — vague 2 : S2')
-    expect(m?.sessions.find((s) => s.session === 'S2')?.courante).toBe(false)
+  test('action inconnue : affichee comme les autres, jamais refaite ni rejetee', () => {
+    const m = modelePlan('P9', JSON.stringify({ action: 'inedite', texte: 'inedite — S4\n   detail du moteur\n' }))
+    expect(m?.texte).toBe('inedite — S4\n   detail du moteur')
   })
 
-  test('sans la sortie --etat : action seule, liste de sessions vide', () => {
-    const m = modelePlan('P15', P15_ACTION, undefined)
-    expect(m?.action).toBe('lancer — vague 2 : S2')
-    expect(m?.sessions).toEqual([])
+  test('moteur sans champ texte (plus ancien) : le nom de l action', () => {
+    expect(modelePlan('P9', JSON.stringify({ action: 'pousser' }))?.texte).toBe('pousser')
+    expect(modelePlan('P9', JSON.stringify({ action: 'pousser', texte: '  ' }))?.texte).toBe('pousser')
+  })
+
+  test('fins de ligne Windows normalisees', () => {
+    expect(modelePlan('P9', JSON.stringify({ action: 'x', texte: 'a\r\nb' }))?.texte).toBe('a\nb')
   })
 })
 
@@ -102,24 +85,5 @@ describe('plan absent ou sortie illisible', () => {
     expect(modelePlan('P1', 'prochaine-action: index illisible')).toBeUndefined()
     expect(modelePlan('P1', '{}')).toBeUndefined()
     expect(modelePlan('P1', '[1]')).toBeUndefined()
-  })
-
-  test('etat illisible : le modele garde l action', () => {
-    expect(modelePlan('P15', P15_ACTION, 'pas du json')?.sessions).toEqual([])
-  })
-})
-
-describe('texteAction', () => {
-  test('lancer, reprendre, enqueter', () => {
-    expect(texteAction({ action: 'reprendre', session: 'S3', modele: 'Opus', option: 2 })).toBe('reprendre — S3 (Opus · option 2)')
-    expect(texteAction({ action: 'enqueter', session: 'S3', modele: 'Opus' })).toBe('enqueter — S3 (Opus)')
-    expect(texteAction({ action: 'lancer', vague: 3, sessions: [{ session: 'S2' }, { session: 'S4' }] })).toBe(
-      'lancer — vague 3 : S2, S4',
-    )
-  })
-
-  test('action sans forme dediee : son nom', () => {
-    expect(texteAction({ action: 'pousser' })).toBe('pousser')
-    expect(texteAction({ action: 'cloturer' })).toBe('cloturer')
   })
 })

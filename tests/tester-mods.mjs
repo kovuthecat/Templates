@@ -25,10 +25,18 @@
 //   node tests/tester-mods.mjs [--racine <dossier>]   (--racine : pour les tests de ce contrôle lui-même)
 //   node tests/tester-mods.mjs --regenerer-copies      réécrit les copies du lecteur d'index, puis s'arrête
 //
+//   6. (P20/S10) les fixtures de sortie du moteur que lisent les tests des mods
+//      (`affichage/tests/fixtures-plan.ts`, `garde-fous/tests/fixture-index.ts`) sont RÉGÉNÉRÉES à chaque
+//      passage, depuis le vrai `prochaine-action.mjs` lancé sur `tests/fixtures/plans/moteur-base` : un
+//      fichier régénéré une fois puis recommité figerait de nouveau la sortie du moteur. Le fichier est
+//      réécrit avant `plugin test` ; commité, il ne change que si le moteur change.
+//
 // Sortie : une ligne OK/FAIL par contrôle ; exit 1 au moindre écart, 0 sinon.
 
 import { claude as claudeCli, binaire } from '../plugin/bin/claude-cli.mjs';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -77,8 +85,125 @@ if (process.argv.includes('--regenerer-copies')) {
   process.exit(0);
 }
 
+// ── Fixtures de sortie du moteur (P20/S10) ───────────────────────────────────
+// Un scénario = un dépôt jetable (copie de moteur-base, tout commité) et la sortie `P9 --json` du moteur.
+const MOTEUR = join(PLUGIN, 'bin', 'prochaine-action.mjs');
+const PLANS_FIXTURES = join(RACINE, 'tests', 'fixtures', 'plans');
+const CIBLES_MOTEUR = [
+  { mod: 'affichage', fichier: join(MODS, 'affichage', 'tests', 'fixtures-plan.ts') },
+  { mod: 'garde-fous', fichier: join(MODS, 'garde-fous', 'tests', 'fixture-index.ts') },
+];
+const echecExecution = (reprise) => ['Nature : exécution', `Tentatives : reprise=${reprise} enquete=0`, 'Blocage : fixture', ''].join('\n');
+const SCENARIOS_MOTEUR = [
+  { nom: 'MOTEUR_LANCER', doc: 'plan neuf : lancer la vague 1 (S1, Sonnet)', transformer: (t) => t },
+  { nom: 'MOTEUR_REPRENDRE_SONNET', doc: "S1 déclarée Haiku dans l'index, en échec (reprise=1) : le moteur rend Sonnet",
+    transformer: (t) => t.replace('Sonnet', 'Haiku'), echec: echecExecution(1) },
+  { nom: 'MOTEUR_REPRENDRE_OPUS', doc: "S1 déclarée Sonnet dans l'index, en échec (reprise=1) : le moteur rend Opus",
+    transformer: (t) => t, echec: echecExecution(1) },
+  { nom: 'MOTEUR_FINI', doc: 'plan clos : fini', transformer: (t) => t.replace('Workflow : v0.39.0', ['Workflow : v0.39.0', 'Clos : 2026-09-29'].join('\n')) },
+];
+
+function sortieMoteur(scenario) {
+  const cwd = mkdtempSync(join(tmpdir(), 'mods-moteur-'));
+  try {
+    cpSync(join(PLANS_FIXTURES, 'moteur-base'), join(cwd, 'plans', 'P9'), { recursive: true });
+    const index = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(index, scenario.transformer(readFileSync(index, 'utf8').replace(/\r\n/g, '\n')));
+    if (scenario.echec) writeFileSync(join(cwd, 'plans', 'P9', 'S1.echec.md'), scenario.echec);
+    const git = (...a) => execFileSync('git', a, { cwd, stdio: 'pipe' });
+    git('init', '-q');
+    git('config', 'user.email', 'test@local');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+    git('add', 'plans');
+    git('commit', '-q', '-m', 'init');
+    return execFileSync('node', [MOTEUR, 'P9', '--json'], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+const ENTETE_MOTEUR = [
+  '// GÉNÉRÉ par `node tests/tester-mods.mjs` (P20/S10) à chaque passage : sorties RÉELLES de',
+  '// `node plugin/bin/prochaine-action.mjs P9 --json` sur tests/fixtures/plans/moteur-base. Ne jamais éditer à la main.',
+  '',
+  '',
+].join('\n');
+
+// Collecte d'incidents : le VRAI collecter-incidents.mjs --json sur un dossier de projets jetable (deux vrais
+// incidents de docs/workflow/incidents/, un incident mal rempli, un projet sans incidents, un dossier sans .git).
+const COLLECTE = join(PLUGIN, 'bin', 'collecter-incidents.mjs');
+const INCIDENTS_REELS = ['2026-10-05-publier-argument-inconnu.md', '2026-09-29-hook-git-commit-a-faux-positif.md'];
+const FIXTURES_INCIDENTS = join(MODS, 'affichage', 'tests', 'fixtures-incidents.ts');
+
+function sortiesCollecte() {
+  const parent = mkdtempSync(join(tmpdir(), 'mods-incidents-'));
+  try {
+    const dossier = (projet) => join(parent, projet, 'docs', 'workflow', 'incidents');
+    for (const p of ['Templates', 'Chords', 'Vide']) mkdirSync(join(parent, p, '.git'), { recursive: true });
+    mkdirSync(join(parent, 'SansGit'), { recursive: true });
+    mkdirSync(dossier('Templates'), { recursive: true });
+    mkdirSync(dossier('Chords'), { recursive: true });
+    for (const f of INCIDENTS_REELS) cpSync(join(RACINE, 'docs', 'workflow', 'incidents', f), join(dossier('Templates'), f));
+    writeFileSync(join(dossier('Chords'), 'mal-rempli.md'), ['# Un incident mal rempli', '', "Texte libre, sans puces d'en-tête.", ''].join('\n'));
+    // Le chemin complet du fichier (dossier jetable) est la seule valeur non reproductible : réduite au nom.
+    const lancer = (...args) => {
+      const j = JSON.parse(execFileSync('node', [COLLECTE, '--projets', parent, '--json', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }));
+      for (const i of j.incidents) i.fichier = i.fichier.split(/[\\/]/).pop();
+      return `${JSON.stringify(j, null, 2)}\n`;
+    };
+    return { COLLECTE_JSON: lancer(), COLLECTE_DEPUIS_JSON: lancer('--depuis', '2026-10-05') };
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+}
+
+const ENTETE_INCIDENTS = [
+  '// GÉNÉRÉ par `node tests/tester-mods.mjs` (P20/S10) à chaque passage : sorties RÉELLES de',
+  '// `node plugin/bin/collecter-incidents.mjs --projets <dossier jetable> --json` (seul champ réduit : `fichier`, au nom du fichier).',
+  '// Ne jamais éditer à la main.',
+  '',
+  '',
+].join('\n');
+
+function regenererFixturesIncidents() {
+  if (!mods.includes('affichage') || !existsSync(dirname(FIXTURES_INCIDENTS))) return; // racine factice
+  const manque = [COLLECTE, ...INCIDENTS_REELS.map((f) => join(RACINE, 'docs', 'workflow', 'incidents', f))].filter((p) => !existsSync(p));
+  if (manque.length > 0) { ko(`fixtures des incidents : source absente (${manque.join(', ')}) — impossible de régénérer`); return; }
+  let sorties;
+  try { sorties = sortiesCollecte(); } catch (e) { ko(`fixtures des incidents : collecter-incidents.mjs a échoué — ${dernieres(e)}`); return; }
+  const corps = [
+    '// Tous les incidents : 3 projets scrutés, deux incidents conformes (Templates), un mal rempli (Chords).',
+    `export const COLLECTE_JSON = ${JSON.stringify(sorties.COLLECTE_JSON)}\n`,
+    '// Les mêmes, avec --depuis 2026-10-05.',
+    `export const COLLECTE_DEPUIS_JSON = ${JSON.stringify(sorties.COLLECTE_DEPUIS_JSON)}\n`,
+  ].join('\n');
+  writeFileSync(FIXTURES_INCIDENTS, ENTETE_INCIDENTS + corps);
+  ok('affichage : fixtures des incidents régénérées (collecter-incidents.mjs --json, 2 sorties)');
+}
+
+function regenererFixturesMoteur() {
+  const cibles = CIBLES_MOTEUR.filter((c) => mods.includes(c.mod) && existsSync(dirname(c.fichier)));
+  if (cibles.length === 0) return; // racine factice (tests de ce contrôle) : rien à régénérer
+  if (!existsSync(MOTEUR) || !existsSync(join(PLANS_FIXTURES, 'moteur-base'))) {
+    ko(`fixtures du moteur : ${MOTEUR} ou tests/fixtures/plans/moteur-base absent — impossible de régénérer`);
+    return;
+  }
+  let corps;
+  try {
+    corps = SCENARIOS_MOTEUR.map((sc) => `// ${sc.doc}\nexport const ${sc.nom} = ${JSON.stringify(sortieMoteur(sc))}\n`).join('\n');
+  } catch (e) { ko(`fixtures du moteur : le moteur a échoué — ${dernieres(e)}`); return; }
+  for (const c of cibles) {
+    writeFileSync(c.fichier, ENTETE_MOTEUR + corps);
+    ok(`${c.mod} : fixtures du moteur régénérées (${SCENARIOS_MOTEUR.length} sorties de prochaine-action.mjs)`);
+  }
+}
+
 const versionWorkflow = json(join(PLUGIN, '.claude-plugin', 'plugin.json')).version;
 const marketplace = json(join(PLUGIN, '.claude-plugin', 'marketplace.json'));
+
+regenererFixturesMoteur();
+regenererFixturesIncidents();
 
 let binaireLancable = true;
 try { claude(['--version']); }

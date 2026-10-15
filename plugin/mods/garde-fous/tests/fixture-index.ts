@@ -1,12 +1,14 @@
-// Index de fixture : la forme de plans/P<n>/index.md que lit O1 (colonne Modele lue par position, comme le moteur).
-export const INDEX_FIXTURE = `# Plan P99 - fixture
+// GÉNÉRÉ par `node tests/tester-mods.mjs` (P20/S10) à chaque passage : sorties RÉELLES de
+// `node plugin/bin/prochaine-action.mjs P9 --json` sur tests/fixtures/plans/moteur-base. Ne jamais éditer à la main.
 
-## Sessions
-| Session | Taches | Titre | Modèle | Effort | Env. | Depend de | Zone modifiee | Statut | Message de commit |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1 | Une | Sonnet | high | - | - | \`a/\` | [ ] | \`feat: un\` |
-| [S2](S2.md) | T2 | Deux | Opus | high | - | - | \`b/\` | [ ] | \`feat: deux\` |
-| [S10](S10.md) | T3 | Dix | Haiku | low | - | - | \`c/\` | [ ] | \`feat: dix\` |
-`
+// plan neuf : lancer la vague 1 (S1, Sonnet)
+export const MOTEUR_LANCER = "{\n  \"action\": \"lancer\",\n  \"vague\": 1,\n  \"sessions\": [\n    {\n      \"session\": \"S1\",\n      \"modele\": \"Sonnet\",\n      \"effort\": \"medium\",\n      \"agent\": {\n        \"subagent_type\": \"general-purpose\",\n        \"model\": \"sonnet\",\n        \"effort\": \"medium\"\n      }\n    }\n  ],\n  \"avertissement\": \"index déclare Workflow : v0.39.0, plugin en v0.66.0\",\n  \"texte\": \"lancer — vague 1 : S1\\n▶ Vague 1/2 — 1 session(s)\\n   Pourquoi cette vague maintenant : fixture.\\n   Si une session échoue : je diagnostique, je reprends une fois, j'enquête si la reprise cale — je ne te sollicite que s'il y a un choix à faire, et sous forme de question\\n   Fin de vague : j'enchaîne sur la vague 2\\n\\n   S1 · Première tâche\\n      En clair : fixture.\\n      Tâches T1-T2 · Sonnet/medium\\n      Fichiers touchés : `src/a.mjs` · Dépend de : —\\n\\n   Pendant que ça tourne : ne pas modifier les fichiers listés — les sessions y écrivent.\\n   À la fin : un commit par tâche, retrouvable par son repère `Plan: P9/S<k>/T<m>`.\\nAvertissement : index déclare Workflow : v0.39.0, plugin en v0.66.0\"\n}\n"
 
-export const INDEX_ILLISIBLE = 'ceci n est pas un index'
+// S1 déclarée Haiku dans l'index, en échec (reprise=1) : le moteur rend Sonnet
+export const MOTEUR_REPRENDRE_SONNET = "{\n  \"action\": \"reprendre\",\n  \"session\": \"S1\",\n  \"modele\": \"Sonnet\",\n  \"agent\": {\n    \"subagent_type\": \"general-purpose\",\n    \"model\": \"sonnet\",\n    \"effort\": \"medium\"\n  },\n  \"avertissement\": \"index déclare Workflow : v0.39.0, plugin en v0.66.0\",\n  \"texte\": \"reprendre — S1 (Sonnet)\\n   Reprise de S1 sur Sonnet.\\nAvertissement : index déclare Workflow : v0.39.0, plugin en v0.66.0\"\n}\n"
+
+// S1 déclarée Sonnet dans l'index, en échec (reprise=1) : le moteur rend Opus
+export const MOTEUR_REPRENDRE_OPUS = "{\n  \"action\": \"reprendre\",\n  \"session\": \"S1\",\n  \"modele\": \"Opus\",\n  \"agent\": {\n    \"subagent_type\": \"general-purpose\",\n    \"model\": \"opus\",\n    \"effort\": \"medium\"\n  },\n  \"avertissement\": \"index déclare Workflow : v0.39.0, plugin en v0.66.0\",\n  \"texte\": \"reprendre — S1 (Opus)\\n   Reprise de S1 sur Opus.\\nAvertissement : index déclare Workflow : v0.39.0, plugin en v0.66.0\"\n}\n"
+
+// plan clos : fini
+export const MOTEUR_FINI = "{\n  \"action\": \"fini\",\n  \"avertissement\": \"index déclare Workflow : v0.39.0, plugin en v0.66.0\",\n  \"texte\": \"fini\\nPlan P9 — rapport final (2 session(s))\\n   S1 · non faite (plan clos) · Première tâche · revue : absente\\n   S2 · non faite (plan clos) · Deuxième tâche · revue : absente\\n   Incidents du plan : aucun\\n   N1 : rien à faire\\n   Tokens : à compléter par l'orchestrateur (une ligne `subagent_tokens` par session — absents du disque).\\nAvertissement : index déclare Workflow : v0.39.0, plugin en v0.66.0\"\n}\n"
