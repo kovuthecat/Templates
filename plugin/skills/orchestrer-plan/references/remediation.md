@@ -155,9 +155,8 @@ l'objectif si elle manque), dans le même commit que le lancement ou juste avant
 
 **Issues d'une enquête** — seule lecture de fichier de cette annexe au-delà des lignes mécaniques :
 
-```
-sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md
-```
+Outil `Read` sur `plans/P<n>/S<k>.echec.md`, section `## Issues` (jamais `sed`/`cat`/`grep` en
+commande : hors des autorisations d'un projet, ils sont refusés en arrière-plan).
 
 Les lignes de `## Issues` **sont** les options de l'Étape 3 de `SKILL.md` : recopiées sans rien
 changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme se recopie tel quel aussi.

@@ -211,7 +211,8 @@ Options jamais inventées ici : `options.source` de l'action (`etape6`, `budget-
 `reprise-manuelle`, `racine-introuvable`, `revue-incomplete`, `dependance-revue`) et la section `## Issues` d'un rapport
 d'enquête (`references/remediation.md`) les fournissent. Une `question` sur une session en échec
 (`budget-epuise`, `budget-opus`, `nature-inconnue`…) : lire ses options **avant** d'écrire la
-question, par `sed -n '/^## Issues/,/^## /p' plans/P<n>/S<k>.echec.md` — section absente ou vide →
+question, en lisant le rapport avec l'outil `Read` (section `## Issues`) — jamais `sed`, `cat` ni
+`grep` en commande : hors des autorisations d'un projet, refusés en arrière-plan. Section absente ou vide →
 relayer le motif seul et le dire. Les lignes de `## Issues` **sont** les
 options : recopiées sans rien changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme
 se recopie tel quel aussi. Source `arbre-sale`,
