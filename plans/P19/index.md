@@ -13,6 +13,7 @@ du coût d'un plan joué de bout en bout existe : c'est sur elle que le plan 2 (
 Décision : `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` (§ Les
 deux plans, plan 1) ; constats numérotés : `docs/revues/2026-10-13-revue-externe-workflow.md`.
 Remédiation Opus : 1
+Clos : 2026-10-15
 
 **Risques du plan** : H1 — un `claude -p` qui déroule `/orchestrer-plan` sur un mini-projet jetable
 va jusqu'au bout sans humain (outil `Agent` disponible, agents du plugin résolus par
@@ -26,10 +27,10 @@ sessions ont tourné sur un autre.
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut | Message de commit |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1](S1.md) | T1 | Purge de DECISIONS.md | Haiku | medium | — | — | `DECISIONS.md` · `docs/decisions/archives.md` | [x] 2026-10-14 | — |
-| [S2](S2.md) | T2 | /maj-workflow n'écrase plus une dérive | Sonnet | medium | — | S1 | `plugin/bin/sync-workflow.mjs` · `plugin/bin/publier.mjs` · `plugin/skills/maj-workflow/SKILL.md` · `tests/tester-scripts.mjs` | [ ] | — |
+| [S2](S2.md) | T2 | /maj-workflow n'écrase plus une dérive | Sonnet | medium | — | S1 | `plugin/bin/sync-workflow.mjs` · `plugin/bin/publier.mjs` · `plugin/skills/maj-workflow/SKILL.md` · `tests/tester-scripts.mjs` | [x] 2026-10-14 | — |
 | [S3](S3.md) | T3-T5 | Moteur : historique partiel, compteurs depuis git, revue sans couverture | Sonnet | high | — | S2 | `plugin/bin/prochaine-action.mjs` · `plugin/bin/preuve-n0.mjs` · `plugin/skills/reprendre-echec/SKILL.md` · `plugin/skills/orchestrer-plan/references/remediation.md` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [x] 2026-10-14 | — |
-| [S4](S4.md) | T6-T8 | Garde-fou git, skills qui poussent, plugin en retard signalé | Sonnet | medium | — | S3 | `plugin/hooks/pretooluse-git.mjs` · `plugin/hooks/sessionstart-contexte.mjs` · `plugin/skills/purge-contexte/SKILL.md` · `plugin/skills/revue-de-conception/SKILL.md` · `tests/tester-hooks.mjs` | [ ] | — |
-| [S5](S5.md) | T9-T10 | N0 sans doublon, tests en CI | Sonnet | medium | — | S4 | `plugin/bin/publier.mjs` · `.claude/n0.json` · `.github/workflows/plugin.yml` · `tests/tester-scripts.mjs` · `tests/tester-hooks.mjs` · `tests/tester-renvois.mjs` · `tests/tester-preuves.mjs` · `tests/tester-mods.mjs` | [ ] | — |
+| [S4](S4.md) | T6-T8 | Garde-fou git, skills qui poussent, plugin en retard signalé | Sonnet | medium | — | S3 | `plugin/hooks/pretooluse-git.mjs` · `plugin/hooks/sessionstart-contexte.mjs` · `plugin/skills/purge-contexte/SKILL.md` · `plugin/skills/revue-de-conception/SKILL.md` · `tests/tester-hooks.mjs` | [x] 2026-10-14 | — |
+| [S5](S5.md) | T9-T10 | N0 sans doublon, tests en CI | Sonnet | medium | — | S4 | `plugin/bin/publier.mjs` · `.claude/n0.json` · `.github/workflows/plugin.yml` · `tests/tester-scripts.mjs` · `tests/tester-hooks.mjs` · `tests/tester-renvois.mjs` · `tests/tester-preuves.mjs` · `tests/tester-mods.mjs` | [x] 2026-10-14 | — |
 | [S6](S6.md) | T11-T13 | Scénarios de bout en bout et mesure de référence | Sonnet | high | — | S5 | `tests/scenarios/` · `docs/analyses/2026-10-14-mesure-de-reference.md` · `plugin/evals/` | [x] 2026-10-15 | — |
 | [S7](S7.md) | T14 | Publication 0.66.0 | Haiku | medium | — | S6 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` | [x] 2026-10-15 | — |
 

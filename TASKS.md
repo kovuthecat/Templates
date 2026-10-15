@@ -24,13 +24,10 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
     tout fichier en CRLF — `"endOfLine": "auto"` (Interface-OE : 124 faux écarts sur 151, `95e9910`)
 
 ## Suites de la revue externe — plan 1, P19 (`plans/P19/index.md`)
-- Purge de DECISIONS.md · → plans/P19/S1.md
-- /maj-workflow n'écrase plus une dérive · → plans/P19/S2.md
-- Moteur : historique partiel, compteurs depuis git, revue sans couverture · → plans/P19/S3.md
-- Garde-fou git, skills qui poussent, plugin en retard signalé · → plans/P19/S4.md
-- N0 sans doublon, tests en CI · → plans/P19/S5.md
-- Scénarios de bout en bout et mesure de référence · → plans/P19/S6.md
-- Publication 0.66.0 · → plans/P19/S7.md
+- [x] Plan 1 clos 2026-10-15, publié en 0.66.0 (S1 à S7) ; mesure de référence :
+  `docs/analyses/2026-10-14-mesure-de-reference.md` — H1 réfutée, constats pour le plan 2 (écrire le plan 2 contre elle)
+- [ ] À faire par l'utilisateur : retirer de `~/.claude/plugins/installed_plugins.json` l'entrée
+  `workflow@templates` v0.55.0 (`projectPath` `C:\Users\kovu\Projets\Templates`), doublon dû à la casse du chemin
 
 ## Backlog de revue (non bloquant)
 
@@ -58,3 +55,14 @@ de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le 
 - **P18/S1** — `tests/tester-scripts.mjs` (cas reprendre Haiku) : le nom du cas est long ; correct tel quel.
 - **P18/S2** — `plans/P18/S2.n0.json` non relu (données) ; vérifié : tag `v0.64.0` présent sur le dépôt
   public (8dc2a69), `claude plugin list` affiche `affichage 0.64.0` enabled en local.
+- **P19/S2** — `plugin/bin/publier.mjs:85` : la regex BINAIRES n'a pas l'extension élargie de `sync-workflow.mjs`
+  (pdf, webp, ttf, mp4…), seul l'octet NUL a été ajouté ; règle dupliquée et divergente, côté publier sans test.
+  Avec `--force`, un manifeste illisible est traité comme vide (choix défendable, à garder documenté).
+- **P19/S3** — `plugin/bin/prochaine-action.mjs:enquetesDuPlan` : relit chaque version commitée de chaque
+  `S*.echec.md` à chaque appel (un `git show` par commit) ; à surveiller sur un gros historique.
+- **P19/S4** — `plugin/hooks/pretooluse-git.mjs` : `git --no-pager add .` (option globale autre que -C/-c)
+  échappe encore à l'analyse (limite préexistante) ; `sessionstart-contexte.mjs:206` et `:290` dupliquent la
+  résolution de `CLAUDE_CONFIG_DIR`. `publier.mjs` ne met à jour que l'entrée de la casse courante du chemin.
+- **P19/S5** — `plugin/bin/publier.mjs:290-395` : le corps de `publierPayload()` n'est pas réindenté.
+- **P19/S6** — `tests/scenarios/lancer.mjs:87` : `etatDepot` avale toute erreur git et rend `inconnu` ; une
+  mesure peut porter un commit « inconnu » sans alerte.
