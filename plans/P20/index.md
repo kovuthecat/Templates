@@ -2,6 +2,7 @@
 
 Workflow : v0.66.0
 Preuve N0 : requise
+Clos : 2026-10-16
 
 ## Objectif d'ensemble
 Le workflow fait aujourd'hui exécuter par un orchestrateur Haiku une quinzaine de gestes mécaniques
