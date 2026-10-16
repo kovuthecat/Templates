@@ -2,83 +2,53 @@
 
 ## Bloquants de revue (à corriger avant prochaine vague)
 
-- aucun (P8/S5 et P9/S3 fermés à la clôture du 2026-10-08, décision utilisateur)
+- aucun (P20/S3 : bloquant « `options.liste` non lue » soldé par S5, le moteur rédige la question avec ses options)
 
 ## Revue des règles des projets (`docs/decisions/2026-10-08-regles-de-projet-validees.md`)
 
-Inventaire : `docs/analyses/2026-10-08-regles-projets-inventaire.md`. Une séance par projet, choix
-de l'utilisateur, commit `docs/decisions/2026-10-08-regles-revisees.md` dans le projet.
-
-- [x] trames-consultation (`0326026`) · [x] DoxUploader (`a000543`) · [x] ebm-msp (`f13e220`)
-- [x] EBM-MSPv2 (`551a5ef`) · [x] Interface-OE (`e515e3c`, lint en N0 : `95e9910`, `2eb1d79`) · [x] Chords (`0b63b8e`)
 - [ ] ETP interactif · Tuto-onshape (dépôt git invalide d'abord) · torrent-uploader · annuaire-msp ·
   claude-mods · MYO · Lunii Studio upgrade · S&C · vostfr-CLI · EBM-perso
 - [ ] Sans blocage, suspectes seules : cosme-diy · trieur-plex · extension-firefox · Veilleur · DrumsTraining
-- [x] Plugin : points 1 à 5 de la décision → plan P17 (clos 2026-10-08, publié en 0.61.0) (`plans/P17/index.md`)
-  - Preuve N0 non requise pour un projet sans commande (J14) · → plans/P17/S1.md
-  - Permissions dérivées de la stack, allow en retard signalé · → plans/P17/S2.md
-  - Interview : règles validées une à une, commandes et n0.json à l'instanciation, gabarits · → plans/P17/S3.md
-  - Ligne `Règles :` des décisions contrôlée par brief-a-jour · → plans/P17/S4.md
-  - Publication 0.61.0 · → plans/P17/S5.md
-  - Constat pour S3 (outillage instancié) : Prettier sur poste Windows (`core.autocrlf=true`) signale
-    tout fichier en CRLF — `"endOfLine": "auto"` (Interface-OE : 124 faux écarts sur 151, `95e9910`)
+- Blocs clos (projets revus, P17) archivés : `docs/archives/TASKS-2026-10-16.md`
 
-## Suites de la revue externe — plan 1, P19 (`plans/P19/index.md`)
-- [x] Plan 1 clos 2026-10-15, publié en 0.66.0 (S1 à S7) ; mesure de référence :
-  `docs/analyses/2026-10-14-mesure-de-reference.md` — H1 réfutée, constats pour le plan 2 (écrire le plan 2 contre elle)
+## Suites de la revue externe — plans 1 et 2 (`plans/P19/index.md`, `plans/P20/index.md`)
+- [x] Plan 1 clos 2026-10-15, publié en 0.66.0 ; mesure de référence : `docs/analyses/2026-10-14-mesure-de-reference.md`
+- [x] Plan 2 (P20, 14 sessions) clos 2026-10-16, publié en 0.67.0 ; remesure : `docs/analyses/2026-10-15-remesure-plan-2.md`
+  (H1 confirmée ; critères A et B non tenus à la lettre : `cd` de l'orchestrateur et du relecteur)
 - [ ] À faire par l'utilisateur : retirer de `~/.claude/plugins/installed_plugins.json` l'entrée
   `workflow@templates` v0.55.0 (`projectPath` `C:\Users\kovu\Projets\Templates`), doublon dû à la casse du chemin
-
-## Suites de la revue externe — plan 2, P20 (`plans/P20/index.md`)
-- T1-T2 — Retrait du mode parallèle · → plans/P20/S1.md
-- T3 — Retrait des agents par effort · → plans/P20/S2.md
-- T4-T5 — Sessions d'arrière-plan : commandes et autorisations · → plans/P20/S3.md
-- T6-T7 — Un seul lecteur d'index · → plans/P20/S4.md
-- T8 — Le moteur rend les textes finaux · → plans/P20/S5.md
-- T9-T10 — Arrêt relayé : une session reprend avec ta réponse · → plans/P20/S6.md
-- T11 — Le moteur écrit et committe · → plans/P20/S7.md
-- T12 — Relecture selon le risque · → plans/P20/S8.md
-- T13-T14 — Voie express et plans courts · → plans/P20/S9.md
-- T15 — Mods : ils suivent le moteur · → plans/P20/S10.md
-- T16-T17 — Passe texte : WORKFLOW, EXECUTANT, CLAUDE-BASE · → plans/P20/S11.md
-- T18-T19 — Passe skills · → plans/P20/S12.md
-- T20 — Remesure · → plans/P20/S13.md
-- T21 — Publication 0.67.0 · → plans/P20/S14.md
+- [ ] Constats de la remesure, pour un plan suivant (analyse §8) : `cd` de l'orchestrateur et du relecteur ; avis
+  « mods non installés » qui arrête l'orchestrateur Haiku (1 passage sur 13) ; `Plan: P<n>/S<k>/` sans `T<m>` lu comme
+  commit de tâche (invalide la preuve N0) ; l'orchestrateur invente un identifiant d'agent pour `SendMessage` ;
+  écart entre le protocole documenté (réponse committée) et le comportement observé de l'orchestrateur Haiku
+- [ ] P14 d'EBM-MSP v2 : seul plan ouvert encore marqué `pastille` (voir `plugin/MIGRATION.md`, 0.67.0)
 
 ## Backlog de revue (non bloquant)
 
-- **P9/S2** — `plugin/bin/brief-a-jour.mjs:105-115` : `aBriefApplique` boucle sur tout l'historique
-  (un `git log -1` par commit) ; un seul `git log --grep="Brief-applique: <chemin>" -F` suffirait.
-  Sans effet tant que les dépôts restent petits.
-- **P9/S3** — `plugin/templates/VALIDATION.md:4-5` : « passe esthétique demandée » répété deux fois
-  dans la même parenthèse, sans référent hors `/revue-d-usage` — simplifier en une mention.
-- **P16/S1** — `plugin/mods/garde-fous/tests/garde-fous.test.ts` : pas de cas « `run_in_background:
-  false` explicite conservé » pour O3 ; `register.ts:44` cherche la colonne Modèle dans le premier
-  tableau trouvé (fragile si un autre tableau précède).
-- **P16/S2** — wrapper `claude()` dupliqué (`installer-mods.mjs:98-103`, `tests/tester-mods.mjs:42-49`,
-  `publier.mjs`) : factoriser au quatrième appelant ; marketplace `templates` pointant ailleurs non contrôlée.
-- **P16/S3** — `sessionstart-contexte.mjs` (bloc mods) : un `plugin.json` de mod illisible fait taire
-  le signal pour tous les mods (try global).
-- **P16/S5-S6** — `plugin/mods/affichage/hooks/register.tsx` : `key` manquante sur le `<Box>` des
-  dossiers et les `<Text>` du panneau plan ; `incidents.ts` duplique `lireIncident` de
-  `collecter-incidents.mjs` — toute évolution du gabarit §9b se porte aux deux endroits.
+- Backlog ancien P9 à P16 : `docs/archives/TASKS-2026-10-16.md`.
 - **P17/S2** — `plugin/bin/sync-workflow.mjs` : le filtre du socle (hors `Bash(npm ` / `Bash(npx `) est codé en dur —
   une autre stack dans le gabarit obligerait à toucher au script.
 - **P17/S4** — `plugin/bin/brief-a-jour.mjs:~66` : le message « SANS OBJET — pas de PROJECT_BRIEF.md »
   ne dit pas que le contrôle porte aussi sur `CLAUDE.md` ; docs (skills, gabarit, agent) non relues.
-- **P18/S1** — `plugin/mods/garde-fous/tests/fixture-index.ts:9` : reste « Haiku | low » ; fixture de test
-  d'un mod, hors périmètre — à aligner si l'on veut un grep propre.
-- **P18/S1** — `tests/tester-scripts.mjs` (cas reprendre Haiku) : le nom du cas est long ; correct tel quel.
-- **P18/S2** — `plans/P18/S2.n0.json` non relu (données) ; vérifié : tag `v0.64.0` présent sur le dépôt
-  public (8dc2a69), `claude plugin list` affiche `affichage 0.64.0` enabled en local.
+- **P18** — `plugin/mods/garde-fous/tests/fixture-index.ts:9` : reste « Haiku | low » (fixture d'un mod, hors périmètre).
 - **P19/S2** — `plugin/bin/publier.mjs:85` : la regex BINAIRES n'a pas l'extension élargie de `sync-workflow.mjs`
-  (pdf, webp, ttf, mp4…), seul l'octet NUL a été ajouté ; règle dupliquée et divergente, côté publier sans test.
-  Avec `--force`, un manifeste illisible est traité comme vide (choix défendable, à garder documenté).
-- **P19/S3** — `plugin/bin/prochaine-action.mjs:enquetesDuPlan` : relit chaque version commitée de chaque
-  `S*.echec.md` à chaque appel (un `git show` par commit) ; à surveiller sur un gros historique.
-- **P19/S4** — `plugin/hooks/pretooluse-git.mjs` : `git --no-pager add .` (option globale autre que -C/-c)
-  échappe encore à l'analyse (limite préexistante) ; `sessionstart-contexte.mjs:206` et `:290` dupliquent la
-  résolution de `CLAUDE_CONFIG_DIR`. `publier.mjs` ne met à jour que l'entrée de la casse courante du chemin.
-- **P19/S5** — `plugin/bin/publier.mjs:290-395` : le corps de `publierPayload()` n'est pas réindenté.
-- **P19/S6** — `tests/scenarios/lancer.mjs:87` : `etatDepot` avale toute erreur git et rend `inconnu` ; une
-  mesure peut porter un commit « inconnu » sans alerte.
+  (pdf, webp, ttf, mp4…) ; règle dupliquée et divergente, côté publier sans test.
+- **P19/S3** — `prochaine-action.mjs:enquetesDuPlan` : un `git show` par commit de `S*.echec.md` à chaque appel.
+- **P19/S4** — `pretooluse-git.mjs` : `git --no-pager add .` échappe encore à l'analyse ; `sessionstart-contexte.mjs:206`
+  et `:290` dupliquent la résolution de `CLAUDE_CONFIG_DIR` ; `publier.mjs` ne met à jour que l'entrée de la casse courante.
+- **P19/S5-S6** — `publier.mjs:290-395` : corps de `publierPayload()` non réindenté ; `tests/scenarios/lancer.mjs:87` :
+  `etatDepot` avale toute erreur git et rend `inconnu`.
+- **P20/S2-S3** — `plugin/README.md:40` décrit encore « 4 agents de session » ; `WORKFLOW.md` §3 garde une digression sur
+  le frontmatter d'agent ; `questionBudget`/`questionEnvironnement` dupliquent leur structure ; `Bash(ls:*)` mal rangé
+  dans `project-settings.json:95`.
+- **P20/S4-S5** — cinquième lecteur d'index dans `tests/scenarios/noter.mjs:63` ; en-tête périmé `prochaine-action.mjs:11` ;
+  doublons dans `verifier-plan.mjs:21,38` ; `formaterTexte` garde un bloc « données » à retirer ; `lireProse` second balayage.
+- **P20/S6-S8** — `questionConsommee` : `transmettre` rendu deux fois renvoie la réponse, trois appels git par passage ;
+  `appliquerPlan()` ~140 lignes à factoriser ; `cloturer` appelle `ranger()` à chaque appel ; `gesteEtat` (saut de ligne
+  final), `estRelue(s)` à unifier, liste des sensibles dite en prose ET en constante.
+- **P20/S9-S10** — `nouveau-plan/SKILL.md:295` contredit le bandeau réduit ; `pretooluse-git.mjs` cherche `Express :`
+  dans toute la commande ; `garde-fous/hooks/lire-index.mjs` code mort ; `lireHead` sans cache.
+- **P20/S11-S13** — budget 7b dit deux fois dans `EXECUTANT.md` ; `fin-de-plan.md:9` « ils faits » ; pile orchestrer-plan à
+  220 lignes (plafond exact) ; analyse de remesure : attribution des refus du critère B (4, pas 3), généralisation sur `cd`,
+  décompte du critère C, phrase sur `mot.txt` ; `reprendre-echec/SKILL.md:179-183` contredit `fin-de-plan.md:30-33` ;
+  `ACTION_MOTEUR` recopié en dur dans `noter.mjs:76`.
