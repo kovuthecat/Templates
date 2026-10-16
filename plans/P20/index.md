@@ -38,7 +38,7 @@ tués sur une prémisse (P8/S5, P19/S6) ; la remesure (S13) compare des faits, s
 | [S11](S11.md) | T16-T17 | Passe texte : WORKFLOW, EXECUTANT, CLAUDE-BASE | Sonnet | high | — | S10 | `plugin/WORKFLOW.md` · `plugin/EXECUTANT.md` · `plugin/CLAUDE-BASE.md` · `plugin/CONVENTIONS.md` · `plugin/hooks/plafonds.json` · `plugin/hooks/stop-contexte.mjs` · `plugin/templates/` · `docs/decisions/2026-10-15-justifications-sorties-du-workflow.md` · `tests/tester-renvois.mjs` | [ ] | — |
 | [S12](S12.md) | T18-T19 | Passe skills | Sonnet | high | — | S11 | `plugin/skills/` · `plugin/agents/` · `tests/tester-renvois.mjs` | [ ] | — |
 | [S13](S13.md) | T20 | Remesure | Sonnet | high | — | S12 | `docs/analyses/2026-10-15-remesure-plan-2.md` | [ ] | — |
-| [S14](S14.md) | T21 | Publication 0.67.0 | Haiku | medium | — | S13 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `plugin/MIGRATION.md` · `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` | [ ] | — |
+| [S14](S14.md) | T21 | Publication 0.67.0 | Haiku | medium | — | S13 | `plugin/.claude-plugin/plugin.json` · `plugin/mods/garde-fous/.claude-plugin/plugin.json` · `plugin/mods/affichage/.claude-plugin/plugin.json` · `CHANGELOG.md` · `plugin/MIGRATION.md` · `docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md` | [x] 2026-10-16 | — |
 
 <!-- Statut : [ ] à faire · [x] fait, revue sans bloquant · [x]! fait, revue à bloquant non trié -->
 
