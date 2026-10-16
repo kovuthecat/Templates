@@ -179,8 +179,8 @@ plus qu'une enquête en lecture seule.
 1. **Committer la correction et la preuve N0** (staging explicite, repère `Plan: P<n>/S<k>/T<m>` ; sous
    `.claude/wave.lock`, `EXECUTANT.md` « Fin de tâche »). **Mode orchestré : ne supprime pas
    `plans/P<n>/S<k>.echec.md`** — le rapport résolu devient faux, et c'est le moteur qui le retire
-   (`prochaine-action.mjs --appliquer`, un commit) dès qu'un commit de tâche le suit : aucun outil d'un
-   projet ne supprime un fichier, ton `git rm` serait refusé (mesure P20/S13). Hors orchestration, tu
+   (`prochaine-action.mjs --appliquer`, un commit) dès qu'un commit de tâche le suit : un agent
+   d'arrière-plan n'a pas la permission `git rm` sous les autorisations d'un projet (mesure P20/S13). Hors orchestration, tu
    peux le supprimer toi-même. Git garde la trace (`STATUS.md` §Ce qui casse ne porte que l'actuel).
 2. Passer la session à `[x]` dans l'`index.md` du plan, avec la date — statut à un seul endroit
    (`WORKFLOW.md` §4a).

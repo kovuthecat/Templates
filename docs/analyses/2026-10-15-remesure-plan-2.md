@@ -184,17 +184,18 @@ Aucun des refus ne vient d'une session d'exécution (S1, S2) ni de la reprise : 
 `EXECUTANT.md` (S3) tient pour elles. Elle ne s'applique ni à l'orchestrateur ni au relecteur de session, qui
 préfixent encore chaque commande d'un `cd "<projet>"` — et les parties `grep`, `cat`, `ls`, `git -C` ne sont de toute
 façon pas dans le gabarit. Aussi dans le régime `banc` (liste large, `cd:*` autorisé) : `cd … && …` y est refusé
-dès qu'une règle `Read()` deny existe (référence, constat A) — 2, 9, 2, 2 et 1 refus sur les cinq passages `banc`.
+dès qu'une règle `Read()` deny existe (référence, constat A) — 2, 9, 2, 2 et 1 refus sur les cinq passages `banc` (les deux de
+`echec-reprise-…07-10-55` sont des `rm … && git add …` composés, non des `cd`).
 
 **B — `echec-reprise --autorisations projet` sans refus Bash, budget non brûlé par l'environnement : NON au sens
-littéral, OUI pour ce que B vise.** `echec-reprise-…08-46-07` : 3 refus au passage, tous de l'orchestrateur (2) et du
-relecteur (1) — voir A. La reprise, elle, n'en reçoit aucun ; son `git rm` du rapport (la cause du passage `…07-16-57`) est
+littéral, OUI pour ce que B vise.** `echec-reprise-…08-46-07` : 3 refus au titre de `permission_denials` (4 commandes refusées lues dans le flux : orchestrateur
+`installer-mods.mjs` et `git reset --soft` ; relecteur `grep`/`git log` et `cat` après `cd`) — voir A. La reprise, elle, n'en reçoit aucun ; son `git rm` du rapport (la cause du passage `…07-16-57`) est
 remplacé par la suppression du moteur (« S1 : reprise réussie, plans/P1/S1.echec.md supprimé (090b2fc) ») ; budget :
 `reprise=1` sur 1, aucune reprise brûlée par un refus d'environnement, le plan finit. Le « zéro refus » exact que S3
 n'avait pas pu prouver n'est donc **pas** atteint, mais le blocage qui l'empêchait l'est.
 
-**C — dernier appel du moteur → `fini` dans chaque passage qui finit le plan : OUI.** Huit passages sur huit qui finissent le
-plan (cinq `banc`, `echec-reprise …08-46-07`, `nominal …08-50-32`, et `…07-22-21` hors table) ; dans la référence, trois
+**C — dernier appel du moteur → `fini` dans chaque passage qui finit le plan : OUI.** Sept passages sur sept de la table qui finissent le
+plan (cinq `banc`, `echec-reprise …08-46-07`, `nominal …08-50-32` ; `…07-22-21`, hors table, aussi) ; dans la référence, trois
 passages sur trois qui finissaient le plan échouaient à ce critère. Pour `…08-46-07`, le dernier appel est une commande
 enchaînée dont la sortie finit par `fini` (correctif 2, vérifié à la main). `arret-relaye …08-12-34` ne finit pas le plan :
 sans objet.
@@ -202,8 +203,8 @@ sans objet.
 **H1 — mot retenu restitué après l'attente : CONFIRMÉE.** `arret-relaye-1-2026-10-16T08-12-34` : session persistée
 `72d418da-c9b9-4afd-b0a8-4c66b777be93`, temps 1 de 0,021 USD ; attente réelle **30,0 min** (1 800 319 ms) ; temps 2 : le moteur rend
 `transmettre`, l'orchestrateur envoie `SendMessage` à l'agent de S1, retour `{"success":true,"message":"Resuming agent afcc13e"}`, aucune erreur ;
-la même session répond `VERDICT: PASS · MOTIF: mot=cormoran-9031 nom=fois2` sans relire `docs/mot.txt` (vérifié :
-aucune lecture du fichier ni d'un diff après la reprise, le fichier ne contient plus que « (lu) »). Un premier essai,
+la même session répond `VERDICT: PASS · MOTIF: mot=cormoran-9031 nom=fois2` sans relire `docs/mot.txt` avant ce verdict (vérifié :
+aucune lecture du fichier ni d'un diff par S1 avant sa restitution ; le relecteur, lui, lit le fichier après, sans conséquence ; le fichier ne contient plus que « (lu) »). Un premier essai,
 `…07-35-15`, est resté indéterminé pour une raison de banc (correctif 3). Même conclusion que la mesure de S6 (`…16-01-01`).
 
 ## 7. Comparaison ligne à ligne, verdict par mesure

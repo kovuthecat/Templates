@@ -3,47 +3,45 @@
   "session": "P20/S13",
   "portee": "complete",
   "resultat": "PASS",
-  "empreinte": "1bc2e3f7ba0bb4cdabd63318f3bb8cb4e96cf9456be74df0dd16030f0a71f67f",
-  "nonSuivis": [
-    "docs/analyses/2026-10-15-remesure-plan-2.md"
-  ],
-  "date": "2026-10-16T09:04:52.506Z",
+  "empreinte": "f9cd231356c4755bf3047cd59f3e1e6fe5e8066f03be81594d4dfca0c72eb681",
+  "nonSuivis": [],
+  "date": "2026-10-16T09:21:02.673Z",
   "commandes": [
     {
       "nom": "tester-hooks",
       "cmd": "node tests/tester-hooks.mjs",
       "code": 0,
-      "dureeMs": 89694
+      "dureeMs": 86980
     },
     {
       "nom": "tester-scripts",
       "cmd": "node tests/tester-scripts.mjs",
       "code": 0,
-      "dureeMs": 285599
+      "dureeMs": 277444
     },
     {
       "nom": "tester-renvois",
       "cmd": "node tests/tester-renvois.mjs",
       "code": 0,
-      "dureeMs": 141
+      "dureeMs": 139
     },
     {
       "nom": "tester-preuves",
       "cmd": "node tests/tester-preuves.mjs",
       "code": 0,
-      "dureeMs": 27515
+      "dureeMs": 27007
     },
     {
       "nom": "tester-mods",
       "cmd": "node tests/tester-mods.mjs",
       "code": 0,
-      "dureeMs": 8409
+      "dureeMs": 8236
     },
     {
       "nom": "publier-dry-run",
       "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
       "code": 0,
-      "dureeMs": 1395
+      "dureeMs": 1205
     }
   ]
 }
