@@ -27,6 +27,9 @@
 //      « 5d » ou d'un numéro d'`Étape` supérieur au nombre de titres `## Étape` de
 //      `orchestrer-plan/SKILL.md` (restes de la voie headless, ou renumérotation jamais reportée
 //      dans les renvois — P10/S5/T13).
+//   8. Concordance de la table des actions de `orchestrer-plan/SKILL.md` avec les actions que le moteur
+//      (`plugin/bin/prochaine-action.mjs`) RENDUE sous `--appliquer` : chaque action rendue a sa ligne, toute
+//      ligne est une action du moteur, et `pousser` (faite par le moteur lui-même) n'en a pas (P20/S12/T18).
 //
 // Node pur, aucune dépendance : lit les fichiers texte de `plugin/`, aucune écriture.
 //
@@ -398,26 +401,90 @@ function phrasesDe(texte) {
   return texte.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý«`])|\n\n+/);
 }
 
+// Depuis P20/S12 la skill n'a plus de titre « Étape » (elle relaie le moteur) : zéro est un état valide, et
+// toute citation « Étape <n> » de `/orchestrer-plan` est alors un renvoi mort. Seule une « Étape » collée à la
+// mention de `/orchestrer-plan` (40 caractères) compte : l'« Étape 2 » de `/reprendre-echec` ou l'« Étape 0 »
+// de `/nouveau-plan`, dans la même phrase, désignent d'autres skills.
+const MOTIFS_ETAPE_ORCHESTRER = [/\/orchestrer-plan`?[^\n]{0,40}?Étape\s+(\d+)/g, /Étape\s+(\d+)\s+de\s+`?\/orchestrer-plan/g];
+
 cas(`assertion 7 — /orchestrer-plan cité sans renvoi mort (5c, 5d, Étape > ${nbEtapesOrchestrerPlan}) (${fichiersPlugin.length} fichier(s) de plugin/** inspecté(s))`, () => {
-  if (nbEtapesOrchestrerPlan === 0) return 'aucun titre ## Étape trouvé dans orchestrer-plan/SKILL.md — motif probablement cassé';
   let phrasesInspectees = 0;
   for (const f of fichiersPlugin) {
     let texte;
     try { texte = readFileSync(join(PLUGIN, f), 'utf8'); } catch { continue; }
     if (!texte.includes('/orchestrer-plan')) continue;
-    for (const phrase of phrasesDe(texte)) {
+    for (const phrase of phrasesDe(texte.replace(/\r\n/g, '\n'))) {
       if (!phrase.includes('/orchestrer-plan')) continue;
       phrasesInspectees++;
       if (/\b5c\b/.test(phrase) || /\b5d\b/.test(phrase)) {
         return `plugin/${f} : phrase citant /orchestrer-plan et « 5c »/« 5d » — ${JSON.stringify(phrase.slice(0, 140))}`;
       }
-      const mEtape = phrase.match(/Étape\s+(\d+)/);
-      if (mEtape && Number(mEtape[1]) > nbEtapesOrchestrerPlan) {
-        return `plugin/${f} : phrase citant /orchestrer-plan et « Étape ${mEtape[1]} » (> ${nbEtapesOrchestrerPlan} étapes réelles dans orchestrer-plan/SKILL.md) — ${JSON.stringify(phrase.slice(0, 140))}`;
+      for (const motif of MOTIFS_ETAPE_ORCHESTRER) {
+        for (const m of phrase.matchAll(motif)) {
+          if (Number(m[1]) > nbEtapesOrchestrerPlan) {
+            return `plugin/${f} : phrase citant /orchestrer-plan et « Étape ${m[1]} » (> ${nbEtapesOrchestrerPlan} étapes réelles dans orchestrer-plan/SKILL.md) — ${JSON.stringify(phrase.slice(0, 140))}`;
+          }
+        }
       }
     }
   }
   if (phrasesInspectees === 0) return 'aucune phrase citant /orchestrer-plan trouvée sous plugin/** — motif probablement cassé';
+  return null;
+});
+
+// ── Assertion 8 — table des actions de orchestrer-plan ↔ actions rendues par le moteur ──────────
+// Les actions du moteur se lisent dans son source : `action: '<x>'` (retours et littéraux) et
+// `typeAction = '<x>'` (`enqueter`, choisi par une variable). Aucune liste recopiée ici, hors
+// `FAITES_PAR_LE_MOTEUR` : les actions qu'`--appliquer` exécute sans jamais les rendre. Une ligne de la
+// table pour l'une d'elles ferait exécuter le geste deux fois (P20/S12/T18).
+const FAITES_PAR_LE_MOTEUR = ['pousser'];
+const moteurTexte = readFileSync(join(PLUGIN, 'bin', 'prochaine-action.mjs'), 'utf8');
+const actionsMoteur = new Set([
+  ...[...moteurTexte.matchAll(/\baction:\s*'([\w-]+)'/g)].map((m) => m[1]),
+  ...[...moteurTexte.matchAll(/\btypeAction\s*=\s*'([\w-]+)'/g)].map((m) => m[1]),
+]);
+
+/** Les actions nommées en tête de ligne d'un tableau (`| `action` | …`) sous le titre `## Table des actions`. */
+function actionsDeLaTable(texte) {
+  const debut = texte.replace(/\r\n/g, '\n').indexOf('## Table des actions');
+  if (debut < 0) return null;
+  const suite = texte.replace(/\r\n/g, '\n').slice(debut + 1); // saute un `#` : le titre lui-même ne termine pas le bloc
+  const fin = suite.search(/^## /m);
+  const bloc = fin < 0 ? suite : suite.slice(0, fin);
+  return [...bloc.matchAll(/^\|\s*`([\w-]+)`\s*\|/gm)].map((m) => m[1]);
+}
+
+cas(`assertion 8 — table des actions de orchestrer-plan = actions rendues du moteur (${actionsMoteur.size} action(s) du moteur)`, () => {
+  if (actionsMoteur.size < 10 || !actionsMoteur.has('enqueter') || !actionsMoteur.has('lancer')) {
+    return `lecture du moteur suspecte (${[...actionsMoteur].join(', ')}) — motif probablement cassé`;
+  }
+  const table = actionsDeLaTable(orchestrerPlanTexte);
+  if (!table || table.length === 0) return 'aucune ligne trouvée sous « ## Table des actions » de orchestrer-plan/SKILL.md';
+  const lignes = new Set(table);
+  if (lignes.size !== table.length) return `ligne en double dans la table : ${table.filter((a, i) => table.indexOf(a) !== i).join(', ')}`;
+  const appliquerPlan = moteurTexte.slice(moteurTexte.indexOf('function appliquerPlan'));
+  for (const a of FAITES_PAR_LE_MOTEUR) {
+    if (!actionsMoteur.has(a)) return `\`${a}\` listée comme faite par le moteur, mais absente du moteur`;
+    if (!appliquerPlan.includes(`case '${a}'`)) return `\`${a}\` n'est plus traitée par appliquerPlan() : la table doit la porter`;
+    if (lignes.has(a)) return `la table a une ligne pour \`${a}\`, que le moteur fait déjà sous --appliquer (le geste serait exécuté deux fois)`;
+  }
+  for (const a of actionsMoteur) {
+    if (!FAITES_PAR_LE_MOTEUR.includes(a) && !lignes.has(a)) return `action rendue \`${a}\` sans ligne dans la table des actions`;
+  }
+  for (const a of lignes) {
+    if (!actionsMoteur.has(a)) return `ligne \`${a}\` de la table : aucune action de ce nom dans le moteur`;
+  }
+  return null;
+});
+
+// Une fixture en mémoire fige la lecture de la table (le test ne vaut que s'il peut échouer).
+cas('assertion 8bis — fixture : la lecture de la table s\'arrête au titre suivant et nomme chaque ligne', () => {
+  const sansEnqueter = '## Table des actions\n\n| Action | Geste |\n| --- | --- |\n| `lancer` | x |\n';
+  const avecSuite = '## Table des actions\n\n| Action | Geste |\n| --- | --- |\n| `pousser` | x |\n| `enqueter` | y |\n\n## Suite\n| `fini` | z |\n';
+  const a = actionsDeLaTable(sansEnqueter);
+  const b = actionsDeLaTable(avecSuite);
+  if (a.join() !== 'lancer') return `lecture de la table : ${a.join()}`;
+  if (b.join() !== 'pousser,enqueter') return `la lecture doit s'arrêter au titre suivant : ${b.join()}`;
   return null;
 });
 

@@ -14,6 +14,11 @@ description: Checklist de fin de tâche et de fin de session — statuts, fichie
   `[x]!`).
 - Échec : `.echec.md` commité **sur la branche courante**, jamais `wip/…` — l'orchestrateur partage
   ton arbre.
+- Tombée sur un **choix** que tu n'as pas reçu (`EXECUTANT.md`) : committe ton travail en cours (repère
+  `Plan: P<n>/S<k>/T<m>`), écris `plans/P<n>/S<k>.question.md` avec ton identifiant d'agent (gabarit :
+  `${CLAUDE_PLUGIN_ROOT}/skills/reprendre-echec/references/gabarit-question.md`), committe-le, puis rends
+  `VERDICT: QUESTION · MOTIF: <la question> · RAPPORT: plans/P<n>/S<k>.question.md`. Ce n'est pas un échec :
+  aucun `.echec.md`. L'orchestrateur te transmet la réponse, tu reprends avec ton contexte.
 - Ta **dernière ligne** est `VERDICT: …`, exactement comme ton prompt la dicte.
 
 Hors mode orchestré, ce qui suit s'applique tel quel.

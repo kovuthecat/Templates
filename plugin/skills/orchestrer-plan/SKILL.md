@@ -5,101 +5,57 @@ description: Déroule un plan entier, vague après vague, sans rendre la main en
 
 # Orchestrer un plan
 
-L'orchestrateur tourne en **Haiku · medium** (`WORKFLOW.md` §3). Si tu tournes en Opus ou en
-Sonnet, dis-le à l'utilisateur au premier tour : il paie un modèle plus cher pour exécuter un script.
-Chaque session tourne, elle, à l'effort de sa ligne d'index : le champ `agent` rendu par le script
-(`subagent_type`, `model`, `effort`) est recopié tel quel dans l'appel `Agent` (Étape 1), sans geste
-humain à régler avant de lancer.
-Deux gestes en boucle : **lancer des sessions**, **collecter des verdicts**. L'état se calcule par un
-script (C2, `prochaine-action.mjs`) depuis les fichiers commités — budget, nature → modèle,
-dépendances, recoupement par les commits, appel d'agent prêt à recopier, arbre sale avant une vague
-en sortent : l'action rendue s'exécute, ne se recalcule pas.
+L'orchestrateur tourne en **Haiku · medium** (`WORKFLOW.md` §3) ; en Opus ou en Sonnet, le dire à
+l'utilisateur au premier tour (il paie un modèle plus cher pour relayer un script). Le moteur
+`prochaine-action.mjs` calcule l'état depuis les fichiers commités et fait lui-même les gestes
+mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** son verdict.
 
 ## La boucle
 
-`node plugin/bin/prochaine-action.mjs P<n>` (vendoré : `node .claude/workflow/bin/prochaine-action.mjs P<n>`) → exécuter le geste de l'action rendue
-(table ci-dessous) → rappeler le script. Jamais d'improvisation entre deux appels, jamais un état
-deviné. Avant la toute première vague seulement : si `SessionStart` a signalé un écart de version
-vendorée (C4), le régler avant de lancer.
+`node plugin/bin/prochaine-action.mjs P<n> --appliquer` (vendoré : `node .claude/workflow/bin/prochaine-action.mjs P<n> --appliquer`).
 
-**Conflit de rebase** (`question` source `rebase`) : `git rebase --abort`, puis rappeler le script —
-pas une question posée à l'utilisateur tant que l'abandon n'a pas été tenté ; il ne rend de nouveau
-`question rebase` que si l'abandon a échoué.
+- Les lignes `appliqué — …` sont des gestes **déjà faits et commités** (coche, revue, preuve N0, push,
+  rapports obsolètes, `Remédiation Opus :`) : ne jamais les refaire.
+- Puis l'action rendue : son `texte` se relaie tel quel quand c'est une annonce, une question ou un
+  rapport ; ce qui suit la ligne « données de l'action » est pour toi. Exécuter le geste de la table,
+  puis **rappeler le moteur**. Jamais d'improvisation entre deux appels, jamais un état deviné.
+- Les options (`--premisse`, `--interruption … --agent`, `--valider-vague`, `--cloture-faite`) s'ajoutent à la même commande.
+- Avant la première vague : régler d'abord un écart de version vendorée signalé par `SessionStart`.
 
-## Interdits — la raison d'être de cette skill
+## Interdits
 
-- **Ne jamais ouvrir un `S<k>.md`**, sans exception. L'`index.md` et `git log` suffisent. Le rapport `S<k>.echec.md` n'est
-  pas un `S<k>.md` : sa section `## Issues` se lit (Étape 3, options d'une question).
-- **Ne jamais lire un diff ni une sortie de build.** Déléguer à `resumeur-git` (`run_in_background: false`) ;
-  un code de sortie n'est pas une sortie.
-- **Ne jamais corriger soi-même, ni reprendre une session en échec.** `fork` vers l'agent en échec
-  interdit sans condition ; `SendMessage` seulement sous les trois conditions du canal court
-  (`references/remediation.md`), sinon à froid.
-- **Ne jamais rendre la main sur un manque d'information.** Le script cherche déjà (`enqueter`,
-  `verifier-premisse`) ; un arrêt n'est qu'une **question** à options (`WORKFLOW.md` §9c, Étape 3).
-- **Ne jamais interpréter le rapport d'une session** : verdict extrait par format contraint.
+- **Ne jamais ouvrir un `S<k>.md`** : l'`index.md`, `git log` et le `texte` du moteur suffisent.
+- **Ne jamais lire un diff ni une sortie de build** : déléguer à `resumeur-git` (`run_in_background: false`).
+- **Ne jamais corriger soi-même, ni reprendre une session en échec** ; `fork` interdit sans condition.
+- **Ne jamais rendre la main sur un manque d'information** : le moteur cherche (`enqueter`,
+  `verifier-premisse`) ; un arrêt n'est qu'une `question` à options (`WORKFLOW.md` §9c).
+- **Ne jamais interpréter le rapport d'une session** : seule la ligne `VERDICT:` se lit.
 
 ## Table des actions
 
 | Action rendue | Geste |
 | --- | --- |
-| `lancer` | Étape 1. |
-| `verifier-premisse` | `references/remediation.md` — bloc `verificateur-premisse` ; affirmation prise dans `<chemin>`, section « Ce qu'il faudrait pour que ça passe », jamais le rapport entier. |
-| `reprendre` | `references/remediation.md` — canal court si ses trois conditions tiennent, sinon reprise à froid ; `modele`/`option` déjà décidés par le script. |
-| `enqueter` | `references/remediation.md` — bloc d'enquête ; `modele` déjà décidé par le script. |
-| `relancer-interrompue` | `references/remediation.md` — bloc `relancer-interrompue` ; hors budget, exception écrite aux trois conditions du canal court. |
-| `transmettre` | `SendMessage` à `agent` avec `message` ; échec → écrire `Agent : introuvable` dans le `.question.md` (`question`), committer, rappeler le moteur (il rend alors `reprendre` avec un `prompt` : lancer l'agent à froid avec ce prompt). |
-| `valider-n0` | Lancer N0 complet avec `--session P<n>/S<k>`, committer la preuve si PASS, puis rappeler le moteur. FAIL → rapport d’échec et décocher la session ; jamais fabriquer une preuve. |
-| `relire` | Étape 2, pour chaque session de `sessions` — l'orchestrateur committe chaque `.revue.md`. |
-| `pousser` | `git pull --rebase` puis `git push` ; conflit → rappeler le script, il rend `question`. |
-| `validation-humaine` | Étape 3 : rendre la main, jugement attendu sur `vague`. |
-| `question` | Étape 3, format imposé. |
-| `cloturer` | `fin-de-tache/references/fin-de-plan.md`, déroulée par l'orchestrateur lui-même, puis rappeler le script. |
-| `fini` | Étape 3, rapport final. |
+| `lancer` | Relayer `texte`. Puis un agent par session de `sessions`, dans l'ordre, **un seul à la fois**, arrêt au premier `FAIL` : appel « Session » ci-dessous ; collecter. |
+| `relire` | Un appel « Relecteur » par session de `sessions`, au premier plan, dans l'ordre rendu. |
+| `verifier-premisse` | Appel « Vérificateur », puis rappeler avec `--premisse <CONFIRMEE\|REFUTEE\|INDECIDABLE> "<preuve>"` : le moteur écrit la ligne `Premisse :`. `REFUTEE` : déposer aussi un incident (`WORKFLOW.md` §9b, nature `prémisse`). `INDECIDABLE · comportementale` : même appel, preuve commençant par « comportementale ». |
+| `reprendre` | `references/remediation.md` : canal court si ses trois conditions tiennent, sinon reprise à froid (`modele`, `option` déjà décidés). |
+| `enqueter` | `references/remediation.md`, appel « Enquête ». |
+| `relancer-interrompue` | `references/remediation.md`, bloc de relance après quota. |
+| `transmettre` | `SendMessage` à `agent`, `message` tel quel. Échec : écrire `Agent : introuvable` dans le `.question.md` rendu, le committer, rappeler (le moteur rend alors `reprendre` avec un `prompt` : lancer l'agent à froid avec ce prompt). |
+| `valider-n0` | Rendue seulement quand le moteur a lancé N0 et qu'il est rouge (résumé dans `texte`) : écrire `plans/P<n>/S<k>.echec.md` (`Nature : exécution`, `Tentatives : reprise=0 enquete=0`, `Blocage : N0 rouge — <résumé>`), le committer, rappeler. Jamais une preuve fabriquée. |
+| `validation-humaine` | Relayer `texte`, rendre la main. Au « oui » : `--appliquer --valider-vague <w>`, qui écrit `· validée` et committe. |
+| `question` | Relayer `texte` tel quel (options et recommandation comprises), rendre la main : **une seule question par arrêt**. Source `attente-reponse` : la réponse de l'utilisateur s'écrit dans la ligne `Réponse :` du `.question.md`, committer, rappeler (`transmettre`). |
+| `cloturer` | Points 4 et 6 de `fin-de-tache/references/fin-de-plan.md` (jugement : verser le backlog des revues dans `TASKS.md`, ranger le contexte), les committer, puis relancer la commande `rappel` de l'action. |
+| `fini` | Relayer `texte`, plus une ligne `subagent_tokens` par session et une par usage du canal court : le disque ne les porte pas. |
 
-Action absente de cette table : « Action ou source inconnue » (Étape 3, fin) — jamais devinée, jamais
-un correctif improvisé par l'orchestrateur lui-même (il ne corrige rien, §« Interdits »).
+`pousser` n'est jamais rendue sous `--appliquer` : le moteur pousse, et abandonne lui-même un rebase en
+conflit avant de rendre `question`. Action inconnue : `question` à option unique (« mettre à jour le
+workflow ») et un incident (`WORKFLOW.md` §9b, nature `orchestration`).
 
-## Étape 1 — Lancer la vague
+## Appels d'agent
 
-Avant le premier lancement : lire dans `index.md` la ligne de chaque session de `sessions` (modèle,
-effort, env, dépendances, zone) et, sous « ## Ordonnancement », le *Pourquoi maintenant* de `vague`
-et la ligne « en clair » de chaque session — jamais un `S<k>.md`. Index sans ligne « en clair » :
-annoncer sans elle, le signaler une fois, ne jamais l'inventer ni ouvrir le `S<k>.md`.
-
-**Préflight** : (1) **arbre sale** — déjà fait par le script avant de rendre `lancer` : un fichier non
-commité qui intersecte une `Zone modifiée` de la vague fait rendre `question` (source `arbre-sale`)
-à la place, jamais un préflight délégué. (2) **agents du plugin absents du bac à sable** — seuls les agents génériques listés : le dire
-sur « À régler AVANT de lancer », revues annoncées absentes pour la vague.
-
-**Annoncer, puis lancer** — jamais l'inverse, jamais en ouvrant un `S<k>.md` :
-
-```
-▶ Vague <w>/<W> — <n> session(s)
-   Pourquoi cette vague maintenant : <« Pourquoi maintenant » de l'ordonnancement, tel quel>
-   Si une session échoue : <je diagnostique, je reprends une fois, j'enquête si la reprise cale —
-     je ne te sollicite que s'il y a un choix à faire, et sous forme de question |
-     reprise manuelle — je m'arrête et je te rends la main>
-   Fin de vague : <validation humaine — je m'arrête pour ton jugement : <ligne N2> | j'enchaîne sur la vague <w+1>>
-
-   S<k> · <titre>
-      En clair : <ligne « en clair » de l'index, relayée mot pour mot>
-      Tâches <T<a>-T<b>> · <Modèle>/<effort>
-      Fichiers touchés : `<zone modifiée>` · Dépend de : <S<j>, déjà passée | —>
-
-   <une strophe par session de la vague, dans l'ordre de l'index>
-
-   Pendant que ça tourne : ne pas modifier les fichiers listés — les sessions y écrivent.
-   À la fin : un commit par tâche, retrouvable par son repère `Plan: P<n>/S<k>/T<m>`.
-```
-
-Vague qui s'enchaîne dans le même tour : réécrire ce bloc en entier, seul repère de l'utilisateur. **Repli pastille** (contrainte d'outillage — hors Desktop, ou
-session marquée `pastille` dans sa ligne « en clair ») : une pastille `spawn_task` par session,
-« Démarrer localement », jamais le worktree par défaut, puis rendre la main ; titrer `P<n> · S<k> —
-<titre> · <M>/<E>` et sortir « À régler AVANT de lancer » (`WORKFLOW.md` §3).
-
-**Sous-agent, la seule voie** (`WORKFLOW.md` §5b) sinon — un agent par session, dans l'ordre de l'index, un seul à la fois, arrêt au premier `FAIL`. `isolation: "worktree"` et `subagent_type: "fork"` interdits ; ne jamais recopier le
-`S<k>.md` dans le prompt.
+Sessions, reprises et enquêtes : sous-agent, **seule voie** (`WORKFLOW.md` §5b) ; `isolation: "worktree"`
+et `subagent_type: "fork"` interdits ; jamais le `S<k>.md` recopié dans le prompt.
 
 ```
 Agent({
@@ -109,125 +65,61 @@ Agent({
   effort: <agent.effort de la session>,
   run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
-Ouvre plans/P<n>/S<k>.md et exécute-le. Reste
-dans l'arbre de travail courant : n'ouvre AUCUN worktree. Mode orchestré : `/fin-de-tache`, section Mode
-orchestré — ta dernière ligne est `VERDICT:`. Tu es orchestrée : si l'outil Agent
-n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
-Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier
-plan — et aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle
-n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.
-Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se
-corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
-plans/P<n>/S<k>.echec.md, ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis
-renvoie son chemin.
+Ouvre plans/P<n>/S<k>.md et exécute-le. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.
+Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`. Tu es
+orchestrée : si l'outil Agent n'est pas disponible dans ton bac à sable, saute la relecture de session
+(je la lance moi-même). Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs)
+s'exécute au premier plan — aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui
+finit après elle n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.
+Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se corrige et
+n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans plans/P<n>/S<k>.echec.md,
+ligne `Nature :` comprise (gabarit : skill /reprendre-echec), puis renvoie son chemin.
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
 ```
-
-**Collecter** : lire `VERDICT: … · MOTIF: … · RAPPORT: …`, rien d'autre, en gardant l'identifiant d'agent (canal court, `references/remediation.md`). `QUESTION` : la session s'est arrêtée sur un choix et a écrit `plans/P<n>/S<k>.question.md` (gabarit : `reprendre-echec/references/gabarit-question.md`) ; si elle y a écrit `Agent : —`, le compléter avec l'identifiant gardé, committer, rappeler le script (`question`, source `attente-reponse`) ; à la réponse de l'utilisateur, l'écrire dans la ligne `Réponse :` du fichier, committer, rappeler le script (`transmettre`). Un arrêt n'est ni un échec ni une reprise : hors budget. Sans
-`VERDICT:` ni commit : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend
-parfois `PASS`, 2026-09-11). `partial` (tours épuisés) = **toujours** `FAIL`. Recoupement d'un `FAIL`
-par les commits : fait par le script au tour suivant, plus par l'orchestrateur. Verdict perdu ou
-`partial` : incident (§9b, nature `orchestration`) — **sauf** coupure par quota (ci-dessous, jamais
-les deux).
-
-**Coupure par quota** : sans `VERDICT:` ni commit, un retour qui correspond à
-`/session limit|rate.?limit|\b429\b|terminated early/i` n'est pas un `FAIL` — l'orchestrateur écrit
-lui-même `plans/P<n>/S<k>.echec.md` : `Nature : interruption` ; `Tentatives :` recopiées du fichier
-s'il existait déjà, sinon `reprise=0 enquete=0` ; `Blocage : coupure par quota pendant <T<m>, si
-connu>` ; une ligne `Agent : <identifiant rendu par l'appel Agent qui a lancé cette session>` (gardé
-dès le lancement, canal court). Il committe **ce seul fichier**, sans toucher au travail partiel
-laissé dans l'arbre, puis rappelle le script — qui rend `relancer-interrompue`.
-
-## Étape 2 — Relire (action `relire`)
-
-Une session par appel, au premier plan, dans l'ordre rendu :
 
 ```
 Agent({
   description: "P<n>/S<k> revue",
   subagent_type: "relecteur-session",
   run_in_background: false,
-  prompt: "Relis la session S<k> du plan P<n>, effort <effort de S<k>, tel que rendu par `relire`>, mode
-orchestré, commits présents (git log --grep
-\"P<n>/S<k>/\"). Écris plans/P<n>/S<k>.revue.md toi-même, avec Reprises : <reprise rendue par le script, 0 ou 1>, puis rends tes deux lignes."
+  prompt: "Relis la session S<k> du plan P<n>, effort <effort rendu par `relire`>, mode orchestré, commits
+présents (git log --grep \"P<n>/S<k>/\"). Fichiers sensibles touchés : <ceux que `texte` liste pour S<k>, ou aucun>.
+Écris plans/P<n>/S<k>.revue.md toi-même, avec Reprises : <0 ou 1, rendu par `relire`>, puis rends tes deux lignes."
 })
 ```
 
-`Agent type 'relecteur-session' not found` : repli `subagent_type: "workflow:relecteur-session"` ;
-encore introuvable → `subagent_type: "general-purpose"`, `model: "sonnet"`, prompt « Lis
-`.claude/agents/relecteur-session.md` et tiens ce rôle pour S<k> de P<n> … ». Repli en échec aussi → incident (§9b). Si aucun fichier n'a été déposé, l'orchestrateur écrit
-exceptionnellement un `.revue.md` avec `Bloquant : 0`, `Couverture : en cours`,
-`Reprises : <reprise de l'action>` : il trace l'interruption sans prétendre avoir relu.
-Le moteur borne la reprise ; une absence persistante ne boucle pas indéfiniment.
-
-Lire seulement les deux lignes rendues, jamais les trouvailles. Une fois la ligne lue, l'orchestrateur
-**committe lui-même** le `.revue.md` déposé (`revue(P<n>): S<k> relue, <n> bloquant(s)`, repère
-`Plan: P<n>/S<k>` en dernière ligne) — le relecteur ne committe plus le sien. `Bloquant : <n>` avec
-n > 0 : une ligne au rapport (`Revue S<k> : <n> bloquant(s) → plans/P<n>/S<k>.revue.md`), et le statut
-de S<k> passe de `[x]` à `[x]!` dans `index.md` (§4a) — non bloquant, la vague suivante s'enchaîne.
-`Couverture :` autre que `complète` : signaler la revue interrompue ; le moteur rend une seule
-reprise, puis `question` source `revue-incomplete`. `Dépendances : bloquées` avec bloquants suspend
-les sessions dépendantes ; les indépendantes restent lançables. Puis
-rappeler le script.
-
-## Étape 3 — Rapport final, question, validation humaine
-
-**`validation-humaine`** : rendre la main avec ce qu'il y a à juger sur `vague` (aucune mesure ne
-remplace ce jugement) et le bloc de relance de la vague suivante (`/fin-de-tache`). Au « oui » de
-l'utilisateur : ajouter `· validée` au libellé de la ligne de vague dans `index.md`
-(`- **Vague <w> — validation-humaine · validée** : …`), committer, pousser, puis rappeler le script.
-
-**Rapport** (`fini`, ou avant une `question`) : une ligne par session (`S<k> · PASS/FAIL · motif` ; cycle remédié : `S<k> · FAIL → reprise FAIL → enquête
-PISTE → reprise PASS · motif`), une ligne `subagent_tokens` par session, une par usage du canal
-court, une par revue à bloquants ou absente, une par incident déposé, une `N1 S<k> : à faire —
-<écran>` par motif « N1 au premier plan » relayé tel quel. Sur arrêt : dire en français ce que ça
-empêche (sessions bloquées / encore lançables, colonne Dépend de). Pousser : action `pousser` de la
-table (C3) — chaque session pousse déjà son propre travail, l'orchestrateur ne pousse que ce qui lui
-revient (`validation-humaine` acquittée, clôture).
-
-**`question`** — dernière position, format imposé :
-
 ```
-❓ P<n>/S<k> — <la question, une phrase, en français>
-   Pourquoi je m'arrête ici : <ce qui a été tenté et ce que ça a donné — deux lignes max,
-     motifs relayés tels quels>
-
-   1. <option> — <coût> · débloque <ce que ça rouvre>
-   2. <option> — <coût> · débloque <ce que ça rouvre>
-   3. <option> — <coût> · débloque <ce que ça rouvre>
-
-   Ma recommandation : <n°>, parce que <une phrase>.
-   Rapport : plans/P<n>/S<k>.echec.md · reste lançable sans décider : <S<j>, S<l> | rien>
+Agent({
+  description: "P<n>/S<k> prémisse",
+  subagent_type: "verificateur-premisse",
+  run_in_background: false,
+  prompt: "Vérifie cette affirmation contre le dépôt : « <l'affirmation, prise dans la section « Ce qu'il
+faudrait pour que ça passe » du rapport, elle seule, telle quelle> ».
+Réponse finale en UNE ligne, exactement : PREMISSE: CONFIRMEE|REFUTEE|INDECIDABLE · PREUVE: <une phrase>"
+})
 ```
 
-**Calcul de « reste lançable »** : parcourir `index.md`, garder seulement les sessions non `[x]`
-dont la colonne « Dépend de » est vide, **ou** ne nomme que des sessions déjà `[x]` — jamais une
-session dont une dépendance (directe ou transitive) est celle qui bloque, même non encore passée à
-`[x]` par un mécanisme différent. Une session qui dépend de S<k> (la session bloquée) n'est jamais
-« encore lançable » : elle hérite du même blocage. Aucune dépendance ⇒ `rien`.
+Agent introuvable (`Agent type '…' not found`) : repli `workflow:<nom>`, puis `general-purpose` (`model:
+"sonnet"` pour le relecteur, `"haiku"` pour le vérificateur) avec le prompt « Lis `.claude/agents/<nom>.md`
+et tiens ce rôle… » ; repli en échec aussi : incident.
 
-Options jamais inventées ici : `options.source` de l'action (`etape6`, `budget-epuise`, `budget-opus`,
-`effort-invalide`, `session-hors-vague`, `nature-inconnue`, `filtre`, `rebase`, `arbre-sale`,
-`reprise-manuelle`, `racine-introuvable`, `revue-incomplete`, `dependance-revue`, `attente-reponse`) et la section `## Issues` d'un rapport
-d'enquête (`references/remediation.md`) les fournissent. Une `question` sur une session en échec
-(`budget-epuise`, `budget-opus`, `nature-inconnue`…) : lire ses options **avant** d'écrire la
-question, en lisant le rapport avec l'outil `Read` (section `## Issues`) — jamais `sed`, `cat` ni
-`grep` en commande : hors des autorisations d'un projet, refusés en arrière-plan. Section absente ou vide →
-relayer le motif seul et le dire. Les lignes de `## Issues` **sont** les
-options : recopiées sans rien changer, ni la forme ni l'ordre ; un ancien rapport d'une autre forme
-se recopie tel quel aussi. Source `arbre-sale`,
-options fixes : `1. Committer ces fichiers toi-même, puis relancer — débloque la vague · 2. Les mettre
-de côté (git stash), puis relancer — débloque la vague, tes changements restent récupérables ·
-3. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Motif « arbre
-invérifiable » : option unique « vérifier git dans ce dépôt, puis relancer ». Motif « zone illisible :
-<segment> » (glob ou accolades dans la cellule `Zone modifiée`, pas un état git) : options fixes
-`1. Réécrire ce segment en chemins explicites dans l'index, puis relancer — débloque la vague ·
-2. Sortir la session concernée de la vague (index) — débloque les autres sessions`. Source `revue-incomplete` : proposer de terminer la revue à la main ou reporter le plan, jamais
-annoncer une couverture complète. Source `dependance-revue` : proposer de corriger le prérequis
-ou réviser explicitement la dépendance ; ne pas enlever le blocage sans preuve. Une seule question par
-arrêt.
+**Relecteur** : lire les deux lignes rendues, jamais les trouvailles ; le moteur committe la revue, pose
+`[x]!` et rend `question` si elle est incomplète. Aucun fichier déposé : écrire une `.revue.md` à
+`Bloquant : 0`, `Couverture : en cours`, `Reprises : <reprise rendue>` — elle trace l'interruption sans
+prétendre avoir relu.
 
-**Action ou source inconnue** — le script rend une action absente de la « Table des actions », ou une
-`question` dont `options.source` n'est dans aucune des deux listes ci-dessus : `question` à option
-unique (« mettre à jour le workflow »), plus un incident (§9b, nature `orchestration`).
+## Collecter un verdict
+
+Lire `VERDICT: … · MOTIF: … · RAPPORT: …` et rien d'autre, en gardant l'identifiant d'agent de
+l'appel (canal court, `references/remediation.md`). Quel que soit le verdict, rappeler le moteur : il
+recoupe par les commits, un `PASS` n'est jamais cru sur parole. `partial` (tours épuisés) = `FAIL`.
+
+- **`QUESTION`** : la session s'est arrêtée sur un choix et a écrit `plans/P<n>/S<k>.question.md`
+  (gabarit : `reprendre-echec/references/gabarit-question.md`). S'il porte `Agent : —`, y écrire
+  l'identifiant gardé et committer, puis rappeler. Un arrêt n'est ni un échec ni une reprise : hors budget.
+- **Sans `VERDICT:` ni commit** : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend
+  parfois `PASS`). Si le retour correspond à `/session limit|rate.?limit|\b429\b|terminated early/i`,
+  c'est une **coupure par quota**, pas un `FAIL` : rappeler avec `--interruption S<k> --agent <identifiant>`
+  (le moteur écrit et committe le rapport, puis rend `relancer-interrompue`).
+- Verdict perdu ou `partial` hors quota : incident (`WORKFLOW.md` §9b, nature `orchestration`).
