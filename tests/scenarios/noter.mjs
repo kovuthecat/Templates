@@ -72,10 +72,18 @@ const MOTIF = /MOTIF:\s*(.*?)(?:\s*[·|]\s*RAPPORT:|$)/m;
 /** Les gestes qu'une sortie de `prochaine-action.mjs --appliquer` énumère avant l'action finale. */
 const GESTE_APPLIQUE = /^appliqué — /;
 
+/** Une ligne d'action du moteur : `<action>` nue ou `<action> — …`. */
+const ACTION_MOTEUR = /^(lancer|reprendre|enqueter|relancer-interrompue|relire|valider-n0|pousser|cloturer|fini|question|transmettre|validation-humaine|verifier-premisse)(\s|$)/;
+
 /** Première ligne de la dernière action d'une sortie du moteur : la première ligne non vide qui n'est pas un
  * geste appliqué. Sans `--appliquer` : la première ligne, comme avant. Chaîne vide si rien d'autre que des gestes. */
 export function premiereLigneDeLaDerniereAction(texte) {
-  return String(texte ?? '').split('\n').map((x) => x.trim()).find((x) => x !== '' && !GESTE_APPLIQUE.test(x)) ?? '';
+  const lignes = String(texte ?? '').split('\n').map((x) => x.trim());
+  // Un appel enchaîné (`git commit … && node …/prochaine-action.mjs …`, P20/S13) fait précéder la sortie du moteur du
+  // texte de la commande d'avant : on repart de la première ligne qui est du moteur (un geste appliqué ou une action).
+  // Aucune ligne du moteur : la sortie entière, comme avant (la première ligne, ex. « Current branch … »).
+  const debut = lignes.findIndex((x) => GESTE_APPLIQUE.test(x) || ACTION_MOTEUR.test(x));
+  return lignes.slice(Math.max(debut, 0)).find((x) => x !== '' && !GESTE_APPLIQUE.test(x)) ?? '';
 }
 
 /** Lecture PURE d'un flux `stream-json` : lancements d'agents (avec leur verdict), appels du moteur,
@@ -247,6 +255,19 @@ export function evaluerH1({ evenements, lancements, sendMessages, pose, reprise,
   return { ...resultat, issue: 'confirmée', preuve: `mot restitué par la même session (${trouve[0]} : « ${extrait} »), contenu du fichier effacé, aucune relecture` };
 }
 
+/** Dernier événement `result` d'un flux (un flux = un processus `claude -p`). */
+export function dernierResultatDe(evenements) {
+  return evenements.filter((e) => e.type === 'result').at(-1) ?? null;
+}
+
+/** Coût d'un passage : `total_cost_usd` d'un événement `result` est CUMULÉ pour tout le processus (P20/S13 : trois
+ * `result` de fin de flux portent la même valeur, les sommer triplait le coût ; `num_turns` et `duration_ms`, eux,
+ * sont par segment). Somme, sur les flux (deux processus pour `arret-relaye`), du DERNIER `result` de chacun. */
+export function coutDesProcessus(flux) {
+  const derniers = flux.map(dernierResultatDe).filter(Boolean);
+  return derniers.length > 0 && derniers.every((x) => typeof x.total_cost_usd === 'number') ? derniers.reduce((t, x) => t + x.total_cost_usd, 0) : null;
+}
+
 export function noterPassage(dossier) {
   const pose = lireJson(join(dossier, 'pose.json'), {});
   const meta = lireJson(join(dossier, 'meta.json'), {});
@@ -268,6 +289,8 @@ export function noterPassage(dossier) {
   const resultats = evenements.filter((e) => e.type === 'result');
   const resultat = resultats.at(-1) ?? null;
   const sommeResultats = (champ) => (resultats.length > 0 && resultats.every((x) => typeof x[champ] === 'number') ? resultats.reduce((t, x) => t + x[champ], 0) : null);
+  const resultatsParProcessus = [evenementsTemps1, evenementsTemps2].map(dernierResultatDe).filter(Boolean);
+  const coutTotal = coutDesProcessus([evenementsTemps1, evenementsTemps2]);
 
   // Le plugin chargé doit être l'instantané du passage, jamais celui du cache.
   if (init) {
@@ -307,7 +330,14 @@ export function noterPassage(dossier) {
   });
 
   // ── Coût ──────────────────────────────────────────────────────────────────────────────────────
-  const modelUsage = resultat?.modelUsage ?? {};
+  // `modelUsage` : cumulé par processus, donc fusionné sur les flux (même règle que le coût).
+  const modelUsage = {};
+  for (const r of resultatsParProcessus) {
+    for (const [m, u] of Object.entries(r.modelUsage ?? {})) {
+      const c = modelUsage[m] ?? { costUSD: 0, inputTokens: 0, outputTokens: 0 };
+      modelUsage[m] = { costUSD: c.costUSD + (u.costUSD ?? 0), inputTokens: c.inputTokens + (u.inputTokens ?? 0), outputTokens: c.outputTokens + (u.outputTokens ?? 0) };
+    }
+  }
   const modeles = Object.keys(modelUsage);
   const revues = lancements.filter((l) => l.genre === 'revue').length;
   const orchestrateur = (meta.modele ?? 'haiku').toLowerCase();
@@ -328,7 +358,7 @@ export function noterPassage(dossier) {
     abouti,
     issue,
     moteurDernierAppelModele: moteurModele,
-    cout: sommeResultats('total_cost_usd'),
+    cout: coutTotal,
     tours: sommeResultats('num_turns'),
     dureeS: sommeResultats('duration_ms') ? Math.round(sommeResultats('duration_ms') / 1000) : null,
     arret: resultat ? `${resultat.subtype ?? ''}${resultat.is_error ? ' (erreur)' : ''}${resultat.terminal_reason ? ` · ${resultat.terminal_reason}` : ''}` : 'aucun résultat',

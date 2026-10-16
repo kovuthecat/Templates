@@ -27,6 +27,10 @@ Chords : une suppression qui avait précédé le versement a perdu un bloquant).
 `plans/P<n>/S<k>.revue.md` est **versé** dans `TASKS.md` — bloquants en tête, marqués comme tels, backlog
 à la suite, jamais dans `VALIDATION.md` — et chaque `[x]!` couvert repasse à `[x]` dans `index.md`
 (`WORKFLOW.md` §4a) ; **puis** la `.revue.md` est **supprimée**, dans le même commit que son versement.
+**Écrire la suppression ainsi** (sous les autorisations d'un projet, `git rm` est refusé — mesure P20/S13) :
+`rm plans/P<n>/S<k>.revue.md` seul, une commande par fichier, sans `cd` ni `&&` ; puis
+`git add TASKS.md plans/P<n>/S<k>.revue.md` (la suppression se stage par son chemin) et `git commit`, chacun
+en son appel.
 `Couverture : en cours` : ne pas clore ; terminer la revue ou poser une question. Aucun versement ne
 vaut validation d'un prérequis bloqué. Un `Bloquant : 0` sans backlog ne se verse pas, il se supprime.
 Une session qui a produit du code sans laisser de `.revue.md` n'a pas eu de revue : le dire dans le

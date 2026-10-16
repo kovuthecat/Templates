@@ -27,9 +27,9 @@ import { analyserIndex, lireIndexTexte } from '../plugin/bin/lire-index.mjs';
 import { sessionsOuvertes } from '../plugin/hooks/lib.mjs';
 import * as lecteurGardeFous from '../plugin/mods/garde-fous/hooks/lire-index.mjs';
 import * as lecteurAffichage from '../plugin/mods/affichage/hooks/lire-index.mjs';
-import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE } from './scenarios/lancer.mjs';
+import { autorisationsProjet, OUTILS_AUTORISES, OUTILS_SOCLE, promptTemps2 } from './scenarios/lancer.mjs';
 import { settingsProjet, COMMANDE_STACK } from './scenarios/projet/poser.mjs';
-import { lireFlux, evaluerH1 } from './scenarios/noter.mjs';
+import { lireFlux, evaluerH1, coutDesProcessus, premiereLigneDeLaDerniereAction } from './scenarios/noter.mjs';
 
 const ICI = dirname(fileURLToPath(import.meta.url));
 const RACINE = dirname(ICI);
@@ -4827,6 +4827,45 @@ cas('P20/T10 noter H1 : aucune question posée, aucun SendMessage → indétermi
   const h = h1De([]);
   if (h.issue !== 'indéterminée') return `H1 indéterminée attendue, reçu ${JSON.stringify(h)}`;
   return null;
+});
+
+cas('P20/S13 noter : appel enchaîné (`git commit … && node …/prochaine-action.mjs`) → la sortie de la commande précédente n\'est pas l\'action', () => {
+  const avecCommit = '[main 27c328f] docs(status): rangement de clôture P1\n 1 file changed, 3 insertions(+), 3 deletions(-)\nappliqué — poussé (pull --rebase, push)\nappliqué — Clos : 2026-10-16 (409acb3)\nfini\nPlan P1 — rapport final (1 session(s))\n';
+  const l = premiereLigneDeLaDerniereAction(avecCommit);
+  if (l !== 'fini') return `« fini » attendu malgré le préfixe du commit, reçu ${JSON.stringify(l)}`;
+  const ls = premiereLigneDeLaDerniereAction('bilan-express.mjs\nn0.mjs\nlancer — vague 1 : S1\n   détail\n');
+  if (ls !== 'lancer — vague 1 : S1') return `« lancer — vague 1 : S1 » attendu malgré le préfixe de ls, reçu ${JSON.stringify(ls)}`;
+  const autre = premiereLigneDeLaDerniereAction('Current branch main is up to date.\n');
+  if (autre !== 'Current branch main is up to date.') return `sans ligne du moteur, la première ligne comme avant, reçu ${JSON.stringify(autre)}`;
+  return null;
+});
+
+cas("P20/S13 lancer : le message du temps 2 porte la réponse de l'utilisateur dans la conversation, jamais le mot de mot.txt", () => {
+  const p = promptTemps2('Choisis le nom fois2.');
+  if (!p.startsWith('/workflow:orchestrer-plan P1')) return `la commande d'orchestration doit rester en tête, reçu ${JSON.stringify(p)}`;
+  if (!p.includes('Choisis le nom fois2.')) return `la réponse doit figurer dans le message, reçu ${JSON.stringify(p)}`;
+  if (p.includes(MOT_ARRET)) return 'le message ne doit pas porter le mot à retenir';
+  return null;
+});
+
+// ── noter.mjs : le coût est celui du processus, pas la somme des `result` (P20/S13) ───────────────
+// Constat : un flux peut porter plusieurs `result` en fin de flux (sessions d'arrière-plan qui se terminent), tous avec le
+// MÊME `total_cost_usd` cumulé (passage `nominal-1-2026-10-16T06-56-22` : 3 `result` à 0,130095965, noter affichait 0,390).
+const resultatFlux = (cout) => ({ type: 'result', total_cost_usd: cout, num_turns: 3, duration_ms: 1000 });
+
+cas('P20/S13 noter : trois result au même total_cost_usd cumulé → compté une fois', () => {
+  const c = coutDesProcessus([[resultatFlux(0.130095965), resultatFlux(0.130095965), resultatFlux(0.130095965)], []]);
+  return Math.abs(c - 0.130095965) < 1e-9 ? null : `coût 0.130095965 attendu (une fois), reçu ${c}`;
+});
+
+cas('P20/S13 noter : deux processus (arret-relaye) → somme du dernier result de chacun', () => {
+  const c = coutDesProcessus([[resultatFlux(0.02), resultatFlux(0.02)], [resultatFlux(0.04), resultatFlux(0.04)]]);
+  return Math.abs(c - 0.06) < 1e-9 ? null : `coût 0.06 attendu, reçu ${c}`;
+});
+
+cas('P20/S13 noter : aucun result → coût inconnu (null), jamais 0', () => {
+  const c = coutDesProcessus([[], []]);
+  return c === null ? null : `null attendu, reçu ${c}`;
 });
 
 // ── noter.mjs : la dernière action d'une sortie enchaînée ─────────────────────────────────────────

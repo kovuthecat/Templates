@@ -87,7 +87,9 @@ seul scénario sans `--no-session-persistence`) :
 2. **Attente** — `--attente <minutes>` (au moins 30 pour mesurer H1). Un appel du banc ne dépasse pas `--pause-max`
    minutes ; au-delà, code 4 : `--reprendre` continue (l'attente écoulée est lue dans `attente.json`).
 3. **Temps 2** — le banc écrit la réponse (`Choisis le nom fois2.`, jamais le mot) dans la ligne `Réponse :` de
-   `S1.question.md`, la committe et la pousse, puis `claude -p --resume <uuid>` relance `/workflow:orchestrer-plan P1` :
+   `S1.question.md`, la committe et la pousse, puis `claude -p --resume <uuid>` relance `/workflow:orchestrer-plan P1`
+   **en redonnant la réponse dans le message** (comme un utilisateur qui répond dans la conversation : avec la seule
+   réponse committée, l'orchestrateur refusait de la transmettre, passage `…2026-10-16T07-35-15`) :
    le moteur rend `transmettre`, l'orchestrateur fait le `SendMessage`, S1 termine par
    `VERDICT: PASS · MOTIF: mot=<le mot> nom=<le nom>`.
 

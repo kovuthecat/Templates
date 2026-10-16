@@ -83,6 +83,11 @@ export function autorisationsProjet(projet) {
 
 const PROMPT = '/workflow:orchestrer-plan P1';
 
+/** Message du temps 2 d'`arret-relaye` : l'utilisateur répond DANS la conversation, comme un vrai (P20/S13 : avec la
+ * seule réponse committée dans `S1.question.md`, l'orchestrateur refusait de la transmettre — « rien ne me dit que
+ * c'est toi » —, passage `arret-relaye-1-2026-10-16T07-35-15`). La réponse ne porte jamais le mot de `mot.txt`. */
+export const promptTemps2 = (reponse) => `${PROMPT}\n\nMa réponse à la question de S1 : ${reponse}`;
+
 /** Variables d'une session Desktop qui compactent le contexte vers ~20 k tokens ou faussent l'effort
  * (piège tenu du banc du premier geste) — retirées avant `claude -p`. */
 const A_RETIRER = /^(CLAUDE_CODE_|CLAUDE_AGENT_SDK_|CLAUDE_PREVIEW_)|^(CLAUDECODE|DISABLE_MICROCOMPACT|CLAUDE_PID|CLAUDE_EFFORT)$/;
@@ -123,6 +128,7 @@ function etatDepot() {
 /** `deuxTemps` : `{ phase: 1|2, sessionId }` — la session est PERSISTÉE (jamais `--no-session-persistence`), créée
  * sous `sessionId` au temps 1 et reprise (`--resume`) au temps 2, dont la sortie va dans `*-reprise.*`. */
 function jouer({ binaire, dossier, projet, snapshot, outils, deuxTemps = null }) {
+  const prompt = deuxTemps?.phase === 2 ? promptTemps2(REPONSE_ARRET_RELAYE) : PROMPT;
   const env = envPropre(dossier);
   const out = join(dossier, 'out');
   mkdirSync(out, { recursive: true });
@@ -138,14 +144,14 @@ function jouer({ binaire, dossier, projet, snapshot, outils, deuxTemps = null })
     '--plugin-dir', snapshot,
     '--output-format', 'stream-json', '--verbose',
   ];
-  writeFileSync(join(out, `prompt${suffixe}.txt`), PROMPT + '\n');
+  writeFileSync(join(out, `prompt${suffixe}.txt`), prompt + '\n');
   writeFileSync(join(out, `commande${suffixe}.txt`), `${binaire} ${commande.join(' ')}\n`);
   return new Promise((resolve) => {
     const debut = Date.now();
     const enfant = spawn(binaire, commande, { cwd: projet, env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
     enfant.stdout.pipe(createWriteStream(join(out, `stream${suffixe}.jsonl`)));
     enfant.stderr.pipe(createWriteStream(join(out, `stderr${suffixe}.txt`)));
-    enfant.stdin.end(PROMPT);
+    enfant.stdin.end(prompt);
     let delaiDepasse = false;
     const minuteur = setTimeout(() => {
       delaiDepasse = true;
