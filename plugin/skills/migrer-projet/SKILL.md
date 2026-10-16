@@ -2,6 +2,7 @@
 name: migrer-projet
 description: Rattacher un projet existant au workflow en le vendorant dans le dépôt, puis vérification prouvée. À dérouler si le projet n'est pas encore sur ce workflow, ou si son outillage est incomplet ou daté.
 model: sonnet
+disable-model-invocation: true
 ---
 
 # Rattacher un projet existant au workflow
@@ -136,8 +137,8 @@ Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement). Proc�
 
 ## Phase D — Gate de vérification (aucun rattachement n'est fini sans elle)
 
-Commune aux deux voies. **Ordre imposé** : D1 à D4 maintenant (mécaniques) → commit (« Fin »,
-ci-dessous) → D6 à D8 maintenant, après le commit. **D5** ne se vérifie pas dans cette session : il
+Commune aux deux voies. **Ordre imposé** : points 1 à 4 maintenant (mécaniques) → commit (« Fin »,
+ci-dessous) → points 6 à 8 maintenant, après le commit. Le **point 5** ne se vérifie pas dans cette session : il
 exige une **nouvelle session**, la configuration n'étant lue qu'au démarrage — le consigner au
 rapport final comme restant à faire par l'utilisateur à sa prochaine session sur ce projet.
 
@@ -158,16 +159,19 @@ rapport final comme restant à faire par l'utilisateur à sa prochaine session s
 3. **Aucun résidu du modèle plugin** dans `.claude/settings.json` : ni `enabledPlugins`, ni
    `extraKnownMarketplaces`, ni chemin absolu (les entrées `workflow-mods-*` de
    `.claude/settings.local.json` sont l'exception attendue, cf. Phase A point 1). Les 5 hooks pointent vers
-   `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`, et `.claude/hooks/session-start.sh` n'existe plus.
+   `$CLAUDE_PROJECT_DIR/.claude/workflow/hooks/`, et `.claude/hooks/session-start.sh` n'existe plus. Le motif
+   d'« absolu » reconnaît `C:\`, `/home/…` et `/Users/…`.
    ```bash
-   node -e "const j=require('./.claude/settings.json');const t=JSON.stringify(j.hooks);console.log('plugin:',!!j.enabledPlugins||!!j.extraKnownMarketplaces,'| absolus:',/[A-Za-z]:[\\\\/]/.test(t),'| hooks:',Object.keys(j.hooks).length)"
+   node -e "const j=require('./.claude/settings.json');const t=JSON.stringify(j.hooks);console.log('plugin:',!!j.enabledPlugins||!!j.extraKnownMarketplaces,'| absolus:',/[A-Za-z]:[\\\\/]|\/home\/|\/Users\//.test(t),'| hooks:',Object.keys(j.hooks).length)"
    ```
    Attendu : `plugin: false | absolus: false | hooks: 5`.
-4. **Les hooks vendorés s'exécutent** — `node --check` sur chacun, et chaque fichier de contexte
-   sous son plafond (`wc -l`) :
+4. **Les hooks vendorés s'exécutent** — `node --check` sur chacun — **et chaque fichier de contexte est
+   sous son plafond** (les plafonds de `hooks/plafonds.json`, mesurés par comptage de lignes) :
    ```bash
    for f in .claude/workflow/hooks/*.mjs; do node --check "$f" || echo "KO $f"; done
+   node -e "const p=require('./.claude/workflow/hooks/plafonds.json').plafonds,fs=require('fs');for(const [f,m] of Object.entries(p)){if(f.includes('<')||!fs.existsSync(f))continue;const n=fs.readFileSync(f,'utf8').split('\n').length-1;console.log(n>m?'KO':'ok',f,n+'/'+m)}"
    ```
+   Attendu : aucune ligne `KO` ; un `KO` de plafond → `/purge-contexte`.
 5. **Nouvelle session dans le projet** (la config n'est lue qu'au démarrage) : un `git add -A` de
    test doit être **refusé**, et les skills du workflow doivent être proposées. C'est la preuve que
    le câblage est actif, donc que `CLAUDE-BASE.md` est injecté. Vérifier aussi les mods : `node .claude/workflow/bin/installer-mods.mjs --verifier`
@@ -182,7 +186,7 @@ rapport final comme restant à faire par l'utilisateur à sa prochaine session s
    2026-09-11, Vite bloqué le 2026-09-16, torrent-uploader). Action hors du dépôt, qu'aucune gate ne
    peut poser à sa place (`WORKFLOW.md` §9c) : attendre le oui. S'il choisit de rester :
    `touch .git/info/synchro-exclue` — sinon rappelé à chaque session par `sessionstart-contexte.mjs`.
-8. **Coût de contexte** (mesure A1, `/choisir-mecanisme` point 8) : `/context` dans une session
+8. **Coût de contexte** (`/choisir-mecanisme`, point « coût de contexte mesuré ») : `/context` dans une session
    neuve pour ce projet, MCP scopés au projet, `CLAUDE.md` élagué si `/doctor` le propose.
 
 Un point rouge = rattachement non fini. Ne jamais conclure sur « ça devrait marcher ».

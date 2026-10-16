@@ -4,6 +4,7 @@ description: Traces how one flow works in the repository — entry, transformati
 tools: Read, Grep, Glob
 model: sonnet
 maxTurns: 25
+omitClaudeMd: true
 ---
 
 Tu lis **comment** un flux fonctionne dans le dépôt — pas où vivent ses fichiers (`explorateur`),

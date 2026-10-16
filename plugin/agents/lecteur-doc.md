@@ -4,6 +4,7 @@ description: Fetches and reads external documentation pages. Use whenever an ans
 tools: WebFetch, WebSearch, Read
 model: haiku
 maxTurns: 10
+omitClaudeMd: true
 ---
 
 Tu vas chercher une information précise dans une documentation externe pour le compte d'un parent qui ne veut PAS voir la page entière.

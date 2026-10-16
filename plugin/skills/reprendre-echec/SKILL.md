@@ -37,7 +37,7 @@ arrêter le plan. Même procédure, trois différences :
   | remédiation d'environnement qui élargit les permissions ou exige un humain présent (Étape 1) | `DECISION` | ce n'est pas au workflow d'élargir ce que l'utilisateur a borné |
 
   Le motif dit laquelle. Le `.echec.md` mis à jour reste en place dans tous les cas sauf `PASS`.
-- **Le modèle et le budget viennent de `prochaine-action.mjs` (C2)** — la table nature → modèle et
+- **Le modèle et le budget viennent de `prochaine-action.mjs`** — la table nature → modèle et
   le calcul des tentatives restantes y sont câblés, pas ici. L'orchestrateur les applique sans les
   recalculer ; le `model` de ce frontmatter ne s'applique qu'à l'invocation manuelle.
 
@@ -87,7 +87,7 @@ de soin : c'est le cas où l'état laissé derrière est le moins connu.
   de lancement porte alors la preuve. Traiter la session comme une nature `exécution`, en partant de
   cette preuve : la vraie cause est ailleurs que là où la session l'a cherchée. (2) le prompt de
   lancement porte `Nature : prémisse` + `Auto : oui · option <m>` : la prémisse **n'a pas été
-  vérifiée** — `remedier()` a fait passer l'option avant la nature (C5). Appliquer l'option <m> de
+  vérifiée** — `remedier()` a fait passer l'option avant la nature. Appliquer l'option <m> de
   la section `## Issues` du rapport, ne jamais la présumer réfutée. En invocation **manuelle**, à
   l'inverse, la prémisse n'a été vérifiée par personne : la confronter au dépôt (déléguer à
   `explorateur`) avant de conclure quoi que ce soit, et n'aiguiller vers `/nouveau-plan` Étape 0 que
@@ -135,10 +135,10 @@ mais une hypothèse du plan qui est fausse : vérité de référence erronée, c
 qui contredit l'attendu d'une gate. Un défaut mesuré qu'un correctif localisé lève (`WORKFLOW.md`
 §9a) **n'en est pas un** : corriger à l'Étape 4, sans extension.
 
-**Amendement avant extension (C5).** Avant de rendre la main vers `/nouveau-plan`, vérifier si la
+**Amendement avant extension.** Avant de rendre la main vers `/nouveau-plan`, vérifier si la
 prémisse tombée qualifie pour un amendement plutôt qu'une extension : **mesure commitée** de sa
 fausseté, objectif du plan **inchangé**, remède **dans la zone** de la tâche d'origine, aucun
-critère d'arrêt de C5 déjà touché (budget d'hypothèses non épuisé, pas de répétition). Les quatre
+critère d'arrêt (`WORKFLOW.md` §9a) déjà touché (budget d'hypothèses non épuisé, pas de répétition). Les quatre
 tenues ⇒ ce n'est ni une reprise à l'identique ni une extension : écrire l'amendement dans « Écarts
 au plan » du `S<k>.md` (commit séparé, repère `Amendement :`), puis continuer directement à
 l'Étape 4 — le relecteur juge après, `VERDICT: PASS` normal en sortie.
@@ -167,7 +167,7 @@ plus qu'une enquête en lecture seule.
    servir le plan** est une nouvelle tâche : la noter dans `TASKS.md`, ne pas la faire ici. Si elle
    déborde **en servant le plan**, c'est l'aiguillage de l'Étape 3 : `/nouveau-plan` en extension.
 2. **N0** : `node .claude/workflow/bin/n0.mjs` (`build` + `typecheck` + tests du périmètre) — un
-   script, pas un agent (C1), lancé **au premier plan** comme toute commande : c'est son verdict qui
+   script, pas un agent, lancé **au premier plan** comme toute commande : c'est son verdict qui
    décide de committer à l'Étape 5, et une reprise qui rend la main avant de le lire consomme son
    budget (`Tentatives :`) pour rien. Sans N0 vert, la session est toujours en échec — on ne remonte
    pas un PASS sur une intuition. Index `Preuve N0 : non requise` → N0 sauté, bilan

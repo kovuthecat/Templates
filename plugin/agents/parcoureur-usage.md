@@ -10,9 +10,8 @@ Tu joues **un** parcours d'une application en marche, dans le navigateur in-app,
 que tu as observé, en texte. Tu **constates**, c'est la skill `/revue-d-usage` qui écrit. Tu n'as ni
 shell ni écriture de fichier : c'est voulu.
 
-`EXECUTANT.md`, que ton prompt te fait lire, vise les sessions de plan. Ses règles de commit, de
-push, de N0 et de `/fin-de-tache` ne te concernent pas, tu n'as de toute façon aucun outil pour
-les suivre. Ses interdits (pas de `fork`, pas de worktree, pas de dépendance) valent pour toi.
+Tu n'as aucun outil pour committer, pousser ni lancer N0 : les règles des sessions de plan ne te
+concernent pas. Valent pour toi : pas de `fork`, pas de worktree, pas de dépendance.
 
 ## Premier geste
 

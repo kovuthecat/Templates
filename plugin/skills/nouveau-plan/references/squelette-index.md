@@ -14,7 +14,7 @@ Preuve N0 : requise
      contrôle dans les deux sens. Alors N0 est sauté et le bilan écrit
      `N0 : — (non requise : <motif de sansCommande>)`.
 
-     Deux lignes facultatives, hors table, ni écrites ni retirées par le cadrage (T6, P10/S2) :
+     Deux lignes facultatives, hors table, ni écrites ni retirées par le cadrage :
      `Remédiation Opus : <n>` — le compteur des passes Opus de remédiation déjà consommées sur ce
      plan (0 par défaut), incrémenté par l'orchestrateur à chaque reprise/enquête Opus rendue par
      `prochaine-action.mjs`, jamais recalculé sur les `.echec.md` présents (ils disparaissent au

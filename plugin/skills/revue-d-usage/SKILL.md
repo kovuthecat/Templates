@@ -3,6 +3,7 @@ name: revue-d-usage
 description: Revue d'usage d'une application en marche, à un jalon, par parcours joués dans le navigateur in-app — fonctionnel, ergonomie (Nielsen), accessibilité (WCAG 2.1 AA), esthétique sur demande — après une interview de périmètre. Revue d'ensemble d'une app, pas la vérification d'un écran après une tâche (c'est `/verif-visuelle`). Ne corrige pas de code.
 allowed-tools: Read, Glob, Grep, Agent, Write, Edit, Bash(git status:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*)
 model: sonnet
+disable-model-invocation: true
 ---
 
 # Revue d'usage
@@ -21,7 +22,7 @@ Sur le N2 : *proposer, jamais trancher, et seulement si l'interview l'a demandé
 la vérification du serveur et la règle « un seul essai » y sont décrits : les appliquer tels quels.
 
 - **Absents → mode B.** Ne rien parcourir soi-même. Sortir la liste des parcours (Étape 2, depuis
-  `ARCHITECTURE.md` seul) et, **par parcours**, un bloc au format du mode B de `/verif-visuelle` :
+  `DESIGN_SPEC.md`, ou `ARCHITECTURE.md` à défaut) et, **par parcours**, un bloc au format du mode B de `/verif-visuelle` :
   `Lancer` · `Ouvrir` · les gestes · les états à provoquer · les critères à relever. L'interview se
   réduit au périmètre (pages, parcours), sans les passes. Le bloc va dans la réponse et dans la
   « Checklist manuelle » du rapport, puis Étape 6.
@@ -41,8 +42,8 @@ le backend n'est pas local.
 
 ## Étape 1 — Lire l'intention
 
-`PROJECT_BRIEF.md` (objectif, usage prévu, tâche principale), `ARCHITECTURE.md` (écrans et routes),
-`DESIGN_SPEC.md` s'il existe (référence de la passe esthétique).
+`PROJECT_BRIEF.md` (objectif, usage prévu, tâche principale), `DESIGN_SPEC.md` (écrans et routes, référence de la passe
+esthétique), et `ARCHITECTURE.md` en secours si le projet n'a pas de `DESIGN_SPEC.md`.
 
 Le brief se lit **« à confirmer », jamais « vrai »**. Un écart entre ce qu'il dit et ce que l'app
 fait devient une ligne du rapport, section « Écarts brief/app → `/revue-de-conception` ». La revue
@@ -50,7 +51,7 @@ d'usage ne recadre pas l'objectif : c'est le travail de `/revue-de-conception`.
 
 ## Étape 2 — Inventaire
 
-`preview_start` avec le `name` de `launch.json`, puis, pour chaque route connue (`ARCHITECTURE.md`,
+`preview_start` avec le `name` de `launch.json`, puis, pour chaque route connue (`DESIGN_SPEC.md`, ou `ARCHITECTURE.md` à défaut,
 et les liens que la page d'accueil expose) : `navigate`, puis `read_page` (`filter: interactive`).
 On en tire **la liste des écrans et de leurs éléments interactifs**. **Aucun geste qui écrit** à
 cette étape : ni clic, ni saisie, ni soumission.
@@ -65,7 +66,7 @@ constat qui la produit, avec 2 ou 3 issues et **une recommandation motivée**. R
 en une ligne avant la question suivante. **Trois questions au plus** :
 
 1. **Pages** : toute l'app, ou certaines ? Le constat, c'est l'inventaire (n écrans, dont ceux que
-   `ARCHITECTURE.md` ignore). Annoncer ici un backend distant et ce qu'il retire.
+   `DESIGN_SPEC.md` ignore). Annoncer ici un backend distant et ce qu'il retire.
 2. **Parcours** : la liste proposée, amendable (en ajouter, en retirer, en passer en manuel).
 3. **Passes**, parmi **fonctionnel · ergonomie · accessibilité · esthétique**. Recommander les trois
    premières. **L'esthétique est décochée par défaut** : c'est la seule qui juge le goût, elle ne
@@ -94,8 +95,7 @@ Agent({
   description: "Parcours <i>/<n> — <nom>",
   subagent_type: "parcoureur-usage",
   run_in_background: false,
-  prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
-Serveur : preview_start name=<name de .claude/launch.json> · origine <URL locale>.
+  prompt: "Serveur : preview_start name=<name de .claude/launch.json> · origine <URL locale>.
 Parcours <i>/<n> : <nom> — écrans <A> → <B> → <C> · écrit : <non | local>.
 Gestes et attendus : <les 3 à 8 lignes dérivées à l'Étape 2>.
 Passes : <celles du go, seulement>.

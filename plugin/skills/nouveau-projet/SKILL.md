@@ -1,6 +1,7 @@
 ---
 name: nouveau-projet
 description: "Démarrer un projet : interview de cadrage guidée puis instanciation des fichiers de contexte, settings et git. À dérouler avec Opus dans le futur repo vide, avant toute autre chose."
+disable-model-invocation: true
 ---
 
 # Nouveau projet — interview de cadrage
@@ -45,7 +46,7 @@ de passer à la suivante — l'utilisateur doit pouvoir corriger avant que ça s
 6. **Vision & idées futures** — au-delà du MVP, la direction générale si tout se passe bien ; idées
    de v2 notées mais jamais promises.
 7. **Plateformes cibles** — desktop / mobile / PWA (conditionne les contraintes UI). (→
-   `ARCHITECTURE.md`, instancié en Phase D.)
+   `DESIGN_SPEC.md` si le projet a une UI, sinon `ARCHITECTURE.md`.)
 8. **Contraintes** — offline, accessibilité, ton visuel, perf. Un nombre, un seuil ou une liste
    fermée issus de la réponse s'écrivent **« provisoire, à mesurer au premier plan »**, jamais en
    invariant (12 blocages sur 51, presque tous révisés au premier contact avec le réel). Un critère
@@ -108,7 +109,7 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
 
 1. **Vendorer le workflow**, s'il ne l'est pas déjà (`.claude/workflow/manifest.json` absent) —
    c'est la commande d'amorçage en tête de cette skill. Si le manifeste existe : le workflow est
-   déjà là, dérouler `/maj-workflow` (contrôle de version, C4), puis continuer.
+   déjà là, dérouler `/maj-workflow` (contrôle de version), puis continuer.
 
 2. Copier `.claude/workflow/templates/project-settings.json` → `.claude/settings.json`.
 
@@ -121,7 +122,7 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
    > `npm`/`npx` de l'exemple JavaScript — jamais les laisser telles quelles sur une autre stack
    > (incident Chords, 2026-09-09). **Ne jamais retirer une entrée du socle** (les entrées du
    > gabarit hors `npm`/`npx` : lire, éditer, committer, pousser, `n0.mjs`…) : des sessions
-   > headless ont été bloquées faute de `pytest`, de `git push` ou de `n0.mjs` dans l'allow.
+   > orchestrées ont été bloquées faute de `pytest`, de `git push` ou de `n0.mjs` dans l'allow.
    > La dérivation est faite **une fois** (étape 4) et sert aussi à `CLAUDE.md` et `n0.json`.
 
 3. Copier depuis `.claude/workflow/templates/` : `PROJECT_BRIEF.md`, `ARCHITECTURE.md`,
@@ -149,7 +150,7 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
    C'est la **seule** source des règles : `PROJECT_BRIEF.md`, `ARCHITECTURE.md` et
    `DESIGN_SPEC.md` y renvoient sans les recopier. Aucune règle retirée en B2 n'est écrite.
 
-6. Ajouter `.claude/n0/` au `.gitignore` (journal local, jamais versionné) — **jamais** `*.revue.md` ni `*.echec.md` : ces deux-là sont commités (C3).
+6. Ajouter `.claude/n0/` au `.gitignore` (journal local, jamais versionné) — **jamais** `*.revue.md` ni `*.echec.md` : ces deux-là sont commités.
 
 7. Remplir `PROJECT_BRIEF.md` avec les réponses de l'interview (chaque section a une question
    source en Phase A — aucune section ne doit rester à instancier sans réponse).

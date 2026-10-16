@@ -102,7 +102,7 @@ N2 (jugement) :
 ```
 
 Puis **consigner uniquement la partie N2 dans `VALIDATION.md`** (bloc par écran, cf. l'en-tête du
-fichier). La partie N1 reste dans la réponse : soit l'utilisateur la déroule tout de suite, soit la session est rejouée depuis Desktop.
+fichier). La partie N1 reste dans la réponse : soit l'utilisateur la déroule tout de suite, soit un navigateur in-app est ouvert (Claude Code Desktop) et l'écran est rejoué.
 
-> Une session dont la validation N1 est structurante (nouvel écran, refonte de mise en page) gagne
-> à être lancée depuis Desktop. C'est ce que déclare la colonne **Env.** de l'`index.md` du plan.
+> Une session dont la validation N1 est structurante (nouvel écran, refonte de mise en page) déclare
+> `Environnement : Desktop (navigateur requis)` dans le bandeau de sa fiche.

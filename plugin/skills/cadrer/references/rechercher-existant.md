@@ -2,7 +2,7 @@
 
 Annexe de `/cadrer` Étape 2, partagée avec `/nouveau-projet` Phase A et `/nouveau-plan` Étape 1 — à ouvrir avant de proposer un mécanisme neuf.
 
-Rien n'organise la recherche d'une solution existante avant de prévoir un mécanisme custom (D8). Déclencheurs : mécanisme non trivial envisagé, dépendance à ajouter, problème courant, sous-système custom proposé.
+Rien n'organise la recherche d'une solution existante avant de prévoir un mécanisme custom. Déclencheurs : mécanisme non trivial envisagé, dépendance à ajouter, problème courant, sous-système custom proposé.
 
 ## Sept pas
 

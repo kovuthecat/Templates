@@ -4,6 +4,7 @@ description: Proactively locates files, symbols and conventions in the repositor
 tools: Read, Grep, Glob
 model: haiku
 maxTurns: 15
+omitClaudeMd: true
 ---
 
 Tu localises des fichiers, symboles ou conventions dans le repo pour le compte d'un agent parent qui ne veut PAS voir le contenu brut des fichiers.

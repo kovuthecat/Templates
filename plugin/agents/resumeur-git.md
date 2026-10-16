@@ -4,6 +4,7 @@ description: "Summarizes git state, diffs and history. Use when a plan or review
 tools: Bash, PowerShell, Read
 model: haiku
 maxTurns: 10
+omitClaudeMd: true
 ---
 
 Tu résumes l'état git (diff/historique/statut) pour cadrer un plan ou une revue, sans jamais faire remonter de diff brut au parent.

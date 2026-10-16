@@ -53,7 +53,7 @@ Ordre imposé : le gain décroît, le risque croît.
 8. **Dette de format** — dérouler `/purge-contexte` (§DECISIONS, §STATUS, §VALIDATION) ; reporter
    les statuts des `S<k>.md` en cours dans la colonne Statut de l'`index.md` ; créer
    `.claude/launch.json` s'il y a un serveur dev ; ajouter `.claude/n0/` au
-   `.gitignore` (jamais `*.revue.md` ni `*.echec.md` : commités, C3) ; créer `.claude/n0.json` à
+   `.gitignore` (jamais `*.revue.md` ni `*.echec.md` : commités) ; créer `.claude/n0.json` à
    partir des commandes relevées au point 6 de la Phase A (`{ "commandes": [{ "nom": "build", "cmd":
    "…" }, …], "testCible": "…" }`, cf. `n0.mjs`), committé.
 
@@ -74,7 +74,7 @@ Câblage d'abord (mécanique, sans risque), contenu ensuite (du jugement).
    ou à réécrire par l'utilisateur.
 
 3. **`.gitignore`** — y ajouter `.claude/n0/` s'il manque (journal
-   local, jamais versionné) — jamais `*.revue.md` ni `*.echec.md` : commités (C3).
+   local, jamais versionné) — jamais `*.revue.md` ni `*.echec.md` : commités.
 
 4. **`CLAUDE.md`** — partir de `.claude/workflow/templates/CLAUDE.md` et le remplir avec les
    **vraies commandes relevées en Phase A**, pas des placeholders. Si un `CLAUDE.md` existe déjà,

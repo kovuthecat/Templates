@@ -53,7 +53,7 @@ a menti. On la **nomme**, on ne la répare pas en silence.
 | Symptôme | Ce que ça veut dire | À proposer |
 | --- | --- | --- |
 | Commits depuis la dernière écriture de `STATUS.md` (résumé `resumeur-git`) | `STATUS.md` ne décrit plus l'état réel | mise à jour de `STATUS.md`, avant toute nouvelle tâche |
-| Tâche `[~]`/en cours dans l'`index.md` sans commit ni diff correspondant | travail annoncé jamais fait, ou perdu | rouvrir la tâche, ou la repasser à faire |
+| Session `[ ]` dont le `S<k>.md` porte un bilan, ou des commits `Plan: P<n>/S<k>/` sans coche dans l'`index.md` | travail fait sans statut, ou statut jamais posé | cocher à la main, ou relancer le moteur (`prochaine-action.mjs P<n> --appliquer`) |
 | Diff non commité dans l'arbre de travail | session interrompue avant son commit | `/fin-de-tache` de la session interrompue (repère : le `S<k>.md` dont la zone contient les fichiers) ; la fin de plan seulement une fois toutes les sessions commitées |
 | `plans/P<n>/S<k>.echec.md` présent | une session a échoué et n'a jamais été reprise | `/reprendre-echec <chemin>` — il passe avant toute nouvelle tâche |
 | Plafond dépassé (signalé par le hook) | fichier de contexte relu et payé à chaque session | `/purge-contexte`, avant de reprendre |

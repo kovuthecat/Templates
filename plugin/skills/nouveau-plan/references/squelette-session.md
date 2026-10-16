@@ -15,7 +15,7 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
      « Lire » : ne pas les recopier non plus. -->
 
 > **Environnement : Desktop (navigateur requis)** — N1 au navigateur in-app (`WORKFLOW.md` §6)
-> **Régime : ouvert** (exploration, C6) — branche jetable nommée ET poussée (jamais `main`), budget
+> **Régime : ouvert** (exploration) — branche jetable nommée ET poussée (jamais `main`), budget
 > écrit, réponse positive ET négative décrites ; livrable = mesure + réfutations + code candidat
 > **Latitude : <restriction>** — <la raison, en une ligne : sans raison écrite, c'est un écart>
 > **Correctif localisé : interdit** — <raison : zone sensible, état coûteux à annuler>
@@ -26,7 +26,7 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
 - Lire : `${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md`
 <ajouter les lectures communes au même format, une ligne par chemin>
 <fichiers + portée précise (section / fonction / lignes) — point de départ de la lecture ; elle
- reste ouverte au-delà (C5, `WORKFLOW.md` §1) — seule l'écriture reste bornée à « Modifier » / la
+ reste ouverte au-delà (`WORKFLOW.md` §1) — seule l'écriture reste bornée à « Modifier » / la
  zone du plan>
 
 ## Hors périmètre
@@ -76,7 +76,7 @@ règles qui gouvernent ce qu'on y met sont restées dans le corps de la skill ; 
 ### Validation
 - **N0 auto (bloque le commit)** : `node ${CLAUDE_PLUGIN_ROOT}/bin/n0.mjs --session P<n>/S<k>`
   (projet vendoré : `node .claude/workflow/bin/n0.mjs`) → <résultat attendu> — **jamais un
-  sous-agent** (C1) : la commande s'exécute au premier plan, comme toute commande. Index
+  sous-agent** : la commande s'exécute au premier plan, comme toute commande. Index
   `Preuve N0 : non requise` : écrire `— (non requise : <motif de sansCommande>)` à la place de la
   commande (`verifier-plan.mjs` l'accepte alors)
 - **Tests** : <créés/mis à jour : fichiers, cas couverts> — ou « — » justifié en 1 ligne

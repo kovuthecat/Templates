@@ -52,13 +52,13 @@ Quatre règles pour qu'il serve à quelque chose :
   condamne à repayer les mêmes impasses. Même logique que « Écartés — ne pas reproposer » de
   `/revue-de-conception`. Rien à écarter → écrire `aucune`, jamais supprimer la ligne.
 - **« et rien d'autre »** applique au cas non planifié la règle que le socle impose au cas planifié :
-  « Lire » est un point de départ, pas un plafond (lecture ouverte, C5) — seule l'écriture reste
+  « Lire » est un point de départ, pas un plafond (lecture ouverte) — seule l'écriture reste
   bornée à la zone. Sans cette ligne, la session neuve relit le contexte par défaut et repaie un
   préfixe entier (`WORKFLOW.md` §3b).
 - **Bloc de code clos, dans la conversation** — pas seulement une pastille : le bloc doit être
   copiable en Desktop, VS Code, cloud et mobile. Quand une pastille est possible, elle vient **en
   plus**, avec la ligne « À régler AVANT de lancer » (`WORKFLOW.md` §3).
-- **`Commit :` / `Branche :` ne sont pas optionnelles** (C3) : elles remplacent le push groupé de
+- **`Commit :` / `Branche :` ne sont pas optionnelles** : elles remplacent le push groupé de
   fin de vague/plan — chaque fin de tour pousse le sien, et la relance doit dire lequel. **Premier
   geste de la session suivante** : `git merge-base --is-ancestor <sha> HEAD` — confirme qu'elle est
   à jour sur ce commit avant de lire quoi que ce soit d'autre. `main` impossible à pousser (cloud) :

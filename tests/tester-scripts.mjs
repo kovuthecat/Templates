@@ -1061,11 +1061,12 @@ function extraireBlocMd(cheminAbsolu) {
 }
 
 /** La ligne d'exemple (entre backticks) du format d'extension d'ordonnancement, telle qu'écrite
- * dans `nouveau-plan/SKILL.md` — jamais recopiée à la main dans le test (T4, P10/S2). */
+ * dans `nouveau-plan/references/cas-rares.md` (déplacée là par P20/S12) — jamais recopiée à la main
+ * dans le test (T4, P10/S2). */
 function extraireLigneExtension() {
-  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'SKILL.md'), 'utf8');
+  const texte = readFileSync(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'cas-rares.md'), 'utf8');
   const m = /`([^`]*remédiation de S[^`]*)`/.exec(texte);
-  if (!m) throw new Error("ligne d'extension introuvable dans nouveau-plan/SKILL.md");
+  if (!m) throw new Error("ligne d'extension introuvable dans nouveau-plan/references/cas-rares.md");
   return m[1];
 }
 
@@ -1228,7 +1229,7 @@ cas('T4 (a) : squelette-index.md extrait à l\'exécution → chaque session de 
 });
 
 cas(
-  "T4 (b) : ligne d'extension telle qu'extraite de nouveau-plan/SKILL.md + session S8 dans la table → S8 dans une vague",
+  "T4 (b) : ligne d'extension telle qu'extraite de nouveau-plan/references/cas-rares.md + session S8 dans la table → S8 dans une vague",
   () => {
     const cwd = dossierJetable('workflow-pa-extension-');
     const blocIndex = extraireBlocMd(join(RACINE, 'plugin', 'skills', 'nouveau-plan', 'references', 'squelette-index.md'));

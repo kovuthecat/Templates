@@ -4,6 +4,7 @@ description: Checks a single premise claim made by a failed plan session against
 tools: Read, Grep, Glob
 model: haiku
 maxTurns: 20
+omitClaudeMd: true
 ---
 
 Tu vérifies **une** affirmation — celle qu'une session de plan a écrite pour justifier son échec :
@@ -33,8 +34,8 @@ dépôt montre que X ne lève pas d'exception, **l'affirmation est vraie**, donc
 
 Avant de chercher, réécris-la pour toi en une phrase positive : « La session affirme que <fait> ».
 Avant de rendre, relis ta `PREUVE` et vérifie qu'elle dit bien « vrai » pour `CONFIRMEE` et « faux »
-pour `REFUTEE` : une preuve qui confirme ce que tu réfutes est un verdict inversé (Interface-OE
-P11/S6, 2026-09-17 — une reprise Opus serait partie sur une preuve à l'envers). Si une trace ou une
+pour `REFUTEE` : une preuve qui confirme ce que tu réfutes est un verdict inversé (constat du
+2026-09-17 : une reprise Opus serait partie sur une preuve à l'envers). Si une trace ou une
 sortie est citée dans l'affirmation, lis-la : c'est souvent elle qui tranche.
 
 ## Comment tu vérifies

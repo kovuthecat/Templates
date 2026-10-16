@@ -1,6 +1,6 @@
 ---
 name: maj-workflow
-description: Mettre à jour les fichiers du workflow vendorés depuis le dépôt source, en signalant les fichiers modifiés à la main. Dérouler aux frontières de plan (C4) — `/nouveau-plan` Étape 0, `/orchestrer-plan` avant la première vague, `/nouveau-projet`, `/migrer-projet`.
+description: Mettre à jour les fichiers du workflow vendorés depuis le dépôt source, en signalant les fichiers modifiés à la main. Dérouler aux frontières de plan — `/nouveau-plan` Étape 0 (qui lance le script lui-même), `/orchestrer-plan` avant la première vague, `/nouveau-projet`, `/migrer-projet`.
 model: haiku
 ---
 
@@ -13,12 +13,12 @@ un plugin installé à l'exécution. Cette skill le resynchronise depuis la sour
 workflow vendoré reste sans plugin ni marketplace ; seuls les **mods** s'installent, localement au
 poste (voir plus bas) — jamais le workflow lui-même.
 
-## Quand — les frontières de C4, pas « périodiquement »
+## Quand — les frontières de plan, pas « périodiquement »
 
-`docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md` (C4) : l'appel
+`docs/decisions/2026-09-17-autonomie-par-defaut-etat-scripte-push-par-session.md` : l'appel
 n'est plus au fil de l'eau, seulement à quatre frontières, chacune l'appelant elle-même —
-`/nouveau-plan` Étape 0, `/orchestrer-plan` avant sa première vague, `/nouveau-projet`,
-`/migrer-projet`. Un appel manuel reste légitime (projet resté longtemps dormant), mais n'est plus
+`/nouveau-plan` Étape 0 (qui lance `sync-workflow.mjs` lui-même, sans dérouler cette skill),
+`/orchestrer-plan` avant sa première vague, `/nouveau-projet`, `/migrer-projet`. Un appel manuel reste légitime (projet resté longtemps dormant), mais n'est plus
 le cas nominal : écrire un plan ou lancer une vague sur un workflow en retard fige dans les
 squelettes ou l'orchestration ce que la source a déjà corrigé.
 
@@ -41,7 +41,7 @@ node .claude/workflow/bin/sync-workflow.mjs --source <payload> --projet . --chec
 Sortie : version de la source vs version du projet, puis un décompte — à jour / à écrire /
 **modifiés localement** / obsolètes. Sort en `1` si une action est due, `0` si tout est aligné.
 
-**D'où vient `<payload>`** — trois cas, du moins cher au plus coûteux :
+**D'où vient `<payload>`** — deux cas, du moins cher au plus coûteux :
 
 | Situation | `--source` |
 | --- | --- |
@@ -52,7 +52,7 @@ Le second cas est le mode normal pour quelqu'un qui découvre le projet : un clo
 temps de la synchronisation, et plus rien à maintenir sur la machine.
 
 **`correctifCritiqueDepuis`** — `plugin.json` de la source peut porter cette clé (une version) : un
-projet vendoré strictement en dessous ne franchit pas une frontière de C4 sans se mettre à jour
+projet vendoré strictement en dessous ne franchit pas une frontière de plan sans se mettre à jour
 d'abord, même entre deux vagues d'un plan en cours (`/orchestrer-plan` le constate avant sa
 première vague). Un projet déjà à cette version ou au-dessus n'est pas concerné — comparer contre la
 version lue dans `.claude/workflow/manifest.json` du projet.
@@ -62,7 +62,7 @@ version lue dans `.claude/workflow/manifest.json` du projet.
 **Aucune ligne `DÉRIVE`** dans la sortie de l'Étape 1 (aucun fichier géré modifié à la main) → la
 mise à jour est mécanique, réversible, et jugée par le `--check` de l'Étape 5 : dérouler l'Étape 4
 **sans poser de question**, puis rapporter. C'est le cas normal, et c'est ce qui rend l'appel
-automatique aux frontières de C4 tenable — un humain n'est sollicité que quand il y a un vrai choix.
+automatique aux frontières de plan tenable — un humain n'est sollicité que quand il y a un vrai choix.
 
 ## Étape 3 — Avec `DÉRIVE` : question à options, jamais un arbitrage silencieux
 
@@ -81,7 +81,7 @@ pas touché. Le défaut protège le travail, il ne l'efface pas. Un fichier obso
 ## Étape 3b — Ligne `SETTINGS  allow en retard`
 
 Une ligne `SETTINGS  allow en retard sur le gabarit — manque : …` signale des entrées du socle du
-gabarit absentes de `permissions.allow` du projet (sans elles, une session headless peut se bloquer
+gabarit absentes de `permissions.allow` du projet (sans elles, une session orchestrée peut se bloquer
 sur `git push`, `n0.mjs`…). Informatif, jamais bloquant : la rapporter à l'utilisateur et poser une
 **question à options** (`WORKFLOW.md` §9c) :
 
@@ -162,7 +162,7 @@ jamais touché par le sync — à supprimer ou à réécrire à sa main.
 - Staging explicite (`git add -A` est refusé par hook). Commit :
   `chore(workflow): synchronisation vX.Y.Z`.
 - **`git push`** — comme toute fin de tour qui rend la main ou déclenche la frontière suivante
-  (`WORKFLOW.md` §4b, C3) : un commit local n'existe pour aucune autre machine, cloud compris, et
+  (`WORKFLOW.md` §4b) : un commit local n'existe pour aucune autre machine, cloud compris, et
   c'est justement à une frontière (`/orchestrer-plan` avant sa première vague, par exemple) que la
   suite peut tourner ailleurs.
 - Le commit est **la** trace de la mise à jour : visible, datée, réversible. C'est ce que le modèle

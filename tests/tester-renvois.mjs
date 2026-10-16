@@ -30,6 +30,9 @@
 //   8. Concordance de la table des actions de `orchestrer-plan/SKILL.md` avec les actions que le moteur
 //      (`plugin/bin/prochaine-action.mjs`) RENDUE sous `--appliquer` : chaque action rendue a sa ligne, toute
 //      ligne est une action du moteur, et `pousser` (faite par le moteur lui-même) n'en a pas (P20/S12/T18).
+//   9. Les skills lancées par l'humain (`nouveau-projet`, `migrer-projet`, `revue-de-conception`,
+//      `revue-d-usage`) portent `disable-model-invocation: true`, et elles seules ; l'Étape 0 de
+//      `nouveau-plan` lance `sync-workflow.mjs` au lieu de dérouler `/maj-workflow` (P20/S12/T19).
 //
 // Node pur, aucune dépendance : lit les fichiers texte de `plugin/`, aucune écriture.
 //
@@ -485,6 +488,38 @@ cas('assertion 8bis — fixture : la lecture de la table s\'arrête au titre sui
   const b = actionsDeLaTable(avecSuite);
   if (a.join() !== 'lancer') return `lecture de la table : ${a.join()}`;
   if (b.join() !== 'pousser,enqueter') return `la lecture doit s'arrêter au titre suivant : ${b.join()}`;
+  return null;
+});
+
+// ── Assertion 9 — skills lancées par l'humain : drapeau posé, et seulement sur elles ─────────────
+// Le revers accepté (décision du 2026-10-14, point 16) : ces skills ne se lancent plus que par `/nom`.
+// Un drapeau perdu rend la skill déclenchable par erreur, au tarif de son modèle ; un drapeau de trop retire
+// à Claude une skill qu'il doit pouvoir lancer.
+const LANCEES_PAR_L_HUMAIN = ['migrer-projet', 'nouveau-projet', 'revue-d-usage', 'revue-de-conception'];
+function porteLeDrapeau(skill) {
+  const r = frontmatterDe(readFileSync(join(PLUGIN, 'skills', skill, 'SKILL.md'), 'utf8'));
+  if (r.erreur) throw new Error(`${skill} : ${r.erreur}`);
+  return r.paires.some((p) => p.cle === 'disable-model-invocation' && p.valeur.trim() === 'true');
+}
+
+cas(`assertion 9 — disable-model-invocation: true sur exactement ${LANCEES_PAR_L_HUMAIN.length} skills (${skills.length} skills inspectées)`, () => {
+  const avec = skills.filter(porteLeDrapeau).sort();
+  const manque = LANCEES_PAR_L_HUMAIN.filter((s) => !avec.includes(s));
+  if (manque.length > 0) return `drapeau absent sur : ${manque.join(', ')}`;
+  const detrop = avec.filter((s) => !LANCEES_PAR_L_HUMAIN.includes(s));
+  if (detrop.length > 0) return `drapeau en trop sur : ${detrop.join(', ')} (Claude ne pourrait plus les lancer)`;
+  return null;
+});
+
+cas('assertion 9bis — Étape 0 de nouveau-plan : sync-workflow.mjs lancé directement, /maj-workflow non déroulé', () => {
+  const texte = readFileSync(join(PLUGIN, 'skills', 'nouveau-plan', 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n');
+  const debut = texte.indexOf('## Étape 0');
+  if (debut < 0) return 'titre « ## Étape 0 » introuvable dans nouveau-plan/SKILL.md';
+  const suite = texte.slice(debut + 1);
+  const fin = suite.search(/^## /m);
+  const etape0 = fin < 0 ? suite : suite.slice(0, fin);
+  if (!etape0.includes('sync-workflow.mjs')) return "l'Étape 0 ne cite pas sync-workflow.mjs";
+  if (/(?<!sans )dérouler\s+`\/maj-workflow`/.test(etape0)) return "l'Étape 0 déroule encore /maj-workflow (son model: haiku fait changer de modèle en cours de tour)";
   return null;
 });
 

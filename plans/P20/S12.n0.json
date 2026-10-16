@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "session": "P20/S12",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "76c58fb8cd6b9aec3fe8ee04d23372af461ebdc3a931e475b2d5b9db7fffbb28",
+  "nonSuivis": [
+    "plugin/skills/cadrer/references/protocole-de-preuve.md",
+    "plugin/skills/nouveau-plan/references/cas-rares.md"
+  ],
+  "date": "2026-10-16T06:54:01.684Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 91426
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 295006
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 158
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 29186
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 9320
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1560
+    }
+  ]
+}

@@ -4,6 +4,7 @@ description: Revue a posteriori d'un projet ou d'une zone — constat de l'écar
 allowed-tools: Read, Glob, Grep, Agent, WebFetch, WebSearch, Write, Edit, Bash(git add:*), Bash(git commit:*), Bash(git push:*)
 disallowed-tools: PowerShell
 model: opus
+disable-model-invocation: true
 ---
 
 # Revue de conception

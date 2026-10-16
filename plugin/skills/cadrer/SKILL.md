@@ -17,7 +17,7 @@ Ici Opus ne sert qu'à **arbitrer**. Jamais à chercher, lire, lancer ou vérifi
 > invoque la skill : la préautorisation se réinitialise au message suivant (doc Claude Code, Skills,
 > vérifiée le 2026-09-15). Le garde-fou reste le **Plan Mode pour l'investigation** (Étapes 0 à 4) :
 > il interdit l'écriture dans le dépôt, pas le lancement d'une **sonde jetable** (Étape 2) — c'est la
-> seule exception au « ne rien lancer, ne rien vérifier » (C6). **En sortir avant l'Étape 5**, qui
+> seule exception au « ne rien lancer, ne rien vérifier ». **En sortir avant l'Étape 5**, qui
 > écrit seulement `docs/decisions/…`, la ligne de `DECISIONS.md` et le brief si la ligne `Brief :`
 > l'exige — le Plan Mode ne couvre que l'investigation, pas la sortie qui l'écrit.
 >
@@ -59,7 +59,7 @@ Une réflexion sans question écrite ne se termine pas : elle s'interrompt quand
 
 ## Étape 2 — Déléguer tout ce qui n'est pas un arbitrage
 
-**La sonde jetable est autorisée** (C6) : un script du scratch, ou `n0.mjs`, pour lever une inconnue
+**La sonde jetable est autorisée** : un script du scratch, ou `n0.mjs`, pour lever une inconnue
 que la seule lecture ne tranche pas. Rien ne s'écrit dans le dépôt — l'interdit d'écriture demeure
 (Plan Mode). Ce n'est pas une délégation : c'est la seule exécution qu'Opus peut lancer lui-même ici.
 
@@ -107,7 +107,7 @@ contexte retombe d'un ordre de grandeur, et rien d'acquis n'est perdu.
 
 **Pour couper une fausse piste en cours de route, préférer `/rewind` à `/compact`** : le cache du
 préfixe est conservé, là où `/compact` réécrit tout. Réserver `/compact` au moment de s'arrêter
-avant une pause longue (mesure C2).
+avant une pause longue.
 
 Ne pas déléguer cette synthèse à un agent : rédiger une conclusion qu'Opus détient déjà lui coûte
 quelques centaines de tokens, là où un agent devrait relire tout l'historique pour la reconstruire.
@@ -122,7 +122,7 @@ froid, pas celui d'un sous-agent.
 | **Chantier à mener** | il y a du travail à découper | la décision d'abord, puis `/nouveau-plan` |
 | **Rien à faire** | la question tombe, le sujet attend, ou l'idée est écartée | une ligne dans le registre, et on s'arrête — c'est ce qui empêche de la rejuger |
 | **Idée reportée** | l'idée tient, mais pas maintenant | une ligne dans « Version 2 / idées futures » de `PROJECT_BRIEF.md`, avec le **signal qui la rouvrira** — pas le registre, réservé au transverse |
-| **Preuve à faire** | la question ne se tranche pas en lecture : la réponse n'existe qu'à l'exécution | une section `## Protocole de preuve` (ci-dessous) dans `docs/decisions/<date>-<sujet>.md` + une ligne dans le registre — pas d'arbitrage tranché, `/nouveau-plan` y relit le protocole |
+| **Preuve à faire** | la question ne se tranche pas en lecture : la réponse n'existe qu'à l'exécution | une section `## Protocole de preuve` (`references/protocole-de-preuve.md`) dans `docs/decisions/<date>-<sujet>.md` + une ligne dans le registre — pas d'arbitrage tranché, `/nouveau-plan` y relit le protocole |
 
 Toute issue qui écrit un `docs/decisions/` y met la ligne `Brief :` ; si elle n'est pas `inchangé`,
 la section nommée de `PROJECT_BRIEF.md` est réécrite **dans le même commit** — c'est
@@ -133,44 +133,12 @@ règle par ligne (règle — motif — levée).
 
 Une session de réflexion qui ne produit aucun écrit n'a pas eu lieu : elle sera refaite.
 
-### Le protocole de preuve — quand la réponse n'existe qu'à l'exécution
+### Le protocole de preuve
 
-S'écrit sous une section `## Protocole de preuve` dans `docs/decisions/<date>-<sujet>.md` : c'est
-l'emplacement que `/nouveau-plan` relit (grille de préparation, `references/preparation.md`), pas un
-fichier à part.
-
-**Signal d'entrée**, l'un des suivants suffit (C6) : une première prémisse comportementale non
-sondable en lecture ; une enquête `OPTIONS` sans option satisfaisante ; le seuil « deuxième plan tué
-sur la même zone » (domicile et définition : `/nouveau-plan` Étape 0, « Seuil unique ») ; ou le
-critère de succès ne s'énonce pas comme un nombre que le code d'aujourd'hui produit déjà de façon
-stable — si la cible bouge quand on change la définition, il n'y a pas de plan à écrire, il y a une
-mesure à établir d'abord.
-
-Le protocole remplace la décision. Il porte au minimum :
-
-- **la question**, et **la mesure** qui y répond ;
-- **ce qui compterait comme réponse positive ET négative** — une preuve dont le résultat négatif
-  n'était pas écrit d'avance ne conclut rien, elle se relit comme un échec ;
-- **la branche** (jetable, jamais `main`) et **le budget** annoncé, en tours ou en temps.
-
-Ce qui borne la preuve à la place du périmètre fermé : la branche, le budget, et **N0 à la fin sur
-le résultat** — une preuve qui ne passe pas N0 n'est pas une preuve.
-
-**Pendant une preuve, tout est contestable, y compris le juge et les décisions de la zone.** Un
-écart trouvé dans l'instrument de mesure est un **résultat**, pas un échec. Et une preuve peut
-**dégeler un « tranché »** — c'est la seule chose du workflow qui en ait le droit, et c'est ce qui
-l'empêche de reproduire le cliquet qui a vidé une zone en cinq plans.
-
-**Ce qui revient**, dans cet ordre : la mesure et la commande qui la reproduit ; ce qui a été réfuté
-(décisions, hypothèses, ou l'instrument lui-même) — c'est la partie de plus grande valeur, et celle
-qu'un plan fermé ne peut pas produire ; le **code candidat** sur sa branche. Être vert ne suffit pas
-à le faire entrer : la décision qui suit tranche, après une passe `relecteur-session`.
-
-**La preuve est orchestrable** (C6) : session de type `exploration` dans un plan (bandeau `Régime :
-ouvert`, squelette-session), lancée en sous-agent, sur branche jetable poussée avec budget écrit —
-l'humain lit le résultat, pas le processus. Un exécutant de plan ne bascule jamais en preuve de
-lui-même : c'est `/nouveau-plan` qui écrit la session `exploration`, pas une session en cours qui s'y
-improvise.
+La réponse n'existe qu'à l'exécution (prémisse comportementale non sondable, enquête `OPTIONS` sans option
+satisfaisante, deuxième plan tué sur la même zone, critère de succès instable) : la décision porte une section
+`## Protocole de preuve` à la place de l'arbitrage. Contenu, branche jetable, budget, retour : lire
+`references/protocole-de-preuve.md` avant de l'écrire.
 
 **Committer et pousser l'écrit avant de rendre la main** — staging explicite du `docs/decisions/` et
 de la ligne de registre, plus `PROJECT_BRIEF.md` quand la ligne `Brief :` l'a touché ou qu'une idée

@@ -72,7 +72,7 @@ section « 8b », avant de committer.
       dans `relecteur-session.md` ;
     - committer le `.revue.md` qu'il a déposé (`revue(P<n>): S<k> relue, <n> bloquant`, repère
       `Plan: P<n>/S<k>`), et poser `[x]!` dans l'index (point 9) si `Bloquant ≥ 1`.
-14. **Push (C3)** : `git pull --rebase` puis `git push` — arbre propre et poussé avant de rendre la
+14. **Push** : `git pull --rebase` puis `git push` — arbre propre et poussé avant de rendre la
     main. Branche `wip/`, cas cloud : `WORKFLOW.md` §4b (domicile). **En mode orchestré, jamais
     `wip/`** — cf. « Mode orchestré » en tête. Exemptions : pas de remote, remote injoignable
     (signalé, non bloquant).

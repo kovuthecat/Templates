@@ -19,7 +19,7 @@ réponse est perdue : le parent est en train de clore, son tour peut se terminer
 
 Le parent te donne, pour chaque `S<k>` de la vague, son effort déclaré au bandeau (`WORKFLOW.md`
 §3) et, s'il y en a, la liste de ses **fichiers sensibles touchés** (donnée par le moteur, action
-`relire`). **Une session `low` sans fichier sensible n'est pas relue** (C7) : ne pas lui écrire de
+`relire`). **Une session `low` sans fichier sensible n'est pas relue** : ne pas lui écrire de
 `.revue.md` du tout — son absence est normale, ce n'est pas « la revue n'a pas tourné ». Une session
 `low` qui touche un fichier sensible est relue comme les autres : le moteur ne te la donne que dans ce cas.
 

@@ -12,7 +12,7 @@ session nomme la nature de l'échec, et n'écrit ce rapport que si l'échec n'es
   la tentative dans « Déjà écarté » ;
 - **prémisse** ou **environnement** hors de portée → rapport tout de suite, sans corriger.
 
-**Budget en hypothèses (C5)** : jusqu'à 3 hypothèses **distinctes** testées en contexte chaud avant
+**Budget en hypothèses** : jusqu'à 3 hypothèses **distinctes** testées en contexte chaud avant
 de conclure à ce rapport, chacune inscrite dans « Déjà écarté » **au fil de l'eau** — au moment où
 elle tombe, pas reconstituée après coup —, arrêt sur hypothèse répétée ou contexte > 70 %. C'est ce
 budget, et non une impression de blocage, qui déclenche l'écriture du rapport.
@@ -24,7 +24,7 @@ enquête `OPTIONS` (10 lignes au plus), qui n'est pas écrite pour une tentative
 l'utilisateur, une fois — elle vient en fin de fichier, après « Hypothèse en cours ».
 
 Une fois écrit, le fichier est **commité et poussé** comme le reste du travail de la session
-(`WORKFLOW.md` §4b, C3) — jamais un fichier local oublié sur un poste.
+(`WORKFLOW.md` §4b) — jamais un fichier local oublié sur un poste.
 
 ```md
 # S<k> — échec du YYYY-MM-DD
@@ -33,7 +33,7 @@ Nature : <environnement | exécution | prémisse | filtre | interruption>
 Tentatives : reprise=<n> enquete=<n>
 Blocage : <le geste précis qui manque, en une ligne>
 Mesure : <commit> · <commande qui la reproduit>
-Auto : <oui · option <m> | non — écrite par l'enquête `OPTIONS`, ou par la session en échec elle-même (mêmes critères, C5)>
+Auto : <oui · option <m> | non — écrite par l'enquête `OPTIONS`, ou par la session en échec elle-même (mêmes critères)>
 Premisse : <refutee · <preuve> — écrite par l'orchestrateur seulement, après `verificateur-premisse` (§9c) ; absente sinon>
 
 ## Tâche visée
@@ -76,7 +76,7 @@ Les lignes **mécaniques**, en tête, exactement ce format — les seules que l'
   `WORKFLOW.md` §9a), `filtre` (filtre de contenu — jamais repris à l'identique, toujours une
   question) et `interruption` (coupure par quota, écrite par l'orchestrateur à la collecte — ne
   consomme aucune reprise du budget, T5). Absente, l'orchestrateur suppose `exécution` ; présente
-  mais hors de ces cinq mots, il pose une question plutôt que de deviner (T4, P10/S2).
+  mais hors de ces cinq mots, il pose une question plutôt que de deviner.
 - `Tentatives : reprise=<n> enquete=<n>` — le **budget déjà consommé** sur cette session
   (`WORKFLOW.md` §9c). La session en échec l'écrit à zéro ; ensuite, c'est la reprise ou l'enquête
   qui l'incrémente avant de rendre la main. Absente : l'orchestrateur suppose `reprise=0 enquete=0`.
@@ -93,13 +93,13 @@ Les lignes **mécaniques**, en tête, exactement ce format — les seules que l'
   elle sera vérifiée (§9c). Présente → elle est une preuve, la vérification est sautée. Ne jamais
   l'écrire pour une mesure non commitée : l'orchestrateur ne lira pas la conversation.
 - `Auto :` — écrite par l'enquête `OPTIONS` (Mode enquête, critère), **ou par la session en échec
-  elle-même**, mêmes critères (C5) : `oui` fait appliquer l'option recommandée (ou le correctif
+  elle-même**, mêmes critères : `oui` fait appliquer l'option recommandée (ou le correctif
   qu'elle nomme) par une reprise, sans question ; absente vaut `non`.
 - `Premisse : refutee · <preuve>` — écrite **seulement par l'orchestrateur**, après que
   `verificateur-premisse` a rendu `REFUTEE` (`/orchestrer-plan` action `verifier-premisse`, `orchestrer-plan/references/remediation.md`),
   jamais par la session en échec elle-même. Sa présence fait suivre la session la branche
-  `exécution` plutôt que `verifier-premisse`, même si `Nature : prémisse` reste écrite telle quelle
-  (T5, P10/S2) : la vraie cause est ailleurs que là où la session l'a cherchée.
+  `exécution` plutôt que `verifier-premisse`, même si `Nature : prémisse` reste écrite telle quelle :
+  la vraie cause est ailleurs que là où la session l'a cherchée.
 
 **La prémisse est le seul champ qu'un tiers vérifie.** Une session en échec écrit ce qu'elle croit ;
 une prémisse fausse arrête un plan entier. C'est pourquoi l'orchestrateur la fait confronter au
