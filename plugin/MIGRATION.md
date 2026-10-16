@@ -1,5 +1,23 @@
 # MIGRATION.md — remplacé par la skill `/migrer-projet`
 
+## Vers 0.67.0
+
+Synchroniser via `/maj-workflow`, puis lire ce qui suit. Rien d'autre à faire côté projet.
+
+- **Plus de parallèle** : un plan qui porte « parallélisable » s'exécute en séquentiel, une session
+  après l'autre. Le verrou de vague (`wave.lock`) n'existe plus.
+- **Plus d'agents `session-<effort>`** : supprimés au prochain `/maj-workflow`. Le moteur porte
+  l'effort directement dans l'appel d'agent.
+- **`pastille` ignoré avec avertissement** : le mot n'arrête plus rien. Un plan ouvert qui le porte
+  continue ; l'avertissement le signale. **ebm-msp-v2/P14** est le seul plan ouvert concerné (sessions
+  S3 à S13, lignes « en clair » et bandeaux « conversation principale ») : ses arrêts passent désormais
+  par l'arrêt relayé. Le plan n'a pas à être réécrit.
+- **Commandes sans `cd`, gabarit de permissions élargi aux lectures seules** : vérifier
+  `.claude/settings.json` au `/maj-workflow` ; il est signalé DÉRIVE s'il a été modifié localement.
+- **Voie express** : un petit changement (moins de 150 lignes et 8 fichiers, hors dépendances,
+  `n0.json` et zone d'un plan ouvert) se committe sans plan, avec la mention `Express :` dans le
+  message ; un script en tient le bilan.
+
 ## Vers 0.48.0
 
 Synchroniser le workflow via `/maj-workflow`. Les nouvelles sessions utilisent des listes

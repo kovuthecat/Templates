@@ -80,6 +80,7 @@
 - **Plan 2 — simplification** : points 7 (avec 15 et 14), 8, 9 (suite), 11 → 10a → 10b, 12, 13,
   16, 17, 18, 21 (retrait), 22, sessions sans pastille (ci-dessous), puis remesure.
   Écrit après le plan 1, sur la mesure et le résultat de la sonde.
+  Plan 2 fait en 0.67.0 (P20) ; remesure : `docs/analyses/2026-10-15-remesure-plan-2.md`.
 
 ## Sessions sans pastille
 
