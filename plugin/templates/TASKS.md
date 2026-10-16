@@ -17,8 +17,8 @@ du plan, pas en amont.
 `- T-ID — titre · → plans/P<n>/S<k>.md`
 
 - **modèle** : Opus · Sonnet · Haiku — grille : `WORKFLOW.md` §2
-- **effort** : `low · medium · high · xhigh · max` (défaut `medium`) —
-  suggestion à **vérifier à la main avant de lancer la session**. Repère : `WORKFLOW.md` §3
+- **effort** : `low · medium · high · xhigh · max` (défaut `medium`) — repris dans la table de
+  l'`index.md` à l'entrée en plan (`max` seulement par `/effort max`). Repère : `WORKFLOW.md` §3
 
 ## Archivage
 

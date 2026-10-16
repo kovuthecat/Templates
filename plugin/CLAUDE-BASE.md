@@ -1,14 +1,15 @@
 # CLAUDE-BASE.md
 
-Règles communes à tous les projets — source unique, importée par le CLAUDE.md de chaque
-projet ; ne pas copier. Chargé à **chaque** session : rester court.
+Règles communes à tous les projets — source unique, injectée au démarrage de chaque session
+par le hook `SessionStart` ; ne pas copier. Chargé à **chaque** session : rester court.
 
 ## Règles générales
 
 - Modifier le minimum de fichiers, garder le style existant, simplicité > cosmétique ; pas de
   refactor global, changement de stack ou dépendance sans validation (`CONVENTIONS.md`).
-- **Cadrage uniquement** (pas de plan existant) : `PROJECT_BRIEF.md` (produit), `ARCHITECTURE.md`
-  (écrans, UI), `DECISIONS.md` (registre, détail dans `docs/decisions/`), `PROJECT_MAP.md` (localisation).
+- **Cadrage uniquement** (pas de plan existant) : `PROJECT_BRIEF.md` (produit), `DESIGN_SPEC.md`
+  (écrans, UI ; `ARCHITECTURE.md` en secours s'il n'existe pas), `ARCHITECTURE.md` (technique),
+  `DECISIONS.md` (registre, détail dans `docs/decisions/`), `PROJECT_MAP.md` (localisation).
 - Instruction utile seulement sur un sous-ensemble de fichiers d'un projet → `.claude/rules/` de CE
   projet (règle scopée), pas une ligne ajoutée à `CLAUDE.md` (voir `CONVENTIONS.md`).
 

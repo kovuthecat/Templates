@@ -3,7 +3,8 @@
 Réflexion d'architecture technique du projet : découpage en features, état/persistance,
 entités et flux de données côté code.
 Rempli **après** `PROJECT_BRIEF.md` (le quoi). Le brief UI (écrans, navigation, maquette)
-vit désormais dans `DESIGN_SPEC.md` — voir ce fichier pour tout ce qui concerne l'interface.
+vit dans `DESIGN_SPEC.md` — voir ce fichier pour tout ce qui concerne l'interface ;
+ce fichier ne porte les écrans qu'en secours, si le projet n'a pas de `DESIGN_SPEC.md`.
 
 > À l'instanciation : supprimer les sections non pertinentes.
 >
@@ -31,4 +32,5 @@ vit désormais dans `DESIGN_SPEC.md` — voir ce fichier pour tout ce qui concer
 ## UI, écrans, maquette
 
 > Tout le brief UI (rappel produit, écrans & vues, navigation, données affichées à l'écran,
-> contraintes UI, statut de la maquette) vit dans `DESIGN_SPEC.md`. Ne pas dupliquer ici.
+> contraintes UI, statut de la maquette) vit dans `DESIGN_SPEC.md`. Ne pas dupliquer ici ;
+> sans `DESIGN_SPEC.md`, noter les écrans sous cette section.

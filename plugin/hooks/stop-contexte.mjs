@@ -88,8 +88,8 @@ if (!sansRacine) {
   // tourné. Le mode d'échec est silencieux par construction : la revue lancée en arrière-plan en
   // dernier geste tourne vraiment, mais son retour arrive dans un tour que plus personne ne lit
   // (docs/decisions/2026-09-07-revue-orpheline.md). Sans ce contrôle, un plan entier se clôt sans
-  // qu'aucune relecture n'ait été déposée. La seule absence légitime est celle du tri de clôture, qui
-  // verse la revue dans TASKS.md puis la supprime — elle se déclare par un repère `Revues:`.
+  // qu'aucune relecture n'ait été déposée. Le tri de clôture verse la revue dans TASKS.md puis supprime le
+  // fichier : ce n'est pas une absence, git retrouve le commit qui l'avait ajouté (aucun repère `Revues:`).
   for (const ref of revuesManquantes(cwd, repereHead, debutSession)) {
     problemes.push(
       `**Revue de session absente ou incomplète — ${ref}.** Des commits de cette session portent du code sous ` +
