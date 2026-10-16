@@ -42,7 +42,7 @@ serveur écoute : `preview_logs` montre son bandeau « ready », `read_network_r
 navigation refusée → mode B, une ligne N1 au bilan, et on continue** : un seul essai, puis basculer
 en mode B et écrire dans le bilan de session (`/fin-de-tache` point 3) la ligne « `N1 S<k> : à faire
 — <écran>` ». Une session orchestrée qui conclut `PASS` avec cette ligne l'ajoute aussi à son
-`MOTIF` final (« N1 S<k> : à faire — <écran> ») — c'est ce que `/orchestrer-plan` Étape 3 relaie.
+`MOTIF` final (« N1 S<k> : à faire — <écran> ») — c'est ce que le rapport final de `/orchestrer-plan` relaie.
 
 ## Mode A — Navigateur in-app (Desktop)
 

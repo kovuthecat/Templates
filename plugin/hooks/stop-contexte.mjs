@@ -97,7 +97,7 @@ if (!sansRacine) {
       `Si la revue n'a pas tourné : lance l'agent \`relecteur-session\` AU PREMIER PLAN ` +
       `(/fin-de-tache, « Relecture de session ») — il dépose le fichier ; le parent le committe. Si ` +
       `cette session n'a pas l'outil Agent (sous-agent orchestré) : dis-le en une ligne, ` +
-      `l'orchestrateur la lance après collecte (/orchestrer-plan Étape 2).`
+      `l'orchestrateur la lance après collecte (/orchestrer-plan, action \`relire\`).`
     );
   }
 

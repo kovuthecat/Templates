@@ -29,12 +29,12 @@ ENQUETE: PISTE|OPTIONS · MOTIF: <une phrase> · RAPPORT: <chemin>
   la nomme en une phrase ; le détail est dans le rapport, l'orchestrateur ne l'ouvre pas.
 - **`OPTIONS`** — aucune hypothèse ne tient dans ce périmètre : le rapport gagne une section
   `## Issues` de **2 à 4 options**, chacune écrite **déjà au format de la question**
-  (`/orchestrer-plan` Étape 3) — une ligne par option, exactement :
+  (`question` de `/orchestrer-plan`) — une ligne par option, exactement :
   `N. <option> — <coût> · débloque <ce que ça rouvre>`, numérotées à partir de 1, plus une
   recommandation. Exemple : `1. Committer la migration manquante, puis rejouer N0 — 5 min ·
   débloque la tâche T3`. L'orchestrateur recopie ces lignes sans rien reformuler : c'est pour ça
   qu'elles s'écrivent déjà dans ce format, pas dans un autre qu'il faudrait ensuite retoucher.
-  C'est cette section qui devient la question posée à l'utilisateur (`/orchestrer-plan` Étape 3, la question) —
+  C'est cette section qui devient la question posée à l'utilisateur (`question` de `/orchestrer-plan`) —
   l'écrire pour quelqu'un qui n'a rien vu de la session.
   **Et une ligne mécanique en tête du rapport**, sous `Mesure :` : `Auto : oui · option <m>` si
   l'option recommandée est un correctif localisé (`WORKFLOW.md` §9a, les quatre conditions) ou un

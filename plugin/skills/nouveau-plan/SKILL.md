@@ -218,7 +218,7 @@ sans build ni test, motif obligatoire) : alors, et alors seulement, `Preuve N0 :
 **La ligne « en clair » est un contrat de lisibilité, pas une redite du titre.** Elle dit ce que la
 session change et **à quoi l'utilisateur le constatera** : un écran, un comportement, un fichier
 produit, une mesure obtenue. `/orchestrer-plan` la relaie **mot pour mot** au lancement de la vague
-(son Étape 1) sans jamais ouvrir le `S<k>.md` — c'est donc la seule chose que l'utilisateur lira
+(l'annonce de l'action `lancer`) sans jamais ouvrir le `S<k>.md` — c'est donc la seule chose que l'utilisateur lira
 avant de voir passer les commits. Une ligne qui paraphrase le titre (« S2 — refonte du module
 d'édition ») ne lui apprend rien ; deux phrases suffisent, à condition d'être les bonnes.
 
@@ -232,7 +232,7 @@ vague n'a droit ni à la reprise ni à l'enquête automatiques) portent sur la v
 précise — elle se lance par le repli pastille (premier plan, navigateur complet), **même en
 Desktop** : c'est le cadreur qui le décide ici, au cadrage, quand le N1 de cette session est
 structurant (nouvel écran, refonte de mise en page) et mérite un déroulé surveillé plutôt qu'un
-sous-agent (`/orchestrer-plan` Étape 1, `/verif-visuelle`).
+sous-agent (`/orchestrer-plan`, `/verif-visuelle`).
 
 **`validation-humaine` a un seul critère : le `PASS` lui-même demande ton jugement** — une ligne
 `N2 humain` non vide dans une session de la vague, dont la réponse décide s'il faut lancer la
