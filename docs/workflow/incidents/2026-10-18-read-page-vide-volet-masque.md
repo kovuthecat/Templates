@@ -24,7 +24,7 @@ constaté : défaut latent, trouvé par sonde.
 - Même constat dans une session liée sur EBM-MSPv2 (`docs/analyses/2026-10-18-sonde-session-liee-navigateur.md`, M1).
 
 ## Sur place
-Rien de corrigé. Remède probable, à instruire : dans `/verif-visuelle` étape 2, imposer une taille
+Corrigé en 0.67.1 (`/verif-visuelle` mode A, étapes 2 et 3), le jour même. Remède retenu : dans `/verif-visuelle` étape 2, imposer une taille
 explicite (`resize_window { width: 1280, height: 800 }`) **avant** `navigate`, et la rétablir en fin
 (`preset: "desktop"`). Autre possibilité : traiter un `read_page` à « Viewport: 0x0 » comme
 « mesure impossible » et non comme « écran blanc », puis se replier sur `get_page_text`. Attention :

@@ -58,14 +58,21 @@ en mode B et écrire dans le bilan de session (`/fin-de-tache` point 3) la ligne
    }
    ```
 
-2. **Naviguer** vers l'écran concerné par la tâche (`navigate`).
+2. **Fixer la taille, puis naviguer** : `resize_window { width: 1280, height: 800 }`, puis
+   `navigate` vers l'écran concerné par la tâche. Volet du navigateur masqué (sous-agent, session
+   liée, Remote Control), la taille par défaut est nulle : `read_page` rend « Viewport: 0x0 » sur une
+   page pourtant chargée (incident `2026-10-18-read-page-vide-volet-masque`). L'app efface la taille
+   à chaque fin de tour : la reposer à chaque tour qui relève.
 3. **Relever** — dans cet ordre, en s'arrêtant au premier échec bloquant :
    - `read_console_messages` (`onlyErrors: true`) → **aucune erreur**.
    - `read_page` → les textes/éléments attendus de la tâche sont **présents** (c'est ce qui attrape
-     les écrans blancs et les composants qui ne montent pas).
+     les écrans blancs et les composants qui ne montent pas). **« Viewport: 0x0 » n'est pas un écran
+     blanc** : c'est une mesure impossible. Reposer la taille et relire une fois. Si c'est encore
+     0x0, juger la présence sur `get_page_text`, en le notant au bilan.
    - `read_network_requests` → **aucun 4xx/5xx** sur les appels de l'écran.
-   - `resize_window` mobile (375×812) puis desktop → **pas de débordement horizontal**,
-     à ne faire que si la tâche touchait la mise en page.
+   - `resize_window` mobile (375×812) puis retour à 1280×800 → **pas de débordement horizontal**,
+     à ne faire que si la tâche touchait la mise en page. En fin de relevé, `resize_window
+     { preset: "desktop" }` rend la taille du volet.
 4. **Interagir** seulement si la tâche portait sur une interaction : `computer` (clic/saisie) ou
    `form_input`, puis `read_page` pour confirmer l'effet.
 5. **Capture** (`computer` `screenshot`) **uniquement** si un constat visuel doit être montré à
