@@ -1,6 +1,6 @@
 # Sonde — une session liée (`start_session`) peut-elle lancer le serveur de dev et le navigateur in-app ? (2026-10-18)
 
-Protocole, puis constats à remplir. Hors plan : mesure seule, aucun changement de `plugin/`.
+Protocole et constats (sonde jouée le 2026-10-18). Hors plan : mesure seule, aucun changement de `plugin/`.
 
 ## Pourquoi cette sonde
 
@@ -93,7 +93,25 @@ L'archivage de la session sondée n'a lieu **que sur accord de l'utilisateur**. 
 
 | # | Mesure | Constat | Preuve (citation) |
 | --- | --- | --- | --- |
-| M1 | Serveur de dev / navigateur depuis une session liée | _à remplir_ | |
-| M2 | Note de fin et réveil du lanceur, `SONDE:` lisible | _à remplir_ | |
-| M3 | `start_session` depuis un tour de réveil | _à remplir_ | |
-| M4 | Approbations demandées, mode de permission | _à remplir_ | |
+| M1 | Serveur de dev / navigateur depuis une session liée | **OK, avec une réserve sur le navigateur** | `preview_start` : « Server started on port 5173. Opened tab "seed" at http://localhost:5173. » Aucun refus « unattended ». Navigateur : le volet de la session liée est **masqué** (`tabs_context` : « The Browser pane is currently hidden »). Au premier essai, `read_page` a rendu « (empty page) », viewport 0x0. Au second (`resize_window` desktop, `navigate`, attente 3 s), `get_page_text` et `screenshot` ont **lu la page** (onglets « Pathologies » et « Dossiers de preuve », trois cartes, cadre 800x600). `read_page` restait vide (0x0). |
+| M2 | Note de fin et réveil du lanceur, `SONDE:` lisible | **CONFIRMÉE** | La note de fin est arrivée seule et le lanceur a été relancé par `<side-sessions-event>` sans geste humain. La ligne `SONDE:` tenait dans les 400 caractères cités. Le rapport entier se lit par `list_events`. Une relance par `SendMessage` vers la même session a marché aussi (second réveil, même mécanisme). |
+| M3 | `start_session` depuis un tour de réveil | **REFUSÉ (K1 confirmé)** | « Start sessions only on the user's own words to you here; this turn runs an automated event, another session's message, or the task another session gave you. Propose the session instead (initiation "own_initiative"), or start it once the user asks you here. » La proposition **ne peut pas viser un autre dossier** : « A proposal card cannot carry a host, folder, environment or preset yet ». Une carte pour le projet courant s'affiche (`task_55b972a6`), puis a été retirée par `dismiss_task`. |
+| M4 | Approbations demandées, mode de permission | **Aucune approbation** | La session liée a hérité du mode du lanceur (`permissionMode: auto`, `claude-haiku-5-5`, effort `medium`). Démarrage du serveur, navigation et arrêt sont passés sans confirmation. Après coup, `git status` d'EBM-MSPv2 est vide et le port 5173 est libéré. |
+
+## Bilan
+
+- **Condition 1 du signal (2026-10-06) : remplie pour une session liée.** Une session lancée par
+  `start_session` n'est pas « sans surveillance » : elle démarre le serveur de dev et lit la page.
+  Réserve pour le N1 : volet masqué, donc `read_page` (arbre d'accessibilité) est inutilisable. Il
+  faut passer par `get_page_text` et `screenshot`, après un `resize_window`. Le contrôle responsive
+  reste à vérifier dans ces conditions. `/verif-visuelle` devra en tenir compte.
+- **Condition 2 : remplie** (M2).
+- **Le signal double est donc là → l'idée se rouvre par `/cadrer`**, avec ces contraintes de
+  conception :
+  1. **Pas d'enchaînement autonome** (M3). Un réveil ne peut pas lancer la session suivante. Une
+     session liée remplace au mieux **une pastille** : l'utilisateur dit « lance S<k> », la session
+     tourne avec navigateur, puis rend son verdict seule. Elle ne remplace pas l'orchestrateur sous-agent.
+  2. **Le verdict tient en tête du récapitulatif** (400 caractères), le reste se lit par `list_events`.
+  3. **Une carte ne vise que le projet courant.** Une proposition depuis un réveil ne peut pas
+     désigner un autre dossier.
+  4. **Mode de permission hérité** : `auto` ici. À revoir si le lanceur tourne en `default`.
