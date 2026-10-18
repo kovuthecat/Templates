@@ -106,12 +106,20 @@ L'archivage de la session sondée n'a lieu **que sur accord de l'utilisateur**. 
   faut passer par `get_page_text` et `screenshot`, après un `resize_window`. Le contrôle responsive
   reste à vérifier dans ces conditions. `/verif-visuelle` devra en tenir compte.
 - **Condition 2 : remplie** (M2).
-- **Le signal double est donc là → l'idée se rouvre par `/cadrer`**, avec ces contraintes de
-  conception :
-  1. **Pas d'enchaînement autonome** (M3). Un réveil ne peut pas lancer la session suivante. Une
-     session liée remplace au mieux **une pastille** : l'utilisateur dit « lance S<k> », la session
-     tourne avec navigateur, puis rend son verdict seule. Elle ne remplace pas l'orchestrateur sous-agent.
+- **Le signal double est là, mais l'idée n'a plus d'objet.** La sonde a été préparée sur la
+  décision du 2026-10-06 sans voir celle du **2026-10-14**
+  (`docs/decisions/2026-10-14-suites-revue-externe-et-sessions-sans-pastille.md`), qui supprime la
+  `pastille` des sessions orchestrées (N1 en sous-agent, N2 non bloquant, choix relayés par
+  `SendMessage`) et déclare la session neuve « sans objet ». `/cadrer` du 2026-10-18 s'est arrêté à
+  l'Étape 0, issue **Rien à faire** (registre `DECISIONS.md`).
+- **Ce qui reste utile si le sujet revient** (chaînage à la main de `/fin-de-tache`, hors
+  orchestration, seul usage restant d'une pastille) :
+  1. **Pas d'enchaînement autonome** (M3) : un réveil ne peut pas lancer la session suivante ; il
+     faut la parole de l'utilisateur, ce qui ne gagne rien sur un clic.
   2. **Le verdict tient en tête du récapitulatif** (400 caractères), le reste se lit par `list_events`.
-  3. **Une carte ne vise que le projet courant.** Une proposition depuis un réveil ne peut pas
-     désigner un autre dossier.
-  4. **Mode de permission hérité** : `auto` ici. À revoir si le lanceur tourne en `default`.
+  3. **Une carte ne vise que le projet courant.**
+  4. **Mode de permission hérité** : `auto` ici.
+- **Constat à vérifier ailleurs** : volet du navigateur masqué ⇒ `read_page` rend une page vide
+  (0x0) alors que `get_page_text` et `screenshot` lisent la page. Si un sous-agent qui joue le N1
+  sous orchestration tombe sur le même cas, `/verif-visuelle` conclurait à tort « contenu absent ».
+  Non mesuré en sous-agent.
