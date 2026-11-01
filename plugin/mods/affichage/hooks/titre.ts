@@ -51,11 +51,27 @@ export function contexteDepuisSkill(projet: string, skill: string, args = ''): C
   return libelle ? { cle: `skill:${nom}`, titre: `${projet} - ${libelle}` } : undefined
 }
 
+// Origines (`prompt.submit`, `e.origin.kind`) d'un message qui n'est pas de la personne. `unclassified`
+// n'y est pas : la personne peut arriver par un canal que le moteur ne sait pas attester.
+const ORIGINES_MACHINE = new Set([
+  'peer',
+  'peer-send-message',
+  'task-notification',
+  'scheduled-trigger',
+  'coordinator',
+  'observer',
+  'observer-activity',
+  'projects-relay',
+  'channel',
+  'auto-continuation',
+])
+
 // Un prompt dont le texte peut nommer la session : celui de la personne, pas un message injecté
 // (compte rendu d'un sous-agent, notification de tâche) qui cite plans/P<n>/S<k>.md et renommait
-// l'orchestrateur « P<n> - S<k> ». `source` absent : champ en cours de déploiement, prompt lu.
-export function promptDeLaPersonne(source: string | undefined): boolean {
-  return source !== 'system' && source !== 'poll_event'
+// l'orchestrateur « P<n> - S<k> ». `source` seul ne suffit pas : absent du hook dans Desktop pour un
+// compte rendu de sous-agent (reproduit le 2026-11-01, 0.67.1) ; l'origine du `prompt.submit` tranche.
+export function promptDeLaPersonne(source: string | undefined, origine?: string): boolean {
+  return source !== 'system' && source !== 'poll_event' && !(origine !== undefined && ORIGINES_MACHINE.has(origine))
 }
 
 // Le contexte qu'un prompt établit, ou `undefined` s'il n'en dit rien (la session garde son titre).

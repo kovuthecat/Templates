@@ -72,6 +72,23 @@ describe('titre : hooks', () => {
     expect(retour.sessionTitle).toBe(undefined)
   })
 
+  test("compte rendu de sous-agent sans `source` (Desktop) : l'origine du prompt.submit tranche, orchestrateur non renommé", async ($, on) => {
+    monde(on)
+    // Le moteur sous prompt.submit : il lance classic.UserPromptSubmit sans `source`, comme Desktop.
+    const titres: (string | undefined)[] = []
+    on('prompt.submit', async (_$: any, e: any) => {
+      const r: any = await ($ as any).classic.UserPromptSubmit({ prompt: e.text, session_title: 'EBM-MSPv2 - P21 - orchestrateur' })
+      titres.push(r.sessionTitle)
+      return { text: e.text, origin: e.origin }
+    })
+    await ($ as any).classic.UserPromptSubmit({ prompt: '/orchestrer-plan P21' })
+    await ($ as any).prompt.submit({ text: 'VERDICT: PASS · RAPPORT: plans/P21/S1.md', origin: { kind: 'peer' }, wait: false })
+    await ($ as any).prompt.submit({ text: 'notification plans/P21/S2.md', origin: { kind: 'task-notification' }, wait: false })
+    expect(titres).toEqual([undefined, undefined])
+    await ($ as any).prompt.submit({ text: 'Ouvre plans/P21/S3.md', origin: { kind: 'composer' }, wait: false })
+    expect(titres[2]).toBe('EBM-MSPv2 - P21 - S3')
+  })
+
   test('/clear puis même contexte → nouvelle conversation renommée', async ($, on) => {
     monde(on)
     on('session.end', () => ({ sessionId: 'x' }))

@@ -193,6 +193,5 @@ describe('commande /incidents : appelle collecter-incidents.mjs', () => {
     const m = monde(on, { script: false })
     await demarrer($)
     expect(m.enregistrees).not.toContain('incidents')
-    expect(m.enregistrees).toContain('panneau')
   })
 })

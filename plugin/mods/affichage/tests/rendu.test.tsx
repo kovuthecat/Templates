@@ -6,21 +6,10 @@ const norm = (p: string) => p.split(String.fromCharCode(92)).join('/')
 const RACINE = '/proj'
 const SURFACES = ['desktop', 'mobile'] as const
 
-const PROPS_PANE = {
-  title: 'Panneau',
-  isFocused: false,
-  bodyColumns: 60,
-  placement: 'dock' as const,
-  scroll: { offset: 0, bodyRows: 30 },
-  view: {},
-}
-
 type Sorties = {
   status: (string | undefined)[]
   commandes: string[][]
   panneaux: string[]
-  fermes: string[]
-  relances: { via: 'prompt' | 'commande' | 'toast'; text: string }[]
 }
 
 // Le monde sous le mod : un depot git simule, a la sortie EXACTE de chaque commande lancee.
@@ -39,7 +28,7 @@ function monde(
     head?: string | (() => string)
   } = {},
 ): Sorties {
-  const s: Sorties = { status: [], commandes: [], panneaux: [], fermes: [], relances: [] }
+  const s: Sorties = { status: [], commandes: [], panneaux: [] }
   const depot = opts.depot !== false
   mock.clock(on, { now: Date.parse('2026-10-07T12:00:00Z') })
   on('session.start', (_$: any, e: any) => ({ cwd: e.cwd }))
@@ -53,19 +42,6 @@ function monde(
   on('fs.list', () => ({ value: [{ name: 'P1', kind: 'dir', size: 0, mtimeMs: 0 }] }))
   on('fs.read', (_$: any, e: any) => (norm(e.path).endsWith('plans/P1/index.md') ? { value: '# P1\n' } : { deny: 'ENOENT' }))
   on('command.register', () => ({ value: { isRegistered: true } }))
-  // Ce que les boutons du panneau « plan » declenchent : un prompt, une commande slash, ou un toast d'echec.
-  on('command.run', (_$: any, e: any) => {
-    s.relances.push({ via: 'commande', text: `/${e.command}${e.args ? ` ${e.args}` : ''}` })
-    return { text: 'ok' }
-  })
-  on('ui.toast', (_$: any, e: any) => {
-    s.relances.push({ via: 'toast', text: e.text })
-    return { value: undefined }
-  })
-  on('prompt.submit', (_$: any, e: any) => {
-    s.relances.push({ via: 'prompt', text: e.text })
-    return { text: e.text, origin: e.origin }
-  })
   on('ui.status', (_$: any, e: any) => {
     s.status.push(e.text)
     return { value: undefined }
@@ -73,10 +49,6 @@ function monde(
   on('ui.open', (_$: any, e: any) => {
     s.panneaux.push(e.id)
     return { value: { isPlaced: true } }
-  })
-  on('ui.close', (_$: any, e: any) => {
-    s.fermes.push(e.id)
-    return { value: undefined }
   })
   on('process.run', (_$: any, e: any) => {
     const argv = [...e.argv]
@@ -105,17 +77,12 @@ function monde(
   return s
 }
 
-// Laisse finir ce que session.start lance sans l'attendre (ouverture des panneaux) : le $ des tests n'a pas d'horloge.
+// Laisse finir ce que session.start lance sans l'attendre : le $ des tests n'a pas d'horloge.
 const attendre = async ($: any) => {
   for (let i = 0; i < 30; i++) await $.tool.call({ tool: 'Read', file_path: '/proj/a' } as any)
 }
 
 const demarrer = ($: any) => $.session.start({ cwd: RACINE, surface: 'terminal', isInteractive: true })
-
-const monter = ($: any, surface: (typeof SURFACES)[number], id: string) =>
-  $.ui.mount({ plugin: 'affichage', surface, component: 'Pane', requestId: id, props: { ...PROPS_PANE, title: id }, viewport: { columns: 60, rows: 30 } })
-
-const textes = async (ui: any) => (await ui.findAll({ type: 'Text' })).map((t: any) => String(t.text))
 
 describe('bandeau au-dessus du prompt', () => {
   // Le bandeau dessine : son texte bout a bout, et les Text en gras a part.
@@ -218,100 +185,7 @@ describe('bandeau au-dessus du prompt', () => {
   })
 })
 
-describe('panneau plan', () => {
-  // P1 est le plan par defaut de monde() ; sa sortie est celle, reelle et regeneree a chaque passage, du moteur
-  // (voir fixtures-plan.ts).
-  const SCRIPTS = { P1: MOTEUR_LANCER }
-  const TEXTE_MOTEUR: string[] = JSON.parse(MOTEUR_LANCER).texte.trimEnd().split('\n')
-  const AVEC_PLAN = (vendore: boolean) => ({
-    fichiers: ['plugin/bin/prochaine-action.mjs', ...(vendore ? ['.claude/workflow/manifest.json'] : [])],
-    scripts: SCRIPTS,
-  })
-  // Chaque bouton : par quel canal il part et ce qui part. `$.prompt.submit` refuse un texte en `/` (le moteur
-  // le tient pour une commande) : les boutons slash passent par `$.command.run`.
-  const BOUTONS_ATTENDUS = (pref: string) => [
-    ['bouton:go', { via: 'prompt', text: 'Go' }],
-    ['bouton:reprends', { via: 'commande', text: `${pref}reprendre` }],
-    ['bouton:orchestrer', { via: 'commande', text: `${pref}orchestrer-plan P1` }],
-    ['bouton:commit', { via: 'prompt', text: `Committe et pousse le travail en attente, selon ${pref}fin-de-tache.` }],
-  ] as const
-  for (const surface of SURFACES) {
-    test(`${surface} : plan, vague, texte du moteur ligne a ligne et quatre boutons`, async ($, on) => {
-      monde(on, AVEC_PLAN(false))
-      await demarrer($)
-      const ui = await monter($, surface, 'plan')
-      const lignes = await textes(ui)
-      expect(lignes[0]).toBe('P1 · vague 1')
-      // Le texte du moteur, tel quel (une ligne vide s'affiche en blanc) : la premiere ligne n'est plus refaite.
-      expect(lignes.slice(1, 1 + TEXTE_MOTEUR.length)).toEqual(TEXTE_MOTEUR.map((l) => (l === '' ? ' ' : l)))
-      expect(lignes[1]).toBe('lancer — vague 1 : S1')
-      expect(lignes.some((l) => l.includes('parallele'))).toBe(false)
-      const boutons = await ui.findAll({ type: 'Button' })
-      expect(boutons.map((b: any) => b.text)).toEqual(['Go', 'Reprends', "Enchaîne l'orchestration", 'Commit+push'])
-    })
-
-    test(`${surface} : depot source, un appui lance ce que dit chaque bouton, prefixe /workflow:`, async ($, on) => {
-      const s = monde(on, AVEC_PLAN(false))
-      await demarrer($)
-      const ui = await monter($, surface, 'plan')
-      for (const [cle, attendu] of BOUTONS_ATTENDUS('/workflow:')) {
-        s.relances.length = 0
-        await ui.press({ key: cle })
-        expect(s.relances).toEqual([attendu])
-      }
-    })
-
-    test(`${surface} : projet vendore, un appui lance ce que dit chaque bouton, prefixe /`, async ($, on) => {
-      const s = monde(on, AVEC_PLAN(true))
-      await demarrer($)
-      const ui = await monter($, surface, 'plan')
-      for (const [cle, attendu] of BOUTONS_ATTENDUS('/')) {
-        s.relances.length = 0
-        await ui.press({ key: cle })
-        expect(s.relances).toEqual([attendu])
-      }
-    })
-
-    test(`${surface} : sans plan, message d'attente`, async ($, on) => {
-      monde(on)
-      await demarrer($)
-      expect(await textes(await monter($, surface, 'plan'))).toEqual(['Pas de plan en cours.'])
-    })
-  }
-
-  test('ouvert au demarrage quand un plan est en cours, jamais sinon', async ($, on) => {
-    const avec = monde(on, AVEC_PLAN(false))
-    await demarrer($)
-    await attendre($)
-    expect(avec.panneaux).toContain('plan')
-  })
-
-  test('hors projet du workflow : panneau plan jamais ouvert', async ($, on) => {
-    const s = monde(on)
-    await demarrer($)
-    await attendre($)
-    expect(s.panneaux).not.toContain('plan')
-  })
-
-  test('script en echec : pas de panneau plan', async ($, on) => {
-    const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: 'pas du json' } })
-    await demarrer($)
-    await attendre($)
-    expect(s.panneaux).not.toContain('plan')
-  })
-
-  test('commande /panneau : rouvre le panneau plan, et lui seul', async ($, on) => {
-    const s = monde(on, AVEC_PLAN(false))
-    await demarrer($)
-    await attendre($)
-    s.panneaux.length = 0
-    const r: any = await $.command.run({ command: 'panneau', args: '' } as any)
-    expect(s.panneaux).toEqual(['plan'])
-    expect(String(r.text)).toBe('Panneau plan ouvert.')
-  })
-})
-
-describe('panneau plan : le moteur est relu quand HEAD change, pas avant', () => {
+describe('bandeau : le moteur est relu quand HEAD change, pas avant', () => {
   const AVEC_PLAN = { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: MOTEUR_LANCER } }
   const moteur = (s: Sorties) => s.commandes.filter((c) => c[0] === 'node')
   const mesurer = ($: any) => $.session.measure({ context: { window: 200000, percent: 11 }, rateLimits: [], changed: ['context'] })
@@ -343,25 +217,31 @@ describe('panneau plan : le moteur est relu quand HEAD change, pas avant', () =>
     expect(moteur(s)).toHaveLength(3)
   })
 
-  test('le panneau suit le moteur relu : nouveau texte apres un changement de HEAD', async ($, on) => {
+  test('le bandeau suit le moteur relu : nouvelle vague apres un changement de HEAD', async ($, on) => {
     let head = 'aaa111'
     const sorties: Record<string, string> = { P1: MOTEUR_LANCER }
     const s = monde(on, { ...AVEC_PLAN, scripts: sorties, head: () => head })
     await demarrer($)
     await attendre($)
-    const ligne2 = async () => {
-      const ui = await monter($, 'desktop', 'plan')
-      const t = (await textes(ui))[1]
+    const plan = async () => {
+      const ui = await $.ui.mount({
+        plugin: 'affichage',
+        surface: 'desktop',
+        component: 'AbovePrompt',
+        props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 }, view: {} },
+        viewport: { columns: 120, rows: 30 },
+      })
+      const t = String((await ui.findAll({ type: 'Text' }))[0]?.text)
       await ui.unmount()
       return t
     }
-    expect(await ligne2()).toBe('lancer — vague 1 : S1')
-    sorties.P1 = JSON.stringify({ action: 'pousser', texte: 'pousser' })
+    expect(await plan()).toMatch(/^P1 · vague 1/)
+    sorties.P1 = JSON.stringify({ action: 'lancer', vague: 2, sessions: [{ session: 'S4' }] })
     await mesurer($)
-    expect(await ligne2()).toBe('lancer — vague 1 : S1') // HEAD identique : releve garde
+    expect(await plan()).toMatch(/^P1 · vague 1/) // HEAD identique : releve garde
     head = 'bbb222'
     await mesurer($)
-    expect(await ligne2()).toBe('pousser')
+    expect(await plan()).toBe('P1 · vague 2 · S4')
     expect(moteur(s)).toHaveLength(2)
   })
 
@@ -375,22 +255,12 @@ describe('panneau plan : le moteur est relu quand HEAD change, pas avant', () =>
 })
 
 describe('panneaux retires', () => {
-  test("ni limites ni fichiers ne s'ouvrent, meme dans un depot git avec un plan", async ($, on) => {
+  test("aucun panneau ne s'ouvre, meme dans un depot git avec un plan", async ($, on) => {
     const s = monde(on, { fichiers: ['plugin/bin/prochaine-action.mjs'], scripts: { P1: MOTEUR_LANCER } })
     await demarrer($)
     await attendre($)
-    expect(s.panneaux).toEqual(['plan'])
+    expect(s.panneaux).toEqual([])
     // Seul `git rev-parse HEAD` est lance (le repere du rafraichissement) : ni status ni diff.
     expect(s.commandes.filter((c) => c[0] === 'git' && c[1] !== 'rev-parse')).toEqual([])
-  })
-
-  test("commande /panneau sans plan : le dit, n'ouvre rien", async ($, on) => {
-    const s = monde(on)
-    await demarrer($)
-    await attendre($)
-    s.panneaux.length = 0
-    const r: any = await $.command.run({ command: 'panneau', args: '' } as any)
-    expect(s.panneaux).toEqual([])
-    expect(String(r.text)).toBe('Pas de plan en cours.')
   })
 })
