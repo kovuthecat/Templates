@@ -41,7 +41,9 @@
 //   sessionsIncompletes[]  ids des lignes de table portant un `S<k>` mais moins de neuf cellules : ni
 //                    lues ni perdues en silence — c'est le vérificateur qui les signale
 //   vagues[]         { numero, label, validationHumaine, repriseManuelle, cloture, validee,
-//                      gateLegacy, sessions:['S<k>'…] }
+//                      labelHorsGras, gateLegacy, sessions:['S<k>'…] }
+//                    validationHumaine, repriseManuelle, validee : lus dans le gras ET après les deux-points
+//                    (parenthèses retirées) ; labelHorsGras : un de ces mots ne vient que de la queue
 //   lignesEnClair[]  { session, texte } — les lignes `- **S<k>** — <texte>` de l'Ordonnancement
 
 /** Minuscules, accents retirés (NFD), backticks/`*` retirés, espaces de bord retirés — la forme sur
@@ -146,14 +148,25 @@ export function analyserIndex(contenu) {
       // Toutes les parenthèses retirées avant de chercher les membres `S\d+` — sinon un membre après
       // la première parenthèse (date d'ajout, commentaire) est perdu (constat 2026-09-24).
       const membres = enteteVague[3].replace(/\([^)]*\)/g, '');
+      // Les mots-clés de vague se lisent aussi APRÈS les deux-points (`**Vague 1** : S1 · S2 (…) —
+      // validation-humaine.`, forme écrite par trois projets, incident EBM-MSPv2 2026-10-25 et nova
+      // 2026-11-23, P21/S1/T1) : ignorés, l'arrêt humain sautait sans signal. La recherche porte sur la
+      // queue SANS ses parenthèses (même `membres` que ci-dessus) : « (après la validation-humaine de S2) »
+      // ne déclenche rien. `labelHorsGras` : au moins un mot ne vient QUE de la queue — le vérificateur
+      // le signale (forme non canonique), le lecteur ne la refuse pas.
+      const queue = normaliserSimple(membres);
+      const grasNorm = normaliserSimple(labelBrut || '');
+      const motsQueue = ['validation-humaine', 'reprise-manuelle', 'validee'];
+      const lit = (mot) => grasNorm.includes(mot) || queue.includes(mot);
       vagues.push({
         numero: Number(enteteVague[1]),
         label: labelBrut,
-        validationHumaine: labelNormalise.includes('validation-humaine'),
-        repriseManuelle: labelNormalise.includes('reprise-manuelle'),
+        validationHumaine: lit('validation-humaine'),
+        repriseManuelle: lit('reprise-manuelle'),
         cloture: labelNormalise.includes('clôture'),
         // « validée » (accents/casse libres) acquitte explicitement une validation-humaine (T5, P10/S2).
-        validee: normaliserSimple(labelBrut || '').includes('validee'),
+        validee: lit('validee'),
+        labelHorsGras: motsQueue.some((mot) => queue.includes(mot) && !grasNorm.includes(mot)),
         gateLegacy: labelNormalise.includes('gate'), // ancien mot : signalé, jamais interprété
         sessions: [...membres.matchAll(/S\d+/g)].map((m) => m[0]),
       });

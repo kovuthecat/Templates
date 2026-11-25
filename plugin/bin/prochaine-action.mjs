@@ -2223,7 +2223,18 @@ function validerVague(index, numero) {
   if (!v.validationHumaine) erreurUsage(`--valider-vague : la vague ${numero} n'est pas une validation-humaine`);
   if (v.validee) return `vague ${numero} déjà validée — rien à écrire`;
   const motif = new RegExp(`^(\\s*(?:-\\s*)?\\*\\*Vague\\s+${numero}\\b[^*]*?)(\\s*)(\\*\\*)`, 'm');
-  if (!modifierIndex((t) => t.replace(motif, '$1 · validée$3'))) {
+  // Mot-clé écrit après les deux-points (`**Vague 3** : S4 — validation-humaine.`) : insérer ` · validée`
+  // dans un gras sans `—` donnerait `**Vague 3 · validée**`, que le lecteur ne reconnaît plus — la vague
+  // sortirait de l'ordonnancement au premier « oui » (P21/S1/T1, critique du plan, constat 5). La ligne est
+  // réécrite en forme canonique : mots dans le gras, mot retiré de la queue quand il la termine.
+  const horsGras = new RegExp(`^(\\s*(?:-\\s*)?\\*\\*Vague\\s+${numero})((?:\\s*\\([^)]*\\))?)\\s*\\*\\*(\\s*(?:\\([^)]*\\)\\s*)?:\\s*)(.*)$`, 'm');
+  const mots = [v.validationHumaine ? 'validation-humaine' : null, v.repriseManuelle ? 'reprise-manuelle' : null].filter(Boolean);
+  const reecrire = (t) => {
+    if (!v.labelHorsGras || !horsGras.test(t)) return t.replace(motif, '$1 · validée$3');
+    return t.replace(horsGras, (_, debut, paren, sep, queue) =>
+      `${debut}${paren} — ${[...mots, 'validée'].join(' · ')}**${sep}${queue.replace(/\s*—\s*`?(?:validation-humaine|reprise-manuelle)`?(\.?)\s*$/, '$1')}`);
+  };
+  if (!modifierIndex(reecrire)) {
     throw new EchecEcriture('valider-vague', `l'en-tête de la vague ${numero} n'a pas pu être réécrit dans ${INDEX_REL}`);
   }
   const hash = committer([INDEX_REL], `plan(${plan}): vague ${numero} validée`, plan);

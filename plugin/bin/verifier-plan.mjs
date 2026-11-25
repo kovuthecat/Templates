@@ -61,6 +61,12 @@ try {
     if (!extension && v.label?.includes('parallélisable')) {
       avertissements.push(`Vague ${v.numero} : « parallélisable » est ignoré — les sessions s'exécutent l'une après l'autre`);
     }
+    // Mot-clé de vague écrit après les deux-points : le lecteur le lit (le moteur s'arrête), mais la forme
+    // n'est pas canonique — écart mécanique, à corriger dans le plan (P21/S1/T1, incidents EBM-MSPv2
+    // 2026-10-25 et nova 2026-11-23). Une extension ne réécrit pas une vague déjà livrée.
+    if (v.labelHorsGras && !(extension && ids.length > 0 && ids.every(id => sessions.find(s => s.id === id)?.terminee))) {
+      signaler(plan, 4, `vague ${v.numero} : mot-clé de vague hors du gras (\`**Vague ${v.numero} — <mot>** :\` attendu, <mot> = validation-humaine ou reprise-manuelle)`);
+    }
     for (const id of ids) {
       const s = sessions.find(s => s.id === id);
       if (!s) { signaler(id, 4, 'session de vague inconnue'); continue; }
