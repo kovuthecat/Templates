@@ -2,6 +2,7 @@
 
 Workflow : v0.69.0
 Preuve N0 : requise
+Clos : 2026-11-25
 
 ## Objectif d'ensemble
 Deux défauts du moteur font aujourd'hui sauter un arrêt humain ou relancer une session déjà faite, et dix
