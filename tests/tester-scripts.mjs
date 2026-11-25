@@ -5368,6 +5368,27 @@ cas('P21/T2 verifier-plan : champ Tâches `—`, `à voir` ou `T-063 · T-197` �
   return null;
 });
 
+// ── P21/S1/T3 : pas de validation humaine sur une vague dont un membre n'a pas tourné ──────────────
+
+const REVUE_BLOQUEE = 'Bloquant : 1\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n';
+
+cas('P21/T3 vague validation-humaine S2 · S3, S3 dépendant de S1 `[x]!`, S2 faite → question dependance-revue (jamais validation-humaine) ; témoin : tous membres faits → validation-humaine', () => {
+  const cwd = planVH('workflow-vh-bloquee-', 'moteur-vh-bloquee', ['S2/T2']);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'question' || action.options?.source !== 'dependance-revue') return `question dependance-revue attendue, reçu: ${sortie}`;
+  if (action.options.sessions.join() !== 'S3') return `la session bloquée S3 attendue, reçu ${JSON.stringify(action.options)}`;
+  if (!/S1/.test(action.texte)) return `la question doit nommer le bloquant amont S1:\n${action.texte}`;
+  if (/validation-humaine — vague/.test(action.texte)) return `aucune demande de validation attendue:\n${action.texte}`;
+  // Témoin : S3 aussi faite (commit de sa tâche) — la vague est entière, la validation se demande.
+  const entiere = planVH('workflow-vh-bloquee-entiere-', 'moteur-vh-bloquee', ['S2/T2', 'S3/T3']);
+  writeFileSync(join(entiere, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
+  const t = lancerJson(['P9', '--json'], entiere);
+  if (t.action?.action !== 'validation-humaine' || t.action.vague !== 2) return `témoin : validation-humaine vague 2 attendue, reçu: ${t.sortie}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {

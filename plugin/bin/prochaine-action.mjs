@@ -1037,18 +1037,29 @@ function prochaineAction(sortie) {
 
     // « validée » (accents/casse libres) dans le libellé de la vague l'acquitte explicitement
     // (T5, P10/S2) — l'acquittement implicite par le démarrage de la vague suivante reste valable.
-    if (vague.validationHumaine && !vague.validee &&
-        (toutesFaites || (membres.some(s => s.etat === 'faite') &&
-          !membres.some(s => s.etat === 'a-lancer' && !compromises(s))))) {
+    // La validation humaine ne se demande que sur une vague ENTIÈREMENT faite (P21/S1/T3, incident
+    // torrent-uploader 2026-10-25 : un « oui » aurait validé le jugement d'une session jamais lancée). Un membre
+    // qui n'a pas tourné parce qu'un prérequis amont est `[x]!` (revue à bloquant non trié) rend la question
+    // `dependance-revue` — celle qui existe déjà plus bas — plutôt qu'une validation de travail incomplet.
+    if (vague.validationHumaine && !vague.validee) {
+      const bloquesDeLaVague = membres.filter((s) => s.etat === 'a-lancer' && compromises(s));
+      const attendue = toutesFaites ||
+        (membres.some((s) => s.etat === 'faite') && bloquesDeLaVague.length > 0 &&
+          !membres.some((s) => s.etat === 'a-lancer' && !compromises(s)));
       const suivante = vagues.find((v) => v.numero === vague.numero + 1);
-      const suivanteDemarree = suivante
+      const suivanteDemarree = attendue && suivante
         ? suivante.sessions.some((id) => {
             const s = sortie.sessions.find((x) => x.session === id);
             return s && s.etat !== 'a-lancer';
           })
         : false;
-      if (!suivanteDemarree) {
-        return { action: 'validation-humaine', vague: vague.numero };
+      if (attendue && !suivanteDemarree) {
+        if (toutesFaites) return { action: 'validation-humaine', vague: vague.numero };
+        return {
+          action: 'question',
+          motif: `prérequis non validés : ${bloquesDeLaVague.map((s) => s.session).join(', ')} (vague ${vague.numero} marquée validation-humaine : elle n'est pas entièrement faite)`,
+          options: { source: 'dependance-revue', sessions: bloquesDeLaVague.map((s) => s.session) },
+        };
       }
     }
     if (!toutesFaites) {
