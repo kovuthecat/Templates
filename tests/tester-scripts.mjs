@@ -3896,6 +3896,68 @@ cas('P20/T9 avec réponse et `Agent : introuvable` → reprendre à froid, hors 
   return null;
 });
 
+// P21/S6 T13 + T14 — le prompt rendu par le moteur dit un geste (attendre la notification), non un paramètre
+// disparu de l'outil `Agent`, et interdit les commandes qui demandent une autorisation.
+cas('P21/S6/T13 le prompt rendu par le moteur ne contient plus run_in_background : il dit d\'attendre la notification de l\'agent', () => {
+  const cwd = planQuestion('workflow-pa-question-froid-s6-', 'moteur-question-agent-introuvable', {
+    question: { reponse: '2, chargerIndex', agent: 'introuvable' },
+    echec: ['Nature : exécution', 'Tentatives : reprise=2 enquete=1', 'Blocage : relancer le build'],
+  });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'reprendre' || typeof action.prompt !== 'string') return `reprendre avec prompt attendu, reçu: ${sortie}`;
+  if (/run_in_background/.test(action.prompt) || /run_in_background/.test(action.texte)) return `run_in_background ne doit plus apparaître:\n${action.prompt}`;
+  for (const m of ['attends cette notification', 'ne finis pas ton tour tant qu\'un agent attendu tourne', 'N0 (n0.mjs) s\'exécute au premier plan']) {
+    if (!action.prompt.includes(m)) return `le prompt devait contenir « ${m} »:\n${action.prompt}`;
+  }
+  return null;
+});
+
+cas('P21/S6/T14 le prompt rendu par le moteur interdit rm, cd … && et demande les fichiers temporaires au scratchpad', () => {
+  const cwd = planQuestion('workflow-pa-question-froid-s6b-', 'moteur-question-agent-introuvable', {
+    question: { reponse: '2, chargerIndex', agent: 'introuvable' },
+    echec: ['Nature : exécution', 'Tentatives : reprise=2 enquete=1', 'Blocage : relancer le build'],
+  });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (typeof action?.prompt !== 'string') return `prompt attendu, reçu: ${sortie}`;
+  for (const m of ['demande d\'autorisation', 'pas de `rm`', 'pas de `cd … &&`', 'scratchpad']) {
+    if (!action.prompt.includes(m)) return `la consigne sans autorisation devait contenir « ${m} »:\n${action.prompt}`;
+  }
+  return null;
+});
+
+cas('P21/S6/T13 plus aucune consigne du plugin ne prescrit run_in_background : seules restent les mentions qui expliquent son absence', () => {
+  const trouvees = [];
+  const parcourir = (dossier) => {
+    for (const nom of readdirSync(dossier)) {
+      if (nom === 'node_modules') continue;
+      const chemin = join(dossier, nom);
+      if (lstatSync(chemin).isDirectory()) { parcourir(chemin); continue; }
+      if (!/\.(md|mjs|ts|json)$/.test(nom)) continue;
+      readFileSync(chemin, 'utf8').split('\n').forEach((ligne, i) => {
+        if (/run_in_background/.test(ligne)) trouvees.push(`${chemin.slice(RACINE.length + 1).replaceAll('\\', '/')}:${i + 1}: ${ligne.trim()}`);
+      });
+    }
+  };
+  parcourir(join(RACINE, 'plugin'));
+  const prescriptions = trouvees.filter((l) => !/retir|n'a plus|n'ont plus|aucun run_in_background|Ces cas|injecte|posait|\.test\.ts:\d+: await|run_in_background: true\)|toBe|toBeUndefined/.test(l));
+  return prescriptions.length > 0 ? `mentions prescriptives restantes:\n${prescriptions.join('\n')}` : null;
+});
+
+cas('P21/S6/T14 gabarit de permissions : JSON valide, aucune entrée destructive ni générique (anti-raccourci Bash(*) / Bash(rm:*))', () => {
+  let gabarit;
+  try { gabarit = JSON.parse(readFileSync(GABARIT_REEL, 'utf8')); } catch (e) { return `gabarit illisible : ${e.message}`; }
+  const allow = gabarit.permissions?.allow;
+  if (!Array.isArray(allow) || allow.length === 0) return 'permissions.allow absent ou vide';
+  const destructifs = allow.filter((e) => /^Bash\((\*|:\*|rm\b|rmdir\b|del\b|mv\b|git push --force|git push -f|git reset|git clean|git checkout|git restore|git branch -D|chmod|chown|sudo|curl|wget|sh\b|bash\b|node:\*|cd:\*)/.test(e) || /--force|--hard|-fd?x?\)/.test(e));
+  if (destructifs.length > 0) return `entrées destructives ou trop larges dans l'allow : ${destructifs.join(', ')}`;
+  const attendues = ['Bash(git status:*)', 'Bash(git log:*)', 'Bash(git add:*)', 'Bash(git commit:*)', 'Bash(node .claude/workflow/bin/n0.mjs:*)',
+    'Bash(node .claude/workflow/bin/incident.mjs:*)', 'Bash(node .claude/workflow/bin/prochaine-action.mjs:*)'];
+  const absentes = attendues.filter((e) => !allow.includes(e));
+  if (absentes.length > 0) return `commandes d'une session ordinaire absentes de l'allow : ${absentes.join(', ')}`;
+  if (new Set(allow).size !== allow.length) return 'doublons dans permissions.allow';
+  return null;
+});
+
 cas('P20/T9 avec réponse et `Agent : —` (identifiant jamais complété) → reprendre à froid avec un avertissement, jamais un SendMessage sans destinataire', () => {
   const cwd = planQuestion('workflow-pa-question-sans-agent-', 'moteur-question-avec-reponse', { question: { reponse: '1', agent: '—' } });
   const { action, sortie } = lancerJson(['P9', '--json'], cwd);

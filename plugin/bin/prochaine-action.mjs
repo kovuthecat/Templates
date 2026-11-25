@@ -881,6 +881,16 @@ function cheminExecutant() {
   return rel.startsWith('..') || isAbsolute(rel) ? chemin.replaceAll('\\', '/') : rel;
 }
 
+/** Consigne commune aux prompts rendus par le moteur (P21/S6/T13) : l'outil `Agent` n'a plus de paramètre
+ * d'arrière-plan, tout agent lancé notifie à sa fin — la règle est un geste, pas un paramètre. */
+const CONSIGNE_AGENTS =
+  "Tout agent que tu lances part en arrière-plan et te notifie à sa fin : attends cette notification avant tout geste qui en dépend, et ne finis pas ton tour tant qu'un agent attendu tourne. N0 (n0.mjs) s'exécute au premier plan, comme toute commande — aucune commande n'est détachée.";
+
+/** Consigne commune aux prompts rendus par le moteur (P21/S6/T14) : une session d'arrière-plan bloquée sur une
+ * demande d'autorisation reste figée, personne ne pouvant y répondre (incident torrent-uploader, 2026-10-20). */
+const CONSIGNE_SANS_AUTORISATION =
+  "Aucune commande qui déclenche une demande d'autorisation (en arrière-plan, personne n'y répond et la session reste figée) : pas de `rm`, pas de `cd … &&` (chemins relatifs à la racine du dépôt), fichiers temporaires dans le dossier scratchpad ou écrasés en place.";
+
 /** Le prompt d'une reprise à froid après une question (`Agent : introuvable`) : il fait lire le fichier
  * et sa réponse. Même forme que les prompts de session de l'orchestrateur. */
 function promptRepriseApresQuestion(id, cheminQuestion) {
@@ -890,7 +900,8 @@ function promptRepriseApresQuestion(id, cheminQuestion) {
     "Lis ce fichier : la ligne `Réponse :` est la réponse de l'utilisateur. Le travail déjà fait est dans les commits",
     `\`Plan: ${plan}/${id}/T<m>\` : reprends à partir d'eux, avec cette réponse. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.`,
     'Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`.',
-    "Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier plan — et aucune commande n'est détachée.",
+    CONSIGNE_AGENTS,
+    CONSIGNE_SANS_AUTORISATION,
     'Ta réponse finale CLÔT ton tour : ce qui finit après elle n\'est lu par personne.',
     `Au PASS, supprime ${cheminQuestion} par un commit si ton outillage le permet (sinon laisse-le : ton commit de tâche suffit). Si tu t'arrêtes de nouveau sur un choix, réécris ce fichier (nouvelle question, \`Réponse : —\`), committe-le, puis rends \`VERDICT: QUESTION\`.`,
     'Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->',
