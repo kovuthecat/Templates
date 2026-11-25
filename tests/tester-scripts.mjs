@@ -5088,6 +5088,14 @@ cas("P21/T6 incident.mjs : champ illisible ou non fourni → `?` écrit explicit
 
 const ZONE_PARALLELE = { S1: 'src/a.mjs', S2: 'src/b.mjs', S3: 'src/c.mjs', S4: 'src/d.mjs' };
 const SCRIPT_PA = PROCHAINE_ACTION.replaceAll('\\', '/');
+/** La vague 1 réduite à S1 · S2 (scénario « vague parallèle à deux sessions »). */
+const SANS_S3 = (t) => t
+  .replace(/^\| \[S3\][^\n]*\n/m, '')
+  .replace('- **Vague 1** : S1 · S2 · S3.', '- **Vague 1** : S1 · S2.')
+  .replace(/^ {2}- \*\*S3\*\*[^\n]*\n/m, '')
+  .replace('| S1, S2, S3 |', '| S1, S2 |')
+  .replace('(après S1, S2, S3)', '(après S1, S2)');
+const EN_REQUISE = (t) => t.replace('Preuve N0 : non requise', 'Preuve N0 : requise');
 
 /** Dépôt jetable du plan `moteur-parallele` (P9), branche `main`, tout commité. `gitfile` : `.git` en fichier
  * (dossier Git déplacé, `--separate-git-dir`). `.claude/worktrees/` exclu, comme le fait Claude Code. */
@@ -5121,6 +5129,36 @@ function planParallele(prefixe, { transformer = null, n0 = null, gitfile = false
   appendFileSync(exclude, '.claude/worktrees/\n');
   return cwd;
 }
+
+/** Ce que fait l'outil Agent avec `isolation: "worktree"` : une copie sur sa branche, partie du HEAD local. */
+function ouvrirCopie(cwd, agent) {
+  const chemin = join(cwd, '.claude', 'worktrees', `agent-${agent}`);
+  git(cwd, 'worktree', 'add', '-q', '-b', `worktree-agent-${agent}`, chemin, 'HEAD');
+  return chemin;
+}
+
+/** Une session factice qui travaille dans sa copie comme une vraie : un commit par tâche (son fichier et son
+ * bilan `plans/P9/<id>.md`), puis — `preuve` — N0 `--session` joué dans la copie et sa preuve committée. Jamais
+ * l'index, ni `STATUS.md`. `fichier`/`ligne` : écrire ailleurs que dans sa zone (cas du conflit). */
+function travaillerDansCopie(copie, id, taches, { preuve = false, fichier = ZONE_PARALLELE[id], ligne = null } = {}) {
+  for (const [i, t] of taches.entries()) {
+    appendFileSync(join(copie, fichier), ligne ?? `// ${id}/${t}\n`);
+    writeFileSync(join(copie, 'plans', 'P9', `${id}.md`), `# ${id}\n\n## Bilan de session\n- ${taches.slice(0, i + 1).join(', ')} faite(s)\n`);
+    git(copie, 'add', '--', fichier, `plans/P9/${id}.md`);
+    git(copie, 'commit', '-q', '-m', `feat: ${id} ${t}\n\nPlan: P9/${id}/${t}`);
+  }
+  if (preuve) {
+    const r = lancer(N0, ['--session', `P9/${id}`], copie);
+    if (r.code !== 0) throw new Error(`N0 de ${id} rouge dans sa copie : ${r.sortie}`);
+    git(copie, 'add', '--', `plans/P9/${id}.n0.json`);
+    git(copie, 'commit', '-q', '-m', `test(P9): preuve N0 de ${id}`);
+  }
+}
+
+const lireVague = (cwd) => (existsSync(join(cwd, '.claude', 'vague-en-cours.json')) ? JSON.parse(readFileSync(join(cwd, '.claude', 'vague-en-cours.json'), 'utf8')) : null);
+const brancheLocale = (cwd, b) => gitSortie(cwd, 'branch', '--list', b) !== '';
+const commitDeSujet = (cwd, sujet) => gitSortie(cwd, 'log', '--format=%H%x09%s').split('\n').map((l) => l.split('\t')).find(([, s]) => s === sujet)?.[0] ?? null;
+const ligneP9 = (cwd, id) => readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n').split('\n').find((l) => l.startsWith(`| [${id}]`));
 
 // ── T15 : lecture de `Parallèle :` ─────────────────────────────────────────────────────────────────
 
@@ -5225,6 +5263,207 @@ cas('P21/T15 racine introuvable sur un plan `Parallèle : oui` → la question `
   if (action?.action !== 'question' || action.options?.source !== 'racine-introuvable') return `question racine-introuvable attendue, reçu: ${sortie}`;
   return null;
 });
+
+// ── T16 : inscription, collecte, coupure ──────────────────────────────────────────────────────────
+
+cas('P21/T16 `--lancee S<k> --agent <id>` : inscrite dans .claude/vague-en-cours.json (non suivi, aucun commit) → `attendre`, jamais relancée ; refus d\'usage nommés', () => {
+  const cwd = planParallele('workflow-par-inscrire-');
+  const avant = gitSortie(cwd, 'rev-parse', 'HEAD');
+  ouvrirCopie(cwd, 'a1');
+  const r1 = appliquerJson(cwd, ['--lancee', 'S1', '--agent', 'a1']);
+  if (r1.action?.action !== 'attendre') return `attendre attendu après une inscription, reçu: ${r1.sortie}`;
+  if (r1.action.sessions.map((s) => s.session).join() !== 'S1' || r1.action.nonInscrites?.join() !== 'S2,S3') return `S1 en cours, S2 et S3 non inscrites attendues : ${JSON.stringify(r1.action)}`;
+  if (!r1.appliques.some((l) => l === `S1 inscrite en cours dans .claude/vague-en-cours.json (agent a1, branche worktree-agent-a1)`)) return `journal sans l'inscription : ${JSON.stringify(r1.appliques)}`;
+  const v = lireVague(cwd);
+  if (v?.plan !== 'P9' || v.vague !== 1 || v.sessions.S1?.agent !== 'a1' || v.sessions.S1.branche !== 'worktree-agent-a1' || !v.sessions.S1.heure) return `fichier inattendu : ${JSON.stringify(v)}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== avant) return "l'inscription ne committe rien (fichier non suivi)";
+  for (const [id, ag] of [['S2', 'b2'], ['S3', 'c3']]) { ouvrirCopie(cwd, ag); appliquerJson(cwd, ['--lancee', id, '--agent', ag]); }
+  const lecture = lancerJson(['P9', '--json'], cwd);
+  if (lecture.action?.action !== 'attendre' || lecture.action.sessions.map((s) => s.session).join() !== 'S1,S2,S3' || lecture.action.nonInscrites) return `attendre S1, S2, S3 attendu (lecture seule), reçu: ${lecture.sortie}`;
+  for (const m of ['   S1, S2, S3 tournent dans leur copie isolée', `\`node ${SCRIPT_PA} P9 --appliquer --collecter S<k>\``]) {
+    if (!lecture.action.texte.includes(m)) return `texte d'attente sans « ${m} » :\n${lecture.action.texte}`;
+  }
+  if (appliquerJson(cwd, ['--lancee', 'S1', '--agent', 'a1']).appliques.join() !== 'S1 déjà inscrite en cours (agent a1) — rien à écrire') return 'une inscription répétée est idempotente';
+  const refus = [
+    [['--lancee', 'S4', '--agent', 'z9'], /S4 n'est pas à lancer|vague 2/],
+    [['--lancee', 'S1'], /--lancee S<k> et --agent <identifiant> vont ensemble/],
+    [['--collecter', 'S1', '--lancee', 'S2', '--agent', 'x'], /s'excluent/],
+  ];
+  for (const [extra, motif] of refus) {
+    const r = lancer(PROCHAINE_ACTION, ['P9', '--appliquer', ...extra], cwd);
+    if (r.code !== 2 || !motif.test(r.sortie)) return `refus code 2 /${motif.source}/ attendu pour ${extra.join(' ')}, reçu ${r.code}: ${r.sortie}`;
+  }
+  const serie = planParallele('workflow-par-inscrire-serie-', { transformer: (t) => t.replace('Parallèle : oui\n', '') });
+  const r = lancer(PROCHAINE_ACTION, ['P9', '--appliquer', '--lancee', 'S1', '--agent', 'a1'], serie);
+  if (r.code !== 2 || !/n'est pas `Parallèle : oui`/.test(r.sortie)) return `plan série : refus attendu, reçu ${r.code}: ${r.sortie}`;
+  writeFileSync(join(cwd, '.claude', 'vague-en-cours.json'), '{ illisible');
+  const illisible = lancer(PROCHAINE_ACTION, ['P9', '--json'], cwd);
+  if (illisible.code !== 2 || !/vague-en-cours\.json illisible/.test(illisible.sortie)) return `fichier illisible : erreur nommée (code 2) attendue, reçu ${illisible.code}: ${illisible.sortie}`;
+  return null;
+});
+
+cas('P21/T16 scénario vague parallèle à deux sessions (vrais worktrees) : premier verdict → l\'autre n\'est pas relancée ; les deux collectées → deux lignes cochées à la même collecte, preuves valides après fusion, valider-n0 ne boucle pas', () => {
+  const cwd = planParallele('workflow-par-scenario-', { transformer: (t) => EN_REQUISE(SANS_S3(t)), n0: N0_VERT });
+  const lancement = lancerJson(['P9', '--json'], cwd);
+  if (lancement.action?.action !== 'lancer' || lancement.action.parallele !== true || lancement.action.sessions.map((s) => s.session).join() !== 'S1,S2') return `lancer parallèle S1, S2 attendu, reçu: ${lancement.sortie}`;
+  const copie1 = ouvrirCopie(cwd, 'a1');
+  appliquerJson(cwd, ['--lancee', 'S1', '--agent', 'a1']);
+  const copie2 = ouvrirCopie(cwd, 'b2');
+  if (appliquerJson(cwd, ['--lancee', 'S2', '--agent', 'b2']).action?.action !== 'attendre') return 'attendre attendu une fois les deux inscrites';
+  travaillerDansCopie(copie1, 'S1', ['T1', 'T2'], { preuve: true });
+  travaillerDansCopie(copie2, 'S2', ['T3'], { preuve: true });
+  // Premier verdict : S1 collectée, S2 tourne encore.
+  const c1 = appliquerJson(cwd, ['--collecter', 'S1']);
+  if (c1.code !== 0 || c1.action?.action !== 'attendre' || c1.action.sessions.map((s) => s.session).join() !== 'S2') return `après la collecte de S1 : attendre S2 attendu (jamais un lancer), reçu: ${c1.sortie}`;
+  const fusion1 = commitDeSujet(cwd, 'Fusion P9/S1');
+  if (!fusion1) return `commit de fusion « Fusion P9/S1 » absent : ${JSON.stringify(c1.appliques)}`;
+  if (messageDe(cwd, fusion1) !== 'Fusion P9/S1\n\nPlan: P9/S1') return `message de fusion inattendu : ${JSON.stringify(messageDe(cwd, fusion1))}`;
+  if (gitSortie(cwd, 'rev-list', '--parents', '-n', '1', fusion1).split(' ').length !== 3) return 'merge --no-ff attendu : un commit de fusion à deux parents';
+  if (existsSync(copie1) || brancheLocale(cwd, 'worktree-agent-a1')) return 'copie et branche de S1 retirées attendues après la fusion';
+  if (!/\| \[ \] \|/.test(ligneP9(cwd, 'S1'))) return `S1 ne se coche pas tant que S2 tourne : ${ligneP9(cwd, 'S1')}`;
+  if (verifierPreuve(cwd, 'P9/S1').ok !== true) return `preuve de S1 invalide après fusion : ${JSON.stringify(verifierPreuve(cwd, 'P9/S1'))}`;
+  if (Object.keys(lireVague(cwd)?.sessions ?? {}).join() !== 'S2') return `seule S2 reste inscrite : ${JSON.stringify(lireVague(cwd))}`;
+  const relu = lancerJson(['P9', '--json'], cwd);
+  if (relu.action?.action !== 'attendre') return `un rappel du moteur ne relance pas S2 : ${relu.sortie}`;
+  // Second verdict : la vague est collectée, cochée en une fois.
+  const c2 = appliquerJson(cwd, ['--collecter', 'S2']);
+  if (c2.code !== 0) return `code ${c2.code} : ${c2.sortie}`;
+  const date = new RegExp(`\\| \\[x\\] (${SANS_DATE}) \\|`);
+  const d1 = date.exec(ligneP9(cwd, 'S1'))?.[1];
+  const d2 = date.exec(ligneP9(cwd, 'S2'))?.[1];
+  if (!d1 || d1 !== d2) return `S1 et S2 cochées à la même date attendues : ${ligneP9(cwd, 'S1')} / ${ligneP9(cwd, 'S2')}`;
+  const coches = c2.appliques.filter((l) => /^S[12] cochée \[x\]/.test(l));
+  if (coches.length !== 2) return `les deux coches dans la MÊME collecte attendues : ${JSON.stringify(c2.appliques)}`;
+  if (c2.appliques.some((l) => /N0 de/.test(l))) return `valider-n0 ne doit pas rejouer N0 (preuves valides après fusion) : ${JSON.stringify(c2.appliques)}`;
+  for (const id of ['S1', 'S2']) if (verifierPreuve(cwd, `P9/${id}`).ok !== true) return `preuve de ${id} invalide après les deux fusions`;
+  if (gitSortie(cwd, 'log', '--format=%B').includes('Plan: P9/S2/\n') || messageDe(cwd, commitDeSujet(cwd, 'Fusion P9/S2')) !== 'Fusion P9/S2\n\nPlan: P9/S2') return 'message de fusion de S2 inattendu';
+  if (existsSync(join(cwd, '.claude', 'vague-en-cours.json'))) return 'fichier de vague supprimé attendu une fois la vague collectée';
+  if (existsSync(copie2) || brancheLocale(cwd, 'worktree-agent-b2')) return 'copie et branche de S2 retirées attendues';
+  if (c2.action?.action !== 'relire' || c2.action.sessions.map((s) => s.session).join() !== 'S1') return `relire S1 attendu (S2 low, sans chemin sensible), reçu: ${c2.sortie}`;
+  if (!depotPropre(cwd)) return `arbre sale après la collecte : ${gitSortie(cwd, 'status', '--porcelain')}`;
+  // Les sessions n'ont jamais écrit l'index : il n'est modifié que par les coches du moteur.
+  const auteurs = gitSortie(cwd, 'log', '--format=%s', '--', 'plans/P9/index.md').split('\n');
+  if (auteurs.some((s) => !/^plan\(P9\): S[12] faite$|^init$/.test(s))) return `l'index ne doit être écrit que par le moteur : ${auteurs.join(' | ')}`;
+  return null;
+});
+
+/** Deux copies qui écrivent la même ligne de `docs/notes.md` : S1 fusionnée, S2 en conflit. */
+function vagueEnConflit(prefixe) {
+  const cwd = planParallele(prefixe, { transformer: SANS_S3 });
+  const copie1 = ouvrirCopie(cwd, 'a1');
+  appliquerJson(cwd, ['--lancee', 'S1', '--agent', 'a1']);
+  const copie2 = ouvrirCopie(cwd, 'b2');
+  appliquerJson(cwd, ['--lancee', 'S2', '--agent', 'b2']);
+  const ecrire = (copie, id, taches, texte) => {
+    writeFileSync(join(copie, 'docs', 'notes.md'), `# Notes\n\n${texte}\n`);
+    travaillerDansCopie(copie, id, taches);
+    git(copie, 'add', '--', 'docs/notes.md');
+    git(copie, 'commit', '-q', '-m', `docs: ${id}`);
+  };
+  ecrire(copie1, 'S1', ['T1', 'T2'], 'version de S1');
+  ecrire(copie2, 'S2', ['T3'], 'version de S2');
+  const c1 = appliquerJson(cwd, ['--collecter', 'S1']);
+  const c2 = appliquerJson(cwd, ['--collecter', 'S2']);
+  return { cwd, copie2, c1, c2 };
+}
+
+cas('P21/T16 conflit de fusion → `merge --abort`, copie et branche conservées, question `fusion-conflit` (deux options), rendue à l\'identique au rappel', () => {
+  const { cwd, copie2, c1, c2 } = vagueEnConflit('workflow-par-conflit-');
+  if (c1.action?.action !== 'attendre') return `S1 fusionnée sans conflit, puis attendre S2 : ${c1.sortie}`;
+  if (!c2.appliques.some((l) => l === 'S2 : fusion de worktree-agent-b2 en conflit (docs/notes.md) — git merge --abort, copie et branche conservées')) return `journal du conflit absent : ${JSON.stringify(c2.appliques)}`;
+  const attendue = {
+    source: 'fusion-conflit', entete: 'P9/S2',
+    question: 'La copie de S2 ne se fusionne pas dans main sans conflit (docs/notes.md) : que fait-on ?',
+    options: [
+      `1. Résoudre à la main : \`git merge --no-ff -m "Fusion P9/S2" worktree-agent-b2\` (jamais \`Plan: P9/S2/\` dans ce message), régler les conflits, committer, puis relancer \`node ${SCRIPT_PA} P9 --appliquer --collecter S2\` — débloque S2`,
+      `2. Relancer S2 en série sur \`main\` : \`node ${SCRIPT_PA} P9 --appliquer --relancer-en-serie S2\` — sa copie et la branche worktree-agent-b2 restent en place (à supprimer à la main) — débloque S2`,
+    ],
+    reste: 'rien',
+  };
+  const v = verifierQuestion(c2, attendue);
+  if (v) return v;
+  if (!existsSync(copie2) || !brancheLocale(cwd, 'worktree-agent-b2')) return 'copie et branche de S2 conservées attendues';
+  if (existsSync(join(cwd, '.git', 'MERGE_HEAD'))) return 'aucune fusion en cours ne doit rester (merge --abort)';
+  if (gitSortie(cwd, 'status', '--porcelain', '--untracked-files=no') !== '') return `arbre suivi propre attendu après l'abandon : ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (!/\| \[ \] \|/.test(ligneP9(cwd, 'S1'))) return 'S1 ne se coche pas tant que la vague a une copie en conflit';
+  if (lireVague(cwd)?.sessions?.S2?.conflit?.fichiers?.join() !== 'docs/notes.md') return `conflit noté dans l'inscription attendu : ${JSON.stringify(lireVague(cwd))}`;
+  return verifierQuestion(lancerJson(['P9', '--json'], cwd), attendue);
+});
+
+cas('P21/T16 conflit, option 1 : fusion réglée à la main puis `--collecter` → rien à refusionner, copie et branche retirées, vague cochée', () => {
+  const { cwd, copie2 } = vagueEnConflit('workflow-par-conflit-main-');
+  try { git(cwd, 'merge', '--no-ff', '-m', 'Fusion P9/S2', 'worktree-agent-b2'); } catch { /* conflit attendu */ }
+  writeFileSync(join(cwd, 'docs', 'notes.md'), '# Notes\n\nversion de S1\nversion de S2\n');
+  git(cwd, 'add', '--', 'docs/notes.md');
+  git(cwd, 'commit', '-q', '--no-edit');
+  const r = appliquerJson(cwd, ['--collecter', 'S2']);
+  if (!r.appliques.includes("S2 : worktree-agent-b2 n'a aucun commit à fusionner")) return `fusion déjà faite : rien à refusionner attendu, reçu ${JSON.stringify(r.appliques)}`;
+  if (existsSync(copie2) || brancheLocale(cwd, 'worktree-agent-b2')) return 'copie et branche retirées attendues';
+  if (existsSync(join(cwd, '.claude', 'vague-en-cours.json'))) return 'fichier de vague supprimé attendu';
+  if (!/\[x\]/.test(ligneP9(cwd, 'S1')) || !/\[x\]/.test(ligneP9(cwd, 'S2'))) return `S1 et S2 cochées attendues : ${ligneP9(cwd, 'S1')} / ${ligneP9(cwd, 'S2')}`;
+  return null;
+});
+
+cas('P21/T16 conflit, option 2 : `--relancer-en-serie S2` → désinscrite, lancée seule dans l\'arbre courant (motif), marque retirée une fois faite', () => {
+  const { cwd, copie2 } = vagueEnConflit('workflow-par-conflit-serie-');
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_COMPLETE); // S1, fusionnée, est relue avant tout lancer
+  const r = appliquerJson(cwd, ['--relancer-en-serie', 'S2']);
+  if (r.action?.action !== 'lancer' || r.action.parallele !== false || r.action.sessions.map((s) => s.session).join() !== 'S2') return `lancer en série de S2 attendu, reçu: ${r.sortie}`;
+  if (r.action.motifSerie !== 'S2 relancée en série après un conflit de fusion') return `motif inattendu : ${r.action.motifSerie}`;
+  if (!existsSync(copie2) || !brancheLocale(cwd, 'worktree-agent-b2')) return 'la copie et la branche restent en place pour mémoire';
+  const v = lireVague(cwd);
+  if (Object.keys(v?.sessions ?? {}).length !== 0 || v?.serie?.join() !== 'S2') return `S2 désinscrite et marquée série attendue : ${JSON.stringify(v)}`;
+  // La session série, sur main : elle committe sa tâche et coche sa ligne, comme en 0.68.0.
+  appendFileSync(join(cwd, 'src', 'b.mjs'), '// S2/T3 en série\n');
+  git(cwd, 'add', '--', 'src/b.mjs');
+  git(cwd, 'commit', '-q', '-m', 'feat: S2 T3\n\nPlan: P9/S2/T3');
+  writeFileSync(join(cwd, 'plans', 'P9', 'index.md'), readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/(\| \[S2\][^\n]*)\| \[ \] \|/, '$1| [x] 2026-11-25 |'));
+  git(cwd, 'add', '--', 'plans/P9/index.md');
+  git(cwd, 'commit', '-q', '-m', 'plan(P9): S2 faite\n\nPlan: P9/S2/T3');
+  const apres = appliquerJson(cwd);
+  if (!apres.appliques.includes('S2 : faite(s), marque série retirée de .claude/vague-en-cours.json')) return `marque série retirée attendue : ${JSON.stringify(apres.appliques)}`;
+  if (existsSync(join(cwd, '.claude', 'vague-en-cours.json'))) return 'fichier de vague supprimé attendu une fois la marque retirée';
+  return null;
+});
+
+cas('P21/T16 coupure d\'une session inscrite → ses commits partiels fusionnés d\'abord, puis `relancer-interrompue` (hors budget) ; toute la vague coupée se traite session par session', () => {
+  const cwd = planParallele('workflow-par-coupure-', { transformer: SANS_S3 });
+  const copie1 = ouvrirCopie(cwd, 'a1');
+  appliquerJson(cwd, ['--lancee', 'S1', '--agent', 'a1']);
+  ouvrirCopie(cwd, 'b2');
+  appliquerJson(cwd, ['--lancee', 'S2', '--agent', 'b2']);
+  travaillerDansCopie(copie1, 'S1', ['T1']); // T2 jamais commitée : coupure en cours de session
+  const r1 = appliquerJson(cwd, ['--interruption', 'S1', '--agent', 'a1']);
+  if (r1.action?.action !== 'relancer-interrompue' || r1.action.session !== 'S1') return `relancer-interrompue S1 attendu (même S2 en cours), reçu: ${r1.sortie}`;
+  if (!commitDeSujet(cwd, 'Fusion P9/S1')) return `fusion des commits partiels de S1 attendue : ${JSON.stringify(r1.appliques)}`;
+  if (!gitSortie(cwd, 'log', '--format=%B').includes('Plan: P9/S1/T1')) return 'le commit de T1 doit être sur main après la fusion';
+  const echec = readFileSync(join(cwd, 'plans', 'P9', 'S1.echec.md'), 'utf8');
+  for (const m of ['Nature : interruption', 'Tentatives : reprise=0 enquete=0', 'Blocage : coupure par quota pendant T2', 'Agent : a1']) if (!echec.includes(m)) return `rapport de coupure sans « ${m} » :\n${echec}`;
+  if (r1.appliques.findIndex((l) => /copie fusionnée/.test(l)) > r1.appliques.findIndex((l) => /interruption de S1 consignée/.test(l))) return `la fusion précède la consignation : ${JSON.stringify(r1.appliques)}`;
+  if (existsSync(copie1) || Object.keys(lireVague(cwd).sessions).join() !== 'S2') return 'S1 désinscrite, copie retirée ; S2 toujours inscrite';
+  const r2 = appliquerJson(cwd, ['--interruption', 'S2', '--agent', 'b2']);
+  if (!r2.appliques.includes("S2 : worktree-agent-b2 n'a aucun commit à fusionner")) return `S2 coupée sans commit : rien à fusionner attendu, reçu ${JSON.stringify(r2.appliques)}`;
+  if (!existsSync(join(cwd, 'plans', 'P9', 'S2.echec.md')) || existsSync(join(cwd, '.claude', 'vague-en-cours.json'))) return 'S2 consignée et vague vidée attendues';
+  if (r2.action?.action !== 'relancer-interrompue' || r2.action.session !== 'S1') return `relancer-interrompue S1 d'abord (ordre de la vague), reçu: ${r2.sortie}`;
+  return null;
+});
+
+cas('P21/T16 clôture refusée tant qu\'une session reste inscrite dans .claude/vague-en-cours.json (motif explicite) ; sans elle, `--cloture-faite` clôt', () => {
+  const toutFait = (t) => t.replaceAll('| [ ] |', '| [x] 2026-11-25 |').replaceAll('| medium |', '| low |').replaceAll('| high |', '| low |');
+  const cwd = planParallele('workflow-par-cloture-', { transformer: toutFait });
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, '.claude', 'vague-en-cours.json'), JSON.stringify({ plan: 'P9', vague: 1, sessions: { S1: { agent: 'a1', branche: 'worktree-agent-a1', heure: '2026-11-25T10:00:00Z' } }, serie: [] }));
+  const r = appliquerJson(cwd, ['--cloture-faite']);
+  if (r.action?.action !== 'cloturer') return `cloturer (refusé) attendu, reçu: ${r.sortie}`;
+  if (!/`--cloture-faite` refusé : reste à trier \(S1 encore inscrite dans \.claude\/vague-en-cours\.json\)/.test(r.action.avertissement ?? '')) return `refus motivé attendu : ${r.action.avertissement}`;
+  if (!r.action.texte.includes(`   - vague parallèle non collectée : S1 encore inscrite(s) dans .claude/vague-en-cours.json — la clôture est refusée tant qu'il en reste : collecter chacune (\`node ${SCRIPT_PA} P9 --appliquer --collecter S<k>\`)`)) return `ligne de clôture attendue :\n${r.action.texte}`;
+  if (/^Clos\s*:/m.test(readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8'))) return 'aucun `Clos :` ne doit être posé';
+  rmSync(join(cwd, '.claude', 'vague-en-cours.json'));
+  const temoin = appliquerJson(cwd, ['--cloture-faite']);
+  if (temoin.action?.action !== 'fini') return `témoin : sans inscription, la clôture aboutit (fini), reçu: ${temoin.sortie}`;
+  return null;
+});
+
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {
@@ -5240,7 +5479,7 @@ cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, 
     }
   }
   const vues = new Set(ACTIONS_VUES.map((a) => a.action));
-  const attendues = ['lancer', 'verifier-premisse', 'reprendre', 'enqueter', 'relancer-interrompue', 'relire', 'pousser', 'validation-humaine', 'question', 'fini', 'cloturer', 'valider-n0', 'transmettre'];
+  const attendues = ['lancer', 'verifier-premisse', 'reprendre', 'enqueter', 'relancer-interrompue', 'relire', 'pousser', 'validation-humaine', 'question', 'fini', 'cloturer', 'valider-n0', 'transmettre', 'attendre'];
   const manquantes = attendues.filter((x) => !vues.has(x));
   if (manquantes.length) return `actions jamais rendues par les cas du moteur (donc jamais contrôlées) : ${manquantes.join(', ')}`;
   return null;

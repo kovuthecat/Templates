@@ -56,8 +56,8 @@
 // Plan `Parallèle : oui` (P21/S7) : `lancer` porte `parallele: true`, toutes les sessions lançables de la vague,
 // chaque `agent` avec `isolation: "worktree"` et un `prompt` (copie isolée : ni coche, ni `STATUS.md`, ni
 // `TASKS.md`, ni push) ; ou `parallele: false` + `motifSerie` et une seule session (zones qui se recoupent, `.git`
-// en fichier, racine introuvable). Un plan sans la ligne (ou `non`) : aucun de ces champs, sorties identiques
-// à 0.68.0.
+// en fichier, racine introuvable, relance en série). Une vague dont une copie tourne rend `attendre`. Un plan
+// sans la ligne (ou `non`) : aucun de ces champs, sorties identiques à 0.68.0.
 //
 // Avant un `lancer` : l'arbre non commité est croisé avec la zone de chaque session de la vague (D1,
 // même décision). Recoupement, zone illisible ou `git status` en échec → `question` source
@@ -81,6 +81,13 @@
 //   `--lever-bloquant S<k> <docs/decisions/…>` (P21/S2/T5 : une décision écrite justifie le bloquant de
 //   revue d'une session faite — `Dépendances : libres` et `Bloquant levé :` écrits dans sa `.revue.md`,
 //   un commit ; refus, code 2, sans décision existante sous `docs/decisions/` ou sans bloquant) ·
+//   `--lancee S<k> --agent <id>` (P21/S7/T16 : plan `Parallèle : oui`, la session vient d'être lancée dans sa
+//   copie — inscrite dans `.claude/vague-en-cours.json`, non suivi, elle est `en-cours` et jamais relancée) ·
+//   `--collecter S<k> [--agent <id>]` (à chaque verdict, quel qu'il soit : `merge --no-ff` de sa branche, message
+//   `Fusion P<n>/S<k>` sans `Plan: P<n>/S<k>/` ; copie et branche retirées, désinscription ; conflit →
+//   `merge --abort`, copie conservée, question `fusion-conflit`) · `--relancer-en-serie S<k>` (après un conflit :
+//   désinscrite, relancée seule dans l'arbre courant) · une `--interruption` sur une session inscrite fusionne
+//   d'abord les commits partiels de sa branche ·
 //   `--cloture-faite` (les
 //   points 4 et 6 de `fin-de-plan.md`, jugement, sont faits : le moteur pose `Clos :`, pousse, rend `fini`) ·
 //   `--tours-max <n>` (diagnostic : borne de l'enchaînement, par défaut sessions × 4).
@@ -94,7 +101,7 @@
 //   `appliques: [...]`. Une écriture ou un push qui échoue → `question` source `ecriture-echec` ; plus de
 //   gestes que la borne → `question` source `boucle-appliquer` (jamais une boucle infinie).
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, statSync, lstatSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, statSync, lstatSync, mkdirSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -135,15 +142,28 @@ const optValiderVague = valeursOption('--valider-vague', 1)?.[0] ?? null;
 const optToursMax = valeursOption('--tours-max', 1)?.[0] ?? null;
 const optLeverBloquant = valeursOption('--lever-bloquant', 2);
 const optClotureFaite = args.includes('--cloture-faite');
-if (!appliquer && (optPremisse || optInterruption || optAgent || optValiderVague || optToursMax || optLeverBloquant || optClotureFaite)) {
-  erreurUsage('--premisse, --interruption, --agent, --valider-vague, --lever-bloquant, --tours-max et --cloture-faite demandent --appliquer');
+// Vague parallèle (P21/S7/T16) : inscription d'une session lancée dans sa copie, collecte de son verdict,
+// relance en série après un conflit de fusion.
+const optLancee = valeursOption('--lancee', 1)?.[0] ?? null;
+const optCollecter = valeursOption('--collecter', 1)?.[0] ?? null;
+const optRelancerEnSerie = valeursOption('--relancer-en-serie', 1)?.[0] ?? null;
+if (!appliquer && (optPremisse || optInterruption || optAgent || optValiderVague || optToursMax || optLeverBloquant || optClotureFaite || optLancee || optCollecter || optRelancerEnSerie)) {
+  erreurUsage('--premisse, --interruption, --agent, --valider-vague, --lever-bloquant, --lancee, --collecter, --relancer-en-serie, --tours-max et --cloture-faite demandent --appliquer');
 }
 if (optLeverBloquant && !/^S\d+$/.test(optLeverBloquant[0])) erreurUsage(`--lever-bloquant attend S<k> puis le chemin d'une décision, reçu "${optLeverBloquant[0]}"`);
 if (optPremisse && !VERDICTS_PREMISSE.some((v) => normaliserSimple(optPremisse[0]).startsWith(v))) {
   erreurUsage(`--premisse : verdict "${optPremisse[0]}" inconnu (refutee, confirmee ou indecidable attendus)`);
 }
-if (Boolean(optInterruption) !== Boolean(optAgent)) erreurUsage('--interruption S<k> et --agent <identifiant> vont ensemble');
-if (optInterruption && !/^S\d+$/.test(optInterruption)) erreurUsage(`--interruption attend S<k>, reçu "${optInterruption}"`);
+if ([optInterruption, optLancee, optCollecter, optRelancerEnSerie].filter(Boolean).length > 1) {
+  erreurUsage('--interruption, --lancee, --collecter et --relancer-en-serie s\'excluent : une session, un geste par appel');
+}
+if (optInterruption && !optAgent) erreurUsage('--interruption S<k> et --agent <identifiant> vont ensemble');
+if (optLancee && !optAgent) erreurUsage('--lancee S<k> et --agent <identifiant> vont ensemble');
+if (optAgent && !optInterruption && !optLancee && !optCollecter) erreurUsage('--interruption S<k> et --agent <identifiant> vont ensemble (ou --lancee S<k>, ou --collecter S<k>)');
+if (optAgent && !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(optAgent)) erreurUsage(`--agent attend l'identifiant de l'agent (lettres, chiffres, - _ .), reçu "${optAgent}"`);
+for (const [nom, valeur] of [['--interruption', optInterruption], ['--lancee', optLancee], ['--collecter', optCollecter], ['--relancer-en-serie', optRelancerEnSerie]]) {
+  if (valeur && !/^S\d+$/.test(valeur)) erreurUsage(`${nom} attend S<k>, reçu "${valeur}"`);
+}
 if (optValiderVague !== null && !/^\d+$/.test(optValiderVague)) erreurUsage(`--valider-vague attend un numéro de vague, reçu "${optValiderVague}"`);
 if (optToursMax !== null && !/^[1-9]\d*$/.test(optToursMax)) erreurUsage(`--tours-max attend un entier ≥ 1, reçu "${optToursMax}"`);
 
@@ -896,8 +916,44 @@ function promptRepriseApresQuestion(id, cheminQuestion) {
 // ── Vague parallèle (P21/S7) ─────────────────────────────────────────────────────────────────────────
 // Un plan `Parallèle : oui` lance toutes les sessions lançables d'une vague à la fois, chacune dans sa copie
 // isolée (`isolation: "worktree"` de l'outil `Agent` : dossier `.claude/worktrees/agent-<id>`, branche
-// `worktree-agent-<id>`, partie du HEAD local). Repli en série (une session, motif dans l'annonce) : zones qui
-// se recoupent, `.git` en fichier (copie refusée par l'outil), racine introuvable.
+// `worktree-agent-<id>`, partie du HEAD local). L'orchestrateur inscrit chaque lancement (`--lancee S<k> --agent
+// <id>`) dans `.claude/vague-en-cours.json` (non suivi) ; une session inscrite est `en-cours` : jamais relancée.
+// À chaque verdict, `--collecter S<k>` fusionne sa branche dans `main` (`merge --no-ff`, message sans
+// `Plan: P<n>/S<k>/` : la preuve N0 reste celle du commit de la session, sonde P21/S5 M1), retire la copie et la
+// branche, désinscrit. Repli en série (une session, motif dans l'annonce) : zones qui se recoupent, `.git` en
+// fichier (copie refusée par l'outil), racine introuvable, session relancée en série après un conflit.
+
+const FICHIER_VAGUE_REL = '.claude/vague-en-cours.json';
+const FICHIER_VAGUE = join(RACINE, '.claude', 'vague-en-cours.json');
+
+/** Le fichier de la vague en vol : `null` s'il n'existe pas ; un fichier illisible n'est jamais deviné vide
+ * (il ferait relancer des sessions qui tournent) — l'appelant rend une erreur nommée. */
+function lireVagueEnCours() {
+  if (!existsSync(FICHIER_VAGUE)) return null;
+  try {
+    const v = JSON.parse(readFileSync(FICHIER_VAGUE, 'utf8'));
+    if (!v || typeof v !== 'object' || typeof v.sessions !== 'object' || v.sessions === null) throw new Error('champ `sessions` absent');
+    return { plan: v.plan ?? null, vague: v.vague ?? null, sessions: v.sessions, serie: Array.isArray(v.serie) ? v.serie : [] };
+  } catch (e) {
+    return { erreur: `${FICHIER_VAGUE_REL} illisible (${e.message}) : le corriger ou le supprimer — les copies en cours se retrouvent par \`git worktree list\`` };
+  }
+}
+
+/** Écrit le fichier de la vague, ou le supprime quand plus aucune session n'y est inscrite ni marquée série. */
+function ecrireVagueEnCours(v) {
+  if (Object.keys(v.sessions).length === 0 && v.serie.length === 0) {
+    rmSync(FICHIER_VAGUE, { force: true });
+    return;
+  }
+  mkdirSync(dirname(FICHIER_VAGUE), { recursive: true });
+  writeFileSync(FICHIER_VAGUE, JSON.stringify(v, null, 2) + '\n');
+}
+
+/** La vague en vol de CE plan (un fichier écrit pour un autre plan ne le concerne pas). */
+const vagueDuPlan = (v) => (v && !v.erreur && v.plan === plan ? v : null);
+
+/** Nom de branche de la copie d'un agent (sonde du cadrage de P21 : `worktree-agent-<id>`). */
+const brancheDeLAgent = (agent) => (/^worktree-/.test(agent) ? agent : `worktree-agent-${agent.replace(/^agent-/, '')}`);
 
 /** Le `.git` à la racine du dépôt est-il un dossier ? Un fichier (`gitdir: …`, dépôt à `.git` déplacé) : l'outil
  * `Agent` refuse la copie isolée (constat du cadrage de P21), nos hooks y refuseraient tout commit. */
@@ -916,6 +972,8 @@ function motifSerie(sortie, aLancer) {
     const racine = (racineDepot() ?? RACINE).replaceAll('\\', '/');
     return `le \`.git\` de ce dépôt est un fichier (dossier Git déplacé) : l'outil Agent refuse d'y ouvrir une copie isolée — lance \`node ${dirname(cheminScript())}/rapatrier-git.mjs --appliquer ${racine}\`, puis relance le moteur`;
   }
+  const serie = aLancer.filter((s) => sortie.vagueEnCours?.serie.includes(s.session)).map((s) => s.session);
+  if (serie.length > 0) return `${serie.join(', ')} relancée${serie.length > 1 ? 's' : ''} en série après un conflit de fusion`;
   const recoupes = recoupementsDeZones(aLancer);
   if (recoupes.length > 0) {
     return `zones qui se recoupent — ${recoupes.map((r) => `${r.a} (\`${r.cheminA}\`) et ${r.b} (\`${r.cheminB}\`)`).join(' ; ')} : deux copies qui modifient les mêmes fichiers se fusionneraient mal`;
@@ -1043,6 +1101,32 @@ function prochaineAction(sortie) {
       .map((id) => sortie.sessions.find((s) => s.session === id))
       .filter(Boolean);
 
+    // Vague parallèle en vol (P21/S7/T16) : une session inscrite tourne dans sa copie — jamais relancée, et rien
+    // d'autre de la vague ne se décide (revue, échec, question) tant qu'une copie tourne encore : l'orchestrateur
+    // attend les notifications et collecte chaque verdict. Une fusion en conflit se pose en question une fois
+    // la vague entièrement collectée.
+    const enCours = membres.filter((s) => s.etat === 'en-cours');
+    if (enCours.length > 0) {
+      const tournent = enCours.filter((s) => !s.inscription.conflit);
+      if (tournent.length > 0) {
+        const aInscrire = membres.filter((s) => s.etat === 'a-lancer' && !compromises(s)).map((s) => s.session);
+        return {
+          action: 'attendre',
+          vague: vague.numero,
+          sessions: tournent.map((s) => ({ session: s.session, agent: s.inscription.agent, branche: s.inscription.branche })),
+          ...(aInscrire.length > 0 ? { nonInscrites: aInscrire } : {}),
+          ...(enCours.length > tournent.length ? { conflits: enCours.filter((s) => s.inscription.conflit).map((s) => s.session) } : {}),
+        };
+      }
+      const c = enCours[0];
+      const fichiers = c.inscription.conflit.fichiers ?? [];
+      return {
+        action: 'question',
+        motif: `la fusion de ${c.session} dans main a rencontré un conflit${fichiers.length > 0 ? ` (${fichiers.join(', ')})` : ''} : fusion abandonnée (git merge --abort), copie et branche ${c.inscription.branche} conservées`,
+        options: { source: 'fusion-conflit', session: c.session, branche: c.inscription.branche, fichiers },
+      };
+    }
+
     // Une session arrêtée sur un choix attend, quoi qu'il reste d'un rapport d'échec antérieur (P20/S6).
     const enAttente = membres.find((s) => s.etat === 'en-attente');
     if (enAttente) return decisionAttente(enAttente);
@@ -1144,7 +1228,7 @@ function prochaineAction(sortie) {
       if (sortie.parallele) {
         const motif = motifSerie(sortie, aLancer);
         if (motif) {
-          const s = aLancer[0];
+          const s = aLancer.find((x) => sortie.vagueEnCours?.serie.includes(x.session)) ?? aLancer[0];
           return {
             action: 'lancer',
             vague: vague.numero,
@@ -1266,6 +1350,8 @@ function premiereLigne(action) {
       return `valider-n0 — ${action.session}`;
     case 'validation-humaine':
       return `validation-humaine — vague ${action.vague}`;
+    case 'attendre':
+      return `attendre — vague ${action.vague} : ${action.sessions.map((s) => s.session).join(', ')}`;
     case 'question':
       return `question — ${action.motif}`;
     default: // pousser, fini, cloturer : une ligne nue, comme avant
@@ -1622,6 +1708,18 @@ function definirQuestion(action, sortie) {
         rapport: q.fichier ?? q.chemin,
       };
     }
+    case 'fusion-conflit': {
+      // Jamais résolu par le moteur ni par l'orchestrateur (P21/S7/T16, décision clé) : deux gestes, chacun écrit.
+      const fichiers = (o.fichiers ?? []).length > 0 ? ` (${o.fichiers.join(', ')})` : '';
+      return {
+        question: `La copie de ${id} ne se fusionne pas dans main sans conflit${fichiers} : que fait-on ?`,
+        options: [
+          `Résoudre à la main : \`git merge --no-ff -m "Fusion ${plan}/${id}" ${o.branche}\` (jamais \`Plan: ${plan}/${id}/\` dans ce message), régler les conflits, committer, puis relancer \`node ${cheminScript()} ${plan} --appliquer --collecter ${id}\` — débloque ${id}`,
+          `Relancer ${id} en série sur \`main\` : \`node ${cheminScript()} ${plan} --appliquer --relancer-en-serie ${id}\` — sa copie et la branche ${o.branche} restent en place (à supprimer à la main) — débloque ${id}`,
+        ],
+        graines: [id],
+      };
+    }
     case 'session-hors-vague':
       return {
         question: `Des sessions ne sont dans aucune vague de l'Ordonnancement (${nomsIds}) : que fait-on ?`,
@@ -1682,7 +1780,7 @@ function redigerQuestion(action, sortie) {
   // Listes FIXES de la skill (arbre-sale, revue-incomplete, dependance-revue) : jamais remplacées par
   // un rapport d'échec qui n'a pas ces options en vue. Le reste : `## Issues` du rapport si elle existe.
   const attente = o.source === 'attente-reponse'; // options écrites par la session elle-même, dans son `.question.md`
-  const fixes = attente || ['arbre-sale', 'revue-incomplete', 'dependance-revue'].includes(o.source);
+  const fixes = attente || ['arbre-sale', 'revue-incomplete', 'dependance-revue', 'fusion-conflit'].includes(o.source);
   const delIssues = !fixes && issues.lignes.length > 0;
   const options = delIssues
     ? issues.lignes
@@ -1819,6 +1917,18 @@ function texteSimple(action, sortie) {
     case 'relancer-interrompue':
       l.push(`   ${action.session} a été coupée par un quota : la relancer, hors budget de reprises.`);
       break;
+    case 'attendre': {
+      const ids = action.sessions.map((s) => s.session);
+      l.push(`   ${ids.join(', ')} ${ids.length > 1 ? 'tournent' : 'tourne'} dans ${ids.length > 1 ? 'leur copie isolée' : 'sa copie isolée'} : attendre la notification de fin de ${ids.length > 1 ? 'chacune' : 'l\'agent'} — rien n'est relancé tant qu'une copie tourne.`);
+      l.push(`   À chaque verdict, quel qu'il soit : \`node ${cheminScript()} ${nomPlan} --appliquer --collecter S<k>\` — le moteur fusionne la copie dans \`main\`, la retire, et coche la vague une fois toute collectée.`);
+      if (action.nonInscrites?.length > 0) {
+        l.push(`   ${action.nonInscrites.join(', ')} : pas encore inscrite(s) — lancée(s) avec les autres : \`node ${cheminScript()} ${nomPlan} --appliquer --lancee S<k> --agent <id>\` ; sinon elle(s) partira(ont) quand la vague sera collectée.`);
+      }
+      if (action.conflits?.length > 0) {
+        l.push(`   ${action.conflits.join(', ')} : fusion en conflit, copie conservée — la question viendra une fois les autres collectées.`);
+      }
+      break;
+    }
     case 'relire':
       l.push(`   Relecture de ${action.sessions.map((s) => `${s.session} (effort ${s.effort}${s.reprise ? ', reprise' : ''})`).join(', ')}.`);
       for (const s of action.sessions.filter((x) => x.sensibles?.length > 0)) {
@@ -1841,6 +1951,7 @@ function texteSimple(action, sortie) {
           : '   - point 4 : aucune revue à trier, aucun `[x]!`');
         l.push('   - point 6 : ranger le contexte (`PROJECT_BRIEF.md`, `TASKS.md`, `STATUS.md`, points N2 dans `VALIDATION.md`)');
         if (r.sales.length > 0) l.push(`   - fichiers encore non commités (à rattacher à leur session, jamais balayés dans un commit fourre-tout) : ${r.sales.join(', ')}`);
+        if (r.enVol?.length > 0) l.push(`   - vague parallèle non collectée : ${r.enVol.join(', ')} encore inscrite(s) dans ${FICHIER_VAGUE_REL} — la clôture est refusée tant qu'il en reste : collecter chacune (\`node ${cheminScript()} ${nomPlan} --appliquer --collecter S<k>\`)`);
         l.push(`   Puis rappeler : \`${action.rappel}\` — le moteur pose \`Clos : <date>\` (point 5), pousse (point 7) et rend le rapport final.`);
       }
       break;
@@ -1955,6 +2066,12 @@ function assembler() {
   const partiel = verifierHistoriqueComplet();
   if (partiel) return { partiel };
 
+  // Vague parallèle en vol (P21/S7/T16) : le fichier non suivi des sessions inscrites. Illisible → erreur nommée,
+  // jamais un fichier deviné vide (des sessions qui tournent seraient relancées dans une seconde copie).
+  const fichierVague = lireVagueEnCours();
+  if (fichierVague?.erreur) return { erreur: fichierVague.erreur };
+  const vagueEnCours = vagueDuPlan(fichierVague);
+
   const refs = refsCommitees();
   for (const s of index.sessions) {
     const cheminEchec = join(dossierPlan, `${s.session}.echec.md`);
@@ -1966,9 +2083,15 @@ function assembler() {
     // `en-attente` (P20/S6) avant `echec` et avant « toutes les tâches commitées » : le WIP commité avant
     // la question porte un repère `Plan:` de tâche sans que la session ait fini ; un `.echec.md` plus
     // ancien (reprise arrêtée sur un choix) ne prime pas non plus. Une session cochée l'emporte.
+    // `en-cours` (P21/S7) juste après la coche : la session travaille dans sa copie, ses commits et ses
+    // rapports sont sur sa branche, invisibles ici jusqu'à la collecte.
     const cheminQuestion = join(dossierPlan, `${s.session}.question.md`);
+    const inscription = vagueEnCours?.sessions[s.session];
+    if (inscription) s.inscription = { agent: inscription.agent ?? null, branche: inscription.branche ?? null, conflit: inscription.conflit ?? null };
     if (s.coche) {
       s.etat = 'faite';
+    } else if (inscription) {
+      s.etat = 'en-cours';
     } else if (existsSync(cheminQuestion) && !questionConsommee(`plans/${plan}/${s.session}.question.md`, s.session)) {
       s.etat = 'en-attente';
     } else if (existsSync(cheminEchec)) {
@@ -2024,8 +2147,9 @@ function assembler() {
     },
     vagues: index.vagues,
     sessions: index.sessions,
-    // Champ posé pour un plan `Parallèle : oui` seulement : l'état d'un plan sans la ligne reste celui d'avant.
+    // Champs posés pour un plan `Parallèle : oui` seulement : l'état d'un plan sans la ligne reste celui d'avant.
     ...(index.parallele ? { parallele: true } : {}),
+    ...(vagueEnCours ? { vagueEnCours } : {}),
   };
   return { sortie, index };
 }
@@ -2252,9 +2376,14 @@ function gesteEtat(sortie) {
     }
   }
   // 2. Cocher `[x]` : tâches commitées (état `faite`) et preuve N0 valide — jamais une preuve inconnue ou périmée.
+  // Vague parallèle (P21/S7/T16) : pas tant qu'une copie de la même vague tourne — la vague se coche à la
+  // collecte de sa dernière session, toutes ses lignes ensemble.
+  const vagueEnVol = (id) => sortie.vagues.some((v) => v.sessions.includes(id) &&
+    v.sessions.some((m) => sortie.sessions.find((x) => x.session === m)?.etat === 'en-cours'));
   for (const s of sortie.sessions) {
     if (s.etat !== 'faite' || s.coche) continue;
     if (s.preuve !== null && s.preuve.ok !== true) continue;
+    if (vagueEnVol(s.session)) continue;
     return {
       cle: `cocher:${s.session}`,
       faire: () => {
@@ -2334,6 +2463,147 @@ function ecrireInterruption(sortie, id, agent) {
   ].join('\n'));
   const hash = committer([rel], `chore(${plan}): ${id} coupée par un quota, interruption consignée`, `${plan}/${id}`);
   return `interruption de ${id} consignée dans ${rel} (${hash ?? 'inchangé'})`;
+}
+
+// ── Vague parallèle : inscription, collecte, relance en série (P21/S7/T16) ───────────────────────────
+/** Le fichier de la vague tel qu'on va l'écrire pour CE plan : celui sur le disque, ou un neuf. Un fichier
+ * d'un autre plan encore en vol : refus (une seule vague parallèle en vol par dépôt). */
+function vaguePourEcrire(contexte) {
+  const v = lireVagueEnCours();
+  if (v?.erreur) erreurUsage(`${contexte} : ${v.erreur}`);
+  if (v && v.plan !== plan && (Object.keys(v.sessions).length > 0 || v.serie.length > 0)) {
+    erreurUsage(`${contexte} : ${FICHIER_VAGUE_REL} porte une vague en vol du plan ${v.plan} — la collecter avant d'en lancer une autre`);
+  }
+  return v && v.plan === plan ? v : { plan, vague: null, sessions: {}, serie: [] };
+}
+
+const numeroDeVague = (sortie, id) => sortie.vagues.find((v) => v.sessions.includes(id))?.numero ?? null;
+
+function inscrireLancement(sortie, id, agent) {
+  const s = sortie.sessions.find((x) => x.session === id);
+  if (!s) erreurUsage(`--lancee : ${id} absente de plans/${plan}/index.md`);
+  if (!sortie.parallele) erreurUsage(`--lancee : le plan ${plan} n'est pas \`Parallèle : oui\` — ses sessions se lancent dans l'arbre courant, sans inscription`);
+  const v = vaguePourEcrire('--lancee');
+  const branche = brancheDeLAgent(agent);
+  const deja = v.sessions[id];
+  if (deja && deja.agent === agent) return `${id} déjà inscrite en cours (agent ${agent}) — rien à écrire`;
+  if (s.etat !== 'a-lancer') erreurUsage(`--lancee : ${id} n'est pas à lancer (état ${s.etat})`);
+  const numero = numeroDeVague(sortie, id);
+  if (v.vague !== null && v.vague !== numero && Object.keys(v.sessions).length > 0) {
+    erreurUsage(`--lancee : ${id} est de la vague ${numero}, la vague ${v.vague} est encore en vol`);
+  }
+  v.vague = numero;
+  v.sessions[id] = { agent, branche, heure: new Date().toISOString() };
+  ecrireVagueEnCours(v);
+  return `${id} inscrite en cours dans ${FICHIER_VAGUE_REL} (agent ${agent}, branche ${branche})`;
+}
+
+/** Copies de `git worktree list --porcelain` : `[{ chemin, branche }]` (branche sans `refs/heads/`). */
+function copiesDuDepot() {
+  const copies = [];
+  let courante = null;
+  for (const l of (git('worktree', 'list', '--porcelain') ?? '').split('\n')) {
+    if (l.startsWith('worktree ')) { courante = { chemin: l.slice('worktree '.length), branche: null }; copies.push(courante); }
+    else if (l.startsWith('branch ') && courante) courante.branche = l.slice('branch '.length).replace(/^refs\/heads\//, '');
+  }
+  return copies;
+}
+
+const brancheExiste = (b) => Boolean(b) && git('rev-parse', '--verify', '--quiet', `refs/heads/${b}`) !== null;
+
+/** La branche d'une session : celle de son inscription, sinon celle de l'agent nommé, sinon — fichier perdu — la
+ * branche `worktree-agent-*` d'une copie qui porte des commits de la session (`git worktree list`). */
+function brancheDeSession(id, inscription, agent) {
+  for (const b of [inscription?.branche, agent ? brancheDeLAgent(agent) : null]) if (brancheExiste(b)) return b;
+  for (const c of copiesDuDepot()) {
+    if (!c.branche || !/^worktree-agent-/.test(c.branche)) continue;
+    const messages = git('log', '--format=%B', `HEAD..${c.branche}`) ?? '';
+    if (new RegExp(String.raw`Plan:\s*${plan}/${id}/`).test(messages)) return c.branche;
+  }
+  return null;
+}
+
+/** Fusionne la branche d'une session dans la branche courante (`main`) : `merge --no-ff`, message `Fusion
+ * P<n>/S<k>` dont la ligne `Plan:` n'a PAS de barre finale (sonde P21/S5 M1 : `Plan: P<n>/S<k>/` dans le message
+ * de fusion rend la preuve N0 illisible). Conflit → `merge --abort`, copie et branche conservées, conflit noté
+ * dans l'inscription : `{ conflit: [fichiers] }`. Sinon retire la copie et la branche (jamais de force : une copie
+ * encore modifiée est conservée, et le dit), désinscrit. Rend `{ lignes, conflit }`. */
+function fusionnerSession(id, agent) {
+  const v = vaguePourEcrire(`fusion de ${id}`);
+  const inscription = v.sessions[id] ?? null;
+  const branche = brancheDeSession(id, inscription, agent);
+  const lignes = [];
+  if (!inscription && !branche) return { lignes: [`${id} : ni inscription ni copie à collecter — rien à fusionner`], conflit: null };
+  if (branche) {
+    const avance = Number(git('rev-list', '--count', `HEAD..${branche}`) ?? 0);
+    if (avance > 0) {
+      try {
+        gitStrict(['merge', '--no-ff', '-m', `Fusion ${plan}/${id}\n\nPlan: ${plan}/${id}`, branche]);
+        lignes.push(`${id} : copie fusionnée dans ${git('rev-parse', '--abbrev-ref', 'HEAD') ?? 'la branche courante'} (${gitStrict(['rev-parse', '--short', 'HEAD'])}, ${avance} commit(s) de ${branche})`);
+      } catch (e) {
+        if (!(e instanceof EchecEcriture)) throw e;
+        const enFusion = git('rev-parse', '--verify', '--quiet', 'MERGE_HEAD') !== null;
+        if (!enFusion) throw e; // refus avant fusion (arbre local en travers…) : question `ecriture-echec`
+        const fichiers = (gitBrut('diff', '--name-only', '--diff-filter=U') ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+        gitStrict(['merge', '--abort']);
+        v.sessions[id] = { ...(inscription ?? { agent: agent ?? null, branche, heure: new Date().toISOString() }), branche, conflit: { fichiers, date: aujourdhui() } };
+        ecrireVagueEnCours(v);
+        lignes.push(`${id} : fusion de ${branche} en conflit (${fichiers.join(', ') || 'fichiers non nommés'}) — git merge --abort, copie et branche conservées`);
+        return { lignes, conflit: fichiers };
+      }
+    } else {
+      lignes.push(`${id} : ${branche} n'a aucun commit à fusionner`);
+    }
+    const copie = copiesDuDepot().find((c) => c.branche === branche);
+    let retiree = !copie;
+    if (copie) {
+      try {
+        gitStrict(['worktree', 'remove', copie.chemin]);
+        retiree = true;
+        lignes.push(`${id} : copie ${copie.chemin.replaceAll('\\', '/')} retirée`);
+      } catch (e) {
+        if (!(e instanceof EchecEcriture)) throw e;
+        lignes.push(`${id} : copie ${copie.chemin.replaceAll('\\', '/')} conservée (${e.detail}) — à retirer à la main`);
+      }
+    }
+    if (retiree) {
+      try {
+        gitStrict(['branch', '-d', branche]);
+        lignes.push(`${id} : branche ${branche} supprimée`);
+      } catch (e) {
+        if (!(e instanceof EchecEcriture)) throw e;
+        lignes.push(`${id} : branche ${branche} conservée (${e.detail})`);
+      }
+    }
+  }
+  delete v.sessions[id];
+  ecrireVagueEnCours(v);
+  lignes.push(`${id} : désinscrite de ${FICHIER_VAGUE_REL}${existsSync(FICHIER_VAGUE) ? '' : ' (vague collectée, fichier supprimé)'}`);
+  return { lignes, conflit: null };
+}
+
+/** Après un conflit de fusion, l'option « relancer en série » : la session est désinscrite (sa copie et sa branche
+ * restent, pour mémoire) et marquée série — le prochain `lancer` de sa vague la lance seule, dans l'arbre courant. */
+function relancerEnSerie(sortie, id) {
+  if (!sortie.sessions.some((x) => x.session === id)) erreurUsage(`--relancer-en-serie : ${id} absente de plans/${plan}/index.md`);
+  const v = vaguePourEcrire('--relancer-en-serie');
+  const inscription = v.sessions[id];
+  if (!inscription) erreurUsage(`--relancer-en-serie : ${id} n'est pas inscrite dans ${FICHIER_VAGUE_REL}`);
+  delete v.sessions[id];
+  if (!v.serie.includes(id)) v.serie.push(id);
+  ecrireVagueEnCours(v);
+  return `${id} désinscrite et marquée série : relancée seule dans l'arbre courant au prochain lancement (copie et branche ${inscription.branche ?? '—'} conservées)`;
+}
+
+/** Une session marquée série et désormais cochée : la marque n'a plus d'objet (aucun commit, fichier non suivi). */
+function nettoyerMarquesSerie(sortie) {
+  const v = sortie.vagueEnCours;
+  if (!v || v.serie.length === 0) return null;
+  const faites = v.serie.filter((id) => sortie.sessions.find((x) => x.session === id)?.coche);
+  if (faites.length === 0) return null;
+  v.serie = v.serie.filter((id) => !faites.includes(id));
+  ecrireVagueEnCours(v);
+  return `${faites.join(', ')} : faite(s), marque série retirée de ${FICHIER_VAGUE_REL}`;
 }
 
 function validerVague(index, numero) {
@@ -2507,8 +2777,11 @@ function resteDeCloture(sortie) {
   const revues = sortie.sessions.map((s) => `plans/${plan}/${s.session}.revue.md`).filter((p) => existsSync(join(RACINE, p)));
   const bloquants = sortie.sessions.filter((s) => s.bloquantNonTrie).map((s) => s.session);
   const brut = fichiersSales();
-  const sales = brut === null ? ["arbre invérifiable (`git status` a échoué)"] : brut.filter((f) => !f.startsWith('.claude/n0/'));
-  return { revues, bloquants, sales };
+  const sales = brut === null ? ["arbre invérifiable (`git status` a échoué)"] : brut.filter((f) => !f.startsWith('.claude/n0/') && f !== FICHIER_VAGUE_REL);
+  // Vague parallèle (P21/S7/T16) : une session encore inscrite — ou marquée série — refuse la clôture.
+  const v = sortie.vagueEnCours;
+  const enVol = v ? [...Object.keys(v.sessions), ...v.serie.filter((id) => !v.sessions[id])] : [];
+  return { revues, bloquants, sales, enVol };
 }
 
 /** Points 1 et 2 de `fin-de-plan.md` (le 3 est fait par le prélude) : incidents non commités, marqueurs transitoires. */
@@ -2578,7 +2851,24 @@ function appliquerPlan() {
       // Écritures demandées par l'orchestrateur, indépendantes de l'action : une fois, au premier tour.
       if (!optionsFaites) {
         optionsFaites = true;
-        if (optInterruption) { decrire(ecrireInterruption(sortie, optInterruption, optAgent)); continue; }
+        if (optLancee) { decrire(inscrireLancement(sortie, optLancee, optAgent)); continue; }
+        if (optCollecter) {
+          if (!sortie.sessions.some((x) => x.session === optCollecter)) erreurUsage(`--collecter : ${optCollecter} absente de plans/${plan}/index.md`);
+          for (const l of fusionnerSession(optCollecter, optAgent).lignes) decrire(l);
+          continue;
+        }
+        if (optRelancerEnSerie) { decrire(relancerEnSerie(sortie, optRelancerEnSerie)); continue; }
+        if (optInterruption) {
+          // Une session inscrite (vague parallèle) : ce que porte sa branche — commits partiels — est fusionné
+          // d'abord ; la coupure est consignée ensuite, sur `main`. Conflit : rien n'est consigné, la question vient.
+          if (sortie.sessions.find((x) => x.session === optInterruption)?.inscription) {
+            const r = fusionnerSession(optInterruption, optAgent);
+            for (const l of r.lignes) decrire(l);
+            if (r.conflit) continue;
+          }
+          decrire(ecrireInterruption(sortie, optInterruption, optAgent));
+          continue;
+        }
         if (optValiderVague !== null) { decrire(validerVague(r.index, optValiderVague)); continue; }
         if (optLeverBloquant) levee = controlerLevee(sortie, optLeverBloquant[0], optLeverBloquant[1]);
       }
@@ -2589,6 +2879,9 @@ function appliquerPlan() {
         decrire(leverBloquant(levee.s.session, levee.rel));
         continue;
       }
+
+      const marques = nettoyerMarquesSerie(sortie);
+      if (marques) { decrire(marques); continue; }
 
       const geste = gesteEtat(sortie);
       if (geste) {
@@ -2650,7 +2943,7 @@ function appliquerPlan() {
         case 'cloturer': {
           ranger(decrire);
           const reste = resteDeCloture(sortie);
-          const jugement = reste.revues.length > 0 || reste.bloquants.length > 0;
+          const jugement = reste.revues.length > 0 || reste.bloquants.length > 0 || reste.enVol.length > 0;
           if (optClotureFaite && !jugement) {
             const q = borne();
             if (q) return rendre(q);
@@ -2670,7 +2963,7 @@ function appliquerPlan() {
           }
           action.reste = reste;
           action.rappel = `node ${cheminScript()} ${plan} --appliquer --cloture-faite`;
-          return rendre(action, optClotureFaite ? `\`--cloture-faite\` refusé : reste à trier (${[...reste.revues, ...reste.bloquants.map((b) => `${b} en [x]!`)].join(', ')})` : null);
+          return rendre(action, optClotureFaite ? `\`--cloture-faite\` refusé : reste à trier (${[...reste.revues, ...reste.bloquants.map((b) => `${b} en [x]!`), ...reste.enVol.map((id) => `${id} encore inscrite dans ${FICHIER_VAGUE_REL}`)].join(', ')})` : null);
         }
         default:
           // lancer, reprendre/enqueter (ci-dessus), relire, transmettre, question, validation-humaine,
