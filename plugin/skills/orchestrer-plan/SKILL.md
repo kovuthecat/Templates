@@ -37,6 +37,7 @@ mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** s
 | Action rendue | Geste |
 | --- | --- |
 | `lancer` | Relayer `texte`. Puis un agent par session de `sessions`, dans l'ordre, **un seul à la fois**, arrêt au premier `FAIL` : appel « Session » ci-dessous ; collecter. |
+| `attendre` | Plan `Parallèle : oui`, vague en vol : relayer `texte`, ne relancer aucune session de `sessions` ; à la notification de chaque agent, rappeler `--appliquer --collecter S<k>` (quel que soit le verdict). |
 | `relire` | Un appel « Relecteur » par session de `sessions`, dans l'ordre rendu, chacun attendu (notification reçue) avant le suivant. |
 | `verifier-premisse` | Appel « Vérificateur », puis rappeler avec `--premisse <CONFIRMEE\|REFUTEE\|INDECIDABLE> "<preuve>"` : le moteur écrit la ligne `Premisse :`. `REFUTEE` : déposer aussi un incident (`WORKFLOW.md` §9b, nature `prémisse`). `INDECIDABLE · comportementale` : même appel, preuve commençant par « comportementale ». |
 | `reprendre` | `references/remediation.md` : canal court si ses trois conditions tiennent, sinon reprise à froid (`modele`, `option` déjà décidés). |
