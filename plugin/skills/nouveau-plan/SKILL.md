@@ -39,6 +39,12 @@ relancer sans `--check`, rapporter. Avec `DÉRIVE` : question à l'utilisateur (
 `"$CLAUDE_CODE_EXECPATH" plugin update workflow@templates --scope local` (le shim `claude` peut manquer
 sous Desktop), puis `node plugin/bin/installer-mods.mjs`.
 
+**Parallèle, question à chaque plan neuf** (après le contrôle de version, avant l'Étape 1 ; en mode
+extension, la ligne de l'index existant ne se rouvre pas) : « Sessions parallèles activées ou désactivées
+pour ce plan ? » — options fixes `activées` / `désactivées`, **aucune recommandée**. Dire le revers dans la
+question, en une ligne : quota consommé plus vite, une limite coupe toute la vague ; `.git` déplacé → la
+vague repasse en série. La réponse s'écrit `Parallèle : oui | non` dans l'en-tête de l'index (Étape 3).
+
 **Plan neuf ou extension ?** La correction débloque-t-elle une session restante de `P<n>`, son
 « Objectif d'ensemble » restant vrai tel qu'il est écrit ? Oui → **mode extension** : lire
 `references/cas-rares.md` (critère, plafond de trois vagues de remédiation, modification de l'index). Non →
@@ -127,7 +133,9 @@ dans une même session si TOUT est vrai :
 de modèle ou d'effort, tâche `high`/`xhigh` : des **indices**, pas des règles absolues.
 
 La colonne « Zone modifiée » : y mettre les répertoires/fichiers réellement touchés, pas des
-généralités. **Une session dont la zone est « aucune »** (vérification, mesure, audit) livre une
+généralités. **Plan `Parallèle : oui`** : les sessions d'une même vague ont des zones **disjointes**,
+sinon le moteur la repasse en série (`verifier-plan.mjs` le signale) — le vérifier en remplissant cette
+colonne. **Une session dont la zone est « aucune »** (vérification, mesure, audit) livre une
 **conclusion**, pas un diff : écrire dans le `S<k>.md` ce que le bilan devra contenir — le corpus
 exact, le critère, le résultat attendu —, sans quoi la session rend « ça marche » dans une
 conversation qui disparaît et le plan ne la distingue plus d'une session jamais lancée.

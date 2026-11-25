@@ -8,7 +8,9 @@ vit ici et nulle part ailleurs (`WORKFLOW.md` §4a).
 
 Workflow : v<x>
 Preuve N0 : requise
+Parallèle : non
 
+<!-- `Parallèle : oui | non` : réponse à la question de `/nouveau-plan` Étape 0 ; absente = `non` (série). -->
 <!-- `Preuve N0 : requise` est la valeur écrite. `Preuve N0 : non requise` seulement si
      `.claude/n0.json` porte `sansCommande` (projet sans build ni test) ; `verifier-plan.mjs` le
      contrôle dans les deux sens. Alors N0 est sauté et le bilan écrit
