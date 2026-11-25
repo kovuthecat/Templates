@@ -1,6 +1,6 @@
 # Plan P21 — Corrections des incidents du 2026-11-25 et vagues parallèles au choix   (rédigé par Opus)
 
-Workflow : v0.68.0
+Workflow : v0.69.0
 Preuve N0 : requise
 
 ## Objectif d'ensemble
