@@ -71,7 +71,11 @@
 //   la première passe Opus rendue ; clôture, points 1-3 et 5 de `fin-de-plan.md`.
 //   Options : `--premisse <verdict> <preuve>` (écrit la ligne `Premisse :` du rapport en attente de
 //   vérification) · `--interruption S<k> --agent <id>` (`.echec.md` de coupure par quota) ·
-//   `--valider-vague <w>` (`· validée`, après le « oui » de l'utilisateur) · `--cloture-faite` (les
+//   `--valider-vague <w>` (`· validée`, après le « oui » de l'utilisateur) ·
+//   `--lever-bloquant S<k> <docs/decisions/…>` (P21/S2/T5 : une décision écrite justifie le bloquant de
+//   revue d'une session faite — `Dépendances : libres` et `Bloquant levé :` écrits dans sa `.revue.md`,
+//   un commit ; refus, code 2, sans décision existante sous `docs/decisions/` ou sans bloquant) ·
+//   `--cloture-faite` (les
 //   points 4 et 6 de `fin-de-plan.md`, jugement, sont faits : le moteur pose `Clos :`, pousse, rend `fini`) ·
 //   `--tours-max <n>` (diagnostic : borne de l'enchaînement, par défaut sessions × 4).
 //   D'ABORD, à chaque appel : les écritures laissées non commitées par un appel interrompu (`index.md`,
@@ -84,7 +88,7 @@
 //   `appliques: [...]`. Une écriture ou un push qui échoue → `question` source `ecriture-echec` ; plus de
 //   gestes que la borne → `question` source `boucle-appliquer` (jamais une boucle infinie).
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -123,10 +127,12 @@ const optInterruption = valeursOption('--interruption', 1)?.[0] ?? null;
 const optAgent = valeursOption('--agent', 1)?.[0] ?? null;
 const optValiderVague = valeursOption('--valider-vague', 1)?.[0] ?? null;
 const optToursMax = valeursOption('--tours-max', 1)?.[0] ?? null;
+const optLeverBloquant = valeursOption('--lever-bloquant', 2);
 const optClotureFaite = args.includes('--cloture-faite');
-if (!appliquer && (optPremisse || optInterruption || optAgent || optValiderVague || optToursMax || optClotureFaite)) {
-  erreurUsage('--premisse, --interruption, --agent, --valider-vague, --tours-max et --cloture-faite demandent --appliquer');
+if (!appliquer && (optPremisse || optInterruption || optAgent || optValiderVague || optToursMax || optLeverBloquant || optClotureFaite)) {
+  erreurUsage('--premisse, --interruption, --agent, --valider-vague, --lever-bloquant, --tours-max et --cloture-faite demandent --appliquer');
 }
+if (optLeverBloquant && !/^S\d+$/.test(optLeverBloquant[0])) erreurUsage(`--lever-bloquant attend S<k> puis le chemin d'une décision, reçu "${optLeverBloquant[0]}"`);
 if (optPremisse && !VERDICTS_PREMISSE.some((v) => normaliserSimple(optPremisse[0]).startsWith(v))) {
   erreurUsage(`--premisse : verdict "${optPremisse[0]}" inconnu (refutee, confirmee ou indecidable attendus)`);
 }
@@ -1515,7 +1521,7 @@ function definirQuestion(action, sortie) {
         question: `Les prérequis de ${nomsIds} ont des bloquants de revue non triés : que fait-on ?`,
         options: [
           `Corriger le prérequis${sources.length > 1 ? 's' : ''} ${sources.join(', ') || '(voir sa revue)'} (bloquants de sa revue), puis relancer — débloque ${nomsIds}`,
-          `Réviser explicitement la dépendance dans l'index (colonne Dépend de), preuve à l'appui — débloque ${nomsIds}`,
+          `Lever le bloquant de ${sources.join(', ') || '<S>'} si une décision le justifie : \`node ${cheminScript()} ${plan} --appliquer --lever-bloquant ${sources.length === 1 ? sources[0] : `<${sources.join('|') || 'S'}>`} <docs/decisions/…>\` — débloque ${nomsIds}`,
         ],
         graines: [], // les sessions en attente ne sont pas des graines : leurs dépendances les bloquent déjà
         rapport: sources.length > 0 ? `plans/${plan}/${sources[0]}.revue.md` : null,
@@ -2263,6 +2269,43 @@ function validerVague(index, numero) {
   return `vague ${numero} validée : \`· validée\` ajouté à son en-tête (${hash})`;
 }
 
+/** `--lever-bloquant S<k> <décision>` : contrôles d'usage (code 2, rien d'écrit) — la décision est un fichier
+ * existant sous `docs/decisions/`, la session existe, sa revue est présente et porte un bloquant. Jamais de
+ * levée sans décision écrite (P21/S2/T5, L11). Rend la session et le chemin normalisé de la décision. */
+function controlerLevee(sortie, id, decision) {
+  const rel = decision.replaceAll('\\', '/').replace(/^\.\//, '');
+  if (!/^docs\/decisions\/[^/].*/.test(rel) || rel.split('/').includes('..')) {
+    erreurUsage(`--lever-bloquant : "${decision}" n'est pas sous docs/decisions/ — une levée demande une décision écrite`);
+  }
+  const abs = join(RACINE, rel);
+  if (!existsSync(abs) || !statSync(abs).isFile()) erreurUsage(`--lever-bloquant : la décision ${rel} n'existe pas — une levée demande une décision écrite`);
+  const s = sortie.sessions.find((x) => x.session === id);
+  if (!s) erreurUsage(`--lever-bloquant : ${id} absente de plans/${plan}/index.md`);
+  if (!existsSync(join(dossierPlan, `${id}.revue.md`)) || !(s.revue?.bloquant > 0)) {
+    erreurUsage(`--lever-bloquant : ${id} n'a aucun bloquant de revue à lever (plans/${plan}/${id}.revue.md)`);
+  }
+  return { s, rel };
+}
+
+/** Écrit la levée : la marque que la revue porte déjà pour libérer ses dépendants (`Dépendances : libres`) et
+ * une ligne `Bloquant levé :` qui cite la décision ; un commit. Idempotent : dépendances déjà libres → rien. */
+function leverBloquant(id, rel) {
+  const relRevue = `plans/${plan}/${id}.revue.md`;
+  const abs = join(RACINE, relRevue);
+  const brut = readFileSync(abs, 'utf8');
+  const crlf = brut.includes('\r\n');
+  let t = brut.replace(/\r\n/g, '\n');
+  if (lireRevue(abs, t).dependances === 'libres') return `${id} : dépendances déjà libres dans ${relRevue} — rien à écrire`;
+  const levee = `Dépendances : libres\nBloquant levé : ${rel} (${aujourdhui()})`;
+  if (/^Dépendances\s*:.*$/m.test(t)) t = t.replace(/^Dépendances\s*:.*$/m, levee);
+  else if (/^Reprises\s*:.*$/m.test(t)) t = t.replace(/^(Reprises\s*:.*)$/m, `$1\n${levee}`);
+  else if (/^Couverture\s*:.*$/m.test(t)) t = t.replace(/^(Couverture\s*:.*)$/m, `$1\n${levee}`);
+  else t = t.replace(/^(Bloquant\s*:.*)$/m, `$1\n${levee}`);
+  writeFileSync(abs, crlf ? t.replace(/\n/g, '\r\n') : t);
+  const hash = committer([relRevue], `revue(${plan}/${id}): bloquant levé — ${rel}`, `${plan}/${id}`);
+  return `${id} : bloquant levé (${rel}), \`Dépendances : libres\` écrit dans ${relRevue} (${hash ?? 'inchangé'})`;
+}
+
 function ecrirePremisse(action, verdict, preuve) {
   const rel = action.chemin;
   const abs = join(RACINE, rel);
@@ -2414,6 +2457,7 @@ function appliquerPlan() {
   let toursMax = optToursMax === null ? null : Number(optToursMax);
   let optionsFaites = false;
   let premisseEcrite = false;
+  let levee = null; // `--lever-bloquant` : { s, rel, faite }
   const dejaN0 = new Set();
   const rendre = (action, avertissement = null) => {
     if (avertissement) action.avertissement = action.avertissement ? `${action.avertissement} · ${avertissement}` : avertissement;
@@ -2445,6 +2489,14 @@ function appliquerPlan() {
         optionsFaites = true;
         if (optInterruption) { decrire(ecrireInterruption(sortie, optInterruption, optAgent)); continue; }
         if (optValiderVague !== null) { decrire(validerVague(r.index, optValiderVague)); continue; }
+        if (optLeverBloquant) levee = controlerLevee(sortie, optLeverBloquant[0], optLeverBloquant[1]);
+      }
+      // Levée : après que le moteur a écrit son propre `Bloquant moteur :` (sinon le geste `bloquant-moteur`
+      // remettrait `Dépendances : bloquées` par-dessus la levée).
+      if (levee && !levee.faite && !sortie.sessions.find((x) => x.session === levee.s.session)?.revue?.moteurAEcrire) {
+        levee.faite = true;
+        decrire(leverBloquant(levee.s.session, levee.rel));
+        continue;
       }
 
       const geste = gesteEtat(sortie);

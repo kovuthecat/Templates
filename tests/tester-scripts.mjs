@@ -3450,7 +3450,7 @@ cas('P20/T8 question revue-incomplete : liste fixe de la skill (terminer la revu
   });
 });
 
-cas('P20/T8 question dependance-revue : corriger le prérequis (nommé) ou réviser la dépendance ; rien ne reste lançable', () => {
+cas('P20/T8 question dependance-revue : corriger le prérequis (nommé) ou lever son bloquant par une décision (commande exacte) ; rien ne reste lançable', () => {
   const cwd = planTextes('workflow-pa-q-depend-', { faites: ['S1', 'S2', 'S6'], sansRevue: ['S1'] });
   writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 2\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n');
   initEtCommitTout(cwd);
@@ -3459,7 +3459,7 @@ cas('P20/T8 question dependance-revue : corriger le prérequis (nommé) ou révi
     question: 'Les prérequis de S3, S4, S5 ont des bloquants de revue non triés : que fait-on ?',
     options: [
       '1. Corriger le prérequis S1 (bloquants de sa revue), puis relancer — débloque S3, S4, S5',
-      "2. Réviser explicitement la dépendance dans l'index (colonne Dépend de), preuve à l'appui — débloque S3, S4, S5",
+      `2. Lever le bloquant de S1 si une décision le justifie : \`node ${PROCHAINE_ACTION.replaceAll('\\', '/')} P9 --appliquer --lever-bloquant S1 <docs/decisions/…>\` — débloque S3, S4, S5`,
     ],
     reste: 'rien', rapport: 'plans/P9/S1.revue.md',
   });
@@ -4838,6 +4838,98 @@ cas('P21/T4 conflit à la réapplication du stash (le journal diffère des deux 
   });
   if (v) return v;
   if (gitSortie(cwd, 'rev-parse', 'HEAD') === gitSortie(bare, 'rev-parse', 'main')) return 'rien ne devait être poussé';
+  return null;
+});
+
+// ── P21/S2/T5 : `--lever-bloquant S<k> <décision>` ─────────────────────────────────────────────────
+
+const DECISION = 'docs/decisions/2026-11-25-test-levee.md';
+const REVUE_RETIENT = 'Bloquant : 2\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n\n## Bloquants\n- src/a.mjs:1 — défaut\n';
+
+/** Plan `moteur-textes` : S1 faite, sa revue à 2 bloquants qui retiennent S3, S4, S5 (question `dependance-revue`) ;
+ * S2 et S6 faites sans bloquant. Une décision écrite existe sous `docs/decisions/`, un fichier hors de ce dossier aussi. */
+function planBloquant(prefixe) {
+  const cwd = planTextes(prefixe, { faites: ['S1', 'S2', 'S6'], sansRevue: ['S1'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_RETIENT);
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(join(cwd, DECISION), '# Décision de test\n');
+  writeFileSync(join(cwd, 'notes.md'), 'hors docs/decisions\n');
+  initEtCommitTout(cwd);
+  return cwd;
+}
+
+cas("P21/T5 --lever-bloquant S1 <décision> : revue réécrite (`Dépendances : libres`, `Bloquant levé :` + chemin), UN commit du seul fichier de revue, et le moteur relancé ne rend plus dependance-revue", () => {
+  const cwd = planBloquant('workflow-pa-lever-');
+  const avant = lancerJson(['P9', '--json'], cwd);
+  if (avant.action?.options?.source !== 'dependance-revue') return `témoin : dependance-revue attendu avant la levée, reçu: ${avant.sortie}`;
+  const r = appliquerJson(cwd, ['--lever-bloquant', 'S1', DECISION]);
+  if (r.code !== 0) return `code 0 attendu, reçu ${r.code}: ${r.sortie}`;
+  if (!r.appliques.some((l) => /^S1 : bloquant levé/.test(l))) return `« S1 : bloquant levé » attendu au journal des gestes, reçu ${JSON.stringify(r.appliques)}`;
+  const revue = readFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'utf8').replace(/\r\n/g, '\n');
+  if (!/^Dépendances : libres$/m.test(revue)) return `Dépendances : libres attendu:\n${revue}`;
+  if (!new RegExp(`^Bloquant levé : ${DECISION} \\(${SANS_DATE}\\)$`, 'm').test(revue)) return `ligne « Bloquant levé : ${DECISION} (date) » attendue:\n${revue}`;
+  if (!/^Bloquant : 2$/m.test(revue) || !revue.includes('- src/a.mjs:1 — défaut')) return `le compte et le constat du relecteur doivent rester intacts:\n${revue}`;
+  const hash = gitSortie(cwd, 'log', '-1', '--format=%h', '--grep', 'bloquant levé');
+  if (!hash) return 'commit « bloquant levé » absent';
+  if (messageDe(cwd, hash) !== `revue(P9/S1): bloquant levé — ${DECISION}\n\nPlan: P9/S1`) return `message inattendu: ${JSON.stringify(messageDe(cwd, hash))}`;
+  if (fichiersDe(cwd, hash).join() !== 'plans/P9/S1.revue.md') return `le commit ne doit contenir que la revue: ${fichiersDe(cwd, hash)}`;
+  if (!depotPropre(cwd)) return `arbre propre attendu: ${gitSortie(cwd, 'status', '--porcelain')}`;
+  // Le défaut à corriger : le plan restait arrêté. Le moteur relancé, sans aucune option, avance.
+  const apres = lancerJson(['P9', '--json'], cwd);
+  if (apres.action?.options?.source === 'dependance-revue') return `dependance-revue ne doit plus être rendue après la levée: ${apres.sortie}`;
+  if (apres.action?.action !== 'lancer' || !apres.action.sessions.some((s) => s.session === 'S3')) return `lancer (S3…) attendu après la levée, reçu: ${apres.sortie}`;
+  // Idempotent : une seconde levée n'écrit rien.
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const encore = appliquerJson(cwd, ['--lever-bloquant', 'S1', DECISION]);
+  if (encore.code !== 0 || gitSortie(cwd, 'rev-parse', 'HEAD') !== head || !encore.appliques.some((l) => /déjà libres/.test(l))) return `seconde levée : aucune écriture, « déjà libres » au journal, reçu ${JSON.stringify(encore.appliques)}`;
+  return null;
+});
+
+cas("P21/T5 --lever-bloquant sans décision écrite (inexistante, hors docs/decisions/, `..`) → code 2, message, rien d'écrit ; sans --appliquer → code 2", () => {
+  const cwd = planBloquant('workflow-pa-lever-refus-');
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const revueAvant = readFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'utf8');
+  for (const [decision, motif] of [
+    ['docs/decisions/2026-01-01-inexistante.md', /n'existe pas/],
+    ['notes.md', /pas sous docs\/decisions\//],
+    ['docs/decisions/../../notes.md', /pas sous docs\/decisions\//],
+    ['docs/decisions/', /n'existe pas|pas sous docs\/decisions\//],
+  ]) {
+    const r = appliquerJson(cwd, ['--lever-bloquant', 'S1', decision]);
+    if (r.code !== 2 || !motif.test(r.sortie)) return `« ${decision} » : code 2 et ${motif} attendus, reçu ${r.code}: ${r.sortie}`;
+  }
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== head || readFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'utf8') !== revueAvant) return 'un refus ne doit rien écrire ni committer';
+  if (lancerJson(['P9', '--json'], cwd).action?.options?.source !== 'dependance-revue') return 'le plan doit rester arrêté sur dependance-revue après un refus';
+  const sans = lancer(PROCHAINE_ACTION, ['P9', '--lever-bloquant', 'S1', DECISION], cwd);
+  if (sans.code !== 2 || !/demandent --appliquer/.test(sans.sortie)) return `sans --appliquer : code 2 attendu, reçu ${sans.code}: ${sans.sortie}`;
+  return null;
+});
+
+cas("P21/T5 --lever-bloquant sur une session sans bloquant (S2, `Bloquant : 0`) ou inconnue → code 2, rien d'écrit, même avec une décision valide", () => {
+  const cwd = planBloquant('workflow-pa-lever-sans-');
+  const head = gitSortie(cwd, 'rev-parse', 'HEAD');
+  const sans = appliquerJson(cwd, ['--lever-bloquant', 'S2', DECISION]);
+  if (sans.code !== 2 || !/S2 n'a aucun bloquant/.test(sans.sortie)) return `S2 : code 2 « aucun bloquant » attendu, reçu ${sans.code}: ${sans.sortie}`;
+  const inconnue = appliquerJson(cwd, ['--lever-bloquant', 'S42', DECISION]);
+  if (inconnue.code !== 2 || !/S42 absente/.test(inconnue.sortie)) return `S42 : code 2 « absente » attendu, reçu ${inconnue.code}: ${inconnue.sortie}`;
+  const mal = appliquerJson(cwd, ['--lever-bloquant', 'premiere', DECISION]);
+  if (mal.code !== 2 || !/attend S<k>/.test(mal.sortie)) return `forme invalide : code 2 attendu, reçu ${mal.code}: ${mal.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== head) return 'un refus ne doit rien committer';
+  return null;
+});
+
+cas("P21/T5 --lever-bloquant : revue sans ligne `Dépendances :` (blocage conservateur) → la ligne est ajoutée après `Reprises :`, le plan repart", () => {
+  const cwd = planTextes('workflow-pa-lever-sans-champ-', { faites: ['S1', 'S2', 'S6'], sansRevue: ['S1'] });
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'Bloquant : 1\nCouverture : complète\nReprises : 0\n');
+  mkdirSync(join(cwd, 'docs', 'decisions'), { recursive: true });
+  writeFileSync(join(cwd, DECISION), '# Décision de test\n');
+  initEtCommitTout(cwd);
+  if (lancerJson(['P9', '--json'], cwd).action?.options?.source !== 'dependance-revue') return 'témoin : dependance-revue attendu (champ absent = blocage conservateur)';
+  const r = appliquerJson(cwd, ['--lever-bloquant', 'S1', DECISION]);
+  if (r.code !== 0) return `code 0 attendu, reçu ${r.code}: ${r.sortie}`;
+  const revue = readFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), 'utf8').replace(/\r\n/g, '\n');
+  if (!/^Reprises : 0\nDépendances : libres\nBloquant levé : /m.test(revue)) return `lignes ajoutées après Reprises attendues:\n${revue}`;
+  if (lancerJson(['P9', '--json'], cwd).action?.options?.source === 'dependance-revue') return 'dependance-revue ne doit plus être rendue';
   return null;
 });
 

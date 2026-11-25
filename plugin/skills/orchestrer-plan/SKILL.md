@@ -20,6 +20,7 @@ mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** s
   rapport ; ce qui suit la ligne « données de l'action » est pour toi. Exécuter le geste de la table,
   puis **rappeler le moteur**. Jamais d'improvisation entre deux appels, jamais un état deviné.
 - Les options (`--premisse`, `--interruption … --agent`, `--valider-vague`, `--cloture-faite`) s'ajoutent à la même commande.
+- Question `dependance-revue`, l'utilisateur choisit « lever le bloquant » et donne la décision écrite (`docs/decisions/…`) : lancer la commande de l'option, `--appliquer --lever-bloquant S<k> <décision>` ; le moteur écrit la levée dans la revue et la committe. Refus (code 2) : relayer le message, ne rien éditer à la main.
 - Avant la première vague : régler d'abord un écart de version vendorée signalé par `SessionStart`.
 
 ## Interdits
