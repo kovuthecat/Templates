@@ -1,5 +1,26 @@
 # MIGRATION.md — remplacé par la skill `/migrer-projet`
 
+## Vers 0.69.0
+
+Synchroniser via `/maj-workflow`, puis lire ce qui suit.
+
+- **Nouvelle question à chaque `/nouveau-plan`** : sessions parallèles activées ou désactivées. Ta
+  réponse s'inscrit en tête d'index (`Parallèle : oui | non`). Un plan sans cette ligne reste en série,
+  comme avant.
+- **Projets dont `.git` est un fichier** (déplacé dans `.gitdirs`) : le parallèle y repasse en série,
+  avec la raison au lancement, car la copie isolée est refusée. Pour l'avoir, lancer une fois depuis
+  Templates `node plugin/bin/rapatrier-git.mjs` (liste), puis `--appliquer <projet>`. L'original reste
+  dans `.gitdirs` comme sauvegarde. Le script ne se lance pas seul : la note le dit, il faut le lancer.
+- **Coût du parallèle** : chaque copie réinstalle ses dépendances, de l'ordre de 5 s et 100 Mo par
+  session sur un petit projet, à multiplier par le nombre de sessions de la vague.
+- **`validation-humaine` écrite hors du gras** : désormais lue et signalée par `verifier-plan`.
+- **Identifiants `T-063` reconnus** ; `--lever-bloquant` (lève un bloquant mécanique quand une décision
+  écrite le justifie) ; `incident.mjs` écrit l'en-tête d'un incident.
+- **Agents en arrière-plan** : le paramètre d'outil est retiré de l'outil `Agent` ; tout agent part en
+  arrière-plan, et on attend sa notification avant tout geste qui en dépend.
+- **Gabarit de permissions complété** : `.claude/settings.json` peut être signalé DÉRIVE au
+  `/maj-workflow` si tu l'as modifié localement.
+
 ## Vers 0.67.0
 
 Synchroniser via `/maj-workflow`, puis lire ce qui suit. Rien d'autre à faire côté projet.

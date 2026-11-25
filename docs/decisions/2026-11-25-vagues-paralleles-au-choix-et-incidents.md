@@ -100,3 +100,7 @@
 
 Ordre conseillé au plan : corrections L1-L8, L11, L12 (indépendantes, peuvent tourner ensemble), puis
 L9-L10, puis la sonde, puis le parallèle — le parallèle ne s'ouvre qu'une fois la sonde verte.
+
+## Suite
+
+- Fait en 0.69.0 (P21) ; sonde : `docs/analyses/2026-11-26-sonde-worktree.md`.
