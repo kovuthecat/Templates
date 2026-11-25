@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "session": "P21/S5",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "3ba1c4d2f876b66356deb2e97d094c215d91789469ce28b009f0d76f1bc7fa56",
+  "nonSuivis": [
+    "docs/workflow/incidents/2026-11-25-sonde-worktree-refusee-et-commande-longue-detachee.md"
+  ],
+  "date": "2026-11-25T17:59:13.410Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 89900
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 331040
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 144
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 27914
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 9353
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1062
+    }
+  ]
+}
