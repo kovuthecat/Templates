@@ -4933,6 +4933,89 @@ cas("P21/T5 --lever-bloquant : revue sans ligne `Dépendances :` (blocage conser
   return null;
 });
 
+// ── P21/S2/T6 : `incident.mjs <slug>` écrit l'en-tête du gabarit §9b ──────────────────────────────
+
+const INCIDENT = join(BIN, 'incident.mjs');
+
+/** Dépôt jetable vendoré : `.claude/workflow/manifest.json` porte la version. */
+function depotVendore(prefixe, manifeste = JSON.stringify({ version: '0.68.0', fichiers: {} })) {
+  const cwd = dossierJetable(prefixe);
+  initDepot(cwd);
+  if (manifeste !== null) {
+    mkdirSync(join(cwd, '.claude', 'workflow'), { recursive: true });
+    writeFileSync(join(cwd, '.claude', 'workflow', 'manifest.json'), manifeste);
+  }
+  return cwd;
+}
+
+cas("P21/T6 incident.mjs : en-tête complet dans un dépôt vendoré — date, projet, ligne `Workflow` (version du manifeste), plan, environnement, étape, nature ; trois sections vides ; chemin affiché", () => {
+  const cwd = depotVendore('workflow-incident-vendore-');
+  const r = lancer(INCIDENT, ['hook-refuse-a-tort', '--plan', 'P21/S2/T6', '--environnement', 'Desktop · sous-agent', '--etape', '/fin-de-tache point 8', '--nature', 'environnement'], cwd);
+  if (r.code !== 0) return `code 0 attendu, reçu ${r.code}: ${r.sortie}`;
+  const aujourdhui = new Date();
+  const date = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-${String(aujourdhui.getDate()).padStart(2, '0')}`;
+  const rel = `docs/workflow/incidents/${date}-hook-refuse-a-tort.md`;
+  if (r.sortie.trim() !== rel) return `le chemin relatif ${rel} attendu en sortie, reçu: ${r.sortie}`;
+  if (!existsSync(join(cwd, rel))) return `${rel} absent`;
+  const texte = readFileSync(join(cwd, rel), 'utf8').replace(/\r\n/g, '\n');
+  const lignes = texte.split('\n');
+  if (lignes[0] !== `# Incident workflow — ${date} — hook refuse a tort`) return `titre inattendu: ${lignes[0]}`;
+  // La ligne que les incidents n'avaient pas : `Workflow`, avec la version lue dans le manifeste.
+  const nom = cwd.split(/[\\/]/).pop();
+  if (!lignes.includes(`- Projet : ${nom} · Workflow : v0.68.0 (manifest.json) · Plan : P21/S2/T6`)) return `ligne Projet · Workflow · Plan attendue (projet ${nom}, v0.68.0):\n${texte}`;
+  if (!lignes.includes('- Environnement : Desktop · sous-agent')) return `ligne Environnement attendue:\n${texte}`;
+  if (!lignes.includes('- Étape : /fin-de-tache point 8 · Nature : environnement')) return `ligne Étape · Nature attendue:\n${texte}`;
+  const sections = lignes.filter((l) => l.startsWith('## '));
+  if (sections.join('|') !== '## Symptôme|## Preuve|## Sur place') return `trois sections attendues, reçu ${sections.join('|')}`;
+  if (/\?/.test(texte)) return `aucun « ? » attendu quand tous les champs sont fournis:\n${texte}`;
+  return null;
+});
+
+cas("P21/T6 incident.mjs : un fichier existant n'est jamais écrasé (code 2, contenu intact) ; slug, plan, nature, option invalides → code 2, rien d'écrit", () => {
+  const cwd = depotVendore('workflow-incident-refus-');
+  const premier = lancer(INCIDENT, ['doublon', '--plan', 'P1'], cwd);
+  if (premier.code !== 0) return `code 0 attendu au premier appel, reçu ${premier.code}: ${premier.sortie}`;
+  const rel = premier.sortie.trim();
+  writeFileSync(join(cwd, rel), 'rempli à la main\n');
+  const second = lancer(INCIDENT, ['doublon', '--plan', 'P1'], cwd);
+  if (second.code !== 2 || !/existe déjà/.test(second.sortie)) return `second appel : code 2 « existe déjà » attendu, reçu ${second.code}: ${second.sortie}`;
+  if (readFileSync(join(cwd, rel), 'utf8') !== 'rempli à la main\n') return 'le fichier existant a été écrasé';
+  for (const [args, motif] of [
+    [[], /usage/], [['Mauvais Slug'], /invalide/], [['ok', '--plan', 'S2'], /--plan attend/], [['ok', '--nature', 'panne'], /--nature attend/],
+    [['ok', '--inconnue', 'x'], /option inconnue/], [['ok', '--environnement'], /attend une valeur/],
+  ]) {
+    const r = lancer(INCIDENT, args, cwd);
+    if (r.code !== 2 || !motif.test(r.sortie)) return `${JSON.stringify(args)} : code 2 et ${motif} attendus, reçu ${r.code}: ${r.sortie}`;
+  }
+  if (readdirSync(join(cwd, 'docs', 'workflow', 'incidents')).length !== 1) return 'un refus ne doit écrire aucun fichier';
+  const horsGit = lancer(INCIDENT, ['x'], dossierJetable('workflow-incident-horsgit-'));
+  if (horsGit.code !== 2 || !/pas un dépôt git/.test(horsGit.sortie)) return `hors dépôt : code 2 attendu, reçu ${horsGit.code}: ${horsGit.sortie}`;
+  return null;
+});
+
+cas("P21/T6 incident.mjs : champ illisible ou non fourni → `?` écrit explicitement, jamais omis (manifeste absent, JSON illisible, ni plan ni environnement) ; dépôt source → version de plugin.json ; `--plan —` = aucun plan", () => {
+  const ligne = (cwd, rel) => readFileSync(join(cwd, rel.trim()), 'utf8').replace(/\r\n/g, '\n').split('\n');
+  // Ni manifeste ni plugin.json : version `?`, plan `?`, environnement `?`, étape et nature `?`.
+  const nu = depotVendore('workflow-incident-nu-', null);
+  const a = lancer(INCIDENT, ['sans-rien'], nu);
+  if (a.code !== 0) return `code 0 attendu, reçu ${a.code}: ${a.sortie}`;
+  const nom = nu.split(/[\\/]/).pop();
+  const la = ligne(nu, a.sortie);
+  if (!la.includes(`- Projet : ${nom} · Workflow : ? · Plan : ?`)) return `« Workflow : ? · Plan : ? » attendu:\n${la.join('\n')}`;
+  if (!la.includes('- Environnement : ?') || !la.includes('- Étape : ? · Nature : ?')) return `« ? » attendus pour environnement, étape, nature:\n${la.join('\n')}`;
+  // Manifeste illisible : même repli, sans exception.
+  const casse = depotVendore('workflow-incident-casse-', '{pas du json');
+  const b = lancer(INCIDENT, ['manifeste-casse', '--plan', 'P2/S1'], casse);
+  if (b.code !== 0 || !ligne(casse, b.sortie).some((l) => /· Workflow : \? · Plan : P2\/S1$/.test(l))) return `manifeste illisible : « Workflow : ? » attendu, reçu ${b.code}: ${b.sortie}`;
+  // Dépôt source : pas de manifeste vendoré, la version vient de plugin/.claude-plugin/plugin.json.
+  const source = depotVendore('workflow-incident-source-', null);
+  mkdirSync(join(source, 'plugin', '.claude-plugin'), { recursive: true });
+  writeFileSync(join(source, 'plugin', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'workflow', version: '0.69.0' }));
+  const c = lancer(INCIDENT, ['depot-source', '--plan', '—'], source);
+  if (c.code !== 0 || !ligne(source, c.sortie).some((l) => /· Workflow : v0\.69\.0 \(plugin\.json\) · Plan : —$/.test(l))) return `dépôt source : « Workflow : v0.69.0 (plugin.json) · Plan : — » attendu, reçu ${c.code}: ${c.sortie}\n${ligne(source, c.sortie).join('\n')}`;
+  return null;
+});
+
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {

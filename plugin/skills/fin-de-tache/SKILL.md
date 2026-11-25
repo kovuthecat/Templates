@@ -48,8 +48,10 @@ Qui committe/pousse, et quand : `WORKFLOW.md` §4b (domicile). Où vit le statut
    (jamais silencieusement). Un contrôle manuel revenu ≥2 fois → proposer `verif-<chose>` (point 1).
 7. **Fichier géré modifié** (`.claude/workflow/manifest.json`) ? → réparer dans le dépôt source,
    publier, `/maj-workflow` ici — pas un commit local.
-8. **Le workflow a cassé pendant la tâche** ? → `docs/workflow/incidents/<date>-<slug>.md` (gabarit
-   et règle : `WORKFLOW.md` §9b), stagé avec le commit de la tâche.
+8. **Le workflow a cassé pendant la tâche** ? → `node .claude/workflow/bin/incident.mjs <slug> --plan P<n>/S<k>/T<m>
+   --environnement "<…>" --etape "<…>" --nature <…>` (`plugin/bin/` dans ce dépôt) écrit l'en-tête de
+   `docs/workflow/incidents/<date>-<slug>.md` ; ne remplir que les trois sections (règle : `WORKFLOW.md` §9b),
+   puis le stager avec le commit de la tâche.
 
 Tâche qui touche `plugin/**` dans ce dépôt source (pas vendoré) → ouvrir `references/fin-de-plan.md`
 section « 8b », avant de committer.

@@ -165,10 +165,13 @@ ci-dessus. Seul le bandeau l'éteint (`interdit — <raison>`).
 Quand le workflow casse (hook à tort, permission, outil absent, verdict perdu, revue non déposée, cache périmé) :
 `docs/workflow/incidents/YYYY-MM-DD-<slug>.md`, **commité et poussé** (§4b), 25 lignes, faits bruts, écrit par la session qui le rencontre
 (`/fin-de-tache`, avant commit) ou par l'orchestrateur ; jamais dans `TASKS.md`/`STATUS.md`. Un `.echec.md` se supprime résolu, un incident
-**reste**. Gabarit : titre `# Incident workflow — YYYY-MM-DD — <titre court>` ; lignes `Projet · Workflow (version du manifest.json) · Plan :
-P<n>/S<k>[/T<m>] ou —`, `Environnement : Desktop|VSCode|cloud · sous-agent|à la main`, `Étape : <skill/étape> · Nature :
-environnement|exécution|prémisse|orchestration` ; sections `## Symptôme` (tel qu'observé, 5 lignes), `## Preuve` (sortie brute, sans
-interprétation), `## Sur place` (contournement, ou « rien »).
+**reste**. **L'en-tête s'écrit par script, jamais recopié** :
+`node .claude/workflow/bin/incident.mjs <slug> --plan P<n>/S<k>[/T<m>] --environnement "Desktop|VSCode|cloud · sous-agent|à la main" --etape "<skill/étape>" --nature environnement|exécution|prémisse|orchestration`
+(`plugin/bin/incident.mjs` dans ce dépôt ; `--plan —` hors plan). Il crée le fichier avec date, projet, version du `manifest.json`
+(`plugin.json` dans ce dépôt), plan, environnement, étape et nature ; un champ non fourni s'écrit `?` (à corriger), un fichier existant
+n'est jamais écrasé. Gabarit produit, pour qui lit le fichier : titre `# Incident workflow — YYYY-MM-DD — <titre court>`, trois lignes
+d'en-tête (`Projet · Workflow · Plan`, `Environnement`, `Étape · Nature`), puis `## Symptôme` (tel qu'observé, 5 lignes), `## Preuve`
+(sortie brute, sans interprétation), `## Sur place` (contournement, ou « rien ») — les seules sections à remplir.
 
 ### 9c. Ce qui remonte à un humain — et sous quelle forme — *domicile ; `/orchestrer-plan` et `/reprendre-echec` l'appliquent*
 **On ne s'arrête que sur un choix** dont la réponse change ce qu'il faut faire et que seul l'utilisateur peut trancher ; le reste se
