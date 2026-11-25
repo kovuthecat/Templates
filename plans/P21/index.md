@@ -23,7 +23,7 @@ commit accepté par nos hooks, branche conservée après l'agent (dépôt rapatr
 ## Sessions
 | Session | Tâches | Titre | Modèle | Effort | Env. | Dépend de | Zone modifiée | Statut |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| [S1](S1.md) | T1-T4 | Moteur : arrêt humain, sessions faites, push | Sonnet | high | — | — | `plugin/bin/lire-index.mjs` · `plugin/bin/prochaine-action.mjs` · `plugin/bin/verifier-plan.mjs` · `plugin/mods/` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [ ] |
+| [S1](S1.md) | T1-T4 | Moteur : arrêt humain, sessions faites, push | Sonnet | high | — | — | `plugin/bin/lire-index.mjs` · `plugin/bin/prochaine-action.mjs` · `plugin/bin/verifier-plan.mjs` · `plugin/mods/` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [x] 2026-11-25 |
 | [S2](S2.md) | T5-T6 | Lever un bloquant, en-tête d'incident | Sonnet | high | — | S1 | `plugin/bin/prochaine-action.mjs` · `plugin/bin/incident.mjs` · `plugin/skills/orchestrer-plan/SKILL.md` · `plugin/skills/fin-de-tache/SKILL.md` · `plugin/WORKFLOW.md` · `tests/tester-scripts.mjs` · `tests/fixtures/plans/` | [ ] |
 | [S3](S3.md) | T7-T10 | Corrections de textes : coupure, lint, maquettes, preview | Sonnet | medium | — | — | `plugin/skills/orchestrer-plan/SKILL.md` · `plugin/skills/nouveau-projet/SKILL.md` · `plugin/skills/migrer-projet/SKILL.md` · `plugin/templates/DESIGN_SPEC.md` · `plugin/skills/verif-visuelle/SKILL.md` | [ ] |
 | [S4](S4.md) | T11 | Ramener les .git dans les projets | Sonnet | medium | — | — | `plugin/bin/rapatrier-git.mjs` · `tests/tester-scripts.mjs` | [ ] |
