@@ -119,7 +119,7 @@ recoupe par les commits, un `PASS` n'est jamais cru sur parole. `partial` (tours
   (gabarit : `reprendre-echec/references/gabarit-question.md`). S'il porte `Agent : —`, y écrire
   l'identifiant gardé et committer, puis rappeler. Un arrêt n'est ni un échec ni une reprise : hors budget.
 - **Sans `VERDICT:` ni commit** : `ListAgents` avant de conclure `FAIL` (un enfant qui tourne encore rend
-  parfois `PASS`). Si le retour correspond à `/session limit|rate.?limit|\b429\b|terminated early/i`,
-  c'est une **coupure par quota**, pas un `FAIL` : rappeler avec `--interruption S<k> --agent <identifiant>`
+  parfois `PASS`). Si le retour correspond à `/session limit|rate.?limit|\b429\b|terminated early|stalled|watchdog/i`,
+  c'est une **coupure** (quota, ou sous-agent figé coupé par le watchdog), pas un `FAIL` : rappeler avec `--interruption S<k> --agent <identifiant>`
   (le moteur écrit et committe le rapport, puis rend `relancer-interrompue`).
 - Verdict perdu ou `partial` hors quota : incident (`WORKFLOW.md` §9b, nature `orchestration`).
