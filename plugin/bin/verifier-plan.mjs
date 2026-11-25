@@ -4,7 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { analyserIndex } from './lire-index.mjs';
+import { analyserIndex, parseTaches } from './lire-index.mjs';
 
 // Plafonds de taille d'une fiche de session (P20/S9/T14 ; mesure sur P16-P19 : bandeaux de 12 à 16
 // lignes, fiches de 76 à 276 lignes, médiane 150). Des AVERTISSEMENTS, jamais un écart : une fiche
@@ -31,7 +31,7 @@ try {
   for (const id of lu.sessionsIncompletes) signaler(id, 0, 'table de session incomplète');
   for (const l of lu.sessions) {
     if (sessions.some(s => s.id === l.session)) signaler(l.session, 0, 'session dupliquée');
-    sessions.push({ id: l.session, terminee: l.coche, dependances: l.dependDe.match(/S\d+/g) ?? [], fichiers: [] });
+    sessions.push({ id: l.session, terminee: l.coche, taches: l.taches, dependances: l.dependDe.match(/S\d+/g) ?? [], fichiers: [] });
   }
   if (sessions.length === 0) throw new Error('aucune session reconnue');
   if (!/^Workflow\s*:\s*v\S+/m.test(index)) signaler(plan, 7, 'Workflow : v absent');
@@ -82,6 +82,9 @@ try {
       if (!dep || !(dep.vague < s.vague)) signaler(s.id, 4, `dépendance ${id} absente ou non antérieure`);
     }
     if (extension && s.terminee) continue; // ancien travail livré : pas de réécriture du plan
+    // Champ Tâches illisible (`—`, `à voir`, `T-063 · T-197`) : le moteur ne verrait aucune tâche, la session
+    // ne serait jamais « faite » (P21/S1/T2, incidents nova 2026-11-22 et Journal-emotion 2026-11-07).
+    if (parseTaches(s.taches).length === 0) signaler(s.id, 3, `champ Tâches sans identifiant lisible (« ${s.taches} ») : T3, T1-T3 ou T-063, T-197 attendus, séparés par des virgules`);
     const chemin = resolve(racine, 'plans', plan, `${s.id}.md`);
     if (!existsSync(chemin)) { signaler(s.id, 1, 'fichier de session absent'); continue; }
     const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');

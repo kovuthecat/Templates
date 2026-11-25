@@ -23,7 +23,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { verifierPreuve } from '../plugin/bin/preuve-n0.mjs';
-import { analyserIndex, lireIndexTexte } from '../plugin/bin/lire-index.mjs';
+import { analyserIndex, lireIndexTexte, parseTaches } from '../plugin/bin/lire-index.mjs';
 import { sessionsOuvertes } from '../plugin/hooks/lib.mjs';
 import * as lecteurGardeFous from '../plugin/mods/garde-fous/hooks/lire-index.mjs';
 import * as lecteurAffichage from '../plugin/mods/affichage/hooks/lire-index.mjs';
@@ -5325,6 +5325,48 @@ for (const [nom, fixture, refs, vague, ligne, canonique, suivante] of [
     return null;
   });
 }
+
+// ── P21/S1/T2 : identifiants de tâche `T-063` ──────────────────────────────────────────────────────
+
+const REFS_NOVA_P18_S2 = ['S1/T-247', 'S1/T-197', 'S1/T-063']; // l'ordre réel des commits de nova P18/S2
+
+cas('P21/T2 fixture nova P18/S2 : les trois commits `Plan: …/T-063`, `T-197`, `T-247` → S1 faite, le moteur ne la relance plus et passe à S2 — témoin : deux commits sur trois, S1 relancée', () => {
+  const cwd = planVH('workflow-t063-', 'moteur-taches-backlog', REFS_NOVA_P18_S2);
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'lancer' || r.action.sessions.map((s) => s.session).join() !== 'S2') return `lancer S2 attendu (S1 faite), reçu: ${r.sortie}`;
+  if (!/\| \[x\] \d{4}-\d{2}-\d{2} \|/.test(ligneIndex(cwd, 'S1') ?? '')) return `S1 devait être cochée par le moteur: ${ligneIndex(cwd, 'S1')}`;
+  const partiel = appliquerJson(planVH('workflow-t063-partiel-', 'moteur-taches-backlog', REFS_NOVA_P18_S2.slice(0, 2)));
+  if (partiel.action?.action !== 'lancer' || partiel.action.sessions.map((s) => s.session).join() !== 'S1') return `témoin : S1 relancée tant qu'une tâche manque, reçu: ${partiel.sortie}`;
+  return null;
+});
+
+cas('P21/T2 identifiants normalisés des deux côtés : index `T-063` ≡ commit `T63` ≡ `T-063` ; liste non contiguë `T-063, T-197`, plage `T-063-T-065` et `T1-T3` historique', () => {
+  const lire = (c) => parseTaches(c).join();
+  if (lire('T-063, T-197') !== '63,197') return `T-063, T-197 → 63,197 attendu, reçu ${lire('T-063, T-197')}`;
+  if (lire('T3') !== '3' || lire('T1-T3') !== '1,2,3') return `T3 et T1-T3 inchangés attendus, reçu ${lire('T3')} / ${lire('T1-T3')}`;
+  if (lire('T-063-T-065') !== '63,64,65') return `plage T-063-T-065 attendue 63,64,65, reçu ${lire('T-063-T-065')}`;
+  if (lire('—') !== '' || lire('à voir') !== '' || lire('T-063 · T-197') !== '') return 'champ illisible : liste vide attendue';
+  // Commits `T63` (sans tiret ni zéro) pour un index `T-063` : même tâche.
+  const cwd = planVH('workflow-t063-norm-', 'moteur-taches-backlog', ['S1/T63', 'S1/T197', 'S1/T-247']);
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (T63 ≡ T-063), reçu: ${r.sortie}`;
+  return null;
+});
+
+cas('P21/T2 verifier-plan : champ Tâches `—`, `à voir` ou `T-063 · T-197` → écart ; `T-063, T-197, T-247` et `T1-T3` → aucun', () => {
+  const ecartTaches = (v) => v.erreurs.filter((e) => /champ Tâches sans identifiant lisible/.test(e.motif));
+  for (const champ of ['—', 'à voir', 'T-063 · T-197']) {
+    const cwd = planVH('workflow-t063-verif-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
+    const e = ecartTaches(verifierVH(cwd));
+    if (e.length !== 1 || e[0].session !== 'S1') return `« ${champ} » : un écart sur S1 attendu, reçu ${JSON.stringify(e)}`;
+  }
+  for (const champ of ['T-063, T-197, T-247', 'T1-T3']) {
+    const cwd = planVH('workflow-t063-verif-ok-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
+    const e = ecartTaches(verifierVH(cwd));
+    if (e.length > 0) return `« ${champ} » : aucun écart attendu, reçu ${JSON.stringify(e)}`;
+  }
+  return null;
+});
 
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {

@@ -89,7 +89,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifierPreuve } from './preuve-n0.mjs';
-import { lireIndexTexte, normaliserSimple } from './lire-index.mjs';
+import { lireIndexTexte, normaliserSimple, parseTaches, MOTIF_TACHE } from './lire-index.mjs';
 import { racineDepot as racineDepotDuHook } from '../hooks/lib.mjs';
 
 const RACINE = process.cwd();
@@ -213,17 +213,7 @@ function lireIndex(dossierPlan) {
 }
 
 // ── Tâches d'une session, commitées ou non ────────────────────────────────────────────────────────
-function parseTaches(champ) {
-  const nums = new Set();
-  for (const morceau of String(champ || '').split(',').map((s) => s.trim()).filter(Boolean)) {
-    const m = /^T(\d+)(?:-T(\d+))?$/.exec(morceau);
-    if (!m) continue;
-    const debut = Number(m[1]);
-    const fin = m[2] ? Number(m[2]) : debut;
-    for (let i = debut; i <= fin; i++) nums.add(i);
-  }
-  return [...nums].sort((a, b) => a - b);
-}
+// `parseTaches` et `MOTIF_TACHE` : `./lire-index.mjs` (même lecture pour le vérificateur, P21/S1/T2).
 
 // ── Historique partiel (T3, P19/S3) ──────────────────────────────────────────────────────────────
 // Une session cloud clone avec une profondeur limitée : les commits de tâche anciens deviennent
@@ -273,8 +263,9 @@ function verifierHistoriqueComplet() {
 function refsCommitees() {
   const messages = git('log', '--format=%B') || '';
   const refs = new Set();
-  for (const m of messages.matchAll(/Plan:\s*(P\d+)\/(S\d+)\/(T\d+)/g)) {
-    refs.add(`${m[1]}/${m[2]}/${m[3]}`);
+  // Clé normalisée sur le numéro entier (`T-063` → `T63`), la même forme que celle de `assembler` (P21/S1/T2).
+  for (const m of messages.matchAll(new RegExp(String.raw`Plan:\s*(P\d+)/(S\d+)/${MOTIF_TACHE}`, 'g'))) {
+    refs.add(`${m[1]}/${m[2]}/T${Number(m[3])}`);
   }
   return refs;
 }
@@ -517,7 +508,7 @@ function questionConsommee(relatif, id) {
   const dernier = git('log', '-1', '--format=%H', '--', relatif);
   if (!dernier) return false;
   const depuis = git('log', `${dernier}..HEAD`, '--format=%B') ?? '';
-  return new RegExp(String.raw`Plan:\s*${plan}/${id}/T\d+`).test(depuis);
+  return new RegExp(String.raw`Plan:\s*${plan}/${id}/${MOTIF_TACHE}`).test(depuis);
 }
 
 // ── Moteur (S10) — table « la nature décide » de remediation.md, reprise telle quelle ────────────────

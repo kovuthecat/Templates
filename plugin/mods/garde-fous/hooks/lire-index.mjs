@@ -63,6 +63,28 @@ export function cellulesDeLigne(ligne) {
   return ligne.trim().split('|').slice(1, -1).map((c) => c.trim());
 }
 
+/** Un identifiant de tâche, numéro capturé : `T3`, `T-063` (tiret et zéros de tête libres). */
+export const MOTIF_TACHE = String.raw`T-?(\d+)`;
+
+/** Numéros entiers (triés, sans doublon) des tâches d'un champ « Tâches » : `T3`, `T-063`, plage `T1-T3` ou
+ * `T-063-T-065`, séparés par des virgules. Un identifiant se COMPARE sous cette forme normalisée —
+ * `T-063` ≡ `T63` ≡ `T063` — des deux côtés (champ de l'index, ligne `Plan: P<n>/S<k>/T…` des commits) :
+ * sans quoi le défaut se déplace au lieu de disparaître (P21/S1/T2, incidents nova 2026-11-22 et
+ * Journal-emotion 2026-11-07 : avec `T-063` la liste lue était vide, la session jamais `faite`). Séparateur
+ * de liste : la virgule seulement — `T-063 · T-197` ne se lit pas ; `[]` signale un champ illisible. */
+export function parseTaches(champ) {
+  const nums = new Set();
+  const motif = new RegExp(`^${MOTIF_TACHE}(?:-${MOTIF_TACHE})?$`);
+  for (const morceau of String(champ || '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    const m = motif.exec(morceau);
+    if (!m) continue;
+    const debut = Number(m[1]);
+    const fin = m[2] ? Number(m[2]) : debut;
+    for (let i = debut; i <= fin; i++) nums.add(i);
+  }
+  return [...nums].sort((a, b) => a - b);
+}
+
 function statutNormalise(cellule) {
   const m = /\[( |x)\](!)?/.exec(cellule);
   if (!m) return 'autre';
