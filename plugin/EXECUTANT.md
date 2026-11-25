@@ -86,7 +86,9 @@ ne partent pas.
   « Modifier » du plan. Sinon → STOP.
 - **Jamais de `fork`** : il rapatrierait le contexte qu'une session de plan existe pour laisser
   derrière.
-- **Jamais de worktree.**
+- **Jamais de worktree** — sauf si ton prompt dit que tu tournes déjà dans une copie isolée (vague
+  parallèle, `WORKFLOW.md` §5b) : tu y commits sur ta branche, **sans cocher l'index ni toucher
+  `STATUS.md`/`TASKS.md`** (le moteur le fait à la collecte) ; tu n'en ouvres pas d'autre.
 
 ## Fin de tâche
 

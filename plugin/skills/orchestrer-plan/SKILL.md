@@ -36,7 +36,7 @@ mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** s
 
 | Action rendue | Geste |
 | --- | --- |
-| `lancer` | Relayer `texte`. Puis un agent par session de `sessions`, dans l'ordre, **un seul à la fois**, arrêt au premier `FAIL` : appel « Session » ci-dessous ; collecter. |
+| `lancer` | Relayer `texte`. Puis un agent par session de `sessions`, dans l'ordre, **un seul à la fois**, arrêt au premier `FAIL` : appel « Session » ci-dessous ; collecter. Si `parallele: true` : « Vague parallèle » ci-dessous. |
 | `attendre` | Plan `Parallèle : oui`, vague en vol : relayer `texte`, ne relancer aucune session de `sessions` ; à la notification de chaque agent, rappeler `--appliquer --collecter S<k>` (quel que soit le verdict). |
 | `relire` | Un appel « Relecteur » par session de `sessions`, dans l'ordre rendu, chacun attendu (notification reçue) avant le suivant. |
 | `verifier-premisse` | Appel « Vérificateur », puis rappeler avec `--premisse <CONFIRMEE\|REFUTEE\|INDECIDABLE> "<preuve>"` : le moteur écrit la ligne `Premisse :`. `REFUTEE` : déposer aussi un incident (`WORKFLOW.md` §9b, nature `prémisse`). `INDECIDABLE · comportementale` : même appel, preuve commençant par « comportementale ». |
@@ -56,8 +56,9 @@ workflow ») et un incident (`WORKFLOW.md` §9b, nature `orchestration`).
 
 ## Appels d'agent
 
-Sessions, reprises et enquêtes : sous-agent, **seule voie** (`WORKFLOW.md` §5b) ; `isolation: "worktree"`
-et `subagent_type: "fork"` interdits ; jamais le `S<k>.md` recopié dans le prompt. L'outil `Agent` n'a
+Sessions, reprises et enquêtes : sous-agent, **seule voie** (`WORKFLOW.md` §5b) ; `subagent_type: "fork"`
+interdit ; jamais le `S<k>.md` recopié dans le prompt. **`isolation: "worktree"` interdit, sauf** sur un
+`lancer` qui rend `parallele: true` (plan `Parallèle : oui`) : voir « Vague parallèle » ci-dessous. L'outil `Agent` n'a
 pas de paramètre d'arrière-plan : tout agent part en arrière-plan et notifie à sa fin. **Après chaque
 appel, attendre la notification de fin avant tout geste qui en dépend**, sans finir son tour tant qu'un
 agent attendu tourne (`WORKFLOW.md` §5).
@@ -114,6 +115,21 @@ et tiens ce rôle… » ; repli en échec aussi : incident.
 `[x]!` et rend `question` si elle est incomplète. Aucun fichier déposé : écrire une `.revue.md` à
 `Bloquant : 0`, `Couverture : en cours`, `Reprises : <reprise rendue>` — elle trace l'interruption sans
 prétendre avoir relu.
+
+## Vague parallèle (`lancer` avec `parallele: true`, plan `Parallèle : oui`)
+
+L'interdit « jamais de worktree » ne vaut que pour `Parallèle : non` (`WORKFLOW.md` §5b). Un `lancer` qui
+rend `parallele: false` et un `motifSerie` est une vague repassée en série : relayer le motif, geste ordinaire.
+
+- **Un seul message** porte tous les appels `Agent` de `sessions`, chacun avec `isolation: "worktree"` et
+  le `prompt` que le moteur rend pour elle, tel quel (pas le prompt de session ci-dessus).
+- **Après chaque lancement** : `--appliquer --lancee S<k> --agent <identifiant>` (inscrit la session ; sans
+  inscription, la collecte ne la retrouve pas).
+- **À chaque notification de fin**, quel que soit le verdict : `--appliquer --collecter S<k>` (le moteur
+  fusionne la copie dans `main`). Tant qu'une copie tourne, l'action rendue est `attendre`.
+- **Conflit de fusion** : le moteur rend une `question`, relayée telle quelle ; l'orchestrateur ne résout jamais.
+- **Coupure** (quota, watchdog) d'une session ou de toute la vague : `--appliquer --interruption S<k> --agent
+  <identifiant>` pour **chacune** des sessions coupées.
 
 ## Collecter un verdict
 

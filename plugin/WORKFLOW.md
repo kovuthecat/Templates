@@ -102,6 +102,10 @@ Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il po
   obsolètes, tenir `Remédiation Opus :`, clôturer), puis rend l'action qui demande un agent ou un humain. L'orchestrateur relaie son `texte`
   et l'exécute ; il ne décide rien. Seule une `validation-humaine` arrête entre deux vagues.
 
+**Deux modes de plan.** `Parallèle : non` (ou ligne absente) : une session à la fois dans l'arbre courant, aucun
+worktree. `Parallèle : oui` : toutes les sessions d'une vague partent ensemble, chacune dans sa copie isolée
+(`isolation: "worktree"`), fusionnées dans `main` à la collecte — `docs/decisions/2026-11-25-vagues-paralleles-au-choix-et-incidents.md`.
+
 **Sous-agent, seule voie d'orchestration**, en arrière-plan quel que soit l'environnement : il hérite du navigateur in-app et des
 permissions ; son verdict, ce sont ses commits (§4b) ; ses délégations sont **attendues dans son tour** (notification reçue avant de finir) et
 son `n0.mjs` s'exécute au premier plan. Ses commandes ne demandent jamais d'autorisation (pas de `rm`, pas de `cd … &&`) : en arrière-plan,

@@ -53,7 +53,7 @@
 | 18 · `model:` d'une skill | vérifier la doc ; `/nouveau-plan` lance `sync-workflow.mjs` directement au lieu de `/maj-workflow` |
 | 19 · CI et N0 | retenu : `publier --sans-tests` dans la N0, fuite du dossier temporaire corrigée, suites déterministes en CI (déclencheur `tests/**`) |
 | 20 · scénarios de bout en bout | retenu, **avant les simplifications** : mesure de référence au plan 1, remesure en fin de plan 2 ; ils remplacent `plugin/evals/` |
-| 21 · parallèle | **retiré** (option B) |
+| 21 · parallèle | **retiré** (option B) — rouvert le 2026-11-25, au choix plan par plan : `2026-11-25-vagues-paralleles-au-choix-et-incidents.md` |
 | 22 · mods | retenu : O1 impose le modèle calculé par le moteur (escalade comprise), affichage rafraîchi sur changement de `HEAD`, `/incidents` appelle le script, tests des mods non copiés, sortie machine de `claude plugin list` si elle existe |
 | 23 · gouvernance | orientation, pas règle |
 

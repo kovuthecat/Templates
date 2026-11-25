@@ -59,9 +59,11 @@ section « 8b », avant de committer.
 ## Fin de session
 
 9. **Statut** : `index.md` du plan → `[x]`, avec la date, dans le commit du point 10 — cocher **sa
-   propre ligne**, et elle seule. Coche `[x]`.
+   propre ligne**, et elle seule. Coche `[x]`. **Sauf** si ton prompt dit que tu tournes dans une copie
+   isolée (vague parallèle) : ne coche pas l'index, le moteur le fait à la collecte.
    Seul qui lit `Bloquant : n` (l'étape Relecture, point 13) pose `[x]!`.
-10. **Contexte** : `STATUS.md` à jour ; les autres fichiers **seulement si leur contenu change**.
+10. **Contexte** : `STATUS.md` à jour ; les autres fichiers **seulement si leur contenu change**. **Sauf**
+    en copie isolée (vague parallèle) : ni `STATUS.md` ni `TASKS.md`, ils se fusionneraient en conflit.
 11. **N2** : `VALIDATION.md`, uniquement le jugement humain encore EN ATTENTE — supprimer ce qui
     est déjà tranché.
 12. **Plafonds** dépassés (hook) → `/purge-contexte` maintenant, pas plus tard.
