@@ -23,6 +23,19 @@
   écart entre le protocole documenté (réponse committée) et le comportement observé de l'orchestrateur Haiku
 - [ ] P14 d'EBM-MSP v2 : seul plan ouvert encore marqué `pastille` (voir `plugin/MIGRATION.md`, 0.67.0)
 
+## Corrections du 2026-11-25 et vagues parallèles (`plans/P21/index.md`)
+- T1-T4 — Moteur : arrêt humain, sessions faites, push · → plans/P21/S1.md
+- T5-T6 — Lever un bloquant, en-tête d'incident · → plans/P21/S2.md
+- T7-T10 — Corrections de textes : coupure, lint, maquettes, preview · → plans/P21/S3.md
+- T11 — Ramener les .git dans les projets · → plans/P21/S4.md
+- T12 — Sonde : preuve après fusion, dépendances, réveil · → plans/P21/S5.md
+- T13-T14 — Agents en arrière-plan, sessions sans autorisation · → plans/P21/S6.md
+- T15-T16 — Le moteur lance et collecte une vague parallèle · → plans/P21/S7.md
+- T17-T18 — Textes du parallèle · → plans/P21/S8.md
+- T19 — Publication 0.69.0 · → plans/P21/S9.md
+- [ ] À faire par l'utilisateur, après S4 : `node plugin/bin/rapatrier-git.mjs --appliquer <projet>` sur les 16 projets
+  listés ; puis, quand tout va bien, supprimer `C:/Users/Kovu/Projets/Templates.gitfile.bak` et les sauvegardes de `.gitdirs`
+
 ## Backlog de revue (non bloquant)
 
 - Backlog ancien P9 à P16 : `docs/archives/TASKS-2026-10-16.md`.

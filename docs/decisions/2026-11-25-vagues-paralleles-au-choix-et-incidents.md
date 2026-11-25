@@ -72,5 +72,31 @@
 | périmètre | READY | `nouveau-plan`, `orchestrer-plan`, `EXECUTANT.md`, `WORKFLOW.md` §5, `CLAUDE-BASE.md`, `lire-index.mjs`, `prochaine-action.mjs`, `verifier-plan.mjs`, mod `garde-fous` (O3), `verif-visuelle`, `fin-de-tache`, `nouveau-projet`, gabarits |
 | cohérence | OPEN | plans ouverts des projets sans ligne `Parallèle :` → lus `non`, rien à migrer ; à vérifier par `explorateur` en S1 qu'aucun outil tiers (mods, hook Stop `revuesManquantes`) ne suppose une seule branche |
 
+## Constat du cadrage de P21 (`/nouveau-plan`, 2026-11-25)
+
+- **La copie isolée de l'outil `Agent` est refusée quand `.git` est un fichier** : « Failed to resolve
+  base branch "HEAD": Claude Code could not confirm that this repository's .git entry belongs to the
+  folder it is in […] so no worktree can be made from it. » Constaté sur Templates
+  (`gitdir: C:/Users/Kovu/.gitdirs/Templates`). Dans `C:/Users/Kovu/Projets`, **17 projets sur 38**
+  sont dans ce cas. Nos hooks y refuseraient aussi tout commit d'une copie (`racineDepot` → `null`,
+  `plugin/hooks/lib.mjs`).
+- **Choix de l'utilisateur** : parallèle sur **tous** les projets, en **ramenant les `.git`** dans leurs
+  dossiers ; un seul plan (P21). Script de rapatriement : P21/S4 ; tant qu'un projet n'est pas rapatrié,
+  sa vague parallèle repasse en série avec le motif (P21/S7).
+- **Templates rapatrié le 2026-11-25** : déplacement refusé (« Permission denied »), donc copie de
+  `C:/Users/Kovu/.gitdirs/Templates` vers `Templates/.git` ; `HEAD` (58b01d0), empreinte de
+  `git status --porcelain` et `git fsck` identiques avant et après ; l'ancien fichier `.git` est gardé dans
+  `C:/Users/Kovu/Projets/Templates.gitfile.bak`, l'original dans `.gitdirs` sert de sauvegarde.
+- **Sonde après rapatriement** (sous-agent lancé avec `isolation: "worktree"` depuis la conversation
+  principale) : copie créée dans `.claude/worktrees/agent-<id>`, sur la branche `worktree-agent-<id>`,
+  partie du `HEAD` local ; `racineDepot` y rend la racine du dépôt principal ; nos hooks acceptent le
+  commit ; la copie et la branche, avec leur commit, **restent** après la fin de l'agent ; le nom de la
+  branche revient dans la notification de fin ; `.claude/worktrees/` est exclu par `.git/info/exclude`.
+  Copie et branche de sonde supprimées ensuite.
+- **Critique du plan** (agent `critique-plan`), retenu : les sessions parallèles ne cochent pas l'index
+  et ne touchent pas `STATUS.md` (le moteur coche déjà) ; état « en cours » durable pour une vague en vol ;
+  toutes les branches fusionnées à la collecte, quel que soit le verdict ; message de fusion sans
+  `Plan: P<n>/S<k>/` ; L1 doit aussi lire `validée` hors du gras ; L4 demande `pull --rebase --autostash`.
+
 Ordre conseillé au plan : corrections L1-L8, L11, L12 (indépendantes, peuvent tourner ensemble), puis
 L9-L10, puis la sonde, puis le parallèle — le parallèle ne s'ouvre qu'une fois la sonde verte.
