@@ -143,6 +143,11 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
    `{ "commandes": [], "sansCommande": "<motif>" }` (une liste vide sans motif ne vaut pas
    déclaration), et § Commandes le dit en une ligne ; `/nouveau-plan` écrira alors
    `Preuve N0 : non requise`.
+   **Preuves N0 hors du lint** : si le projet a un formateur ou un linter qui parcourt les JSON
+   (`prettier`, `biome`…), ajouter `plans/**/*.n0.json` à son fichier d'exclusion
+   (`.prettierignore` ou équivalent) : la preuve `S<k>.n0.json`, écrite par `n0.mjs`, est une trace
+   machine que `prettier --check` rejette, et le N0 de la session suivante échouerait dessus
+   (Interface-OE, 2026-11-01).
 
 5. **Règles validées** : celles que la Phase B2 a gardées ou assouplies vont dans `CLAUDE.md` §
    Règles spécifiques au projet, **au format du gabarit** (`<règle> — motif : … — levée : …` ;
@@ -171,7 +176,7 @@ pour un chiffre). L'utilisateur répond pour chacune : **garder, assouplir ou re
 ## Phase D — Étapes suivantes
 
 1. Rédiger `ARCHITECTURE.md` (avec Opus) — annoncer, ne pas exécuter ici.
-2. Si UI : `DESIGN_SPEC.md` + maquette Claude Design (claude.ai), écran par écran — annoncer, ne pas
+2. Si UI : `DESIGN_SPEC.md` + maquette via l'outil Artifact (type Design, ou page HTML publiée), écran par écran — annoncer, ne pas
    exécuter ici.
 3. Dérouler `/nouveau-plan` pour cadrer le premier plan (`P1`) à partir du brief, de l'architecture
    et de la maquette — annoncer, ne pas exécuter ici.
