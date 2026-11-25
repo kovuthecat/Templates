@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "session": "P21/S4",
+  "portee": "complete",
+  "resultat": "PASS",
+  "empreinte": "eeb91c451e005d1ba86e621af65e61784b482c1b4f614e3d8f048f6bb5ba81e2",
+  "nonSuivis": [
+    "plugin/bin/rapatrier-git.mjs"
+  ],
+  "date": "2026-11-25T17:33:50.081Z",
+  "commandes": [
+    {
+      "nom": "tester-hooks",
+      "cmd": "node tests/tester-hooks.mjs",
+      "code": 0,
+      "dureeMs": 89486
+    },
+    {
+      "nom": "tester-scripts",
+      "cmd": "node tests/tester-scripts.mjs",
+      "code": 0,
+      "dureeMs": 332172
+    },
+    {
+      "nom": "tester-renvois",
+      "cmd": "node tests/tester-renvois.mjs",
+      "code": 0,
+      "dureeMs": 164
+    },
+    {
+      "nom": "tester-preuves",
+      "cmd": "node tests/tester-preuves.mjs",
+      "code": 0,
+      "dureeMs": 28890
+    },
+    {
+      "nom": "tester-mods",
+      "cmd": "node tests/tester-mods.mjs",
+      "code": 0,
+      "dureeMs": 9556
+    },
+    {
+      "nom": "publier-dry-run",
+      "cmd": "node plugin/bin/publier.mjs --dry-run --sans-tests",
+      "code": 0,
+      "dureeMs": 1000
+    }
+  ]
+}

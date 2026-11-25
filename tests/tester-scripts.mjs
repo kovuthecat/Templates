@@ -18,7 +18,7 @@
 // Sortie : une ligne OK/FAIL par cas ; exit 1 si un cas échoue, 0 sinon.
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, chmodSync, rmSync, cpSync, existsSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, chmodSync, rmSync, cpSync, existsSync, readFileSync, readdirSync, lstatSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -5464,6 +5464,138 @@ cas('bilan-express : lecture seule — ni arbre ni historique modifiés ; sortie
   if (gitSortie(cwd, 'rev-parse', 'HEAD') + gitSortie(cwd, 'status', '--porcelain') !== avant) return 'le script a modifié le dépôt';
   const hors = lancer(BILAN_EXPRESS, [], dossierJetable('workflow-bilan-hors-depot-'));
   return hors.code === 2 ? null : `code 2 attendu hors dépôt, reçu ${hors.code}`;
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// rapatrier-git.mjs — P21/S4/T11 : un `.git` déplacé revient dans son projet
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const RAPATRIER_GIT = join(BIN, 'rapatrier-git.mjs');
+
+/** `<tmp>/projets/<nom>` à `.git` déplacé dans `<tmp>/gitdirs/<nom>` (ce que sont les projets réels),
+ *  avec un commit et un fichier non suivi (status non vide). */
+function projetGitDeplace(racine, nom) {
+  const projet = join(racine, 'projets', nom);
+  const gitdir = join(racine, 'gitdirs', nom);
+  mkdirSync(projet, { recursive: true });
+  mkdirSync(dirname(gitdir), { recursive: true });
+  execFileSync('git', ['init', '-q', '--separate-git-dir', gitdir, projet], { stdio: 'pipe' });
+  git(projet, 'config', 'user.email', 'test@local');
+  git(projet, 'config', 'user.name', 'Test');
+  writeFileSync(join(projet, 'a.txt'), 'a\n');
+  git(projet, 'add', '-A');
+  git(projet, 'commit', '-q', '-m', 'init');
+  writeFileSync(join(projet, 'non-suivi.txt'), 'x\n');
+  return { projet, gitdir, projets: join(racine, 'projets') };
+}
+
+function lstatEstDossier(p) {
+  return lstatSync(p).isDirectory();
+}
+
+function empreinteDossier(d) {
+  const sortie = [];
+  const pile = [d];
+  while (pile.length) {
+    const c = pile.pop();
+    for (const e of readdirSync(c, { withFileTypes: true })) {
+      const p = join(c, e.name);
+      if (e.isDirectory()) pile.push(p);
+      else sortie.push(`${p.slice(d.length)}:${readFileSync(p).toString('base64')}`);
+    }
+  }
+  return sortie.sort().join('|');
+}
+
+cas('rapatrier-git (a) : sans option, liste le projet et sa cible sans rien modifier', () => {
+  const racine = dossierJetable('workflow-rapatrier-a-');
+  const { projet, gitdir, projets } = projetGitDeplace(racine, 'x');
+  const avantGit = readFileSync(join(projet, '.git'), 'utf8');
+  const avantOriginal = empreinteDossier(gitdir);
+  const r = lancer(RAPATRIER_GIT, ['--projets', projets], racine);
+  if (r.code !== 0) return `code 0 attendu, reçu ${r.code}: ${r.sortie}`;
+  if (!r.sortie.includes('Rapatriables : 1') || !/x ←/.test(r.sortie) || !/(Ko|Mo)/.test(r.sortie)) return `liste attendue, reçu: ${r.sortie}`;
+  if (readFileSync(join(projet, '.git'), 'utf8') !== avantGit) return 'le fichier .git a changé';
+  if (existsSync(join(projet, '.git.rapatrie')) || existsSync(join(projet, '.git.gitfile.bak'))) return 'fichiers parasites créés';
+  return empreinteDossier(gitdir) === avantOriginal ? null : 'le gitdir original a été modifié';
+});
+
+cas('rapatrier-git (b) : --appliquer → .git dossier, HEAD et status identiques, fsck vert, original intact', () => {
+  const racine = dossierJetable('workflow-rapatrier-b-');
+  const { projet, gitdir, projets } = projetGitDeplace(racine, 'x');
+  const head = gitSortie(projet, 'rev-parse', 'HEAD');
+  const status = gitSortie(projet, 'status', '--porcelain');
+  if (!status) return 'prémisse du test : status vide';
+  const avantOriginal = empreinteDossier(gitdir);
+  const r = lancer(RAPATRIER_GIT, ['--projets', projets, '--appliquer', 'x'], racine);
+  if (r.code !== 0) return `code 0 attendu, reçu ${r.code}: ${r.sortie}`;
+  if (!lstatEstDossier(join(projet, '.git'))) return '.git n\'est pas un dossier';
+  if (gitSortie(projet, 'rev-parse', 'HEAD') !== head) return 'HEAD différent';
+  const statusApres = gitSortie(projet, 'status', '--porcelain').split('\n').filter((l) => !l.endsWith('.git.gitfile.bak')).join('\n');
+  if (statusApres !== status) return `status différent (seule la sauvegarde .git.gitfile.bak peut s'y ajouter): ${statusApres}`;
+  if (gitSortie(projet, 'log', '--format=%s') !== 'init') return 'historique différent';
+  execFileSync('git', ['fsck', '--no-progress'], { cwd: projet, stdio: 'pipe' });
+  const premiere = gitSortie(projet, 'worktree', 'list', '--porcelain').split('\n')[0].replace(/^worktree /, '');
+  if (premiere.replace(/\\/g, '/').toLowerCase() !== realpathSync.native(projet).replace(/\\/g, '/').toLowerCase()) return `worktree list : ${premiere}`;
+  if (!readFileSync(join(projet, '.git.gitfile.bak'), 'utf8').startsWith('gitdir:')) return 'fichier .git d\'origine non gardé';
+  if (existsSync(join(projet, '.git.rapatrie'))) return '.git.rapatrie laissé';
+  if (empreinteDossier(gitdir) !== avantOriginal) return 'le gitdir original a été modifié';
+  if (!r.sortie.replace(/\\/g, '/').toLowerCase().includes(gitdir.replace(/\\/g, '/').toLowerCase())) return `la sauvegarde n'est pas annoncée: ${r.sortie}`;
+  // Un commit dans le projet rapatrié ne touche plus l'original.
+  writeFileSync(join(projet, 'b.txt'), 'b\n');
+  git(projet, 'add', 'b.txt');
+  git(projet, 'commit', '-q', '-m', 'apres');
+  return empreinteDossier(gitdir) === avantOriginal ? null : 'un commit après rapatriement a écrit dans l\'original';
+});
+
+cas('rapatrier-git (c) : contrôle en échec (objet corrompu → fsck) → état d\'avant restauré, code 1', () => {
+  const racine = dossierJetable('workflow-rapatrier-c-');
+  const { projet, gitdir, projets } = projetGitDeplace(racine, 'x');
+  const dossierObjet = join(gitdir, 'objects', 'ab');
+  mkdirSync(dossierObjet, { recursive: true });
+  writeFileSync(join(dossierObjet, 'cdef0123456789012345678901234567890123'), 'pas un objet git');
+  const avantGit = readFileSync(join(projet, '.git'), 'utf8');
+  const avantOriginal = empreinteDossier(gitdir);
+  const r = lancer(RAPATRIER_GIT, ['--projets', projets, '--appliquer', 'x'], racine);
+  if (r.code !== 1) return `code 1 attendu, reçu ${r.code}: ${r.sortie}`;
+  if (!/ÉCHEC/.test(r.sortie) || !/restauré/.test(r.sortie)) return `message d'échec attendu, reçu: ${r.sortie}`;
+  if (lstatEstDossier(join(projet, '.git'))) return '.git est resté un dossier';
+  if (readFileSync(join(projet, '.git'), 'utf8') !== avantGit) return 'fichier .git non remis';
+  if (existsSync(join(projet, '.git.rapatrie')) || existsSync(join(projet, '.git.gitfile.bak'))) return 'fichiers parasites laissés';
+  if (empreinteDossier(gitdir) !== avantOriginal) return 'le gitdir original a été modifié';
+  return gitSortie(projet, 'rev-parse', 'HEAD') ? null : 'le projet n\'est plus lisible';
+});
+
+cas('rapatrier-git (d) : un worktree lié existe → refusé avec la raison, rien modifié', () => {
+  const racine = dossierJetable('workflow-rapatrier-d-');
+  const { projet, gitdir, projets } = projetGitDeplace(racine, 'x');
+  git(projet, 'worktree', 'add', '-q', join(racine, 'lie'), '-b', 'lie');
+  const avantGit = readFileSync(join(projet, '.git'), 'utf8');
+  const avantOriginal = empreinteDossier(gitdir);
+  const liste = lancer(RAPATRIER_GIT,['--projets', projets], racine);
+  if (!liste.sortie.includes('Non rapatriables : 1') || !/worktree\(s\) lié\(s\)/.test(liste.sortie)) return `raison attendue dans la liste, reçu: ${liste.sortie}`;
+  const r = lancer(RAPATRIER_GIT, ['--projets', projets, '--appliquer', 'x'], racine);
+  if (r.code !== 1 || !/worktree\(s\) lié\(s\)/.test(r.sortie)) return `refus attendu (code 1 + raison), reçu ${r.code}: ${r.sortie}`;
+  if (readFileSync(join(projet, '.git'), 'utf8') !== avantGit) return 'fichier .git modifié';
+  return empreinteDossier(gitdir) === avantOriginal ? null : 'le gitdir original a été modifié';
+});
+
+cas('rapatrier-git (e) : projet déjà classique → ignoré, absent de la liste, rien modifié', () => {
+  const racine = dossierJetable('workflow-rapatrier-e-');
+  const { projets } = projetGitDeplace(racine, 'x');
+  const classique = join(projets, 'classique');
+  mkdirSync(classique);
+  initDepot(classique);
+  writeFileSync(join(classique, 'a.txt'), 'a\n');
+  git(classique, 'add', '-A');
+  git(classique, 'commit', '-q', '-m', 'init');
+  const avant = empreinteDossier(join(classique, '.git'));
+  const liste = lancer(RAPATRIER_GIT, ['--projets', projets], racine);
+  if (liste.sortie.includes('classique')) return `projet classique listé: ${liste.sortie}`;
+  const r = lancer(RAPATRIER_GIT, ['--projets', projets, '--appliquer', 'classique'], racine);
+  if (r.code !== 0 || !/déjà classique/.test(r.sortie)) return `ignoré attendu (code 0), reçu ${r.code}: ${r.sortie}`;
+  if (existsSync(join(classique, '.git.gitfile.bak'))) return 'projet classique touché';
+  return empreinteDossier(join(classique, '.git')) === avant ? null : '.git classique modifié';
 });
 
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
