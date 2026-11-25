@@ -4599,6 +4599,248 @@ cas('T11 `[x]!` à la clôture : `cloturer` liste la session à repasser, `--clo
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P21/S1 — le moteur lit l'arrêt humain partout, reconnaît les sessions faites, pousse malgré le journal
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Dépôt jetable (branche `main`, arbre propre) d'une fixture de plan P9 dont les zones sont `src/s<k>.mjs` ;
+ * `refs` : repères `S<k>/T<m>` commités, dans l'ordre, par des commits vides (la session est faite sans
+ * aucun fichier touché). */
+function planVH(prefixe, fixture, refs, transformer = null) {
+  const cwd = dossierJetable(prefixe);
+  cpSync(join(FIXTURES, 'plans', fixture), join(cwd, 'plans', 'P9'), { recursive: true });
+  if (transformer) {
+    const chemin = join(cwd, 'plans', 'P9', 'index.md');
+    writeFileSync(chemin, transformer(readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n')));
+  }
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  for (let i = 1; i <= 9; i++) writeFileSync(join(cwd, 'src', `s${i}.mjs`), 'export const x = 1;\n');
+  writeFileSync(join(cwd, '.gitignore'), '.claude/n0/\n');
+  initDepot(cwd);
+  commitTout(cwd, 'init');
+  git(cwd, 'branch', '-M', 'main');
+  for (const ref of refs) git(cwd, 'commit', '--allow-empty', '-q', '-m', `${ref}\n\nPlan: P9/${ref}`);
+  return cwd;
+}
+
+const indexDe = (cwd) => readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n');
+
+/** `verifier-plan P9 --extension` sur le plan du dépôt, après avoir écrit une fiche valide par session
+ * (zone = `src/s<k>.mjs`, qui existe) : seul l'index est en cause dans ces cas. */
+function verifierVH(cwd) {
+  for (const id of analyserIndex(indexDe(cwd)).sessions.map((s) => s.session)) {
+    const n = id.slice(1);
+    writeFileSync(join(cwd, 'plans', 'P9', `${id}.md`),
+      `## T${n} — x\n### Objectif\nx\n### Lire / Modifier\n- Modifier : \`src/s${n}.mjs\`\n### Validation\n- N0 auto : \`node n0.mjs\`\n`);
+  }
+  const r = lancer(join(BIN, 'verifier-plan.mjs'), ['P9', '--extension', '--json'], cwd);
+  return { code: r.code, ...JSON.parse(r.sortie) };
+}
+const ecartHorsGras = (v) => v.erreurs.filter((e) => /hors du gras/.test(e.motif));
+
+const LIGNE_NOVA = '- **Vague 1** : S1 · S2 (aucune dépendance) — validation-humaine.';
+const LIGNE_NOVA_CANONIQUE = '- **Vague 1 — validation-humaine** : S1 · S2 (aucune dépendance).';
+
+cas('P21/T1 (a) fixture nova P20 : le moteur, joué jusqu\'au bout, rend validation-humaine une fois la vague faite — témoin : sans le mot, il enchaîne sur la vague 2', () => {
+  const cwd = planVH('workflow-vh-nova-', 'moteur-vh-nova', ['S1/T1', 'S2/T2']);
+  if (!indexDe(cwd).includes(LIGNE_NOVA)) return 'fixture : la ligne de nova P20 doit être recopiée telle quelle';
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'validation-humaine' || r.action.vague !== 1) return `validation-humaine vague 1 attendu, reçu: ${r.sortie}`;
+  const sans = planVH('workflow-vh-nova-sans-', 'moteur-vh-nova', ['S1/T1', 'S2/T2'], (t) => t.replace(' — validation-humaine.', '.'));
+  const t = appliquerJson(sans);
+  if (t.action?.action !== 'lancer' || t.action.vague !== 2) return `témoin (mot retiré) : lancer vague 2 attendu, reçu: ${t.sortie}`;
+  return null;
+});
+
+cas('P21/T1 (b) fixture nova : verifier-plan rend l\'écart « hors du gras » (forme non canonique) — témoin : la forme canonique, RAS', () => {
+  const cwd = planVH('workflow-vh-nova-verif-', 'moteur-vh-nova', []);
+  const v = verifierVH(cwd);
+  if (v.code === 0 || ecartHorsGras(v).length !== 1) return `un écart « hors du gras » attendu, reçu ${JSON.stringify(v)}`;
+  if (!/vague 1 : mot-clé de vague hors du gras/.test(ecartHorsGras(v)[0].motif)) return `motif inattendu: ${ecartHorsGras(v)[0].motif}`;
+  const canon = planVH('workflow-vh-nova-canon-', 'moteur-vh-nova', [], (t) => t.replace(LIGNE_NOVA, LIGNE_NOVA_CANONIQUE));
+  const c = verifierVH(canon);
+  if (c.resultat !== 'RAS' || c.code !== 0) return `(d) forme canonique : RAS attendu, reçu ${JSON.stringify(c)}`;
+  return null;
+});
+
+cas('P21/T1 (c) une parenthèse qui cite validation-humaine : aucun arrêt, aucun écart', () => {
+  const cwd = planVH('workflow-vh-paren-', 'moteur-vh-parenthese', ['S1/T1']);
+  const lu = analyserIndex(indexDe(cwd)).vagues;
+  if (lu.some((v) => v.validationHumaine || v.repriseManuelle || v.validee || v.labelHorsGras)) return `aucun mot-clé attendu, lu ${JSON.stringify(lu)}`;
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'lancer' || r.action.vague !== 2 || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (aucun arrêt humain), reçu: ${r.sortie}`;
+  const v = verifierVH(cwd);
+  if (ecartHorsGras(v).length > 0) return `aucun écart « hors du gras » attendu, reçu ${JSON.stringify(v.erreurs)}`;
+  return null;
+});
+
+cas('P21/T1 (d) forme canonique inchangée : lue, aucun drapeau hors du gras', () => {
+  const lu = analyserIndex(indexDe(planVH('workflow-vh-canon-', 'moteur-vh-nova', [], (t) => t.replace(LIGNE_NOVA, LIGNE_NOVA_CANONIQUE)))).vagues[0];
+  if (!lu.validationHumaine || lu.labelHorsGras || lu.validee) return `validationHumaine sans labelHorsGras attendu, lu ${JSON.stringify(lu)}`;
+  const hors = analyserIndex(LIGNE_NOVA.replace('- **Vague 1**', '## Ordonnancement\n- **Vague 1**')).vagues[0];
+  if (!hors.validationHumaine || !hors.labelHorsGras || hors.sessions.join() !== 'S1,S2') return `forme nova : validationHumaine + labelHorsGras + [S1,S2] attendus, lu ${JSON.stringify(hors)}`;
+  return null;
+});
+
+for (const [nom, fixture, refs, vague, ligne, canonique, suivante] of [
+  ['nova P20', 'moteur-vh-nova', ['S1/T1', 'S2/T2'], 1, LIGNE_NOVA, '- **Vague 1 — validation-humaine · validée** : S1 · S2 (aucune dépendance).', 'S3'],
+  ['EBM-MSPv2 P18', 'moteur-vh-ebm', ['S1/T1', 'S2/T2', 'S3/T3', 'S4/T4'], 3, '- **Vague 3** : S4 (après S2 et S3) — `validation-humaine`.', '- **Vague 3 — validation-humaine · validée** : S4 (après S2 et S3).', 'S5'],
+]) {
+  cas(`P21/T1 (e) --valider-vague sur la ligne ${nom} : réécrite en forme canonique, vague lue et validée, le moteur passe à ${suivante}`, () => {
+    const cwd = planVH(`workflow-vh-valider-${fixture}-`, fixture, refs);
+    if (!indexDe(cwd).includes(ligne)) return 'fixture : la ligne réelle doit être recopiée telle quelle';
+    const avant = appliquerJson(cwd);
+    if (avant.action?.action !== 'validation-humaine' || avant.action.vague !== vague) return `validation-humaine vague ${vague} attendu avant la validation, reçu: ${avant.sortie}`;
+    const r = appliquerJson(cwd, ['--valider-vague', String(vague)]);
+    if (!indexDe(cwd).split('\n').includes(canonique)) return `ligne canonique « ${canonique} » attendue, reçu:\n${indexDe(cwd)}`;
+    const v = analyserIndex(indexDe(cwd)).vagues.find((x) => x.numero === vague);
+    if (!v || !v.validationHumaine || !v.validee || v.labelHorsGras) return `vague ${vague} lue validée (forme canonique) attendue, lu ${JSON.stringify(v)}`;
+    if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== suivante) return `lancer ${suivante} attendu après la validation, reçu: ${r.sortie}`;
+    if (ecartHorsGras(verifierVH(cwd)).length > 0) return 'la ligne réécrite ne doit plus être signalée hors du gras';
+    return null;
+  });
+}
+
+// ── P21/S1/T2 : identifiants de tâche `T-063` ──────────────────────────────────────────────────────
+
+const REFS_NOVA_P18_S2 = ['S1/T-247', 'S1/T-197', 'S1/T-063']; // l'ordre réel des commits de nova P18/S2
+
+cas('P21/T2 fixture nova P18/S2 : les trois commits `Plan: …/T-063`, `T-197`, `T-247` → S1 faite, le moteur ne la relance plus et passe à S2 — témoin : deux commits sur trois, S1 relancée', () => {
+  const cwd = planVH('workflow-t063-', 'moteur-taches-backlog', REFS_NOVA_P18_S2);
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'lancer' || r.action.sessions.map((s) => s.session).join() !== 'S2') return `lancer S2 attendu (S1 faite), reçu: ${r.sortie}`;
+  if (!/\| \[x\] \d{4}-\d{2}-\d{2} \|/.test(ligneIndex(cwd, 'S1') ?? '')) return `S1 devait être cochée par le moteur: ${ligneIndex(cwd, 'S1')}`;
+  const partiel = appliquerJson(planVH('workflow-t063-partiel-', 'moteur-taches-backlog', REFS_NOVA_P18_S2.slice(0, 2)));
+  if (partiel.action?.action !== 'lancer' || partiel.action.sessions.map((s) => s.session).join() !== 'S1') return `témoin : S1 relancée tant qu'une tâche manque, reçu: ${partiel.sortie}`;
+  return null;
+});
+
+cas('P21/T2 identifiants normalisés des deux côtés : index `T-063` ≡ commit `T63` ≡ `T-063` ; liste non contiguë `T-063, T-197`, plage `T-063-T-065` et `T1-T3` historique', () => {
+  const lire = (c) => parseTaches(c).join();
+  if (lire('T-063, T-197') !== '63,197') return `T-063, T-197 → 63,197 attendu, reçu ${lire('T-063, T-197')}`;
+  if (lire('T3') !== '3' || lire('T1-T3') !== '1,2,3') return `T3 et T1-T3 inchangés attendus, reçu ${lire('T3')} / ${lire('T1-T3')}`;
+  if (lire('T-063-T-065') !== '63,64,65') return `plage T-063-T-065 attendue 63,64,65, reçu ${lire('T-063-T-065')}`;
+  if (lire('—') !== '' || lire('à voir') !== '' || lire('T-063 · T-197') !== '') return 'champ illisible : liste vide attendue';
+  // Commits `T63` (sans tiret ni zéro) pour un index `T-063` : même tâche.
+  const cwd = planVH('workflow-t063-norm-', 'moteur-taches-backlog', ['S1/T63', 'S1/T197', 'S1/T-247']);
+  const r = appliquerJson(cwd);
+  if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (T63 ≡ T-063), reçu: ${r.sortie}`;
+  return null;
+});
+
+cas('P21/T2 verifier-plan : champ Tâches `—`, `à voir` ou `T-063 · T-197` → écart ; `T-063, T-197, T-247` et `T1-T3` → aucun', () => {
+  const ecartTaches = (v) => v.erreurs.filter((e) => /champ Tâches sans identifiant lisible/.test(e.motif));
+  for (const champ of ['—', 'à voir', 'T-063 · T-197']) {
+    const cwd = planVH('workflow-t063-verif-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
+    const e = ecartTaches(verifierVH(cwd));
+    if (e.length !== 1 || e[0].session !== 'S1') return `« ${champ} » : un écart sur S1 attendu, reçu ${JSON.stringify(e)}`;
+  }
+  for (const champ of ['T-063, T-197, T-247', 'T1-T3']) {
+    const cwd = planVH('workflow-t063-verif-ok-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
+    const e = ecartTaches(verifierVH(cwd));
+    if (e.length > 0) return `« ${champ} » : aucun écart attendu, reçu ${JSON.stringify(e)}`;
+  }
+  return null;
+});
+
+// ── P21/S1/T3 : pas de validation humaine sur une vague dont un membre n'a pas tourné ──────────────
+
+const REVUE_BLOQUEE = 'Bloquant : 1\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n';
+
+cas('P21/T3 vague validation-humaine S2 · S3, S3 dépendant de S1 `[x]!`, S2 faite → question dependance-revue (jamais validation-humaine) ; témoin : tous membres faits → validation-humaine', () => {
+  const cwd = planVH('workflow-vh-bloquee-', 'moteur-vh-bloquee', ['S2/T2']);
+  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
+  if (action?.action !== 'question' || action.options?.source !== 'dependance-revue') return `question dependance-revue attendue, reçu: ${sortie}`;
+  if (action.options.sessions.join() !== 'S3') return `la session bloquée S3 attendue, reçu ${JSON.stringify(action.options)}`;
+  if (!/S1/.test(action.texte)) return `la question doit nommer le bloquant amont S1:\n${action.texte}`;
+  if (/validation-humaine — vague/.test(action.texte)) return `aucune demande de validation attendue:\n${action.texte}`;
+  // Témoin : S3 aussi faite (commit de sa tâche) — la vague est entière, la validation se demande.
+  const entiere = planVH('workflow-vh-bloquee-entiere-', 'moteur-vh-bloquee', ['S2/T2', 'S3/T3']);
+  writeFileSync(join(entiere, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
+  const t = lancerJson(['P9', '--json'], entiere);
+  if (t.action?.action !== 'validation-humaine' || t.action.vague !== 2) return `témoin : validation-humaine vague 2 attendue, reçu: ${t.sortie}`;
+  return null;
+});
+
+// ── P21/S1/T4 : le journal des modèles ne bloque plus le push ──────────────────────────────────────
+
+const JOURNAL = '.claude/journal-modeles.jsonl';
+
+/** Dépôt du plan `moteur-appliquer` avec amont `origin/main` ; le journal est SUIVI (commité et poussé) puis
+ * modifié localement (` M`). L'amont a un commit de plus (`distant.txt`, ou une ligne du journal si
+ * `amontToucheJournal`) et le local un de plus (les tâches de S1) — le geste `pousser` doit faire un vrai
+ * `pull --rebase`. */
+function planJournal(prefixe, { amontToucheJournal = false, suivi = true } = {}) {
+  const { cwd, bare } = planAppliquer(prefixe, { origin: true });
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, JOURNAL), 'ligne 1\n');
+  if (suivi) {
+    git(cwd, 'add', JOURNAL);
+    git(cwd, 'commit', '-q', '-m', 'journal');
+    git(cwd, 'push', '-q');
+  }
+  const distant = dossierJetable('workflow-pa-journal-distant-');
+  git(distant, 'clone', '-q', '-b', 'main', bare, '.');
+  git(distant, 'config', 'user.email', 'distant@local');
+  git(distant, 'config', 'user.name', 'Distant');
+  if (amontToucheJournal && suivi) writeFileSync(join(distant, JOURNAL), 'ligne 1 distante\n');
+  else writeFileSync(join(distant, 'distant.txt'), 'x\n');
+  git(distant, 'add', amontToucheJournal && suivi ? JOURNAL : 'distant.txt');
+  git(distant, 'commit', '-q', '-m', 'distant');
+  git(distant, 'push', '-q');
+  commitTache(cwd, 'S1/T1');
+  commitTache(cwd, 'S1/T2');
+  appendFileSync(join(cwd, JOURNAL), 'ligne 2 locale\n');
+  return { cwd, bare };
+}
+
+cas('P21/T4 journal suivi et modifié, amont en avance, commits locaux en avance → pousser aboutit (pull --rebase --autostash), le journal reste modifié avec son contenu ; témoin : un autre fichier suivi modifié → question arbre-sale inchangée', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-suivi-');
+  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return 'fixture : le journal doit être suivi et modifié';
+  const r = appliquerJson(cwd);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu au journal des gestes, reçu ${JSON.stringify(r.appliques)} · action ${r.action?.action} ${r.action?.motif ?? ''}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
+  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return `le journal doit rester modifié : ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (readFileSync(join(cwd, JOURNAL), 'utf8').replace(/\r\n/g, '\n') !== 'ligne 1\nligne 2 locale\n') return `contenu du journal altéré : ${JSON.stringify(readFileSync(join(cwd, JOURNAL), 'utf8'))}`;
+  if (!existsSync(join(cwd, 'distant.txt'))) return "le commit de l'amont devait être intégré par le rebase";
+  // Témoin : un autre fichier suivi modifié rend toujours la question.
+  const autre = planJournal('workflow-pa-journal-autre-');
+  appendFileSync(join(autre.cwd, 'src', 'b.mjs'), '// pas commité\n');
+  const q = appliquerJson(autre.cwd);
+  if (q.action?.action !== 'question' || q.action.options?.source !== 'arbre-sale') return `question arbre-sale attendue pour un autre fichier modifié, reçu: ${q.sortie}`;
+  if (gitSortie(autre.cwd, 'rev-parse', 'HEAD') === gitSortie(autre.bare, 'rev-parse', 'main')) return 'rien ne devait être poussé avec un autre fichier modifié';
+  return null;
+});
+
+cas('P21/T4 journal non suivi : arbre propre pour le moteur, pousser aboutit ; journal et autre fichier non suivi laissés en place', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-non-suivi-', { suivi: false });
+  const r = appliquerJson(cwd);
+  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu, reçu ${JSON.stringify(r.appliques)} · ${r.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
+  if (!existsSync(join(cwd, JOURNAL))) return 'le journal non suivi devait rester en place';
+  return null;
+});
+
+cas('P21/T4 conflit à la réapplication du stash (le journal diffère des deux côtés) → question `autostash`, jamais une exception ni un push', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-conflit-', { amontToucheJournal: true });
+  // Le journal local diverge de l'amont sur la MÊME ligne.
+  writeFileSync(join(cwd, JOURNAL), 'ligne 1 locale\n');
+  const r = appliquerJson(cwd);
+  if (r.code !== 0) return `code 0 attendu (une question, pas une exception), reçu ${r.code}: ${r.sortie}`;
+  const v = verifierQuestion(r, {
+    source: 'autostash', entete: 'P9',
+    question: 'Le rebase a réussi, mais tes modifications locales ne se réappliquent pas sans conflit (.claude/journal-modeles.jsonl) : que fait-on ?',
+    options: ['1. Régler les conflits à la main (elles sont aussi dans `git stash` : `git stash drop` une fois réglé), puis relancer — débloque le plan, qui poussera alors'],
+    reste: 'rien',
+  });
+  if (v) return v;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') === gitSortie(bare, 'rev-parse', 'main')) return 'rien ne devait être poussé';
+  return null;
+});
+
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {
@@ -5222,243 +5464,6 @@ cas('bilan-express : lecture seule — ni arbre ni historique modifiés ; sortie
   if (gitSortie(cwd, 'rev-parse', 'HEAD') + gitSortie(cwd, 'status', '--porcelain') !== avant) return 'le script a modifié le dépôt';
   const hors = lancer(BILAN_EXPRESS, [], dossierJetable('workflow-bilan-hors-depot-'));
   return hors.code === 2 ? null : `code 2 attendu hors dépôt, reçu ${hors.code}`;
-});
-
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// P21/S1 — le moteur lit l'arrêt humain partout, reconnaît les sessions faites, pousse malgré le journal
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-/** Dépôt jetable (branche `main`, arbre propre) d'une fixture de plan P9 dont les zones sont `src/s<k>.mjs` ;
- * `refs` : repères `S<k>/T<m>` commités, dans l'ordre, par des commits vides (la session est faite sans
- * aucun fichier touché). */
-function planVH(prefixe, fixture, refs, transformer = null) {
-  const cwd = dossierJetable(prefixe);
-  cpSync(join(FIXTURES, 'plans', fixture), join(cwd, 'plans', 'P9'), { recursive: true });
-  if (transformer) {
-    const chemin = join(cwd, 'plans', 'P9', 'index.md');
-    writeFileSync(chemin, transformer(readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n')));
-  }
-  mkdirSync(join(cwd, 'src'), { recursive: true });
-  for (let i = 1; i <= 9; i++) writeFileSync(join(cwd, 'src', `s${i}.mjs`), 'export const x = 1;\n');
-  writeFileSync(join(cwd, '.gitignore'), '.claude/n0/\n');
-  initDepot(cwd);
-  commitTout(cwd, 'init');
-  git(cwd, 'branch', '-M', 'main');
-  for (const ref of refs) git(cwd, 'commit', '--allow-empty', '-q', '-m', `${ref}\n\nPlan: P9/${ref}`);
-  return cwd;
-}
-
-const indexDe = (cwd) => readFileSync(join(cwd, 'plans', 'P9', 'index.md'), 'utf8').replace(/\r\n/g, '\n');
-
-/** `verifier-plan P9 --extension` sur le plan du dépôt, après avoir écrit une fiche valide par session
- * (zone = `src/s<k>.mjs`, qui existe) : seul l'index est en cause dans ces cas. */
-function verifierVH(cwd) {
-  for (const id of analyserIndex(indexDe(cwd)).sessions.map((s) => s.session)) {
-    const n = id.slice(1);
-    writeFileSync(join(cwd, 'plans', 'P9', `${id}.md`),
-      `## T${n} — x\n### Objectif\nx\n### Lire / Modifier\n- Modifier : \`src/s${n}.mjs\`\n### Validation\n- N0 auto : \`node n0.mjs\`\n`);
-  }
-  const r = lancer(join(BIN, 'verifier-plan.mjs'), ['P9', '--extension', '--json'], cwd);
-  return { code: r.code, ...JSON.parse(r.sortie) };
-}
-const ecartHorsGras = (v) => v.erreurs.filter((e) => /hors du gras/.test(e.motif));
-
-const LIGNE_NOVA = '- **Vague 1** : S1 · S2 (aucune dépendance) — validation-humaine.';
-const LIGNE_NOVA_CANONIQUE = '- **Vague 1 — validation-humaine** : S1 · S2 (aucune dépendance).';
-
-cas('P21/T1 (a) fixture nova P20 : le moteur, joué jusqu\'au bout, rend validation-humaine une fois la vague faite — témoin : sans le mot, il enchaîne sur la vague 2', () => {
-  const cwd = planVH('workflow-vh-nova-', 'moteur-vh-nova', ['S1/T1', 'S2/T2']);
-  if (!indexDe(cwd).includes(LIGNE_NOVA)) return 'fixture : la ligne de nova P20 doit être recopiée telle quelle';
-  const r = appliquerJson(cwd);
-  if (r.action?.action !== 'validation-humaine' || r.action.vague !== 1) return `validation-humaine vague 1 attendu, reçu: ${r.sortie}`;
-  const sans = planVH('workflow-vh-nova-sans-', 'moteur-vh-nova', ['S1/T1', 'S2/T2'], (t) => t.replace(' — validation-humaine.', '.'));
-  const t = appliquerJson(sans);
-  if (t.action?.action !== 'lancer' || t.action.vague !== 2) return `témoin (mot retiré) : lancer vague 2 attendu, reçu: ${t.sortie}`;
-  return null;
-});
-
-cas('P21/T1 (b) fixture nova : verifier-plan rend l\'écart « hors du gras » (forme non canonique) — témoin : la forme canonique, RAS', () => {
-  const cwd = planVH('workflow-vh-nova-verif-', 'moteur-vh-nova', []);
-  const v = verifierVH(cwd);
-  if (v.code === 0 || ecartHorsGras(v).length !== 1) return `un écart « hors du gras » attendu, reçu ${JSON.stringify(v)}`;
-  if (!/vague 1 : mot-clé de vague hors du gras/.test(ecartHorsGras(v)[0].motif)) return `motif inattendu: ${ecartHorsGras(v)[0].motif}`;
-  const canon = planVH('workflow-vh-nova-canon-', 'moteur-vh-nova', [], (t) => t.replace(LIGNE_NOVA, LIGNE_NOVA_CANONIQUE));
-  const c = verifierVH(canon);
-  if (c.resultat !== 'RAS' || c.code !== 0) return `(d) forme canonique : RAS attendu, reçu ${JSON.stringify(c)}`;
-  return null;
-});
-
-cas('P21/T1 (c) une parenthèse qui cite validation-humaine : aucun arrêt, aucun écart', () => {
-  const cwd = planVH('workflow-vh-paren-', 'moteur-vh-parenthese', ['S1/T1']);
-  const lu = analyserIndex(indexDe(cwd)).vagues;
-  if (lu.some((v) => v.validationHumaine || v.repriseManuelle || v.validee || v.labelHorsGras)) return `aucun mot-clé attendu, lu ${JSON.stringify(lu)}`;
-  const r = appliquerJson(cwd);
-  if (r.action?.action !== 'lancer' || r.action.vague !== 2 || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (aucun arrêt humain), reçu: ${r.sortie}`;
-  const v = verifierVH(cwd);
-  if (ecartHorsGras(v).length > 0) return `aucun écart « hors du gras » attendu, reçu ${JSON.stringify(v.erreurs)}`;
-  return null;
-});
-
-cas('P21/T1 (d) forme canonique inchangée : lue, aucun drapeau hors du gras', () => {
-  const lu = analyserIndex(indexDe(planVH('workflow-vh-canon-', 'moteur-vh-nova', [], (t) => t.replace(LIGNE_NOVA, LIGNE_NOVA_CANONIQUE)))).vagues[0];
-  if (!lu.validationHumaine || lu.labelHorsGras || lu.validee) return `validationHumaine sans labelHorsGras attendu, lu ${JSON.stringify(lu)}`;
-  const hors = analyserIndex(LIGNE_NOVA.replace('- **Vague 1**', '## Ordonnancement\n- **Vague 1**')).vagues[0];
-  if (!hors.validationHumaine || !hors.labelHorsGras || hors.sessions.join() !== 'S1,S2') return `forme nova : validationHumaine + labelHorsGras + [S1,S2] attendus, lu ${JSON.stringify(hors)}`;
-  return null;
-});
-
-for (const [nom, fixture, refs, vague, ligne, canonique, suivante] of [
-  ['nova P20', 'moteur-vh-nova', ['S1/T1', 'S2/T2'], 1, LIGNE_NOVA, '- **Vague 1 — validation-humaine · validée** : S1 · S2 (aucune dépendance).', 'S3'],
-  ['EBM-MSPv2 P18', 'moteur-vh-ebm', ['S1/T1', 'S2/T2', 'S3/T3', 'S4/T4'], 3, '- **Vague 3** : S4 (après S2 et S3) — `validation-humaine`.', '- **Vague 3 — validation-humaine · validée** : S4 (après S2 et S3).', 'S5'],
-]) {
-  cas(`P21/T1 (e) --valider-vague sur la ligne ${nom} : réécrite en forme canonique, vague lue et validée, le moteur passe à ${suivante}`, () => {
-    const cwd = planVH(`workflow-vh-valider-${fixture}-`, fixture, refs);
-    if (!indexDe(cwd).includes(ligne)) return 'fixture : la ligne réelle doit être recopiée telle quelle';
-    const avant = appliquerJson(cwd);
-    if (avant.action?.action !== 'validation-humaine' || avant.action.vague !== vague) return `validation-humaine vague ${vague} attendu avant la validation, reçu: ${avant.sortie}`;
-    const r = appliquerJson(cwd, ['--valider-vague', String(vague)]);
-    if (!indexDe(cwd).split('\n').includes(canonique)) return `ligne canonique « ${canonique} » attendue, reçu:\n${indexDe(cwd)}`;
-    const v = analyserIndex(indexDe(cwd)).vagues.find((x) => x.numero === vague);
-    if (!v || !v.validationHumaine || !v.validee || v.labelHorsGras) return `vague ${vague} lue validée (forme canonique) attendue, lu ${JSON.stringify(v)}`;
-    if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== suivante) return `lancer ${suivante} attendu après la validation, reçu: ${r.sortie}`;
-    if (ecartHorsGras(verifierVH(cwd)).length > 0) return 'la ligne réécrite ne doit plus être signalée hors du gras';
-    return null;
-  });
-}
-
-// ── P21/S1/T2 : identifiants de tâche `T-063` ──────────────────────────────────────────────────────
-
-const REFS_NOVA_P18_S2 = ['S1/T-247', 'S1/T-197', 'S1/T-063']; // l'ordre réel des commits de nova P18/S2
-
-cas('P21/T2 fixture nova P18/S2 : les trois commits `Plan: …/T-063`, `T-197`, `T-247` → S1 faite, le moteur ne la relance plus et passe à S2 — témoin : deux commits sur trois, S1 relancée', () => {
-  const cwd = planVH('workflow-t063-', 'moteur-taches-backlog', REFS_NOVA_P18_S2);
-  const r = appliquerJson(cwd);
-  if (r.action?.action !== 'lancer' || r.action.sessions.map((s) => s.session).join() !== 'S2') return `lancer S2 attendu (S1 faite), reçu: ${r.sortie}`;
-  if (!/\| \[x\] \d{4}-\d{2}-\d{2} \|/.test(ligneIndex(cwd, 'S1') ?? '')) return `S1 devait être cochée par le moteur: ${ligneIndex(cwd, 'S1')}`;
-  const partiel = appliquerJson(planVH('workflow-t063-partiel-', 'moteur-taches-backlog', REFS_NOVA_P18_S2.slice(0, 2)));
-  if (partiel.action?.action !== 'lancer' || partiel.action.sessions.map((s) => s.session).join() !== 'S1') return `témoin : S1 relancée tant qu'une tâche manque, reçu: ${partiel.sortie}`;
-  return null;
-});
-
-cas('P21/T2 identifiants normalisés des deux côtés : index `T-063` ≡ commit `T63` ≡ `T-063` ; liste non contiguë `T-063, T-197`, plage `T-063-T-065` et `T1-T3` historique', () => {
-  const lire = (c) => parseTaches(c).join();
-  if (lire('T-063, T-197') !== '63,197') return `T-063, T-197 → 63,197 attendu, reçu ${lire('T-063, T-197')}`;
-  if (lire('T3') !== '3' || lire('T1-T3') !== '1,2,3') return `T3 et T1-T3 inchangés attendus, reçu ${lire('T3')} / ${lire('T1-T3')}`;
-  if (lire('T-063-T-065') !== '63,64,65') return `plage T-063-T-065 attendue 63,64,65, reçu ${lire('T-063-T-065')}`;
-  if (lire('—') !== '' || lire('à voir') !== '' || lire('T-063 · T-197') !== '') return 'champ illisible : liste vide attendue';
-  // Commits `T63` (sans tiret ni zéro) pour un index `T-063` : même tâche.
-  const cwd = planVH('workflow-t063-norm-', 'moteur-taches-backlog', ['S1/T63', 'S1/T197', 'S1/T-247']);
-  const r = appliquerJson(cwd);
-  if (r.action?.action !== 'lancer' || r.action.sessions[0]?.session !== 'S2') return `lancer S2 attendu (T63 ≡ T-063), reçu: ${r.sortie}`;
-  return null;
-});
-
-cas('P21/T2 verifier-plan : champ Tâches `—`, `à voir` ou `T-063 · T-197` → écart ; `T-063, T-197, T-247` et `T1-T3` → aucun', () => {
-  const ecartTaches = (v) => v.erreurs.filter((e) => /champ Tâches sans identifiant lisible/.test(e.motif));
-  for (const champ of ['—', 'à voir', 'T-063 · T-197']) {
-    const cwd = planVH('workflow-t063-verif-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
-    const e = ecartTaches(verifierVH(cwd));
-    if (e.length !== 1 || e[0].session !== 'S1') return `« ${champ} » : un écart sur S1 attendu, reçu ${JSON.stringify(e)}`;
-  }
-  for (const champ of ['T-063, T-197, T-247', 'T1-T3']) {
-    const cwd = planVH('workflow-t063-verif-ok-', 'moteur-taches-backlog', [], (t) => t.replace('T-063, T-197, T-247', champ));
-    const e = ecartTaches(verifierVH(cwd));
-    if (e.length > 0) return `« ${champ} » : aucun écart attendu, reçu ${JSON.stringify(e)}`;
-  }
-  return null;
-});
-
-// ── P21/S1/T3 : pas de validation humaine sur une vague dont un membre n'a pas tourné ──────────────
-
-const REVUE_BLOQUEE = 'Bloquant : 1\nCouverture : complète\nReprises : 0\nDépendances : bloquées\n';
-
-cas('P21/T3 vague validation-humaine S2 · S3, S3 dépendant de S1 `[x]!`, S2 faite → question dependance-revue (jamais validation-humaine) ; témoin : tous membres faits → validation-humaine', () => {
-  const cwd = planVH('workflow-vh-bloquee-', 'moteur-vh-bloquee', ['S2/T2']);
-  writeFileSync(join(cwd, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
-  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
-  if (code !== 0) return `code ${code} attendu 0, sortie: ${sortie}`;
-  if (action?.action !== 'question' || action.options?.source !== 'dependance-revue') return `question dependance-revue attendue, reçu: ${sortie}`;
-  if (action.options.sessions.join() !== 'S3') return `la session bloquée S3 attendue, reçu ${JSON.stringify(action.options)}`;
-  if (!/S1/.test(action.texte)) return `la question doit nommer le bloquant amont S1:\n${action.texte}`;
-  if (/validation-humaine — vague/.test(action.texte)) return `aucune demande de validation attendue:\n${action.texte}`;
-  // Témoin : S3 aussi faite (commit de sa tâche) — la vague est entière, la validation se demande.
-  const entiere = planVH('workflow-vh-bloquee-entiere-', 'moteur-vh-bloquee', ['S2/T2', 'S3/T3']);
-  writeFileSync(join(entiere, 'plans', 'P9', 'S1.revue.md'), REVUE_BLOQUEE);
-  const t = lancerJson(['P9', '--json'], entiere);
-  if (t.action?.action !== 'validation-humaine' || t.action.vague !== 2) return `témoin : validation-humaine vague 2 attendue, reçu: ${t.sortie}`;
-  return null;
-});
-
-// ── P21/S1/T4 : le journal des modèles ne bloque plus le push ──────────────────────────────────────
-
-const JOURNAL = '.claude/journal-modeles.jsonl';
-
-/** Dépôt du plan `moteur-appliquer` avec amont `origin/main` ; le journal est SUIVI (commité et poussé) puis
- * modifié localement (` M`). L'amont a un commit de plus (`distant.txt`, ou une ligne du journal si
- * `amontToucheJournal`) et le local un de plus (les tâches de S1) — le geste `pousser` doit faire un vrai
- * `pull --rebase`. */
-function planJournal(prefixe, { amontToucheJournal = false, suivi = true } = {}) {
-  const { cwd, bare } = planAppliquer(prefixe, { origin: true });
-  mkdirSync(join(cwd, '.claude'), { recursive: true });
-  writeFileSync(join(cwd, JOURNAL), 'ligne 1\n');
-  if (suivi) {
-    git(cwd, 'add', JOURNAL);
-    git(cwd, 'commit', '-q', '-m', 'journal');
-    git(cwd, 'push', '-q');
-  }
-  const distant = dossierJetable('workflow-pa-journal-distant-');
-  git(distant, 'clone', '-q', '-b', 'main', bare, '.');
-  git(distant, 'config', 'user.email', 'distant@local');
-  git(distant, 'config', 'user.name', 'Distant');
-  if (amontToucheJournal && suivi) writeFileSync(join(distant, JOURNAL), 'ligne 1 distante\n');
-  else writeFileSync(join(distant, 'distant.txt'), 'x\n');
-  git(distant, 'add', amontToucheJournal && suivi ? JOURNAL : 'distant.txt');
-  git(distant, 'commit', '-q', '-m', 'distant');
-  git(distant, 'push', '-q');
-  commitTache(cwd, 'S1/T1');
-  commitTache(cwd, 'S1/T2');
-  appendFileSync(join(cwd, JOURNAL), 'ligne 2 locale\n');
-  return { cwd, bare };
-}
-
-cas('P21/T4 journal suivi et modifié, amont en avance, commits locaux en avance → pousser aboutit (pull --rebase --autostash), le journal reste modifié avec son contenu ; témoin : un autre fichier suivi modifié → question arbre-sale inchangée', () => {
-  const { cwd, bare } = planJournal('workflow-pa-journal-suivi-');
-  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return 'fixture : le journal doit être suivi et modifié';
-  const r = appliquerJson(cwd);
-  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
-  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu au journal des gestes, reçu ${JSON.stringify(r.appliques)} · action ${r.action?.action} ${r.action?.motif ?? ''}`;
-  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
-  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return `le journal doit rester modifié : ${gitSortie(cwd, 'status', '--porcelain')}`;
-  if (readFileSync(join(cwd, JOURNAL), 'utf8').replace(/\r\n/g, '\n') !== 'ligne 1\nligne 2 locale\n') return `contenu du journal altéré : ${JSON.stringify(readFileSync(join(cwd, JOURNAL), 'utf8'))}`;
-  if (!existsSync(join(cwd, 'distant.txt'))) return "le commit de l'amont devait être intégré par le rebase";
-  // Témoin : un autre fichier suivi modifié rend toujours la question.
-  const autre = planJournal('workflow-pa-journal-autre-');
-  appendFileSync(join(autre.cwd, 'src', 'b.mjs'), '// pas commité\n');
-  const q = appliquerJson(autre.cwd);
-  if (q.action?.action !== 'question' || q.action.options?.source !== 'arbre-sale') return `question arbre-sale attendue pour un autre fichier modifié, reçu: ${q.sortie}`;
-  if (gitSortie(autre.cwd, 'rev-parse', 'HEAD') === gitSortie(autre.bare, 'rev-parse', 'main')) return 'rien ne devait être poussé avec un autre fichier modifié';
-  return null;
-});
-
-cas('P21/T4 journal non suivi : arbre propre pour le moteur, pousser aboutit ; journal et autre fichier non suivi laissés en place', () => {
-  const { cwd, bare } = planJournal('workflow-pa-journal-non-suivi-', { suivi: false });
-  const r = appliquerJson(cwd);
-  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu, reçu ${JSON.stringify(r.appliques)} · ${r.sortie}`;
-  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
-  if (!existsSync(join(cwd, JOURNAL))) return 'le journal non suivi devait rester en place';
-  return null;
-});
-
-cas('P21/T4 conflit à la réapplication du stash (le journal diffère des deux côtés) → question `autostash`, jamais une exception ni un push', () => {
-  const { cwd, bare } = planJournal('workflow-pa-journal-conflit-', { amontToucheJournal: true });
-  // Le journal local diverge de l'amont sur la MÊME ligne.
-  writeFileSync(join(cwd, JOURNAL), 'ligne 1 locale\n');
-  const r = appliquerJson(cwd);
-  if (r.code !== 0) return `code 0 attendu (une question, pas une exception), reçu ${r.code}: ${r.sortie}`;
-  if (r.action?.action !== 'question' || r.action.options?.source !== 'autostash') return `question autostash attendue, reçu: ${r.sortie}`;
-  if (gitSortie(cwd, 'rev-parse', 'HEAD') === gitSortie(bare, 'rev-parse', 'main')) return 'rien ne devait être poussé';
-  if (!/\.claude\/journal-modeles\.jsonl/.test(r.action.texte) || /source de question inconnue/.test(r.action.texte)) return `texte de question complet attendu:\n${r.action.texte}`;
-  return null;
 });
 
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
