@@ -1,9 +1,5 @@
 # TASKS.md — bloquants et tâches en cours
 
-## Bloquants de revue (à corriger avant prochaine vague)
-
-- aucun (P20/S3 : bloquant « `options.liste` non lue » soldé par S5, le moteur rédige la question avec ses options)
-
 ## Revue des règles des projets (`docs/decisions/2026-10-08-regles-de-projet-validees.md`)
 
 - [ ] ETP interactif · Tuto-onshape (dépôt git invalide d'abord) · torrent-uploader · annuaire-msp ·
@@ -12,9 +8,6 @@
 - Blocs clos (projets revus, P17) archivés : `docs/archives/TASKS-2026-10-16.md`
 
 ## Suites de la revue externe — plans 1 et 2 (`plans/P19/index.md`, `plans/P20/index.md`)
-- [x] Plan 1 clos 2026-10-15, publié en 0.66.0 ; mesure de référence : `docs/analyses/2026-10-14-mesure-de-reference.md`
-- [x] Plan 2 (P20, 14 sessions) clos 2026-10-16, publié en 0.67.0 ; remesure : `docs/analyses/2026-10-15-remesure-plan-2.md`
-  (H1 confirmée ; critères A et B non tenus à la lettre : `cd` de l'orchestrateur et du relecteur)
 - [ ] À faire par l'utilisateur : retirer de `~/.claude/plugins/installed_plugins.json` l'entrée
   `workflow@templates` v0.55.0 (`projectPath` `C:\Users\kovu\Projets\Templates`), doublon dû à la casse du chemin
 - [ ] Constats de la remesure, pour un plan suivant (analyse §8) : `cd` de l'orchestrateur et du relecteur ; avis
