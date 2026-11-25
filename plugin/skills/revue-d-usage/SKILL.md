@@ -94,7 +94,6 @@ skill écrit.
 Agent({
   description: "Parcours <i>/<n> — <nom>",
   subagent_type: "parcoureur-usage",
-  run_in_background: false,
   prompt: "Serveur : preview_start name=<name de .claude/launch.json> · origine <URL locale>.
 Parcours <i>/<n> : <nom> — écrans <A> → <B> → <C> · écrit : <non | local>.
 Gestes et attendus : <les 3 à 8 lignes dérivées à l'Étape 2>.

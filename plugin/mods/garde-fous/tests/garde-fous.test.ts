@@ -144,20 +144,22 @@ describe('O1 modele calcule par le moteur', () => {
   })
 })
 
-describe('O3 premier plan par defaut', () => {
-  test('absent : false', async ($, on) => {
+// O3 (run_in_background: false par defaut) est retire : l'outil Agent de Desktop n'a plus ce parametre. Ces cas
+// verrouillent le nouveau contrat — le mod ne pose plus rien sur l'appel — au lieu de l'ancienne injection.
+describe('O3 retire : l appel Agent n est plus modifie', () => {
+  test('absent : reste absent (aucun run_in_background injecte)', async ($, on) => {
     const m = monde(on)
     await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y' } as any)
-    expect(m.appels[0].run_in_background).toBe(false)
+    expect(m.appels[0].run_in_background).toBeUndefined()
   })
 
-  test('true explicite conserve', async ($, on) => {
+  test('valeur explicite conservee telle quelle', async ($, on) => {
     const m = monde(on)
     await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y', run_in_background: true } as any)
     expect(m.appels[0].run_in_background).toBe(true)
   })
 
-  test('o3: false : entree telle quelle', { options: { o3: false } }, async ($, on) => {
+  test('option o3 d un ancien reglage : sans effet, entree telle quelle', { options: { o3: false } }, async ($, on) => {
     const m = monde(on)
     await $.tool.call({ tool: 'Agent', description: 'x', prompt: 'y' } as any)
     expect(m.appels[0].run_in_background).toBeUndefined()

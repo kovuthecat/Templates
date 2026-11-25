@@ -79,7 +79,7 @@ reprendre ici. Une `OPEN` de type `décision` → question à l'utilisateur, pas
 **Déléguer** dès que les points 2-3 demandent de balayer le repo ou l'historique : `explorateur` pour
 l'exploration ; `analyste-flux` pour comprendre un flux (point 1) — une inconnue qu'il nomme est une
 hypothèse à typer au point 5 ; `resumeur-git` pour un diff ou un historique. Garder pour soi les
-points 1, 5 et 6, le raisonnement. Tout appel `Agent` porte `run_in_background: false` (`WORKFLOW.md` §5).
+points 1, 5 et 6, le raisonnement. Tout agent part en arrière-plan et notifie à sa fin : attendre cette notification avant de s'en servir (`WORKFLOW.md` §5).
 
 ## Étape 1bis — Critiquer avant de faire approuver (conditionnel)
 
@@ -97,7 +97,6 @@ Sinon, passer à l'approbation — `verificateur-plan` (Étape 4b) suffit.
 Agent({
   description: "P<n> critique",
   subagent_type: "critique-plan",
-  run_in_background: false,
   prompt: "Décision applicable : <chemin docs/decisions/…>.
 Synthèse du cadrage (Étape 1) : <flux · hypothèses typées · découpage envisagé · critères de réussite — recopiés, 40 lignes au plus>.
 Réponse : CRITIQUE: PASS | CRITIQUE: <n> constat(s) numérotés, puis « Choix non résolus : »."
@@ -223,7 +222,7 @@ Le plan est écrit, rien n'est encore commité. Lancer d'abord
 `node .claude/workflow/bin/verifier-plan.mjs P<n>` ; `--extension` en mode extension). Corriger tout
 écart mécanique ou format non reconnu jusqu'à `RAS` ; le script ne juge pas le design. Puis lancer
 `brief-a-jour.mjs` **au premier plan** (`node .claude/workflow/bin/brief-a-jour.mjs`, `plugin/bin/` dans
-ce dépôt source), puis l'agent **`verificateur-plan`**, **au premier plan** (`run_in_background: false`),
+ce dépôt source), puis l'agent **`verificateur-plan`**, **sa notification de fin attendue** avant de poursuivre,
 en lui donnant `P<n>`, en mode extension les sessions ajoutées, et la sortie du script :
 
 > Vérifie `plans/P<n>/` — contrôles sémantiques restants. Sortie de verifier-plan : RAS. Sortie de brief-a-jour : <sortie>

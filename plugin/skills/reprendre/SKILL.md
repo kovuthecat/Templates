@@ -42,8 +42,8 @@ git log -1 --format=%H -- STATUS.md     # dernier commit touchant STATUS.md
 Passer l'intervalle `<sha>..HEAD` — plus `git status` si l'arbre de travail est sale — à
 **`resumeur-git`**. Il rend une ligne par fichier changé et les signaux notables ; le diff brut ne
 remonte jamais dans la conversation. Si un chemin ou une feature citée reste à localiser :
-**`explorateur`**. Rien d'autre ne se délègue ici, et rien d'autre ne se lit. Tout appel `Agent`
-porte `run_in_background: false` — sans lui, l'agent part en arrière-plan (`WORKFLOW.md` §5).
+**`explorateur`**. Rien d'autre ne se délègue ici, et rien d'autre ne se lit. Tout agent
+part en arrière-plan et notifie à sa fin : attendre cette notification avant de s'en servir (`WORKFLOW.md` §5).
 
 ## Étape 3 — Croiser, et signaler les écarts sans les gommer
 

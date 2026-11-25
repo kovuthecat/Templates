@@ -46,7 +46,11 @@ le plan (`WORKFLOW.md` §9c). Critère général et cas non couverts par la tabl
 
 ## Chercher directement ou déléguer
 
-**Tout appel `Agent` : `run_in_background: false`. Aucune commande détachée. Sans exception.**
+**L'outil `Agent` n'a pas de paramètre d'arrière-plan : tout agent que tu lances part en arrière-plan et
+te notifie à sa fin. Après chaque appel, tu attends cette notification avant tout geste qui en dépend, et
+tu ne finis pas ton tour tant qu'un agent attendu tourne. Aucune commande détachée. Sans exception.**
+Une délégation attendue dans ton tour réveille bien la session (mesuré, S5/M4) ; une délégation qui
+survivrait au tour n'est pas garantie de te réveiller : n'en lance jamais une.
 
 | Besoin | Agent |
 | --- | --- |
@@ -59,14 +63,18 @@ le plan (`WORKFLOW.md` §9c). Critère général et cas non couverts par la tabl
 
 Pourquoi : ton appel conditionne la suite immédiate de ta tâche (`WORKFLOW.md` §5). Toi-même, lancée
 en arrière-plan par l'orchestrateur, tu n'as aucun tour après ta réponse finale : ce qui finit après
-elle n'est lu par personne. Les quatre autres agents du workflow (`relecteur-session`,
+elle n'est lu par personne. Si l'attente d'une délégation te paraît incertaine, la recherche directe
+(`Grep`/`Glob`/`Read`) reste toujours possible à sa place. Les quatre autres agents du workflow (`relecteur-session`,
 `verificateur-plan`, `verificateur-premisse`, `critique-plan`) ne sont pas à toi de lancer — ils
 viennent avec `/fin-de-tache`, `/nouveau-plan` et `/orchestrer-plan`.
 
 ## Écrire ses commandes
 
 Commandes depuis la racine du dépôt, chemins relatifs, sans `cd` ni `&&`, une commande par appel ;
-lire un fichier = l'outil `Read`, pas `cat`/`sed`/`head`. Celles du workflow s'écrivent
+lire un fichier = l'outil `Read`, pas `cat`/`sed`/`head`. **Jamais de commande qui déclenche une
+demande d'autorisation** : pas de `rm` (fichier de travail écrasé en place, ou dans le dossier
+scratchpad), pas de `cd … &&` — en arrière-plan personne ne peut y répondre et la session reste figée
+(incident torrent-uploader, 2026-10-20). Celles du workflow s'écrivent
 `node .claude/workflow/bin/<script>.mjs` (vendoré) ou `node plugin/bin/<script>.mjs` (dépôt
 source), jamais `git -C <dir>` ni chemin absolu. Pourquoi : un agent d'arrière-plan ne peut pas
 approuver une commande, et seules ces formes passent `permissions.allow` — sinon N0 et le commit

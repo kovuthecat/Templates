@@ -84,9 +84,10 @@ Chercher, lire une doc ou lancer une commande remplit le contexte : huit agents 
 - `verificateur-plan` → confronter un plan écrit au dépôt avant commit. `critique-plan` → confronter un plan à ses risques avant
   approbation. `verificateur-premisse` → confronter au dépôt l'affirmation d'une session en échec (§9c).
 
-**N0 est un script, pas un agent** : `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` dans ce dépôt), au premier plan. **Les agents
-de délégation aussi** (invariant : `EXECUTANT.md`) : leur verdict conditionne la suite, et `run_in_background: false` s'écrit à chaque
-appel, l'outil partant en arrière-plan sans lui. `relecteur-session` est le dernier geste. **`fork`** seulement si le contexte courant est
+**N0 est un script, pas un agent** : `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` dans ce dépôt), au premier plan, comme toute
+commande. **Les agents de délégation** (invariant : `EXECUTANT.md`) : l'outil `Agent` de Desktop n'a pas de paramètre d'arrière-plan, tout
+agent part en arrière-plan et notifie à sa fin ; leur verdict conditionne la suite, donc **on attend la notification avant tout geste qui en
+dépend, et on ne finit pas son tour tant qu'un agent attendu tourne**. `relecteur-session` est le dernier geste. **`fork`** seulement si le contexte courant est
 nécessaire **et** le bruit à tenir dehors, jamais pour une session de plan ni une reprise.
 
 ## 5b. Sessions & voies d'orchestration — *domicile, les autres fichiers renvoient ici*
@@ -102,7 +103,9 @@ Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il po
   et l'exécute ; il ne décide rien. Seule une `validation-humaine` arrête entre deux vagues.
 
 **Sous-agent, seule voie d'orchestration**, en arrière-plan quel que soit l'environnement : il hérite du navigateur in-app et des
-permissions ; son verdict, ce sont ses commits (§4b) ; ses appels de délégation et son `n0.mjs` restent au **premier plan**. Lancement :
+permissions ; son verdict, ce sont ses commits (§4b) ; ses délégations sont **attendues dans son tour** (notification reçue avant de finir) et
+son `n0.mjs` s'exécute au premier plan. Ses commandes ne demandent jamais d'autorisation (pas de `rm`, pas de `cd … &&`) : en arrière-plan,
+personne n'y répond. Lancement :
 `subagent_type: "general-purpose"` avec le `model` et l'`effort` du champ `agent` que rend le moteur (l'`effort` de l'outil prime sur la
 conversation). Commandes : relatives à la racine, sans `cd`.
 

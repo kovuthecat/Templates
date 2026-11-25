@@ -26,7 +26,7 @@ mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** s
 ## Interdits
 
 - **Ne jamais ouvrir un `S<k>.md`** : l'`index.md`, `git log` et le `texte` du moteur suffisent.
-- **Ne jamais lire un diff ni une sortie de build** : déléguer à `resumeur-git` (`run_in_background: false`).
+- **Ne jamais lire un diff ni une sortie de build** : déléguer à `resumeur-git` (attendre sa notification avant de s'en servir, `WORKFLOW.md` §5).
 - **Ne jamais corriger soi-même, ni reprendre une session en échec** ; `fork` interdit sans condition.
 - **Ne jamais rendre la main sur un manque d'information** : le moteur cherche (`enqueter`,
   `verifier-premisse`) ; un arrêt n'est qu'une `question` à options (`WORKFLOW.md` §9c).
@@ -37,7 +37,7 @@ mécaniques. Deux gestes à toi : **lancer** l'agent qu'il rend, **collecter** s
 | Action rendue | Geste |
 | --- | --- |
 | `lancer` | Relayer `texte`. Puis un agent par session de `sessions`, dans l'ordre, **un seul à la fois**, arrêt au premier `FAIL` : appel « Session » ci-dessous ; collecter. |
-| `relire` | Un appel « Relecteur » par session de `sessions`, au premier plan, dans l'ordre rendu. |
+| `relire` | Un appel « Relecteur » par session de `sessions`, dans l'ordre rendu, chacun attendu (notification reçue) avant le suivant. |
 | `verifier-premisse` | Appel « Vérificateur », puis rappeler avec `--premisse <CONFIRMEE\|REFUTEE\|INDECIDABLE> "<preuve>"` : le moteur écrit la ligne `Premisse :`. `REFUTEE` : déposer aussi un incident (`WORKFLOW.md` §9b, nature `prémisse`). `INDECIDABLE · comportementale` : même appel, preuve commençant par « comportementale ». |
 | `reprendre` | `references/remediation.md` : canal court si ses trois conditions tiennent, sinon reprise à froid (`modele`, `option` déjà décidés). |
 | `enqueter` | `references/remediation.md`, appel « Enquête ». |
@@ -56,7 +56,10 @@ workflow ») et un incident (`WORKFLOW.md` §9b, nature `orchestration`).
 ## Appels d'agent
 
 Sessions, reprises et enquêtes : sous-agent, **seule voie** (`WORKFLOW.md` §5b) ; `isolation: "worktree"`
-et `subagent_type: "fork"` interdits ; jamais le `S<k>.md` recopié dans le prompt.
+et `subagent_type: "fork"` interdits ; jamais le `S<k>.md` recopié dans le prompt. L'outil `Agent` n'a
+pas de paramètre d'arrière-plan : tout agent part en arrière-plan et notifie à sa fin. **Après chaque
+appel, attendre la notification de fin avant tout geste qui en dépend**, sans finir son tour tant qu'un
+agent attendu tourne (`WORKFLOW.md` §5).
 
 ```
 Agent({
@@ -64,13 +67,16 @@ Agent({
   subagent_type: <agent.subagent_type de la session>,
   model: <agent.model de la session>,
   effort: <agent.effort de la session>,
-  run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Ouvre plans/P<n>/S<k>.md et exécute-le. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.
 Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`. Tu es
 orchestrée : si l'outil Agent n'est pas disponible dans ton bac à sable, saute la relecture de session
-(je la lance moi-même). Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs)
-s'exécute au premier plan — aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui
+(je la lance moi-même). Tout agent que tu lances part en arrière-plan et te notifie à sa fin : attends
+cette notification avant tout geste qui en dépend, et ne finis pas ton tour tant qu'un agent attendu
+tourne ; N0 (n0.mjs) s'exécute au premier plan, comme toute commande — aucune commande n'est détachée.
+Aucune commande qui déclenche une demande d'autorisation (personne n'y répond en arrière-plan) : pas
+de `rm`, pas de `cd … &&` (chemins relatifs à la racine), fichiers temporaires dans le dossier
+scratchpad ou écrasés. Ta réponse finale CLÔT ton tour : ce qui
 finit après elle n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.
 Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se corrige et
 n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans plans/P<n>/S<k>.echec.md,
@@ -83,7 +89,6 @@ Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF:
 Agent({
   description: "P<n>/S<k> revue",
   subagent_type: "relecteur-session",
-  run_in_background: false,
   prompt: "Relis la session S<k> du plan P<n>, effort <effort rendu par `relire`>, mode orchestré, commits
 présents (git log --grep \"P<n>/S<k>/\"). Fichiers sensibles touchés : <ceux que `texte` liste pour S<k>, ou aucun>.
 Écris plans/P<n>/S<k>.revue.md toi-même, avec Reprises : <0 ou 1, rendu par `relire`>, puis rends tes deux lignes."
@@ -94,7 +99,6 @@ présents (git log --grep \"P<n>/S<k>/\"). Fichiers sensibles touchés : <ceux q
 Agent({
   description: "P<n>/S<k> prémisse",
   subagent_type: "verificateur-premisse",
-  run_in_background: false,
   prompt: "Vérifie cette affirmation contre le dépôt : « <l'affirmation, prise dans la section « Ce qu'il
 faudrait pour que ça passe » du rapport, elle seule, telle quelle> ».
 Réponse finale en UNE ligne, exactement : PREMISSE: CONFIRMEE|REFUTEE|INDECIDABLE · PREUVE: <une phrase>"

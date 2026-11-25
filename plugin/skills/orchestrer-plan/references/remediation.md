@@ -10,16 +10,17 @@ moteur décide seul nature, budget, modèle, agent et ligne `Remédiation Opus :
 
 Trois conditions, domicile unique `WORKFLOW.md` §9c : (1) identifiant d'agent de la session, gardé à la
 collecte, jamais `ListAgents` ; (2) N0 vert — `node plugin/bin/n0.mjs` (vendoré :
-`node .claude/workflow/bin/n0.mjs`), lancé par l'orchestrateur au premier plan, code de sortie seul,
+`node .claude/workflow/bin/n0.mjs`), lancé par l'orchestrateur comme toute commande, code de sortie seul,
 sortie jamais lue ; (3) aucune fausse piste (`Tentatives : reprise=0` au rapport et `Blocage :` qui nomme
 un geste, pas une hypothèse). Les trois tiennent → `SendMessage` ; une manque → à froid.
 
 ```
 SendMessage({
   to: <identifiant d'agent de la session>,
-  message: "Reprends : <le geste de `Blocage :`, tel quel>. Pas de travail de fond : tout appel Agent que
-tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier plan — aucune commande
-détachée. Incrémente la ligne `Tentatives :` de ton rapport avant de rendre la main, sauf si tu le
+  message: "Reprends : <le geste de `Blocage :`, tel quel>. Pas de travail de fond : tout agent que tu
+lances notifie à sa fin, attends cette notification avant tout geste qui en dépend et ne finis pas ton
+tour tant qu'un agent attendu tourne ; N0 (n0.mjs) s'exécute au premier plan — aucune commande
+détachée, aucune commande qui demande une autorisation (pas de `rm`, pas de `cd … &&`). Incrémente la ligne `Tentatives :` de ton rapport avant de rendre la main, sauf si tu le
 supprimes ; réécris ton `.echec.md` si tu échoues de nouveau. Réponse finale en UNE ligne, exactement :
 VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
@@ -38,15 +39,17 @@ Agent({
   subagent_type: <agent.subagent_type de l'action>,
   model: <agent.model de l'action>,
   effort: <agent.effort de l'action>,
-  run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan P<n>). Mode
 orchestré. Reste dans l'arbre de travail courant : n'ouvre AUCUN worktree.
 <si l'action porte `option` : « Applique l'option <option> de la section ## Issues du rapport, puis rejoue la tâche. »>
 <si une prémisse a été réfutée : « La prémisse du rapport a été vérifiée et RÉFUTÉE : <preuve>. Traite la
 session comme une nature exécution et cherche la cause ailleurs. »>
-Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier plan —
-aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par
+Tout agent que tu lances part en arrière-plan et te notifie à sa fin : attends cette notification avant
+tout geste qui en dépend, et ne finis pas ton tour tant qu'un agent attendu tourne ; N0 (n0.mjs)
+s'exécute au premier plan, comme toute commande — aucune commande n'est détachée. Aucune commande qui
+déclenche une demande d'autorisation (pas de `rm`, pas de `cd … &&`, fichiers temporaires dans le
+dossier scratchpad ou écrasés). Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par
 personne. Incrémente la ligne `Tentatives :` du rapport avant de rendre la main, sauf si tu le supprimes.
 Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|ENQUETE|DECISION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->"
 })
@@ -63,12 +66,13 @@ Agent({
   subagent_type: <agent.subagent_type de l'action>,
   model: <agent.model de l'action>,
   effort: <agent.effort de l'action>,
-  run_in_background: true,
   prompt: "Lis ${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md en entier avant ton premier geste : il porte les invariants de lancement.
 Déroule la skill /reprendre-echec pour plans/P<n>/S<k>.echec.md (session S<k> du plan P<n>). Mode
 enquête : LECTURE SEULE — ne corrige rien, ne committe rien, ne lance pas N0. Reste dans l'arbre de
-travail courant : n'ouvre AUCUN worktree. Une passe. Tout appel Agent que tu fais porte
-run_in_background: false, aucune commande détachée : ta réponse finale CLÔT ton tour.
+travail courant : n'ouvre AUCUN worktree. Une passe. Tout agent que tu lances notifie à sa fin :
+attends cette notification avant tout geste qui en dépend, et ne finis pas ton tour tant qu'un agent
+attendu tourne. Aucune commande détachée, aucune commande qui demande une autorisation (pas de `rm`,
+pas de `cd … &&`) : ta réponse finale CLÔT ton tour.
 Écris le rapport mis à jour avant de répondre, `Tentatives :` et `Auto :` comprises.
 Réponse finale en UNE ligne, exactement : ENQUETE: PISTE|OPTIONS · MOTIF: <une phrase> · RAPPORT: <chemin>"
 })

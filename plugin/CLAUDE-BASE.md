@@ -27,8 +27,8 @@ Jamais de dépendance ajoutée seul : à trancher dans le plan (« Modifier »),
 ## Validation — trois niveaux
 
 - **N0 auto (bloque le commit)** : `build` + `typecheck` + tests du périmètre, par le script
-  `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` en dépôt source) — **au premier plan,
-  comme toute commande**, jamais un agent. À créer si la tâche introduit de la logique testable ;
+  `node .claude/workflow/bin/n0.mjs` (`plugin/bin/n0.mjs` en dépôt source) — **comme toute
+  commande**, jamais un agent. À créer si la tâche introduit de la logique testable ;
   `—` (aucun test) justifié dans le plan. Nouveaux plans : preuve complète `--session P<n>/S<k>`
   commitée avec le code, vérifiée par le moteur avant de valider le PASS (`EXECUTANT.md`) ; index `Preuve N0 : non requise` →
   N0 sauté, bilan `N0 : — (non requise : <motif de sansCommande>)` (`EXECUTANT.md`). Piège du typecheck qui ne compile aucun fichier : gabarit
@@ -50,7 +50,7 @@ Relecture (contexte : `docs/decisions/2026-09-07-revue-orpheline.md`).
 ## Avant de coder
 
 Plan court (max 5 lignes) : objectif, fichiers, étapes, risques. Recherche précise et courte en direct ; déléguer les explorations larges
-(table des agents, premier plan = `run_in_background: false` explicite, `fork`, mémoire d'agent) — `WORKFLOW.md` §5. `/clear`
+(table des agents, attendre la notification de l'agent avant d'en dépendre, `fork`, mémoire d'agent) — `WORKFLOW.md` §5. `/clear`
 entre deux sessions, pour ne pas traîner le contexte de l'une dans l'autre (voie et mécanique §5b).
 
 **Session de plan (`S<k>.md`) ?** Lire d'abord `${CLAUDE_PLUGIN_ROOT}/EXECUTANT.md`.

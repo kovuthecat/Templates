@@ -24,8 +24,10 @@ Ouvre plans/P99/${k}.md et exécute-le. Reste
 dans l'arbre de travail courant : n'ouvre AUCUN worktree. Mode orchestré : \`/fin-de-tache\`, section Mode
 orchestré — ta dernière ligne est \`VERDICT:\`. Tu es orchestrée : si l'outil Agent
 n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).
-Tout appel Agent que tu fais porte run_in_background: false, et N0 (n0.mjs) s'exécute au premier
-plan — et aucune commande n'est détachée. Ta réponse finale CLÔT ton tour : ce qui finit après elle
+Tout agent que tu lances part en arrière-plan et te notifie à sa fin : attends cette notification avant
+tout geste qui en dépend, et ne finis pas ton tour tant qu'un agent attendu tourne ; N0 (n0.mjs)
+s'exécute au premier plan, comme toute commande — aucune commande n'est détachée. Aucune commande qui
+déclenche une demande d'autorisation (pas de \`rm\`, pas de \`cd … &&\`). Ta réponse finale CLÔT ton tour : ce qui finit après elle
 n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.
 Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se
 corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans
@@ -41,7 +43,6 @@ Agent({
   subagent_type: "general-purpose",
   model: "${modele.toLowerCase()}",
   effort: "${effort}",
-  run_in_background: true,
   prompt: "${promptSession(k, modele, effort).replace(/"/g, '\\"')}"
 })
 \`\`\``;

@@ -1,10 +1,12 @@
 import type { Register } from 'claude-code'
 
-// Garde-fous du workflow (porte de la preuve P13, mods O1 et O3). Silencieux : aucune ecriture,
+// Garde-fous du workflow (porte de la preuve P13, mod O1). Silencieux : aucune ecriture,
 // aucun refus ; une lecture qui echoue laisse l'evenement inchange.
 //
 //   O1  agent.spawn   modele CALCULE PAR LE MOTEUR pour la session lancee (escalade comprise), seulement si absent
-//   O3  tool.call     run_in_background: false quand le parametre manque (outil Agent)
+//   O3  retire (P21/S6) : il posait run_in_background: false sur tout appel Agent, or l'outil Agent de Desktop n'a
+//       plus ce parametre (tout sous-agent part en arriere-plan et notifie a sa fin). La regle est un geste, ecrit
+//       dans EXECUTANT.md : attendre la notification avant tout geste qui en depend. Le mod ne touche plus l'appel.
 //
 // O1 ne lit plus l'index (P20/S10, point 22 de la revue externe) : imposer la colonne Modele annulait, sur
 // une reprise escaladee ou `model` etait omis, l'escalade decidee par le moteur. Il lance
@@ -67,18 +69,11 @@ async function modeleDuMoteur($: any, plan: string, session: string): Promise<st
 }
 
 export const register: Register = (on, options) => {
-  const actif = (cle: 'o1' | 'o3') => options?.[cle] !== false
-
   on('agent.spawn', async ($, e, next) => {
-    if (!actif('o1') || e.fork || e.model) return next(e)
+    if (options?.o1 === false || e.fork || e.model) return next(e)
     const trouve = RE_SESSION.exec(e.prompt)
     if (!trouve) return next(e)
     const impose = await modeleDuMoteur($, trouve[1], trouve[2])
     return next(impose ? { ...e, model: impose } : e)
-  })
-
-  on('tool.call', { tool: 'Agent' }, async ($, e, next) => {
-    if (!actif('o3') || (e as any).run_in_background !== undefined) return next(e)
-    return next({ ...e, run_in_background: false } as typeof e)
   })
 }

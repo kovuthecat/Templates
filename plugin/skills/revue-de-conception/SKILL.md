@@ -73,7 +73,7 @@ projet n'a jamais été outillé du tout : `/migrer-projet` d'abord.
 ## Étape 2 — L'état réel, sans le lire soi-même
 
 Déléguer (`${CLAUDE_PLUGIN_ROOT}/WORKFLOW.md` §5) : Opus lit des conclusions, pas des traces.
-Tout appel `Agent` porte `run_in_background: false` — sans lui, l'agent part en arrière-plan.
+Tout agent part en arrière-plan et notifie à sa fin : attendre cette notification avant de s'en servir.
 
 | Agent | Ce qu'on lui demande |
 | --- | --- |

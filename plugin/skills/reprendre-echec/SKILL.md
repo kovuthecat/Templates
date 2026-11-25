@@ -73,7 +73,7 @@ concernée** (pas les autres tâches du fichier). Point de départ, pas un plafo
 ouverte pour diagnostiquer (`EXECUTANT.md`) — ni l'`index.md` du plan ni le code ne sont interdits
 en soi, seule l'écriture reste bornée à la zone de la tâche. Ce qui demande de balayer plusieurs
 fichiers ou l'historique se délègue (`explorateur`, `resumeur-git`) plutôt que de se lire en direct,
-toujours avec `run_in_background: false` (`EXECUTANT.md`).
+toujours en attendant leur notification de fin avant de s'en servir (`EXECUTANT.md`).
 
 Rapport absent ou vide (session tuée avant de l'écrire) → le dire, et repartir de la tâche du
 `S<k>.md` comme si elle n'avait jamais été lancée, après avoir fait l'Étape 2 avec d'autant plus
