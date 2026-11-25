@@ -58,6 +58,14 @@ en mode B et écrire dans le bilan de session (`/fin-de-tache` point 3) la ligne
    }
    ```
 
+   **Refus « No server named … »** dont la liste de serveurs ne contient pas l'entrée du projet
+   (serveurs d'autres projets) : la session est ouverte sur le mauvais dossier, Desktop lit le
+   `launch.json` du **dossier ouvert**, pas celui du projet. Le dire en une ligne et **proposer à
+   l'utilisateur** l'entrée à ajouter au `launch.json` du dossier ouvert (nom, commande, port tirés du
+   `launch.json` du projet) — ne jamais écrire soi-même dans un `launch.json` hors du projet. Un seul
+   essai : sans réponse, mode B, une ligne N1 au bilan comme pour les autres refus
+   (shibari-player 2026-10-24, extension-firefox 2026-11-04).
+
 2. **Fixer la taille, puis naviguer** : `resize_window { width: 1280, height: 800 }`, puis
    `navigate` vers l'écran concerné par la tâche. Volet du navigateur masqué (sous-agent, session
    liée, Remote Control), la taille par défaut est nulle : `read_page` rend « Viewport: 0x0 » sur une
