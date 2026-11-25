@@ -172,13 +172,27 @@ function rebaseEnCours() {
   return false;
 }
 
+const JOURNAL_MODELES = '.claude/journal-modeles.jsonl';
+
 /** Fichiers **suivis** modifiés, jamais les non suivis (`--untracked-files=no`) : un arbre sale au
  * sens de `pousser` (T5, P10/S2, incident ebm-msp) — distinct de `fichiersSales()` ci-dessous, qui
  * inclut les non-suivis pour le contrôle de zone avant `lancer` (D1). `null` (git en échec) compte
  * comme sale : jamais un arbre invérifiable traité comme propre. */
 function arbreTrackedSale() {
-  const sortie = git('status', '--porcelain', '--untracked-files=no');
-  return sortie === null || sortie.length > 0;
+  // `-z` : un chemin par entrée, jamais de guillemets ; les deux premiers caractères sont l'état, le troisième
+  // une espace. Le journal des modèles (`.claude/journal-modeles.jsonl`, écrit par un hook du workflow entre
+  // deux gestes — suivi ou non selon le projet) ne rend pas l'arbre sale : même exclusion que
+  // `preuve-n0.mjs` (P21/S1/T4, incident laser-tools 2026-11-18 : le moteur refusait de pousser). Le geste
+  // `pousser` met ce fichier de côté lui-même (`--autostash`).
+  const sortie = gitBrut('status', '--porcelain', '-z', '--untracked-files=no');
+  if (sortie === null) return true;
+  const entrees = sortie.split('\0').filter((s) => s.length > 0);
+  for (let i = 0; i < entrees.length; i++) {
+    const e = entrees[i];
+    if (e[0] === 'R' || e[0] === 'C') i++; // renommage/copie : le champ suivant est le chemin d'origine
+    if (e.slice(3) !== JOURNAL_MODELES) return true;
+  }
+  return false;
 }
 
 function etatAmont() {
@@ -1312,7 +1326,7 @@ const ARBRE_SALE_ZONE = [
 
 /** Sources dont la question vise le plan entier, pas une session : rien ne reste lançable sans
  * décider, et l'en-tête de la question ne porte pas de `S<k>`. */
-const SOURCES_PLAN = ['rebase', 'racine-introuvable', 'historique-partiel', 'session-hors-vague', 'boucle-appliquer', 'ecriture-echec'];
+const SOURCES_PLAN = ['rebase', 'autostash', 'racine-introuvable', 'historique-partiel', 'session-hors-vague', 'boucle-appliquer', 'ecriture-echec'];
 
 /** `{ question, options, graines, rapport }` pour une `question` du moteur, ou `null` si la source est
  * inconnue (l'appelant rend alors l'option unique « mettre à jour le workflow »). `options` : listes
@@ -1353,6 +1367,12 @@ function definirQuestion(action, sortie) {
       return {
         question: 'Un rebase est en cours : comment le résoudre avant de reprendre le plan ?',
         options: ['Résoudre le rebase à la main (`git rebase --abort`, ou `--continue` une fois les conflits réglés), puis relancer — débloque le plan'],
+        graines: [],
+      };
+    case 'autostash':
+      return {
+        question: `Le rebase a réussi, mais tes modifications locales ne se réappliquent pas sans conflit (${(o.fichiers ?? []).join(', ')}) : que fait-on ?`,
+        options: ['Régler les conflits à la main (elles sont aussi dans `git stash` : `git stash drop` une fois réglé), puis relancer — débloque le plan, qui poussera alors'],
         graines: [],
       };
     case 'racine-introuvable':
@@ -2315,11 +2335,14 @@ function lancerN0(id) {
   return { vert: false, resume: `N0 rouge (${code})${sortieN0 ? ` — ${sortieN0}` : ''}` };
 }
 
-/** `pull --rebase` puis `push`. Rend `null` (poussé) ou la `question` à rendre : conflit → `rebase --abort`
- * (le dépôt revient à son état d'avant), question `rebase`. Tout autre échec → `EchecEcriture`. */
+/** `pull --rebase --autostash` puis `push`. Rend `null` (poussé) ou la `question` à rendre : conflit → `rebase
+ * --abort` (le dépôt revient à son état d'avant), question `rebase` ; modifications locales qui ne se
+ * réappliquent pas après le rebase → question `autostash`, rien n'est poussé. Tout autre échec →
+ * `EchecEcriture`. `--autostash` : un fichier suivi modifié que `arbreTrackedSale` laisse passer (le journal
+ * des modèles, suivi dans certains projets) ferait refuser `pull --rebase` (P21/S1/T4). */
 function pousser() {
   try {
-    gitStrict(['pull', '--rebase'], DELAI_RESEAU_MS);
+    gitStrict(['pull', '--rebase', '--autostash'], DELAI_RESEAU_MS);
   } catch (e) {
     if (e instanceof EchecEcriture && rebaseEnCours()) {
       gitBrut('rebase', '--abort');
@@ -2330,6 +2353,16 @@ function pousser() {
       };
     }
     throw e;
+  }
+  // Le rebase a réussi mais la réapplication des modifications locales (le stash automatique) peut avoir
+  // laissé des conflits dans l'arbre : git garde alors ces modifications dans `git stash`. Jamais résolu ici.
+  const conflits = (gitBrut('diff', '--name-only', '--diff-filter=U') ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+  if (conflits.length > 0) {
+    return {
+      action: 'question',
+      motif: `le rebase a réussi mais la réapplication de tes modifications locales (autostash) a rencontré un conflit : ${conflits.join(', ')} — elles restent dans \`git stash\`, rien n'a été poussé`,
+      options: { source: 'autostash', fichiers: conflits },
+    };
   }
   gitStrict(['push'], DELAI_RESEAU_MS);
   return null;

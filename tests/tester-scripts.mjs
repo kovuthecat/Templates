@@ -5389,6 +5389,78 @@ cas('P21/T3 vague validation-humaine S2 · S3, S3 dépendant de S1 `[x]!`, S2 fa
   return null;
 });
 
+// ── P21/S1/T4 : le journal des modèles ne bloque plus le push ──────────────────────────────────────
+
+const JOURNAL = '.claude/journal-modeles.jsonl';
+
+/** Dépôt du plan `moteur-appliquer` avec amont `origin/main` ; le journal est SUIVI (commité et poussé) puis
+ * modifié localement (` M`). L'amont a un commit de plus (`distant.txt`, ou une ligne du journal si
+ * `amontToucheJournal`) et le local un de plus (les tâches de S1) — le geste `pousser` doit faire un vrai
+ * `pull --rebase`. */
+function planJournal(prefixe, { amontToucheJournal = false, suivi = true } = {}) {
+  const { cwd, bare } = planAppliquer(prefixe, { origin: true });
+  mkdirSync(join(cwd, '.claude'), { recursive: true });
+  writeFileSync(join(cwd, JOURNAL), 'ligne 1\n');
+  if (suivi) {
+    git(cwd, 'add', JOURNAL);
+    git(cwd, 'commit', '-q', '-m', 'journal');
+    git(cwd, 'push', '-q');
+  }
+  const distant = dossierJetable('workflow-pa-journal-distant-');
+  git(distant, 'clone', '-q', '-b', 'main', bare, '.');
+  git(distant, 'config', 'user.email', 'distant@local');
+  git(distant, 'config', 'user.name', 'Distant');
+  if (amontToucheJournal && suivi) writeFileSync(join(distant, JOURNAL), 'ligne 1 distante\n');
+  else writeFileSync(join(distant, 'distant.txt'), 'x\n');
+  git(distant, 'add', amontToucheJournal && suivi ? JOURNAL : 'distant.txt');
+  git(distant, 'commit', '-q', '-m', 'distant');
+  git(distant, 'push', '-q');
+  commitTache(cwd, 'S1/T1');
+  commitTache(cwd, 'S1/T2');
+  appendFileSync(join(cwd, JOURNAL), 'ligne 2 locale\n');
+  return { cwd, bare };
+}
+
+cas('P21/T4 journal suivi et modifié, amont en avance, commits locaux en avance → pousser aboutit (pull --rebase --autostash), le journal reste modifié avec son contenu ; témoin : un autre fichier suivi modifié → question arbre-sale inchangée', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-suivi-');
+  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return 'fixture : le journal doit être suivi et modifié';
+  const r = appliquerJson(cwd);
+  if (r.code !== 0) return `code ${r.code} attendu 0, sortie: ${r.sortie}`;
+  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu au journal des gestes, reçu ${JSON.stringify(r.appliques)} · action ${r.action?.action} ${r.action?.motif ?? ''}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
+  if (!/^ ?M \.claude\/journal-modeles\.jsonl$/m.test(gitSortie(cwd, 'status', '--porcelain'))) return `le journal doit rester modifié : ${gitSortie(cwd, 'status', '--porcelain')}`;
+  if (readFileSync(join(cwd, JOURNAL), 'utf8').replace(/\r\n/g, '\n') !== 'ligne 1\nligne 2 locale\n') return `contenu du journal altéré : ${JSON.stringify(readFileSync(join(cwd, JOURNAL), 'utf8'))}`;
+  if (!existsSync(join(cwd, 'distant.txt'))) return "le commit de l'amont devait être intégré par le rebase";
+  // Témoin : un autre fichier suivi modifié rend toujours la question.
+  const autre = planJournal('workflow-pa-journal-autre-');
+  appendFileSync(join(autre.cwd, 'src', 'b.mjs'), '// pas commité\n');
+  const q = appliquerJson(autre.cwd);
+  if (q.action?.action !== 'question' || q.action.options?.source !== 'arbre-sale') return `question arbre-sale attendue pour un autre fichier modifié, reçu: ${q.sortie}`;
+  if (gitSortie(autre.cwd, 'rev-parse', 'HEAD') === gitSortie(autre.bare, 'rev-parse', 'main')) return 'rien ne devait être poussé avec un autre fichier modifié';
+  return null;
+});
+
+cas('P21/T4 journal non suivi : arbre propre pour le moteur, pousser aboutit ; journal et autre fichier non suivi laissés en place', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-non-suivi-', { suivi: false });
+  const r = appliquerJson(cwd);
+  if (!r.appliques.some((l) => /^poussé/.test(l))) return `« poussé » attendu, reçu ${JSON.stringify(r.appliques)} · ${r.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') !== gitSortie(bare, 'rev-parse', 'main')) return 'origin/main devait égaler HEAD';
+  if (!existsSync(join(cwd, JOURNAL))) return 'le journal non suivi devait rester en place';
+  return null;
+});
+
+cas('P21/T4 conflit à la réapplication du stash (le journal diffère des deux côtés) → question `autostash`, jamais une exception ni un push', () => {
+  const { cwd, bare } = planJournal('workflow-pa-journal-conflit-', { amontToucheJournal: true });
+  // Le journal local diverge de l'amont sur la MÊME ligne.
+  writeFileSync(join(cwd, JOURNAL), 'ligne 1 locale\n');
+  const r = appliquerJson(cwd);
+  if (r.code !== 0) return `code 0 attendu (une question, pas une exception), reçu ${r.code}: ${r.sortie}`;
+  if (r.action?.action !== 'question' || r.action.options?.source !== 'autostash') return `question autostash attendue, reçu: ${r.sortie}`;
+  if (gitSortie(cwd, 'rev-parse', 'HEAD') === gitSortie(bare, 'rev-parse', 'main')) return 'rien ne devait être poussé';
+  if (!/\.claude\/journal-modeles\.jsonl/.test(r.action.texte) || /source de question inconnue/.test(r.action.texte)) return `texte de question complet attendu:\n${r.action.texte}`;
+  return null;
+});
+
 // ── Nettoyage et verdict ─────────────────────────────────────────────────────
 for (const d of dossiersTemporaires) {
   try {
