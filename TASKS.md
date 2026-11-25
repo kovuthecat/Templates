@@ -17,7 +17,7 @@
 - [ ] P14 d'EBM-MSP v2 : seul plan ouvert encore marqué `pastille` (voir `plugin/MIGRATION.md`, 0.67.0)
 
 ## Suites du plan P21 — à faire par l'utilisateur (`plans/P21/index.md`)
-- [ ] Rapatriement fait le 2026-11-25 (14 projets, sauvegardes supprimées). Reste à la main : MYO et EBM-MSPv2-chutes-life (worktrees liés) ; `.gitdirs` garde aussi Outil-HE, Outils, PSA uploader (aucun dossier projet trouvé)
+- [ ] Rapatriement fait le 2026-11-25 (15 projets dont MYO, sauvegardes supprimées) ; `.gitdirs` garde Outil-HE, Outils, PSA uploader (aucun dossier projet trouvé) : à trier. `rapatrier-git.mjs` refuse à tort EBM-MSPv2-chutes-life (simple worktree lié de EBM-MSPv2) et ne répare pas les worktrees liés (`git worktree repair`) : à corriger
 
 ## Backlog des revues P21 (non bloquant, `plans/P21/S<k>.revue.md` versées)
 - **S1** — `lire-index.mjs` existe en trois copies (`plugin/bin` + mods affichage et garde-fous) : dette de duplication à synchroniser.
