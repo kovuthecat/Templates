@@ -29,6 +29,8 @@
 // FORME RENDUE (`analyserIndex(texte)`)
 //   workflow         `Workflow : v<x>` → `<x>`, ou null
 //   preuveN0         `Preuve N0 :` → 'requise' | 'non requise' | null
+//   parallele        `Parallèle : oui` → true ; `non`, absente ou autre valeur → false (P21/S7/T15 : une
+//                    vague d'un plan en parallèle part entière, chaque session dans sa copie isolée)
 //   remediationOpus  `Remédiation Opus : <n>` → n (0 par défaut)
 //   clos             `Clos : <date>` → la date, ou null (valeur absente)
 //   aLigneClos       vrai dès qu'une ligne `Clos :` existe, avec ou sans valeur
@@ -111,6 +113,10 @@ export function analyserIndex(contenu) {
   const clos = ligneClos ? (/:\s*(\S+)/.exec(ligneClos)?.[1] ?? null) : null;
 
   const preuveN0 = /^Preuve N0\s*:\s*(non requise|requise)\s*$/m.exec(texte)?.[1] ?? null;
+  // `Parallèle : oui | non` (accent et casse libres) : seul `oui` active le parallèle — une valeur illisible
+  // garde le plan en série, le comportement d'avant la ligne.
+  const ligneParallele = lignes.find((l) => /^parallele\s*:/.test(normaliserSimple(l)));
+  const parallele = ligneParallele ? /^oui\b/.test(normaliserSimple(ligneParallele.slice(ligneParallele.indexOf(':') + 1))) : false;
 
   // Table des sessions : colonnes fixées par le squelette (nouveau-plan/references/squelette-index.md).
   const sessions = [];
@@ -206,7 +212,58 @@ export function analyserIndex(contenu) {
     }
   }
 
-  return { workflow, preuveN0, remediationOpus, clos, aLigneClos: Boolean(ligneClos), sessions, sessionsIncompletes, vagues, lignesEnClair };
+  return { workflow, preuveN0, parallele, remediationOpus, clos, aLigneClos: Boolean(ligneClos), sessions, sessionsIncompletes, vagues, lignesEnClair };
+}
+
+/** Chemins d'une zone = seuls les segments entre backticks de la cellule « Zone modifiée » ; le texte
+ * hors backticks ( `(§9a, §9c)`, `(4 fichiers créés)`, `(nouveau)` ) est ignoré. Accolades développées
+ * avant comparaison. Segment avec `*`/`**` ou accolades non appariées → `{ chemins: [], illisible: <segment> }`.
+ * Partagé par le moteur (arbre sale avant `lancer`, recoupement d'une vague parallèle) et le vérificateur. */
+export function cheminsDeZone(cellule) {
+  const segments = [...String(cellule || '').matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+  const chemins = [];
+  for (const seg of segments) {
+    const ouvrantes = (seg.match(/\{/g) || []).length;
+    const fermantes = (seg.match(/\}/g) || []).length;
+    if (seg.includes('*') || ouvrantes !== fermantes) {
+      return { chemins: [], illisible: seg };
+    }
+    if (ouvrantes === 0) {
+      chemins.push(seg);
+      continue;
+    }
+    const m = /^(.*)\{([^{}]*)\}(.*)$/.exec(seg);
+    if (!m) return { chemins: [], illisible: seg };
+    const [, prefixe, options, suffixe] = m;
+    for (const option of options.split(',')) chemins.push(`${prefixe}${option.trim()}${suffixe}`);
+  }
+  return { chemins, illisible: null };
+}
+
+/** Deux chemins de zone se recoupent : égaux, ou l'un est un dossier qui contient l'autre (préfixe de chemin
+ * commun, au séparateur près : `src/a` ne recoupe pas `src/ab.mjs`). */
+export function cheminsSeRecoupent(a, b) {
+  const dossier = (c) => `${c.replace(/\/+$/, '')}/`;
+  return a === b || b.startsWith(dossier(a)) || a.startsWith(dossier(b));
+}
+
+/** Recoupements de zones entre les sessions données (objets `{ session, zone }` de `analyserIndex`) :
+ * `[{ a, b, cheminA, cheminB }]`, un par paire de sessions (premier chemin commun trouvé). Une zone
+ * illisible ou `aucune` ne recoupe rien (l'illisible est l'affaire du contrôle d'arbre sale). P21/S7/T15. */
+export function recoupementsDeZones(sessions) {
+  const zones = sessions.map((s) => ({ session: s.session, chemins: cheminsDeZone(s.zone).chemins }));
+  const trouves = [];
+  for (let i = 0; i < zones.length; i++) {
+    for (let j = i + 1; j < zones.length; j++) {
+      let paire = null;
+      for (const ca of zones[i].chemins) {
+        const cb = zones[j].chemins.find((c) => cheminsSeRecoupent(ca, c));
+        if (cb !== undefined) { paire = { cheminA: ca, cheminB: cb }; break; }
+      }
+      if (paire) trouves.push({ a: zones[i].session, b: zones[j].session, ...paire });
+    }
+  }
+  return trouves;
 }
 
 /** Pour le moteur : `analyserIndex`, ou `{ erreur }` quand l'index n'a ni session ni vague — il ne

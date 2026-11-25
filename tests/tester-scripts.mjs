@@ -5078,6 +5078,153 @@ cas("P21/T6 incident.mjs : champ illisible ou non fourni → `?` écrit explicit
   return null;
 });
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// P21/S7 — vague parallèle : `Parallèle : oui`, copies isolées, collecte par fusion, reprise après coupure.
+// Les copies sont de VRAIS worktrees (`git worktree add`, branche `worktree-agent-<id>`, dossier
+// `.claude/worktrees/agent-<id>` : ce que crée l'outil Agent, sonde du cadrage de P21) ; chaque session factice
+// écrit comme une vraie — commits de tâche, bilan dans son `S<k>.md`, preuve N0 jouée DANS sa copie — et n'écrit
+// jamais l'index. Anti-raccourci : aucune fusion simulée par des commits écrits directement sur `main`.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+
+const ZONE_PARALLELE = { S1: 'src/a.mjs', S2: 'src/b.mjs', S3: 'src/c.mjs', S4: 'src/d.mjs' };
+const SCRIPT_PA = PROCHAINE_ACTION.replaceAll('\\', '/');
+
+/** Dépôt jetable du plan `moteur-parallele` (P9), branche `main`, tout commité. `gitfile` : `.git` en fichier
+ * (dossier Git déplacé, `--separate-git-dir`). `.claude/worktrees/` exclu, comme le fait Claude Code. */
+function planParallele(prefixe, { transformer = null, n0 = null, gitfile = false } = {}) {
+  const cwd = dossierJetable(prefixe);
+  if (gitfile) {
+    execFileSync('git', ['init', '-q', '--separate-git-dir', dossierJetable(`${prefixe}gd-`), cwd], { stdio: 'pipe' });
+    git(cwd, 'config', 'user.email', 'test@local');
+    git(cwd, 'config', 'user.name', 'Test');
+  } else {
+    initDepot(cwd);
+  }
+  cpSync(join(FIXTURES, 'plans', 'moteur-parallele'), join(cwd, 'plans', 'P9'), { recursive: true });
+  const chemin = join(cwd, 'plans', 'P9', 'index.md');
+  const texte = readFileSync(chemin, 'utf8').replace(/\r\n/g, '\n');
+  writeFileSync(chemin, transformer ? transformer(texte) : texte);
+  mkdirSync(join(cwd, 'src'), { recursive: true });
+  mkdirSync(join(cwd, 'docs'), { recursive: true });
+  for (const f of Object.values(ZONE_PARALLELE)) writeFileSync(join(cwd, f), 'export const x = 1;\n');
+  writeFileSync(join(cwd, 'docs', 'notes.md'), '# Notes\n\nligne commune\n');
+  writeFileSync(join(cwd, '.gitignore'), '.claude/n0/\n');
+  if (n0) {
+    mkdirSync(join(cwd, '.claude'), { recursive: true });
+    writeFileSync(join(cwd, '.claude', 'n0.json'), JSON.stringify(n0));
+    writeFileSync(join(cwd, 'ok.mjs'), 'process.exit(0);\n');
+  }
+  commitTout(cwd, 'init');
+  git(cwd, 'branch', '-M', 'main');
+  const exclude = gitSortie(cwd, 'rev-parse', '--path-format=absolute', '--git-path', 'info/exclude');
+  mkdirSync(dirname(exclude), { recursive: true });
+  appendFileSync(exclude, '.claude/worktrees/\n');
+  return cwd;
+}
+
+// ── T15 : lecture de `Parallèle :` ─────────────────────────────────────────────────────────────────
+
+cas('P21/T15 lire-index : `Parallèle : oui` → parallele vrai ; `non`, absente ou illisible → faux (et les copies des mods lisent pareil)', () => {
+  const base = readFileSync(join(FIXTURES, 'plans', 'moteur-parallele', 'index.md'), 'utf8').replace(/\r\n/g, '\n');
+  const variantes = [
+    ['Parallèle : oui', true], ['Parallele : OUI', true], ['Parallèle : non', false], ['', false], ['Parallèle : peut-être', false],
+  ];
+  for (const [ligne, attendu] of variantes) {
+    const texte = base.replace('\nParallèle : oui\n', `\n${ligne}\n`);
+    if (texte === base && ligne !== 'Parallèle : oui') throw new Error('fixture moteur-parallele : ligne `Parallèle : oui` introuvable');
+    for (const [nom, lecteur] of [['source', { analyserIndex }], ...Object.entries(COPIES_LECTEUR)]) {
+      const lu = lecteur.analyserIndex(texte).parallele;
+      if (lu !== attendu) return `${nom} : « ${ligne || '(ligne absente)'} » lu ${lu}, attendu ${attendu}`;
+    }
+  }
+  return null;
+});
+
+// ── T15 : décision de lancer en parallèle ─────────────────────────────────────────────────────────
+
+cas('P21/T15 Parallèle : oui, vague de trois sessions disjointes → UN lancer à trois appels, chacun `isolation: "worktree"` avec son prompt de copie', () => {
+  const cwd = planParallele('workflow-par-trois-');
+  const { code, action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (code !== 0 || action?.action !== 'lancer') return `lancer attendu, reçu ${code}: ${sortie}`;
+  if (action.parallele !== true || action.motifSerie) return `parallele: true sans motifSerie attendu, reçu ${JSON.stringify({ parallele: action.parallele, motifSerie: action.motifSerie })}`;
+  if (action.sessions.map((s) => s.session).join() !== 'S1,S2,S3') return `les trois sessions de la vague attendues, reçu ${action.sessions.map((s) => s.session)}`;
+  const modeles = { S1: ['sonnet', 'medium'], S2: ['haiku', 'low'], S3: ['opus', 'high'] };
+  for (const s of action.sessions) {
+    const a = s.agent;
+    if (a?.isolation !== 'worktree' || a.subagent_type !== 'general-purpose' || a.model !== modeles[s.session][0] || a.effort !== modeles[s.session][1]) return `appel de ${s.session} inattendu : ${JSON.stringify(a)}`;
+    for (const m of [`Ouvre plans/P9/${s.session}.md et exécute-le.`, 'Tu travailles dans une copie isolée', "Ne coche pas l'index (plans/P9/index.md)", 'ni `STATUS.md` ni `TASKS.md`', 'le moteur le fait à la collecte', 'Ne pousse pas', 'committe-le sur ta branche', "N0 (n0.mjs) s'exécute au premier plan", 'pas de `rm`', 'Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION']) {
+      if (!s.prompt?.includes(m)) return `prompt de ${s.session} sans « ${m} » :\n${s.prompt}`;
+    }
+    if (/n'ouvre AUCUN worktree/.test(s.prompt)) return `le prompt d'une copie ne doit pas interdire le worktree :\n${s.prompt}`;
+  }
+  if (!action.texte.includes('   En parallèle : les 3 sessions partent ensemble, chacune dans sa copie isolée du dépôt ; le moteur fusionne chaque copie dans `main` à la collecte.')) return `annonce du parallèle absente :\n${action.texte}`;
+  if (action.texte.split('\n')[0] !== 'lancer — vague 1 : S1, S2, S3') return `première ligne inchangée attendue, reçu ${action.texte.split('\n')[0]}`;
+  // Sortie texte : appel lisible avec l'isolation, prompt en clair, ligne JSON des sessions sans les prompts.
+  const t = lancer(PROCHAINE_ACTION, ['P9'], cwd).sortie;
+  for (const m of ['S1 → subagent_type: general-purpose · model: sonnet · effort: medium · isolation: worktree', '--- prompt S2 ---', '--- fin du prompt S3 ---', `après chaque appel : node ${SCRIPT_PA} P9 --appliquer --lancee S<k> --agent <id>`]) {
+    if (!t.includes(m)) return `sortie texte sans « ${m} » :\n${t}`;
+  }
+  const ligneSessions = t.split('\n').find((l) => l.startsWith('sessions: '));
+  if (!ligneSessions || ligneSessions.includes('"prompt"')) return `la ligne JSON des sessions ne recopie pas les prompts : ${ligneSessions}`;
+  return null;
+});
+
+cas('P21/T15 plan sans ligne `Parallèle :` (et `Parallèle : non`) → action ET texte identiques à 0.68.0, octet pour octet (sortie capturée avant S7)', () => {
+  const attendu = JSON.parse(readFileSync(join(FIXTURES, 'plans', 'moteur-parallele-attendu-serie.json'), 'utf8'));
+  for (const ligne of ['', 'Parallèle : non\n']) {
+    const cwd = planParallele('workflow-par-serie-', { transformer: (t) => t.replace('Parallèle : oui\n', ligne).replace('Workflow : v0.39.0\n', '') });
+    const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+    if (JSON.stringify(action) !== JSON.stringify(attendu.json)) return `JSON différent de 0.68.0 (« ${ligne.trim() || 'ligne absente'} ») :\n--- attendu ---\n${JSON.stringify(attendu.json)}\n--- reçu ---\n${sortie}`;
+    const texte = lancer(PROCHAINE_ACTION, ['P9'], cwd).sortie;
+    if (texte !== attendu.texte) return `texte différent de 0.68.0 (« ${ligne.trim() || 'ligne absente'} ») :\n--- attendu ---\n${attendu.texte}\n--- reçu ---\n${texte}`;
+    const etat = JSON.parse(lancer(PROCHAINE_ACTION, ['P9', '--etat'], cwd).sortie);
+    if ('parallele' in etat || 'vagueEnCours' in etat) return `l'état d'un plan série ne porte pas les champs du parallèle : ${Object.keys(etat)}`;
+  }
+  return null;
+});
+
+cas('P21/T15 zones qui se recoupent (préfixe commun) → `lancer` en série : une session, motif nommé dans l\'action et l\'annonce ; le vérificateur l\'avertit dès la rédaction', () => {
+  const recoupe = (t) => t.replace('| `src/b.mjs` · `docs/` |', '| `src/` · `docs/` |');
+  const cwd = planParallele('workflow-par-recoupe-', { transformer: recoupe });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'lancer' || action.parallele !== false) return `lancer en série (parallele: false) attendu, reçu: ${sortie}`;
+  if (action.sessions.map((s) => s.session).join() !== 'S1') return `une seule session (S1) attendue, reçu ${action.sessions.map((s) => s.session)}`;
+  if (action.sessions[0].agent?.isolation || action.sessions[0].prompt) return `une session en série n'a ni isolation ni prompt de copie : ${JSON.stringify(action.sessions[0])}`;
+  if (!/^zones qui se recoupent — S1 \(`src\/a\.mjs`\) et S2 \(`src\/`\) ; S2 \(`src\/`\) et S3 \(`src\/c\.mjs`\)/.test(action.motifSerie ?? '')) return `motif inattendu : ${action.motifSerie}`;
+  if (!action.texte.includes(`   En série (plan \`Parallèle : oui\`) : ${action.motifSerie}.`)) return `motif absent de l'annonce :\n${action.texte}`;
+  const verif = (c) => JSON.parse(lancer(join(BIN, 'verifier-plan.mjs'), ['P9', '--json'], c).sortie).avertissements.filter((a) => /Parallèle : oui/.test(a));
+  const avert = verif(cwd);
+  if (!avert.some((a) => a === 'Vague 1 (Parallèle : oui) : zones de S1 et S2 qui se recoupent (`src/a.mjs` / `src/`) — le moteur lancera cette vague en série')) return `avertissement du vérificateur absent : ${JSON.stringify(avert)}`;
+  // Témoins : zones disjointes → aucun avertissement ; mêmes zones sans `Parallèle : oui` → aucun non plus.
+  if (verif(planParallele('workflow-par-recoupe-t1-')).length > 0) return 'zones disjointes : aucun avertissement attendu';
+  if (verif(planParallele('workflow-par-recoupe-t2-', { transformer: (t) => recoupe(t).replace('Parallèle : oui\n', '') })).length > 0) return 'plan série : aucun avertissement de recoupement attendu';
+  // `src/a` ne recoupe pas `src/ab.mjs` : préfixe de CHEMIN, au séparateur près.
+  const voisin = planParallele('workflow-par-recoupe-t3-', { transformer: (t) => t.replace('| `src/b.mjs` · `docs/` |', '| `src/a.mjs.bak` · `docs/` |') });
+  if (lancerJson(['P9', '--json'], voisin).action?.parallele !== true) return '`src/a.mjs.bak` ne recoupe pas `src/a.mjs` : parallèle attendu';
+  return null;
+});
+
+cas('P21/T15 `.git` en fichier (dossier Git déplacé) → `lancer` en série, motif « lance rapatrier-git.mjs --appliquer <projet> »', () => {
+  const cwd = planParallele('workflow-par-gitfile-', { gitfile: true });
+  const { action, sortie } = lancerJson(['P9', '--json'], cwd);
+  if (action?.action !== 'lancer' || action.parallele !== false || action.sessions.length !== 1) return `lancer en série d'une session attendu, reçu: ${sortie}`;
+  const m = /^le `\.git` de ce dépôt est un fichier \(dossier Git déplacé\) : l'outil Agent refuse d'y ouvrir une copie isolée — lance `node (.+)\/rapatrier-git\.mjs --appliquer (.+)`, puis relance le moteur$/.exec(action.motifSerie ?? '');
+  if (!m) return `motif inattendu : ${action.motifSerie}`;
+  if (m[1] !== BIN.replaceAll('\\', '/')) return `le script cité doit être celui voisin du moteur (${BIN}), reçu ${m[1]}`;
+  if (!existsSync(join(m[1], 'rapatrier-git.mjs'))) return `rapatrier-git.mjs introuvable à côté du moteur : ${m[1]}`;
+  if (realpathSync(m[2]).toLowerCase() !== realpathSync(cwd).toLowerCase()) return `le projet cité doit être la racine du dépôt (${cwd}), reçu ${m[2]}`;
+  return null;
+});
+
+cas('P21/T15 racine introuvable sur un plan `Parallèle : oui` → la question `racine-introuvable` d\'avant, jamais un lancer (amendement : elle précède tout lancer)', () => {
+  const cwd = planParallele('workflow-par-sansracine-', { gitfile: true });
+  const lie = join(dirname(cwd), `workflow-par-sansracine-lie-${Date.now()}`);
+  dossiersTemporaires.push(lie);
+  execFileSync('git', ['-C', cwd, 'worktree', 'add', '-q', lie], { stdio: 'pipe' });
+  const { action, sortie } = lancerJson(['P9', '--json'], lie);
+  if (action?.action !== 'question' || action.options?.source !== 'racine-introuvable') return `question racine-introuvable attendue, reçu: ${sortie}`;
+  return null;
+});
 // ── Contrat de lecture : première ligne `<action> — …`, sur toutes les actions rendues ci-dessus ────
 
 cas('P20/T8 contrat : chaque action rendue par les cas du moteur porte `texte`, première ligne `<action> — …` (ou nue : pousser, fini, cloturer)', () => {

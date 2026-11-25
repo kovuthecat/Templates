@@ -4,7 +4,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, relative, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { analyserIndex, parseTaches } from './lire-index.mjs';
+import { analyserIndex, parseTaches, recoupementsDeZones } from './lire-index.mjs';
 
 // Plafonds de taille d'une fiche de session (P20/S9/T14 ; mesure sur P16-P19 : bandeaux de 12 à 16
 // lignes, fiches de 76 à 276 lignes, médiane 150). Des AVERTISSEMENTS, jamais un écart : une fiche
@@ -75,6 +75,16 @@ try {
     }
   }
   if (!vagues.length) signaler(plan, 4, 'ordonnancement absent ou non reconnu');
+  // Plan `Parallèle : oui` (P21/S7/T15) : une vague dont deux zones se recoupent repassera en série au lancement.
+  // Un avertissement, pas un écart — le moteur sait la passer en série, avec le motif ; le dire dès la rédaction.
+  if (lu.parallele) {
+    for (const v of lu.vagues) {
+      const membres = lu.sessions.filter((s) => v.sessions.includes(s.session));
+      for (const r of recoupementsDeZones(membres)) {
+        avertissements.push(`Vague ${v.numero} (Parallèle : oui) : zones de ${r.a} et ${r.b} qui se recoupent (\`${r.cheminA}\` / \`${r.cheminB}\`) — le moteur lancera cette vague en série`);
+      }
+    }
+  }
   for (const s of sessions) {
     if (s.vague === undefined) signaler(s.id, 4, 'session sans vague');
     for (const id of s.dependances) {

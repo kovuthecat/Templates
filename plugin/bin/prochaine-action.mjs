@@ -53,6 +53,12 @@
 // `reprendre` à froid, dont le `prompt` fait lire le fichier. Hors budget dans les trois cas : l'état
 // passe avant `echec`, le moteur ne lit ni ne compte `Tentatives :`.
 //
+// Plan `Parallèle : oui` (P21/S7) : `lancer` porte `parallele: true`, toutes les sessions lançables de la vague,
+// chaque `agent` avec `isolation: "worktree"` et un `prompt` (copie isolée : ni coche, ni `STATUS.md`, ni
+// `TASKS.md`, ni push) ; ou `parallele: false` + `motifSerie` et une seule session (zones qui se recoupent, `.git`
+// en fichier, racine introuvable). Un plan sans la ligne (ou `non`) : aucun de ces champs, sorties identiques
+// à 0.68.0.
+//
 // Avant un `lancer` : l'arbre non commité est croisé avec la zone de chaque session de la vague (D1,
 // même décision). Recoupement, zone illisible ou `git status` en échec → `question` source
 // `arbre-sale`, motifs : fichiers touchés dans une zone, « zone illisible : <segment> », « arbre
@@ -88,12 +94,12 @@
 //   `appliques: [...]`. Une écriture ou un push qui échoue → `question` source `ecriture-echec` ; plus de
 //   gestes que la borne → `question` source `boucle-appliquer` (jamais une boucle infinie).
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, statSync, lstatSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { verifierPreuve } from './preuve-n0.mjs';
-import { lireIndexTexte, normaliserSimple, parseTaches, MOTIF_TACHE } from './lire-index.mjs';
+import { lireIndexTexte, normaliserSimple, parseTaches, MOTIF_TACHE, cheminsDeZone, recoupementsDeZones } from './lire-index.mjs';
 import { racineDepot as racineDepotDuHook } from '../hooks/lib.mjs';
 
 const RACINE = process.cwd();
@@ -576,29 +582,8 @@ function champAgent(modele, effort) {
 
 // ── D1 : arrêt sur arbre sale dans la zone d'une vague — croisement mécanique fait par le script,
 // jamais délégué (docs/decisions/2026-09-22-…). ──────────────────────────────────────────────────
-/** Chemins d'une zone = seuls les segments entre backticks de la cellule « Zone modifiée » ; le texte
- * hors backticks ( `(§9a, §9c)`, `(4 fichiers créés)`, `(nouveau)` ) est ignoré. Accolades développées
- * avant comparaison. Segment avec `*`/`**` ou accolades non appariées → zone illisible. */
-function cheminsDeZone(cellule) {
-  const segments = [...String(cellule || '').matchAll(/`([^`]+)`/g)].map((m) => m[1]);
-  const chemins = [];
-  for (const seg of segments) {
-    const ouvrantes = (seg.match(/\{/g) || []).length;
-    const fermantes = (seg.match(/\}/g) || []).length;
-    if (seg.includes('*') || ouvrantes !== fermantes) {
-      return { chemins: [], illisible: seg };
-    }
-    if (ouvrantes === 0) {
-      chemins.push(seg);
-      continue;
-    }
-    const m = /^(.*)\{([^{}]*)\}(.*)$/.exec(seg);
-    if (!m) return { chemins: [], illisible: seg };
-    const [, prefixe, options, suffixe] = m;
-    for (const option of options.split(',')) chemins.push(`${prefixe}${option.trim()}${suffixe}`);
-  }
-  return { chemins, illisible: null };
-}
+// `cheminsDeZone` (segments entre backticks de la cellule « Zone modifiée ») : `./lire-index.mjs`, partagé
+// avec le vérificateur depuis P21/S7 (recoupement de zones d'une vague parallèle).
 
 /** Chemins bruts depuis `git status --porcelain -z --untracked-files=all` : pas de guillemets, pas de
  * repli `?? dossier/` (chaque fichier d'un dossier non suivi compte individuellement, D1). `null` si
@@ -908,6 +893,53 @@ function promptRepriseApresQuestion(id, cheminQuestion) {
   ].join('\n');
 }
 
+// ── Vague parallèle (P21/S7) ─────────────────────────────────────────────────────────────────────────
+// Un plan `Parallèle : oui` lance toutes les sessions lançables d'une vague à la fois, chacune dans sa copie
+// isolée (`isolation: "worktree"` de l'outil `Agent` : dossier `.claude/worktrees/agent-<id>`, branche
+// `worktree-agent-<id>`, partie du HEAD local). Repli en série (une session, motif dans l'annonce) : zones qui
+// se recoupent, `.git` en fichier (copie refusée par l'outil), racine introuvable.
+
+/** Le `.git` à la racine du dépôt est-il un dossier ? Un fichier (`gitdir: …`, dépôt à `.git` déplacé) : l'outil
+ * `Agent` refuse la copie isolée (constat du cadrage de P21), nos hooks y refuseraient tout commit. */
+function gitEnDossier() {
+  const racine = racineDepot();
+  if (!racine) return false;
+  try { return lstatSync(join(racine, '.git')).isDirectory(); } catch { return false; }
+}
+
+/** Le motif qui fait repasser une vague d'un plan `Parallèle : oui` en série, ou `null` (lancer en parallèle).
+ * `aLancer` : les sessions lançables de la vague. */
+function motifSerie(sortie, aLancer) {
+  // (c) Défensif : `prochaineAction` rend déjà la question `racine-introuvable` avant tout `lancer`.
+  if (sortie.depot.racineIntrouvable) return 'racine du dépôt introuvable : aucune copie isolée ne peut être vérifiée';
+  if (!gitEnDossier()) {
+    const racine = (racineDepot() ?? RACINE).replaceAll('\\', '/');
+    return `le \`.git\` de ce dépôt est un fichier (dossier Git déplacé) : l'outil Agent refuse d'y ouvrir une copie isolée — lance \`node ${dirname(cheminScript())}/rapatrier-git.mjs --appliquer ${racine}\`, puis relance le moteur`;
+  }
+  const recoupes = recoupementsDeZones(aLancer);
+  if (recoupes.length > 0) {
+    return `zones qui se recoupent — ${recoupes.map((r) => `${r.a} (\`${r.cheminA}\`) et ${r.b} (\`${r.cheminB}\`)`).join(' ; ')} : deux copies qui modifient les mêmes fichiers se fusionneraient mal`;
+  }
+  return null;
+}
+
+/** Le prompt d'une session lancée dans sa copie isolée : la même forme que le prompt de session de
+ * l'orchestrateur, sauf ce qui tient à la copie — ni coche, ni `STATUS.md`, ni `TASKS.md`, ni push : c'est ce qui
+ * évite les conflits de fusion sur les lignes voisines de l'index (sonde P21/S5 M2). */
+function promptSessionParallele(id) {
+  return [
+    `Lis ${cheminExecutant()} en entier avant ton premier geste : il porte les invariants de lancement.`,
+    `Ouvre plans/${plan}/${id}.md et exécute-le. Tu travailles dans une copie isolée du dépôt (worktree, sur ta propre branche), ouverte pour toi : n'en ouvre pas d'autre, et committe sur cette branche — le moteur la fusionne dans \`main\` à la collecte.`,
+    `Ne coche pas l'index (plans/${plan}/index.md), ne touche ni \`STATUS.md\` ni \`TASKS.md\` : le moteur le fait à la collecte. Ne pousse pas : le moteur pousse après la fusion.`,
+    "Mode orchestré : `/fin-de-tache`, section Mode orchestré — ta dernière ligne est `VERDICT:`. Tu es orchestrée : si l'outil Agent n'est pas disponible dans ton bac à sable, saute la relecture de session (je la lance moi-même).",
+    CONSIGNE_AGENTS,
+    CONSIGNE_SANS_AUTORISATION,
+    "Ta réponse finale CLÔT ton tour : ce qui finit après elle n'est lu par personne, et « j'attends le rapport de l'agent » n'est pas un retour.",
+    `Un blocage se diagnostique avant de conclure (WORKFLOW.md §9a) : ce qui est à ta portée se corrige et n'est pas un échec. En cas d'ÉCHEC, écris d'abord un rapport de passation dans plans/${plan}/${id}.echec.md, ligne \`Nature :\` comprise (gabarit : skill /reprendre-echec), committe-le sur ta branche, puis renvoie son chemin.`,
+    'Réponse finale en UNE ligne, exactement : VERDICT: PASS|FAIL|QUESTION · MOTIF: <une phrase> · RAPPORT: <chemin, ou ->',
+  ].join('\n');
+}
+
 /** Décision pour UNE session `en-attente` (P20/S6/T9) : jamais `remedier`, jamais un compteur lu ou écrit —
  * un arrêt sur un choix n'est ni une reprise ni une enquête. */
 function decisionAttente(session) {
@@ -1104,6 +1136,36 @@ function prochaineAction(sortie) {
       if (questionArbre) return questionArbre;
       // Le mot `pastille` d'une ligne « en clair » : lu, ignoré, signalé (P20/S6) — lancée comme les autres.
       const pastilles = aLancer.filter((s) => s.pastille).map((s) => s.session);
+      const avertissementPastille = pastilles.length > 0
+        ? { avertissement: `${pastilles.join(', ')} : marque « pastille » héritée, ignorée — lancée en sous-agent comme les autres` }
+        : {};
+      // Plan `Parallèle : oui` (P21/S7/T15) : toute la vague à la fois, chaque appel dans sa copie isolée, sans
+      // plafond — ou une seule session, en série, avec le motif. Un plan sans la ligne ne passe jamais ici.
+      if (sortie.parallele) {
+        const motif = motifSerie(sortie, aLancer);
+        if (motif) {
+          const s = aLancer[0];
+          return {
+            action: 'lancer',
+            vague: vague.numero,
+            parallele: false,
+            motifSerie: motif,
+            sessions: [{ session: s.session, modele: s.modele, effort: s.effort, ...champAgent(s.modele, s.effort) }],
+            ...avertissementPastille,
+          };
+        }
+        return {
+          action: 'lancer',
+          vague: vague.numero,
+          parallele: true,
+          sessions: aLancer.map((s) => {
+            const champ = champAgent(s.modele, s.effort);
+            if (champ.agent) champ.agent = { ...champ.agent, isolation: 'worktree' };
+            return { session: s.session, modele: s.modele, effort: s.effort, ...champ, prompt: promptSessionParallele(s.session) };
+          }),
+          ...avertissementPastille,
+        };
+      }
       return {
         action: 'lancer',
         vague: vague.numero,
@@ -1277,6 +1339,12 @@ function texteLancer(action, sortie, prose) {
           : 'je passe à la clôture du plan'
     }`,
   );
+  // Plan `Parallèle : oui` seulement (P21/S7/T15) : un plan sans la ligne garde l'annonce d'avant, mot pour mot.
+  if (action.parallele === true) {
+    out.push(`   En parallèle : ${action.sessions.length > 1 ? `les ${action.sessions.length} sessions partent ensemble` : 'la session part'}, chacune dans sa copie isolée du dépôt ; le moteur fusionne chaque copie dans \`main\` à la collecte.`);
+  } else if (action.parallele === false) {
+    out.push(`   En série (plan \`Parallèle : oui\`) : ${action.motifSerie}.`);
+  }
   for (const { session: id } of action.sessions) {
     const s = sessionDe(sortie, id);
     const clair = proseVague?.enClair[id];
@@ -1818,9 +1886,11 @@ const MARQUE_DONNEES = '— données de l\'action pour le moteur, à ne pas rela
 /** Sortie sans `--json` : le `texte`, puis (si l'action en porte) ses champs et ses appels d'agent —
  * ce que la skill d'orchestration lit encore tant que S12 ne l'a pas réduite à « relaie `texte` ». */
 function formaterTexte(action) {
+  // Les prompts d'une vague parallèle : en clair plus bas (`lignesAppelAgent`), pas recopiés dans la ligne JSON.
+  const sansPrompt = (valeur) => (Array.isArray(valeur) ? valeur.map((v) => (v && typeof v === 'object' && 'prompt' in v ? Object.fromEntries(Object.entries(v).filter(([k]) => k !== 'prompt')) : v)) : valeur);
   const champs = Object.entries(action)
     .filter(([cle]) => cle !== 'action' && cle !== 'texte' && cle !== 'prompt') // `prompt` : déjà en entier dans le texte
-    .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(valeur) : valeur}`);
+    .map(([cle, valeur]) => `${cle}: ${typeof valeur === 'object' ? JSON.stringify(sansPrompt(valeur)) : valeur}`);
   const donnees = [...champs, ...lignesAppelAgent(action)];
   return [action.texte ?? premiereLigne(action), ...(donnees.length > 0 ? ['', MARQUE_DONNEES, ...donnees] : [])].join('\n');
 }
@@ -1828,9 +1898,17 @@ function formaterTexte(action) {
 /** Une ligne lisible par appel d'agent prêt à recopier (D2) — `S1 → subagent_type: general-purpose ·
  * model: sonnet · effort: low` — pour la sortie sans `--json` de `lancer`, `reprendre`, `enqueter`. */
 function lignesAppelAgent(action) {
-  const ligne = (session, agent) => `${session} → subagent_type: ${agent.subagent_type} · model: ${agent.model} · effort: ${agent.effort}`;
+  const ligne = (session, agent) => `${session} → subagent_type: ${agent.subagent_type} · model: ${agent.model} · effort: ${agent.effort}${agent.isolation ? ` · isolation: ${agent.isolation}` : ''}`;
   if (action.action === 'lancer') {
-    return action.sessions.filter((s) => s.agent).map((s) => ligne(s.session, s.agent));
+    const lignes = action.sessions.filter((s) => s.agent).map((s) => ligne(s.session, s.agent));
+    // Vague parallèle : le prompt de chaque appel, tel quel, et le rappel d'inscription (P21/S7/T15).
+    for (const s of action.sessions.filter((x) => x.prompt)) {
+      lignes.push(`--- prompt ${s.session} ---`, ...s.prompt.split('\n'), `--- fin du prompt ${s.session} ---`);
+    }
+    if (action.parallele === true) {
+      lignes.push(`après chaque appel : node ${cheminScript()} ${plan} --appliquer --lancee S<k> --agent <id>`);
+    }
+    return lignes;
   }
   if (
     (action.action === 'reprendre' || action.action === 'enqueter' || action.action === 'relancer-interrompue') &&
@@ -1946,6 +2024,8 @@ function assembler() {
     },
     vagues: index.vagues,
     sessions: index.sessions,
+    // Champ posé pour un plan `Parallèle : oui` seulement : l'état d'un plan sans la ligne reste celui d'avant.
+    ...(index.parallele ? { parallele: true } : {}),
   };
   return { sortie, index };
 }
