@@ -20,6 +20,14 @@ d'abord **ce que ça change et à quoi il le verra**, ensuite comment ; un terme
 une fois ; une recommandation énonce son revers. Ce n'est pas un cours sur l'outil, et ce qui est
 déjà écrit dans un fichier ne se recopie pas ici (`docs/decisions/2026-08-30-ecrire-pour-qui-decide.md`).
 
+## Maquettes
+
+Toute maquette (écran, planche, variantes à départager) se **publie en Artifact** et s'ouvre pour
+l'utilisateur sans qu'il le demande : jamais un fichier local seul, ni une description dans la
+conversation. Elle porte **ses choix dans la page** : cases à cocher près de chaque planche,
+recommandation pré-cochée et dite, remarques libres, bouton « Copier mes choix » qui rend le texte à
+coller dans la conversation. Source dans `design/maquettes/`, lien noté dans `DESIGN_SPEC.md`.
+
 ## Dépendances
 
 Jamais de dépendance ajoutée seul : à trancher dans le plan (« Modifier »), sinon → **STOP**.

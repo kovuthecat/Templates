@@ -1,6 +1,6 @@
 {
   "name": "garde-fous",
-  "version": "0.69.0",
+  "version": "0.69.1",
   "description": "Garde-fous du workflow : O1 filet de modele (un sous-agent de session de plan sans modele recoit celui de l'index). L'ancien O3 (run_in_background: false par defaut) est retire : l'outil Agent n'a plus ce parametre.",
   "author": {
     "name": "templates"

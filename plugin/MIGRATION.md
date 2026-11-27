@@ -1,5 +1,11 @@
 # MIGRATION.md — remplacé par la skill `/migrer-projet`
 
+## Vers 0.69.1
+
+Synchroniser via `/maj-workflow`. Rien à faire dans le projet : la règle « Maquettes » de
+`CLAUDE-BASE.md` (publication en Artifact, choix à cocher dans la page) s'applique dès la session
+suivante.
+
 ## Vers 0.69.0
 
 Synchroniser via `/maj-workflow`, puis lire ce qui suit.
